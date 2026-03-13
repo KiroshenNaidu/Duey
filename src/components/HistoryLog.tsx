@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { HistoryEntry } from '@/lib/types';
 import { Skeleton } from './ui/skeleton';
 import { Check } from 'lucide-react';
+import { getAmountPaid } from '@/lib/calculations';
 
 type ProcessedHistoryEntry = HistoryEntry & { balanceAfter?: number };
 
@@ -127,20 +128,23 @@ export function HistoryLog() {
           {debtsWithHistory.map((debt) => {
              const debtChronologicalHistory = history
                 .filter(h => h.debtId === debt.id)
-                .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()); // Oldest to newest
+                .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
-            const creationEntry = debtChronologicalHistory.find(e => e.type === 'creation');
-            let runningBalance = creationEntry ? creationEntry.amount : debt.total_owed;
+            let runningBalance = debt.total_owed;
             
             const processedHistory: ProcessedHistoryEntry[] = debtChronologicalHistory
                 .map(entry => {
                     if (entry.type === 'payment') {
-                        runningBalance -= entry.amount;
-                        return { ...entry, balanceAfter: Math.max(0, runningBalance) };
+                        const balanceAfter = runningBalance - entry.amount;
+                        runningBalance = balanceAfter;
+                        return { ...entry, balanceAfter: Math.max(0, balanceAfter) };
+                    }
+                    if (entry.type === 'creation') {
+                        runningBalance = entry.amount;
                     }
                     return entry;
                 })
-                .reverse(); // Newest to oldest for display
+                .reverse();
 
             return (
               <TabsContent key={debt.id} value={debt.id} className="m-0">

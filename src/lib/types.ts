@@ -3,7 +3,6 @@ export interface Debt {
   title: string;
   total_owed: number;
   installment_amount: number;
-  payment_score: number;
   paymentDates?: string[];
 }
 
@@ -16,10 +15,14 @@ export interface HistoryEntry {
   type: 'payment' | 'creation' | 'transport';
 }
 
-export interface AppData {
-  debts: Debt[];
-  history: HistoryEntry[];
+export interface TransportSettings {
+  driverName: string;
+  dailyFee: number;
 }
+
+export type TransportOverrides = {
+  [key: string]: boolean; // ISODateString: isTravelDay
+};
 
 export interface ThemeSettings {
   background: string;
@@ -30,3 +33,17 @@ export interface ThemeSettings {
   backgroundImage: string;
   backgroundOpacity: number;
 }
+
+// Unified App State
+export interface AppState {
+  schemaVersion: number;
+  debts: Debt[];
+  history: HistoryEntry[];
+  transportSettings: TransportSettings;
+  transportOverrides: TransportOverrides;
+  themeSettings: Omit<ThemeSettings, 'backgroundImage'>;
+  notepadContent: string;
+}
+
+// For Import/Export, which might not have all fields.
+export type AppData = Partial<AppState>;

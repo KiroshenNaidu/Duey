@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useContext } from 'react';
 import type { ThemeSettings } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
@@ -11,14 +11,14 @@ import { hexToHsl, hslToHex, idbGet, idbSet } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Upload, Loader2, Trash2 } from 'lucide-react';
+import { AppDataContext } from '@/context/AppDataContext';
 
-const defaultTheme: ThemeSettings = {
+const defaultTheme: Omit<ThemeSettings, 'backgroundImage'> = {
   background: '220 14% 10%',
   surface: '220 14% 12%',
   primary: '225 50% 50%',
   accent: '188 78% 57%',
   font: 'Inter',
-  backgroundImage: '',
   backgroundOpacity: 0.1,
 };
 
@@ -40,9 +40,10 @@ function parseHsl(hslStr: string): [number, number, number] {
 }
 
 export function ThemeSettingsMenu() {
-  const [storedTheme, setStoredTheme] = useState<Omit<ThemeSettings, 'backgroundImage'>>(defaultTheme);
+  const { themeSettings, setThemeSettings } = useContext(AppDataContext);
+  
   const [initialBackgroundImage, setInitialBackgroundImage] = useState('');
-  const [previewTheme, setPreviewTheme] = useState<ThemeSettings>(defaultTheme);
+  const [previewTheme, setPreviewTheme] = useState<ThemeSettings>({ ...defaultTheme, backgroundImage: ''});
   const [isClient, setIsClient] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -51,18 +52,14 @@ export function ThemeSettingsMenu() {
   useEffect(() => {
     setIsClient(true);
     async function loadInitialTheme() {
-        const storedSettings = localStorage.getItem('themeSettings');
-        const themeToLoad = storedSettings ? JSON.parse(storedSettings) : defaultTheme;
-        setStoredTheme(themeToLoad);
-        
+        setPreviewTheme(p => ({...p, ...themeSettings}));
         const storedImage = await idbGet<string>('backgroundImage');
         setInitialBackgroundImage(storedImage || '');
-        setPreviewTheme({ ...themeToLoad, backgroundImage: storedImage || '' });
+        setPreviewTheme(p => ({ ...p, backgroundImage: storedImage || '' }));
     }
     loadInitialTheme();
-  }, []);
+  }, [themeSettings]);
   
-  // Effect for live-previews within the settings page
   useEffect(() => {
     if (!isClient) return;
     const root = document.documentElement;
@@ -113,8 +110,6 @@ export function ThemeSettingsMenu() {
         ctx.drawImage(img, 0, 0, width, height);
 
         const dataUrl = file.type === 'image/gif' ? (e.target?.result as string) : canvas.toDataURL(file.type, 0.9);
-
-        // Don't save to idb yet, just update the preview state
         setPreviewTheme(p => ({...p, backgroundImage: dataUrl}));
         setIsProcessing(false);
         toast({ title: 'Background preview updated.' });
@@ -135,7 +130,7 @@ export function ThemeSettingsMenu() {
     const { backgroundImage, ...settingsToSave } = previewTheme;
     
     idbSet('backgroundImage', backgroundImage).then(() => {
-        localStorage.setItem('themeSettings', JSON.stringify(settingsToSave));
+        setThemeSettings(settingsToSave);
         toast({ title: 'Theme Saved!', description: 'Reloading app to apply changes...' });
         
         setTimeout(() => {
@@ -145,7 +140,7 @@ export function ThemeSettingsMenu() {
   };
 
   const handleCancel = () => {
-    setPreviewTheme({ ...storedTheme, backgroundImage: initialBackgroundImage });
+    setPreviewTheme({ ...themeSettings, backgroundImage: initialBackgroundImage });
     toast({ title: 'Changes Reverted' });
   };
 

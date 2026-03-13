@@ -24,8 +24,8 @@ export default function RootLayout({
     <html lang="en" className="dark">
       <head />
       <body className="font-body antialiased">
-        <ThemeProvider>
-          <AppDataProvider>
+        <AppDataProvider>
+          <ThemeProvider>
             <div className="flex flex-col min-h-dvh bg-transparent relative z-0">
               <main className="flex-1 overflow-y-auto pb-32 pt-4 px-4">
                 {children}
@@ -33,8 +33,8 @@ export default function RootLayout({
               <BottomNav />
             </div>
             <FloatingTools />
-          </AppDataProvider>
-        </ThemeProvider>
+          </ThemeProvider>
+        </AppDataProvider>
       </body>
     </html>
   );

@@ -8,6 +8,7 @@ import { DebtProgressCharts } from '@/components/DebtProgressCharts';
 import { Skeleton } from '@/components/ui/skeleton';
 import { HistoryLog } from '@/components/HistoryLog';
 import { TransportStatusCard } from '@/components/TransportStatusCard';
+import { calculateGlobalStats } from '@/lib/calculations';
 
 function StatsOverview() {
   const { debts, history } = useContext(AppDataContext);
@@ -17,19 +18,7 @@ function StatsOverview() {
     setIsClient(true);
   }, []);
 
-  const stats = useMemo(() => {
-    const globalTotalDebt = debts.reduce((acc, debt) => acc + debt.total_owed, 0);
-    const globalAmountPaid = debts.reduce(
-      (acc, debt) => acc + debt.payment_score * debt.installment_amount,
-      0
-    );
-    const globalRemainingBalance = globalTotalDebt - globalAmountPaid;
-    const totalTransportPaid = history
-      .filter((item) => item.type === 'transport')
-      .reduce((acc, item) => acc + item.amount, 0);
-
-    return { globalTotalDebt, globalAmountPaid, globalRemainingBalance, totalTransportPaid };
-  }, [debts, history]);
+  const stats = useMemo(() => calculateGlobalStats(debts, history), [debts, history]);
 
   const overviewItems = [
     { title: 'Total Debt', value: stats.globalTotalDebt },

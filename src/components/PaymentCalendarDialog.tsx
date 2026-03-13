@@ -26,6 +26,7 @@ import {
 } from 'date-fns';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { getPaymentCount } from '@/lib/calculations';
 
 const WEEK_DAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
@@ -55,7 +56,7 @@ function MonthCard({ monthDate, paidDates, onDayClick }: MonthCardProps) {
               key={day.toString()}
               onClick={() => onDayClick(day)}
               className={cn(
-                "h-7 w-7 rounded-full flex items-center justify-center text-xs transition-all hover:bg-secondary",
+                "h-9 w-9 rounded-full flex items-center justify-center text-xs transition-all hover:bg-secondary",
                 isPaid ? "bg-accent text-accent-foreground hover:bg-accent/90" : "bg-transparent",
                 isBefore(day, new Date()) && !isSameDay(day, new Date()) ? "text-muted-foreground" : "text-foreground",
               )}
@@ -81,6 +82,8 @@ export function PaymentCalendarDialog({ children, debt }: { children: ReactNode,
   const handleDayClick = (date: Date) => {
     togglePaymentDate(debt.id, startOfDay(date));
   };
+  
+  const paymentCount = getPaymentCount(debt);
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
@@ -99,7 +102,7 @@ export function PaymentCalendarDialog({ children, debt }: { children: ReactNode,
               </Button>
             </div>
             <p className="text-sm font-semibold text-muted-foreground">
-              Total Payments: <span className="text-foreground font-bold">{paidDates.length}</span>
+              Total Payments: <span className="text-foreground font-bold">{paymentCount}</span>
             </p>
           </div>
         </DialogHeader>

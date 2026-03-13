@@ -1,55 +1,50 @@
 'use client';
 
-import { ReactNode, useEffect, useState } from 'react';
-import useLocalStorage from '@/hooks/useLocalStorage';
-import type { ThemeSettings } from '@/lib/types';
+import { ReactNode, useEffect, useState, useContext } from 'react';
 import { idbGet } from '@/lib/utils';
 import { Inter } from 'next/font/google';
+import { AppDataContext } from '@/context/AppDataContext';
+import { Skeleton } from './ui/skeleton';
 
 const inter = Inter({
   subsets: ['latin'],
   variable: '--font-inter',
 });
 
-const defaultTheme: Omit<ThemeSettings, 'backgroundImage'> = {
-  background: '220 14% 10%',
-  surface: '220 14% 12%',
-  primary: '225 50% 50%',
-  accent: '188 78% 57%',
-  font: 'Inter',
-  backgroundOpacity: 0.1,
-};
-
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [themeSettings] = useLocalStorage<Omit<ThemeSettings, 'backgroundImage'>>('themeSettings', defaultTheme);
+  const { themeSettings } = useContext(AppDataContext);
   const [backgroundImage, setBackgroundImage] = useState('');
-  const [isThemeReady, setIsThemeReady] = useState(false);
+  const [isImageReady, setIsImageReady] = useState(false);
 
   useEffect(() => {
-    async function loadInitialTheme() {
-      const storedImage = await idbGet<string>('backgroundImage');
-      if (storedImage) {
-        setBackgroundImage(storedImage);
+    async function loadInitialImage() {
+      try {
+        const storedImage = await idbGet<string>('backgroundImage');
+        if (storedImage) {
+          setBackgroundImage(storedImage);
+        }
+      } catch (error) {
+        console.error("Failed to load background image from IndexedDB", error);
+      } finally {
+        setIsImageReady(true);
       }
-      setIsThemeReady(true);
     }
-    loadInitialTheme();
+    loadInitialImage();
   }, []);
 
   useEffect(() => {
-    if (!isThemeReady) return;
+    if (!isImageReady || !themeSettings) return; 
     
     const root = document.documentElement;
-    const theme = { ...defaultTheme, ...themeSettings };
     
-    root.style.setProperty('--background', theme.background);
-    root.style.setProperty('--card', theme.surface);
-    root.style.setProperty('--primary', theme.primary);
-    root.style.setProperty('--accent', theme.accent);
+    root.style.setProperty('--background', themeSettings.background);
+    root.style.setProperty('--card', themeSettings.surface);
+    root.style.setProperty('--primary', themeSettings.primary);
+    root.style.setProperty('--accent', themeSettings.accent);
     
-    if (theme.font === 'Inter') {
+    if (themeSettings.font === 'Inter') {
       root.style.setProperty('--font-family', `var(--font-inter)`);
-    } else if (theme.font === 'Serif') {
+    } else if (themeSettings.font === 'Serif') {
       root.style.setProperty('--font-family', 'serif');
     } else {
       root.style.setProperty('--font-family', 'monospace');
@@ -62,19 +57,30 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       body.classList.remove('has-bg-image');
     }
     
-  }, [themeSettings, backgroundImage, isThemeReady]);
+  }, [themeSettings, backgroundImage, isImageReady]);
 
   useEffect(() => {
-    // Cleanup function to remove class on component unmount (e.g., for HMR)
     return () => {
       document.body.classList.remove('has-bg-image');
     };
   }, []);
 
+  if (!isImageReady || !themeSettings) {
+    return (
+        <div className={`${inter.variable}`}>
+            <div className="flex flex-col min-h-dvh bg-background relative z-0 p-4 space-y-4">
+              <Skeleton className="h-12 w-1/2" />
+              <Skeleton className="h-24 w-full" />
+              <Skeleton className="h-24 w-full" />
+              <Skeleton className="h-24 w-full" />
+            </div>
+        </div>
+    );
+  }
+
   return (
     <div className={`${inter.variable}`}>
-      {isThemeReady && (
-         <>
+        <>
           <div
             id="global-bg-image"
             className="fixed inset-0 z-[-10] bg-cover bg-center transition-all duration-500"
@@ -86,7 +92,6 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
             style={{ opacity: backgroundImage ? themeSettings.backgroundOpacity : 0 }}
           />
         </>
-      )}
       {children}
     </div>
   );

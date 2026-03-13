@@ -5,14 +5,14 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { AppDataContext } from '@/context/AppDataContext';
 import type { AppData } from '@/lib/types';
-import { Download, Upload, Trash2, Code } from 'lucide-react';
+import { Download, Upload, Trash2, Code, Sparkles } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 
 export function DataManagementMenu() {
-  const { debts, history, importData, clearData } = useContext(AppDataContext);
+  const { getAppState, importData, clearData } = useContext(AppDataContext);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   const [isEditorOpen, setIsEditorOpen] = useState(false);
@@ -20,7 +20,7 @@ export function DataManagementMenu() {
   const { toast } = useToast();
 
   const handleExport = () => {
-    const appData: AppData = { debts, history };
+    const appData = getAppState();
     const dataStr = JSON.stringify(appData, null, 2);
     const dataBlob = new Blob([dataStr], { type: 'application/json' });
     const url = URL.createObjectURL(dataBlob);
@@ -57,51 +57,44 @@ export function DataManagementMenu() {
   };
 
   const openEditor = () => {
-    const debts = localStorage.getItem('debts') || '[]';
-    const history = localStorage.getItem('history') || '[]';
-    const transportSettings = localStorage.getItem('transportSettings') || '{}';
-    const transportOverrides = localStorage.getItem('transportOverrides') || '{}';
-    const themeSettings = localStorage.getItem('themeSettings') || '{}';
-    
-    const appState = {
-      debts: JSON.parse(debts),
-      history: JSON.parse(history),
-      transportSettings: JSON.parse(transportSettings),
-      transportOverrides: JSON.parse(transportOverrides),
-      themeSettings: JSON.parse(themeSettings),
-    };
-
+    const appState = getAppState();
     setJsonString(JSON.stringify(appState, null, 2));
     setIsEditorOpen(true);
   };
   
   const handleSaveChanges = () => {
     try {
-      const newState = JSON.parse(jsonString);
-      
-      if (newState.debts) localStorage.setItem('debts', JSON.stringify(newState.debts));
-      if (newState.history) localStorage.setItem('history', JSON.stringify(newState.history));
-      if (newState.transportSettings) localStorage.setItem('transportSettings', JSON.stringify(newState.transportSettings));
-      if (newState.transportOverrides) localStorage.setItem('transportOverrides', JSON.stringify(newState.transportOverrides));
-      if (newState.themeSettings) localStorage.setItem('themeSettings', JSON.stringify(newState.themeSettings));
+      const newState: AppData = JSON.parse(jsonString);
 
+      if (!newState.debts || !Array.isArray(newState.debts)) throw new Error("'debts' array is missing or invalid.");
+      if (!newState.history || !Array.isArray(newState.history)) throw new Error("'history' array is missing or invalid.");
+      if (!newState.themeSettings || typeof newState.themeSettings !== 'object') throw new Error("'themeSettings' object is missing or invalid.");
+      
+      importData(newState);
+      
       toast({
         title: 'Success!',
         description: 'Raw data has been updated. The app will now reload.',
       });
       
-      setTimeout(() => {
-        window.location.reload();
-      }, 1000);
-      
+      setTimeout(() => { window.location.reload(); }, 1000);
       setIsEditorOpen(false);
 
     } catch (e: any) {
       toast({
         variant: 'destructive',
-        title: 'Syntax Error',
-        description: `Invalid JSON: ${e.message}`,
+        title: 'Validation Error',
+        description: `Invalid data: ${e.message}`,
       });
+    }
+  };
+
+  const handlePrettify = () => {
+    try {
+        const parsed = JSON.parse(jsonString);
+        setJsonString(JSON.stringify(parsed, null, 2));
+    } catch {
+        toast({ variant: 'destructive', title: 'Invalid JSON', description: 'Cannot prettify invalid JSON.' });
     }
   };
 
@@ -186,7 +179,12 @@ export function DataManagementMenu() {
 
       <Dialog open={isEditorOpen} onOpenChange={setIsEditorOpen}>
         <DialogContent className="max-w-3xl">
-          <DialogHeader><DialogTitle>Raw Application State (JSON)</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <div className='flex justify-between items-center'>
+              <DialogTitle>Raw Application State (JSON)</DialogTitle>
+              <Button variant="outline" size="sm" onClick={handlePrettify}><Sparkles className='mr-2 h-4 w-4'/>Prettify</Button>
+            </div>
+          </DialogHeader>
           <Textarea 
             value={jsonString}
             onChange={(e) => setJsonString(e.target.value)}

@@ -1,26 +1,15 @@
 'use client';
 import { useContext, useMemo, useState, useEffect } from 'react';
-import useLocalStorage from '@/hooks/useLocalStorage';
 import { AppDataContext } from '@/context/AppDataContext';
-import { format, getDaysInMonth, startOfMonth, isWeekend, add } from 'date-fns';
+import { format } from 'date-fns';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Car } from 'lucide-react';
 import { formatCurrency, cn } from '@/lib/utils';
 import { Skeleton } from './ui/skeleton';
-
-type TransportSettings = {
-  driverName: string;
-  dailyFee: number;
-};
-
-type TransportOverrides = {
-  [key: string]: boolean; // ISODateString: isTravelDay
-};
+import { calculateTransportMonth } from '@/lib/calculations';
 
 export function TransportStatusCard() {
-  const [settings] = useLocalStorage<TransportSettings>('transportSettings', { driverName: '', dailyFee: 0 });
-  const [overrides] = useLocalStorage<TransportOverrides>('transportOverrides', {});
-  const { history } = useContext(AppDataContext);
+  const { transportSettings, transportOverrides, history } = useContext(AppDataContext);
   const [isClient, setIsClient] = useState(false);
   const [currentDate] = useState(new Date());
 
@@ -31,20 +20,7 @@ export function TransportStatusCard() {
   const currentMonthStats = useMemo(() => {
     if (!isClient) return { totalDue: 0, isPaid: false };
     
-    const monthStart = startOfMonth(currentDate);
-    const daysInMonth = Array.from({ length: getDaysInMonth(currentDate) }, (_, i) => add(monthStart, { days: i }));
-
-    let travelDaysCount = 0;
-    daysInMonth.forEach(day => {
-      const isoDate = day.toISOString().split('T')[0];
-      const isOverridden = overrides[isoDate] !== undefined;
-      const isTravelDay = isOverridden ? overrides[isoDate] : !isWeekend(day);
-      if (isTravelDay) {
-        travelDaysCount++;
-      }
-    });
-
-    const totalDue = travelDaysCount * (settings.dailyFee || 0);
+    const { totalDue } = calculateTransportMonth(currentDate, transportOverrides, transportSettings.dailyFee);
 
     const currentMonthStr = format(currentDate, 'MMMM yyyy');
     const paymentForThisMonth = history.find(entry => 
@@ -54,7 +30,7 @@ export function TransportStatusCard() {
     const isPaid = !!paymentForThisMonth;
 
     return { totalDue, isPaid };
-  }, [currentDate, overrides, settings.dailyFee, history, isClient]);
+  }, [currentDate, transportOverrides, transportSettings.dailyFee, history, isClient]);
 
   if (!isClient) {
     return (

@@ -1,21 +1,19 @@
 'use client';
-import { useState, useMemo } from 'react';
-import useLocalStorage from '@/hooks/useLocalStorage';
+import { useState, useContext } from 'react';
 import { Button } from './ui/button';
 import { Textarea } from './ui/textarea';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from './ui/sheet';
 import { StickyNote, Sigma } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
+import { AppDataContext } from '@/context/AppDataContext';
 
 export function QuickNotepad() {
-  const [note, setNote] = useLocalStorage('quick-note', '');
+  const { notepadContent, setNotepadContent } = useContext(AppDataContext);
   const [total, setTotal] = useState<number | null>(null);
 
   const calculateTotal = () => {
-    // This regex finds numbers, including decimals and those with commas.
-    const numbers = note.match(/(\d{1,3}(,\d{3})*(\.\d+)?|\d+(\.\d+)?)/g) || [];
+    const numbers = notepadContent.match(/(\d{1,3}(,\d{3})*(\.\d+)?|\d+(\.\d+)?)/g) || [];
     const sum = numbers.reduce((acc, numStr) => {
-      // Remove commas for parsing
       const cleanNumStr = numStr.replace(/,/g, '');
       return acc + parseFloat(cleanNumStr);
     }, 0);
@@ -23,7 +21,7 @@ export function QuickNotepad() {
   };
 
   return (
-    <Sheet>
+    <Sheet onOpenChange={() => setTotal(null)}>
       <SheetTrigger asChild>
         <Button variant="outline" size="icon" className="fixed top-4 right-4 z-50 h-12 w-12 rounded-full shadow-lg bg-card/80 backdrop-blur-sm">
           <StickyNote />
@@ -35,8 +33,8 @@ export function QuickNotepad() {
         </SheetHeader>
         <div className="flex flex-col h-full py-4">
           <Textarea
-            value={note}
-            onChange={(e) => setNote(e.target.value)}
+            value={notepadContent}
+            onChange={(e) => setNotepadContent(e.target.value)}
             className="flex-1 text-base bg-background/50 h-full"
             placeholder="Jot down some notes... e.g. Rent 500, Food 200, Savings 1500.25"
           />

@@ -1,77 +1,127 @@
 'use client';
 
-import React, { createContext, ReactNode, useEffect } from 'react';
-import useLocalStorage from '@/hooks/useLocalStorage';
-import type { AppData, Debt, HistoryEntry } from '@/lib/types';
+import React, { createContext, ReactNode, useEffect, useState, useMemo } from 'react';
+import type { AppState, Debt, HistoryEntry, AppData, ThemeSettings, TransportSettings, TransportOverrides } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
-import { isSameDay } from 'date-fns';
+import { isSameDay, startOfDay } from 'date-fns';
 import { Toaster } from '@/components/ui/toaster';
+import { getPaymentCount, getTotalInstallments } from '@/lib/calculations';
 
-interface AppContextType extends AppData {
-  addDebt: (debt: Omit<Debt, 'id' | 'payment_score' | 'paymentDates'>) => void;
-  updateDebt: (debtId: string, updatedData: Partial<Omit<Debt, 'id'>>) => void;
-  deleteDebt: (debtId: string) => void;
-  importData: (data: AppData) => void;
-  clearData: () => void;
-  incrementPayment: (debtId: string) => void;
-  logTransportPayment: (amount: number, month: string) => void;
-  togglePaymentDate: (debtId: string, date: Date) => void;
-}
+const CURRENT_SCHEMA_VERSION = 2;
 
-const defaultState: AppData = {
+const defaultState: AppState = {
+  schemaVersion: CURRENT_SCHEMA_VERSION,
   debts: [],
   history: [],
+  transportSettings: { driverName: '', dailyFee: 0 },
+  transportOverrides: {},
+  themeSettings: {
+    background: '220 14% 10%',
+    surface: '220 14% 12%',
+    primary: '225 50% 50%',
+    accent: '188 78% 57%',
+    font: 'Inter',
+    backgroundOpacity: 0.1,
+  },
+  notepadContent: '',
 };
+
+interface AppContextType extends AppState {
+  addDebt: (debt: Omit<Debt, 'id' | 'paymentDates'>) => void;
+  updateDebt: (debtId: string, updatedData: Partial<Omit<Debt, 'id' | 'paymentDates'>>) => void;
+  deleteDebt: (debtId: string) => void;
+  togglePaymentDate: (debtId: string, date: Date) => void;
+  logPaymentForToday: (debtId: string) => void;
+  setTransportSettings: (settings: TransportSettings) => void;
+  setTransportOverrides: (overrides: TransportOverrides) => void;
+  logTransportPayment: (amount: number, month: string) => void;
+  setThemeSettings: (settings: Omit<ThemeSettings, 'backgroundImage'>) => void;
+  setNotepadContent: (content: string) => void;
+  importData: (data: AppData) => void;
+  clearData: () => void;
+  getAppState: () => AppState;
+}
 
 export const AppDataContext = createContext<AppContextType>({
   ...defaultState,
   addDebt: () => {},
   updateDebt: () => {},
   deleteDebt: () => {},
+  togglePaymentDate: () => {},
+  logPaymentForToday: () => {},
+  setTransportSettings: () => {},
+  setTransportOverrides: () => {},
+  logTransportPayment: () => {},
+  setThemeSettings: () => {},
+  setNotepadContent: () => {},
   importData: () => {},
   clearData: () => {},
-  incrementPayment: () => {},
-  logTransportPayment: () => {},
-  togglePaymentDate: () => {},
+  getAppState: () => defaultState,
 });
 
-type ToastAction = () => void;
-const toastQueue: { action: ToastAction; id: string }[] = [];
-let isProcessingToast = false;
-
-function processToastQueue() {
-  if (isProcessingToast || toastQueue.length === 0) return;
-  isProcessingToast = true;
-  const toastItem = toastQueue.shift();
-  if (toastItem) {
-    toastItem.action();
-  }
-  // Allow the next toast to be processed after a short delay
-  setTimeout(() => {
-    isProcessingToast = false;
-    processToastQueue();
-  }, 300);
-}
-
-function queueToast(action: ToastAction) {
-  toastQueue.push({ action, id: Math.random().toString() });
-  processToastQueue();
-}
-
 export function AppDataProvider({ children }: { children: ReactNode }) {
-  const [debts, setDebts] = useLocalStorage<Debt[]>('debts', defaultState.debts);
-  const [history, setHistory] = useLocalStorage<HistoryEntry[]>('history', defaultState.history);
+  const [appState, setAppState] = useState<AppState>(defaultState);
+  const [isLoaded, setIsLoaded] = useState(false);
   const { toast } = useToast();
 
-  const addDebt = (debtData: Omit<Debt, 'id' | 'payment_score' | 'paymentDates'>) => {
-    const newDebt: Debt = {
-      ...debtData,
-      id: new Date().toISOString(),
-      payment_score: 0,
-      paymentDates: [],
-    };
-    setDebts((prev) => [...prev, newDebt]);
+  useEffect(() => {
+    try {
+      const storedStateRaw = localStorage.getItem('appState');
+      let stateToLoad: AppState = defaultState;
 
+      if (storedStateRaw) {
+        const parsedData = JSON.parse(storedStateRaw);
+        
+        if (!parsedData.schemaVersion || parsedData.schemaVersion < CURRENT_SCHEMA_VERSION) {
+           console.log(`Migrating data from v${parsedData.schemaVersion || 1} to v${CURRENT_SCHEMA_VERSION}...`);
+           if (parsedData.schemaVersion === undefined) { // Migrating from legacy separate keys
+             const oldDebts = JSON.parse(localStorage.getItem('debts') || '[]');
+             const oldHistory = JSON.parse(localStorage.getItem('history') || '[]');
+             const oldTransportSettings = JSON.parse(localStorage.getItem('transportSettings') || '{}');
+             const oldTransportOverrides = JSON.parse(localStorage.getItem('transportOverrides') || '{}');
+             const oldThemeSettings = JSON.parse(localStorage.getItem('themeSettings') || '{}');
+             const oldNotepadContent = localStorage.getItem('quick-note') || '';
+
+             const migratedDebts = oldDebts.map((d: any) => {
+                const { payment_score, ...rest } = d;
+                if (!d.paymentDates && payment_score > 0) {
+                  // Cannot reconstruct dates from score, so paymentDates will be empty.
+                }
+                return rest;
+             });
+
+             stateToLoad = {
+                 ...defaultState,
+                 debts: migratedDebts,
+                 history: oldHistory,
+                 transportSettings: oldTransportSettings.driverName !== undefined ? oldTransportSettings : defaultState.transportSettings,
+                 transportOverrides: Object.keys(oldTransportOverrides).length > 0 ? oldTransportOverrides : defaultState.transportOverrides,
+                 themeSettings: oldThemeSettings.primary !== undefined ? oldThemeSettings : defaultState.themeSettings,
+                 notepadContent: oldNotepadContent || defaultState.notepadContent,
+             };
+           }
+           stateToLoad.schemaVersion = CURRENT_SCHEMA_VERSION;
+        } else {
+            stateToLoad = { ...defaultState, ...parsedData };
+        }
+      }
+      setAppState(stateToLoad);
+    } catch (error) {
+      console.error('Failed to load or parse app state:', error);
+      setAppState(defaultState);
+    } finally {
+        setIsLoaded(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (isLoaded) {
+      localStorage.setItem('appState', JSON.stringify(appState));
+    }
+  }, [appState, isLoaded]);
+
+  const addDebt = (debtData: Omit<Debt, 'id' | 'paymentDates'>) => {
+    const newDebt: Debt = { ...debtData, id: new Date().toISOString(), paymentDates: [] };
     const newHistoryEntry: HistoryEntry = {
       id: `${newDebt.id}-created`,
       debtId: newDebt.id,
@@ -80,205 +130,124 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       amount: newDebt.total_owed,
       type: 'creation',
     };
-    setHistory((prev) => [newHistoryEntry, ...prev]);
-
-    queueToast(() => toast({
-      title: 'Debt Added',
-      description: `"${newDebt.title}" has been added to your list.`,
-    }));
+    setAppState(prev => ({ ...prev, debts: [...prev.debts, newDebt], history: [newHistoryEntry, ...prev.history] }));
+    toast({ title: 'Debt Added', description: `"${newDebt.title}" has been added.` });
   };
 
-  const incrementPayment = (debtId: string) => {
-    const today = new Date();
-    const debtToUpdate = debts.find((d) => d.id === debtId);
+  const updateDebt = (debtId: string, updatedData: Partial<Omit<Debt, 'id' | 'paymentDates'>>) => {
+    setAppState(prev => {
+      const newDebts = prev.debts.map(debt => {
+        if (debt.id === debtId) {
+          const oldDebt = debt;
+          const newDebt = { ...oldDebt, ...updatedData };
+          const wasPaidOff = getPaymentCount(oldDebt) >= getTotalInstallments(oldDebt) && oldDebt.total_owed > 0;
+          const isNowPaidOff = getPaymentCount(newDebt) >= getTotalInstallments(newDebt) && newDebt.total_owed > 0;
+          if (!wasPaidOff && isNowPaidOff) {
+            toast({ title: 'Congratulations!', description: `You've fully paid off "${newDebt.title}"!`, className: 'bg-green-600 text-white border-green-600' });
+          }
+          return newDebt;
+        }
+        return debt;
+      });
+      return { ...prev, debts: newDebts };
+    });
+  };
 
-    if (!debtToUpdate) return;
-
-    const paymentDates = debtToUpdate.paymentDates || [];
-    const dateAlreadyLogged = paymentDates.some((d) => isSameDay(new Date(d), today));
-
-    if (dateAlreadyLogged) {
-       queueToast(() => toast({
-        variant: 'destructive',
-        title: 'Already Logged',
-        description: 'A payment for today has already been recorded for this debt.',
-      }));
-      return;
-    }
-
-    const totalInstallments =
-      debtToUpdate.installment_amount > 0
-        ? Math.ceil(debtToUpdate.total_owed / debtToUpdate.installment_amount)
-        : 0;
-    if (debtToUpdate.payment_score >= totalInstallments && debtToUpdate.total_owed > 0) {
-      return;
-    }
-
-    const newPaymentDates = [...paymentDates, today.toISOString()];
-    const updatedDebt: Debt = {
-      ...debtToUpdate,
-      paymentDates: newPaymentDates,
-      payment_score: newPaymentDates.length,
-    };
-
-    setDebts((prevDebts) =>
-      prevDebts.map((debt) => (debt.id === debtId ? updatedDebt : debt))
-    );
-
-    const newHistoryEntry: HistoryEntry = {
-      id: new Date().toISOString(),
-      debtId: updatedDebt.id,
-      debtTitle: updatedDebt.title,
-      date: new Date().toISOString(),
-      amount: updatedDebt.installment_amount,
-      type: 'payment',
-    };
-    setHistory((prev) => [newHistoryEntry, ...prev]);
-
-    const newTotalInstallments =
-      updatedDebt.installment_amount > 0
-        ? Math.ceil(updatedDebt.total_owed / updatedDebt.installment_amount)
-        : 0;
-    if (updatedDebt.payment_score === newTotalInstallments && updatedDebt.total_owed > 0) {
-      queueToast(() => toast({
-        title: 'Congratulations!',
-        description: `You've fully paid off "${updatedDebt.title}"!`,
-        variant: 'default',
-        className: 'bg-green-600 text-white border-green-600',
-      }));
+  const deleteDebt = (debtId: string) => {
+    const debtToDelete = appState.debts.find(d => d.id === debtId);
+    if (debtToDelete) {
+      setAppState(prev => ({ ...prev, debts: prev.debts.filter(debt => debt.id !== debtId), history: prev.history.filter(h => h.debtId !== debtId) }));
+      toast({ title: 'Debt Deleted', description: `"${debtToDelete.title}" has been removed.` });
     }
   };
 
   const togglePaymentDate = (debtId: string, date: Date) => {
-    setDebts(prevDebts => prevDebts.map(debt => {
-      if (debt.id === debtId) {
-        const paymentDates = debt.paymentDates || [];
-        const dateString = date.toISOString();
-        
-        let newPaymentDates: string[];
-        const existingIndex = paymentDates.findIndex(d => isSameDay(new Date(d), date));
-
-        if (existingIndex > -1) {
-          newPaymentDates = paymentDates.filter((_, index) => index !== existingIndex);
-        } else {
-          newPaymentDates = [...paymentDates, dateString];
+    setAppState(prev => {
+      let wasAdded = false;
+      const newDebts = prev.debts.map(debt => {
+        if (debt.id === debtId) {
+          const paymentDates = debt.paymentDates || [];
+          const dateToToggle = startOfDay(date).toISOString();
+          const existingIndex = paymentDates.findIndex(d => isSameDay(new Date(d), date));
+          let newPaymentDates: string[];
+          if (existingIndex > -1) {
+            newPaymentDates = paymentDates.filter((_, index) => index !== existingIndex);
+          } else {
+            newPaymentDates = [...paymentDates, dateToToggle];
+            wasAdded = true;
+          }
+          newPaymentDates.sort((a, b) => new Date(a).getTime() - new Date(b).getTime());
+          
+          if (wasAdded) {
+            const newHistoryEntry: HistoryEntry = { id: new Date().toISOString(), debtId: debt.id, debtTitle: debt.title, date: date.toISOString(), amount: debt.installment_amount, type: 'payment' };
+            setAppState(p => ({ ...p, history: [newHistoryEntry, ...p.history] }));
+          }
+          
+          return { ...debt, paymentDates: newPaymentDates };
         }
-
-        newPaymentDates.sort((a, b) => new Date(a).getTime() - new Date(b).getTime());
-
-        return {
-          ...debt,
-          paymentDates: newPaymentDates,
-          payment_score: newPaymentDates.length,
-        };
-      }
-      return debt;
-    }));
-  };
-
-  const updateDebt = (debtId: string, updatedData: Partial<Omit<Debt, 'id'>>) => {
-    const oldDebt = debts.find((d) => d.id === debtId);
-    if (!oldDebt) return;
-
-    const payment_score = (oldDebt.paymentDates || []).length;
-    const newDebt: Debt = { ...oldDebt, ...updatedData, payment_score };
-
-    setDebts((prevDebts) =>
-      prevDebts.map((debt) => (debt.id === debtId ? newDebt : debt))
-    );
-
-    /* queueToast(() => toast({
-      title: 'Debt Updated',
-      description: 'Your debt details have been saved.',
-    })); */
-
-    const oldTotalInstallments = oldDebt.installment_amount > 0 ? Math.ceil(oldDebt.total_owed / oldDebt.installment_amount) : 0;
-    const newTotalInstallments = newDebt.installment_amount > 0 ? Math.ceil(newDebt.total_owed / newDebt.installment_amount) : 0;
-    const wasPaidOff = oldDebt.payment_score >= oldTotalInstallments && oldDebt.total_owed > 0;
-    const isNowPaidOff = newDebt.payment_score >= newTotalInstallments && newDebt.total_owed > 0;
-
-    if (!wasPaidOff && isNowPaidOff) {
-      queueToast(() => toast({
-        title: 'Congratulations!',
-        description: `You've fully paid off "${newDebt.title}"!`,
-        variant: 'default',
-        className: 'bg-green-600 text-white border-green-600'
-      }));
-    }
-  };
-
-  const deleteDebt = (debtId: string) => {
-    const debtToDelete = debts.find(d => d.id === debtId);
-    if (debtToDelete) {
-      setDebts(prevDebts => prevDebts.filter(debt => debt.id !== debtId));
-      queueToast(() => toast({
-        title: 'Debt Deleted',
-        description: `"${debtToDelete.title}" has been removed.`,
-      }));
-    }
+        return debt;
+      });
+      return { ...prev, debts: newDebts };
+    });
   };
   
+  const logPaymentForToday = (debtId: string) => {
+    const debt = appState.debts.find(d => d.id === debtId);
+    if (!debt) return;
+    const isAlreadyLogged = (debt.paymentDates || []).some(d => isSameDay(new Date(d), new Date()));
+    if (isAlreadyLogged) {
+        toast({ variant: 'destructive', title: 'Already Logged', description: 'A payment for today has already been recorded for this debt.' });
+        return;
+    }
+    togglePaymentDate(debtId, new Date());
+  };
+
+  const logTransportPayment = (amount: number, month: string) => {
+    const newHistoryEntry: HistoryEntry = { id: new Date().toISOString(), debtTitle: `Transport: ${month}`, date: new Date().toISOString(), amount, type: 'transport' };
+    setAppState(prev => ({ ...prev, history: [newHistoryEntry, ...prev.history] }));
+    toast({ title: 'Payment Logged', description: `Transport payment for ${month} has been recorded.` });
+  };
+
   const importData = (data: AppData) => {
-    if (data.debts && data.history) {
-      setDebts(data.debts);
-      setHistory(data.history);
-      queueToast(() => toast({
-        title: 'Success',
-        description: 'Your data has been imported.',
-      }));
-    } else {
-      queueToast(() => toast({
-        title: 'Error',
-        description: 'Invalid data format in the backup file.',
-        variant: 'destructive',
-      }));
+    try {
+      if (data.debts && data.history && data.themeSettings) {
+        setAppState(prev => ({ ...prev, ...data, schemaVersion: CURRENT_SCHEMA_VERSION }));
+        toast({ title: 'Success', description: 'Your data has been imported.' });
+      } else { throw new Error('Missing critical data fields.') }
+    } catch (e: any) {
+      toast({ title: 'Error', description: `Invalid data format: ${e.message}`, variant: 'destructive' });
     }
   };
 
   const clearData = () => {
-    window.localStorage.removeItem('debts');
-    window.localStorage.removeItem('history');
-    window.localStorage.removeItem('transportSettings');
-    window.localStorage.removeItem('transportOverrides');
-    window.localStorage.removeItem('themeSettings');
-
-    queueToast(() => toast({
-      title: 'Data Cleared',
-      description: 'All app data has been removed. The app will now reload.',
-    }));
-    
-    setTimeout(() => {
-        window.location.reload();
-    }, 1500);
+    Object.keys(localStorage).forEach(key => {
+        if (key.startsWith('appState') || key === 'debts' || key === 'history' || key === 'transportSettings' || key === 'transportOverrides' || key === 'themeSettings' || key === 'quick-note') {
+            localStorage.removeItem(key);
+        }
+    });
+    setAppState(defaultState);
+    toast({ title: 'Data Cleared', description: 'All app data has been removed. The app will now reload.' });
+    setTimeout(() => window.location.reload(), 1500);
   };
 
-  const logTransportPayment = (amount: number, month: string) => {
-    const newHistoryEntry: HistoryEntry = {
-      id: new Date().toISOString(),
-      debtTitle: `Transport: ${month}`,
-      date: new Date().toISOString(),
-      amount: amount,
-      type: 'transport',
-    };
-    setHistory((prev) => [newHistoryEntry, ...prev]);
-    queueToast(() => toast({
-      title: 'Payment Logged',
-      description: `Transport payment for ${month} has been recorded.`,
-    }));
-  };
-
-  const value = {
-    debts,
-    history,
+  const value = useMemo(() => ({
+    ...appState,
     addDebt,
     updateDebt,
     deleteDebt,
+    togglePaymentDate,
+    logPaymentForToday,
+    setTransportSettings: (settings: TransportSettings) => setAppState(p => ({ ...p, transportSettings: settings })),
+    setTransportOverrides: (overrides: TransportOverrides) => setAppState(p => ({ ...p, transportOverrides: overrides })),
+    logTransportPayment,
+    setThemeSettings: (settings: Omit<ThemeSettings, 'backgroundImage'>) => setAppState(p => ({ ...p, themeSettings: settings })),
+    setNotepadContent: (content: string) => setAppState(p => ({ ...p, notepadContent: content })),
     importData,
     clearData,
-    incrementPayment,
-    logTransportPayment,
-    togglePaymentDate,
-  };
+    getAppState: () => appState,
+  }), [appState]);
+
+  if (!isLoaded) return null;
 
   return (
     <AppDataContext.Provider value={value}>

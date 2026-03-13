@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { AppDataContext } from '@/context/AppDataContext';
-import { formatCurrency } from '@/lib/utils';
+import { formatCurrency, cn } from '@/lib/utils';
 import type { Debt } from '@/lib/types';
 import { Pencil, Trash2, Check, CalendarDays } from 'lucide-react';
 import { Input } from './ui/input';
@@ -21,33 +21,34 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
-import { cn } from '@/lib/utils';
 import { PaymentCalendarDialog } from './PaymentCalendarDialog';
+import { getPaymentCount, getTotalInstallments, getAmountPaid, getProgress } from '@/lib/calculations';
+import { useToast } from '@/hooks/use-toast';
+import { isSameDay } from 'date-fns';
 
 interface DebtCardProps {
   debt: Debt;
 }
 
 export function DebtCard({ debt }: DebtCardProps) {
-  const { updateDebt, deleteDebt, incrementPayment } = useContext(AppDataContext);
+  const { updateDebt, deleteDebt, togglePaymentDate } = useContext(AppDataContext);
   const [isEditing, setIsEditing] = useState(false);
+  const { toast } = useToast();
 
-  // State for form fields in edit mode
   const [editedTitle, setEditedTitle] = useState(debt.title);
   const [editedTotalOwed, setEditedTotalOwed] = useState(debt.total_owed.toString());
   const [editedInstallmentAmount, setEditedInstallmentAmount] = useState(debt.installment_amount.toString());
   
-  const paymentCount = (debt.paymentDates || []).length;
-
   useEffect(() => {
     setEditedTitle(debt.title);
     setEditedTotalOwed(debt.total_owed.toString());
     setEditedInstallmentAmount(debt.installment_amount.toString());
   }, [debt]);
 
-  const totalInstallments = debt.installment_amount > 0 ? Math.ceil(debt.total_owed / debt.installment_amount) : 0;
-  const amountPaid = paymentCount * debt.installment_amount;
-  const progress = totalInstallments > 0 ? (paymentCount / totalInstallments) * 100 : debt.total_owed > 0 ? 0 : 100;
+  const paymentCount = getPaymentCount(debt);
+  const totalInstallments = getTotalInstallments(debt);
+  const amountPaid = getAmountPaid(debt);
+  const progress = getProgress(debt);
   const isPaidOff = progress >= 100 && debt.total_owed > 0;
 
   const handleUpdate = () => {
@@ -74,6 +75,20 @@ export function DebtCard({ debt }: DebtCardProps) {
     }
   }
 
+  const handleLogPaymentForToday = () => {
+    const today = new Date();
+    const isAlreadyLogged = (debt.paymentDates || []).some(d => isSameDay(new Date(d), today));
+    if (isAlreadyLogged) {
+        toast({
+            variant: 'destructive',
+            title: 'Already Logged',
+            description: 'A payment for today has already been recorded for this debt.',
+        });
+        return;
+    }
+    togglePaymentDate(debt.id, today);
+};
+
   return (
     <Card className={cn(
         "overflow-hidden transition-all duration-300",
@@ -86,7 +101,7 @@ export function DebtCard({ debt }: DebtCardProps) {
             <span className="text-sm text-muted-foreground whitespace-nowrap">
               {paymentCount} of {totalInstallments}
             </span>
-            <Button variant="ghost" size="icon" className="h-8 w-8 flex-shrink-0" onClick={handleToggleEdit}>
+            <Button variant="ghost" size="icon" className="h-10 w-10 flex-shrink-0" onClick={handleToggleEdit}>
               {isEditing ? <Check className="h-5 w-5" /> : <Pencil className="h-4 w-4" />}
             </Button>
           </div>
@@ -125,7 +140,7 @@ export function DebtCard({ debt }: DebtCardProps) {
                 <div className='flex gap-2'>
                     <AlertDialog>
                         <AlertDialogTrigger asChild>
-                            <Button variant="outline" size="icon">
+                            <Button variant="outline" size="icon" className="h-11 w-11">
                                 <Trash2 className="text-destructive" />
                             </Button>
                         </AlertDialogTrigger>
@@ -143,12 +158,12 @@ export function DebtCard({ debt }: DebtCardProps) {
                         </AlertDialogContent>
                     </AlertDialog>
                     <PaymentCalendarDialog debt={debt}>
-                       <Button variant="outline" size="icon">
+                       <Button variant="outline" size="icon" className="h-11 w-11">
                             <CalendarDays />
                         </Button>
                     </PaymentCalendarDialog>
                 </div>
-                 <Button onClick={() => incrementPayment(debt.id)} disabled={isPaidOff}>
+                 <Button onClick={handleLogPaymentForToday} disabled={isPaidOff}>
                     +1 Payment
                  </Button>
             </div>

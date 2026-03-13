@@ -1,11 +1,9 @@
 'use client';
 
 import { useState, useMemo, useContext, useEffect } from 'react';
-import useLocalStorage from '@/hooks/useLocalStorage';
 import { AppDataContext } from '@/context/AppDataContext';
-import { format, getDaysInMonth, startOfMonth, getDay, add, sub, isSameMonth, isSameDay, isWeekend } from 'date-fns';
-import { ChevronLeft, ChevronRight, Edit, Save } from 'lucide-react';
-
+import { format, getDay, add, sub, isSameMonth, isSameDay } from 'date-fns';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -15,63 +13,40 @@ import { Switch } from '@/components/ui/switch';
 import { formatCurrency, cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
-
-type TransportSettings = {
-  driverName: string;
-  dailyFee: number;
-};
-
-type TransportOverrides = {
-  [key: string]: boolean; // ISODateString: isTravelDay
-};
+import { calculateTransportMonth } from '@/lib/calculations';
+import type { TransportSettings } from '@/lib/types';
 
 const WEEK_DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 export default function TransportPage() {
-  const [settings, setSettings] = useLocalStorage<TransportSettings>('transportSettings', { driverName: '', dailyFee: 0 });
-  const [overrides, setOverrides] = useLocalStorage<TransportOverrides>('transportOverrides', {});
+  const { transportSettings, setTransportSettings, transportOverrides, setTransportOverrides, logTransportPayment } = useContext(AppDataContext);
   
   const [currentDate, setCurrentDate] = useState(new Date());
   const [isEditingCalendar, setIsEditingCalendar] = useState(false);
   const [isClient, setIsClient] = useState(false);
-
-  const { logTransportPayment } = useContext(AppDataContext);
   const { toast } = useToast();
 
-  useEffect(() => {
-    setIsClient(true);
-  }, []);
+  useEffect(() => { setIsClient(true) }, []);
 
   const handleSettingsChange = (field: keyof TransportSettings, value: string | number) => {
-    setSettings(prev => ({ ...prev, [field]: value }));
+    setTransportSettings({ ...transportSettings, [field]: value });
   };
 
-  const { daysInMonth, travelDaysCount, totalDue } = useMemo(() => {
-    const monthStart = startOfMonth(currentDate);
-    const daysInMonth = Array.from({ length: getDaysInMonth(currentDate) }, (_, i) => add(monthStart, { days: i }));
-
-    let travelDaysCount = 0;
-    daysInMonth.forEach(day => {
-      const isoDate = day.toISOString().split('T')[0];
-      const isOverridden = overrides[isoDate] !== undefined;
-      const isTravelDay = isOverridden ? overrides[isoDate] : !isWeekend(day);
-      if (isTravelDay) {
-        travelDaysCount++;
-      }
-    });
-
-    const totalDue = travelDaysCount * (settings.dailyFee || 0);
-
-    return { daysInMonth, travelDaysCount, totalDue };
-  }, [currentDate, overrides, settings.dailyFee]);
+  const { daysInMonth, travelDaysCount, totalDue } = useMemo(
+    () => calculateTransportMonth(currentDate, transportOverrides, transportSettings.dailyFee),
+    [currentDate, transportOverrides, transportSettings.dailyFee]
+  );
 
   const handleDayToggle = (day: Date) => {
     if (!isEditingCalendar) return;
     const isoDate = day.toISOString().split('T')[0];
-    const isCurrentlyTravelDay = overrides[isoDate] !== undefined ? overrides[isoDate] : !isWeekend(day);
-    setOverrides(prev => ({ ...prev, [isoDate]: !isCurrentlyTravelDay }));
+    const isCurrentlyTravelDay = calculateTransportMonth(currentDate, transportOverrides, transportSettings.dailyFee)
+                                  .daysInMonth.find(d => isSameDay(d, day)) 
+                                  ? (transportOverrides[isoDate] !== undefined ? transportOverrides[isoDate] : !isWeekend(day))
+                                  : false;
+    setTransportOverrides({ ...transportOverrides, [isoDate]: !isCurrentlyTravelDay });
   };
-
+  
   const handleMarkAsPaid = () => {
     if (totalDue <= 0) {
       toast({ title: "Nothing to pay", description: "Total amount for the month is zero.", variant: 'default' });
@@ -80,12 +55,12 @@ export default function TransportPage() {
     logTransportPayment(totalDue, format(currentDate, 'MMMM yyyy'));
     
     // Clear overrides for the current month
-    const newOverrides = { ...overrides };
+    const newOverrides = { ...transportOverrides };
     daysInMonth.forEach(day => {
       const isoDate = day.toISOString().split('T')[0];
       delete newOverrides[isoDate];
     });
-    setOverrides(newOverrides);
+    setTransportOverrides(newOverrides);
   };
 
   const firstDayOfMonth = getDay(startOfMonth(currentDate));
@@ -110,7 +85,7 @@ export default function TransportPage() {
           <AccordionTrigger>
             <div className='flex justify-between w-full pr-4 items-center'>
               <h2 className="text-xl font-semibold">Settings</h2>
-              <span className='text-sm text-muted-foreground'>{settings.driverName} - {formatCurrency(settings.dailyFee)}/day</span>
+              <span className='text-sm text-muted-foreground'>{transportSettings.driverName} - {formatCurrency(transportSettings.dailyFee)}/day</span>
             </div>
           </AccordionTrigger>
           <AccordionContent className="space-y-4 pt-2">
@@ -118,7 +93,7 @@ export default function TransportPage() {
               <Label htmlFor="driverName">Driver Name</Label>
               <Input
                 id="driverName"
-                value={settings.driverName}
+                value={transportSettings.driverName}
                 onChange={e => handleSettingsChange('driverName', e.target.value)}
                 placeholder="e.g., John Doe"
               />
@@ -128,7 +103,7 @@ export default function TransportPage() {
               <Input
                 id="dailyFee"
                 type="number"
-                value={settings.dailyFee}
+                value={transportSettings.dailyFee}
                 onChange={e => handleSettingsChange('dailyFee', parseFloat(e.target.value) || 0)}
                 placeholder="e.g., 50"
               />
@@ -161,7 +136,7 @@ export default function TransportPage() {
             {Array.from({ length: firstDayOfMonth }).map((_, i) => <div key={`empty-${i}`} />)}
             {daysInMonth.map(day => {
               const isoDate = day.toISOString().split('T')[0];
-              const isTravelDay = overrides[isoDate] !== undefined ? overrides[isoDate] : !isWeekend(day);
+              const isTravelDay = transportOverrides[isoDate] !== undefined ? transportOverrides[isoDate] : !isWeekend(day);
               const isToday = isSameDay(day, new Date()) && isSameMonth(day, new Date());
               return (
                 <button

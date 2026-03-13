@@ -5,6 +5,7 @@ import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Tooltip, ResponsiveContaine
 import { AppDataContext } from '@/context/AppDataContext';
 import { formatCurrency } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
+import { getProgress, getAmountPaid, getRemainingBalance } from '@/lib/calculations';
 
 export function DebtProgressCharts() {
   const { debts } = useContext(AppDataContext);
@@ -16,15 +17,11 @@ export function DebtProgressCharts() {
 
   const chartData = useMemo(() => {
     return debts.map((debt) => {
-      const totalInstallments = Math.ceil(debt.total_owed / debt.installment_amount);
-      const progress = totalInstallments > 0 ? (debt.payment_score / totalInstallments) * 100 : 0;
-      const amountPaid = debt.payment_score * debt.installment_amount;
-      const remainingBalance = Math.max(0, debt.total_owed - amountPaid);
       return {
         name: debt.title,
-        progress: Math.round(progress),
-        paid: amountPaid,
-        remaining: remainingBalance,
+        progress: Math.round(getProgress(debt)),
+        paid: getAmountPaid(debt),
+        remaining: getRemainingBalance(debt),
         total: debt.total_owed,
       };
     });
