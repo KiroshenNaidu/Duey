@@ -187,10 +187,10 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       prevDebts.map((debt) => (debt.id === debtId ? newDebt : debt))
     );
 
-    queueToast(() => toast({
+    /* queueToast(() => toast({
       title: 'Debt Updated',
       description: 'Your debt details have been saved.',
-    }));
+    })); */
 
     const oldTotalInstallments = oldDebt.installment_amount > 0 ? Math.ceil(oldDebt.total_owed / oldDebt.installment_amount) : 0;
     const newTotalInstallments = newDebt.installment_amount > 0 ? Math.ceil(newDebt.total_owed / newDebt.installment_amount) : 0;
