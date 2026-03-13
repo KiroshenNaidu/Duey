@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from './ui/button';
 import { Calculator } from 'lucide-react';
 import { QuickNotepad } from './QuickNotepad';
@@ -8,6 +8,15 @@ import { FloatingCalculator } from './FloatingCalculator';
 
 export function FloatingTools() {
   const [isCalculatorOpen, setIsCalculatorOpen] = useState(false);
+  const [isClient, setIsClient] = useState(false);
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+
+  if (!isClient) {
+    return null;
+  }
 
   return (
     <>
