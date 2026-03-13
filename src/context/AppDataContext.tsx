@@ -1,10 +1,11 @@
 'use client';
 
-import React, { createContext, ReactNode } from 'react';
+import React, { createContext, ReactNode, useEffect } from 'react';
 import useLocalStorage from '@/hooks/useLocalStorage';
 import type { AppData, Debt, HistoryEntry } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { isSameDay } from 'date-fns';
+import { Toaster } from '@/components/ui/toaster';
 
 interface AppContextType extends AppData {
   addDebt: (debt: Omit<Debt, 'id' | 'payment_score' | 'paymentDates'>) => void;
@@ -34,6 +35,29 @@ export const AppDataContext = createContext<AppContextType>({
   togglePaymentDate: () => {},
 });
 
+type ToastAction = () => void;
+const toastQueue: { action: ToastAction; id: string }[] = [];
+let isProcessingToast = false;
+
+function processToastQueue() {
+  if (isProcessingToast || toastQueue.length === 0) return;
+  isProcessingToast = true;
+  const toastItem = toastQueue.shift();
+  if (toastItem) {
+    toastItem.action();
+  }
+  // Allow the next toast to be processed after a short delay
+  setTimeout(() => {
+    isProcessingToast = false;
+    processToastQueue();
+  }, 300);
+}
+
+function queueToast(action: ToastAction) {
+  toastQueue.push({ action, id: Math.random().toString() });
+  processToastQueue();
+}
+
 export function AppDataProvider({ children }: { children: ReactNode }) {
   const [debts, setDebts] = useLocalStorage<Debt[]>('debts', defaultState.debts);
   const [history, setHistory] = useLocalStorage<HistoryEntry[]>('history', defaultState.history);
@@ -58,10 +82,10 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     };
     setHistory((prev) => [newHistoryEntry, ...prev]);
 
-    toast({
+    queueToast(() => toast({
       title: 'Debt Added',
       description: `"${newDebt.title}" has been added to your list.`,
-    });
+    }));
   };
 
   const incrementPayment = (debtId: string) => {
@@ -74,11 +98,11 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     const dateAlreadyLogged = paymentDates.some((d) => isSameDay(new Date(d), today));
 
     if (dateAlreadyLogged) {
-      toast({
+       queueToast(() => toast({
         variant: 'destructive',
         title: 'Already Logged',
         description: 'A payment for today has already been recorded for this debt.',
-      });
+      }));
       return;
     }
 
@@ -87,7 +111,6 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
         ? Math.ceil(debtToUpdate.total_owed / debtToUpdate.installment_amount)
         : 0;
     if (debtToUpdate.payment_score >= totalInstallments && debtToUpdate.total_owed > 0) {
-      // Already paid off
       return;
     }
 
@@ -117,12 +140,12 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
         ? Math.ceil(updatedDebt.total_owed / updatedDebt.installment_amount)
         : 0;
     if (updatedDebt.payment_score === newTotalInstallments && updatedDebt.total_owed > 0) {
-      toast({
+      queueToast(() => toast({
         title: 'Congratulations!',
         description: `You've fully paid off "${updatedDebt.title}"!`,
         variant: 'default',
         className: 'bg-green-600 text-white border-green-600',
-      });
+      }));
     }
   };
 
@@ -136,14 +159,11 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
         const existingIndex = paymentDates.findIndex(d => isSameDay(new Date(d), date));
 
         if (existingIndex > -1) {
-          // Date exists, so remove it
           newPaymentDates = paymentDates.filter((_, index) => index !== existingIndex);
         } else {
-          // Date doesn't exist, so add it
           newPaymentDates = [...paymentDates, dateString];
         }
 
-        // Sort dates for consistency
         newPaymentDates.sort((a, b) => new Date(a).getTime() - new Date(b).getTime());
 
         return {
@@ -167,10 +187,10 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       prevDebts.map((debt) => (debt.id === debtId ? newDebt : debt))
     );
 
-    toast({
+    queueToast(() => toast({
       title: 'Debt Updated',
       description: 'Your debt details have been saved.',
-    });
+    }));
 
     const oldTotalInstallments = oldDebt.installment_amount > 0 ? Math.ceil(oldDebt.total_owed / oldDebt.installment_amount) : 0;
     const newTotalInstallments = newDebt.installment_amount > 0 ? Math.ceil(newDebt.total_owed / newDebt.installment_amount) : 0;
@@ -178,12 +198,12 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     const isNowPaidOff = newDebt.payment_score >= newTotalInstallments && newDebt.total_owed > 0;
 
     if (!wasPaidOff && isNowPaidOff) {
-      toast({
+      queueToast(() => toast({
         title: 'Congratulations!',
         description: `You've fully paid off "${newDebt.title}"!`,
         variant: 'default',
         className: 'bg-green-600 text-white border-green-600'
-      });
+      }));
     }
   };
 
@@ -191,10 +211,10 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     const debtToDelete = debts.find(d => d.id === debtId);
     if (debtToDelete) {
       setDebts(prevDebts => prevDebts.filter(debt => debt.id !== debtId));
-      toast({
+      queueToast(() => toast({
         title: 'Debt Deleted',
         description: `"${debtToDelete.title}" has been removed.`,
-      });
+      }));
     }
   };
   
@@ -202,31 +222,30 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     if (data.debts && data.history) {
       setDebts(data.debts);
       setHistory(data.history);
-      toast({
+      queueToast(() => toast({
         title: 'Success',
         description: 'Your data has been imported.',
-      });
+      }));
     } else {
-      toast({
+      queueToast(() => toast({
         title: 'Error',
         description: 'Invalid data format in the backup file.',
         variant: 'destructive',
-      });
+      }));
     }
   };
 
   const clearData = () => {
-    // Go direct to localStorage to ensure all app data is cleared
     window.localStorage.removeItem('debts');
     window.localStorage.removeItem('history');
     window.localStorage.removeItem('transportSettings');
     window.localStorage.removeItem('transportOverrides');
     window.localStorage.removeItem('themeSettings');
 
-    toast({
+    queueToast(() => toast({
       title: 'Data Cleared',
       description: 'All app data has been removed. The app will now reload.',
-    });
+    }));
     
     setTimeout(() => {
         window.location.reload();
@@ -242,10 +261,10 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       type: 'transport',
     };
     setHistory((prev) => [newHistoryEntry, ...prev]);
-    toast({
+    queueToast(() => toast({
       title: 'Payment Logged',
       description: `Transport payment for ${month} has been recorded.`,
-    });
+    }));
   };
 
   const value = {
@@ -261,5 +280,10 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     togglePaymentDate,
   };
 
-  return <AppDataContext.Provider value={value}>{children}</AppDataContext.Provider>;
+  return (
+    <AppDataContext.Provider value={value}>
+      {children}
+      <Toaster />
+    </AppDataContext.Provider>
+  );
 }

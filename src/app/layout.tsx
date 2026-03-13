@@ -2,7 +2,6 @@ import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import { AppDataProvider } from '@/context/AppDataContext';
 import { BottomNav } from '@/components/BottomNav';
-import { Toaster } from "@/components/ui/toaster";
 import { ThemeProvider } from '@/components/ThemeProvider';
 import { FloatingTools } from '@/components/FloatingTools';
 
@@ -34,7 +33,6 @@ export default function RootLayout({
               <BottomNav />
             </div>
             <FloatingTools />
-            <Toaster />
           </AppDataProvider>
         </ThemeProvider>
       </body>
