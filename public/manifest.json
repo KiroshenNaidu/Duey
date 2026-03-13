@@ -1,0 +1,21 @@
+{
+  "name": "DebtMate",
+  "short_name": "DebtMate",
+  "description": "Manual Debt & Payment Tracker",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#16181C",
+  "theme_color": "#4062BF",
+  "icons": [
+    {
+      "src": "/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
