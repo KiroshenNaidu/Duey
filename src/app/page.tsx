@@ -1,20 +1,32 @@
 'use client';
 
-import { useContext } from 'react';
+import { useContext, useState, useEffect } from 'react';
 import { AppDataContext } from '@/context/AppDataContext';
 import { DebtCard } from '@/components/DebtCard';
 import { AddDebtDialog } from '@/components/AddDebtDialog';
 import { Plus } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export default function Home() {
   const { debts } = useContext(AppDataContext);
+  const [isClient, setIsClient] = useState(false);
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   return (
     <div className="container mx-auto max-w-2xl">
       <h1 className="text-3xl font-bold mb-6 text-foreground">TaxMaxxing</h1>
 
-      {debts.length === 0 ? (
+      {!isClient ? (
+        <div className="space-y-4">
+          <Skeleton className="h-24 w-full" />
+          <Skeleton className="h-24 w-full" />
+          <Skeleton className="h-24 w-full" />
+        </div>
+      ) : debts.length === 0 ? (
         <Card className="text-center py-12">
           <CardHeader>
             <CardTitle>Stop acting like you didnt forget</CardTitle>
