@@ -15,6 +15,7 @@ import { Upload } from 'lucide-react';
 
 const defaultTheme: ThemeSettings = {
   background: '220 14% 10%',
+  card: '220 14% 12%',
   primary: '225 50% 50%',
   accent: '188 78% 57%',
   font: 'Inter',
@@ -23,12 +24,12 @@ const defaultTheme: ThemeSettings = {
 };
 
 const colorPresets: { name: string; settings: Partial<ThemeSettings> }[] = [
-  { name: 'Default', settings: { background: '220 14% 10%', primary: '225 50% 50%', accent: '188 78% 57%' } },
-  { name: 'Forest', settings: { background: '120 15% 15%', primary: '140 40% 45%', accent: '90 50% 60%' } },
-  { name: 'Ocean', settings: { background: '210 30% 20%', primary: '200 60% 50%', accent: '180 70% 45%' } },
-  { name: 'Sunset', settings: { background: '25 20% 18%', primary: '30 80% 60%', accent: '0 70% 65%' } },
-  { name: 'Rose', settings: { background: '340 10% 15%', primary: '330 50% 60%', accent: '350 70% 70%' } },
-  { name: 'Mono', settings: { background: '240 5% 12%', primary: '240 5% 80%', accent: '240 5% 50%' } },
+  { name: 'Default', settings: { background: '220 14% 10%', card: '220 14% 12%', primary: '225 50% 50%', accent: '188 78% 57%' } },
+  { name: 'Forest', settings: { background: '120 15% 15%', card: '120 15% 18%', primary: '140 40% 45%', accent: '90 50% 60%' } },
+  { name: 'Ocean', settings: { background: '210 30% 20%', card: '210 30% 25%', primary: '200 60% 50%', accent: '180 70% 45%' } },
+  { name: 'Sunset', settings: { background: '25 20% 18%', card: '25 20% 22%', primary: '30 80% 60%', accent: '0 70% 65%' } },
+  { name: 'Rose', settings: { background: '340 10% 15%', card: '340 10% 20%', primary: '330 50% 60%', accent: '350 70% 70%' } },
+  { name: 'Mono', settings: { background: '240 5% 12%', card: '240 5% 15%', primary: '240 5% 80%', accent: '240 5% 50%' } },
 ];
 
 const MAX_IMAGE_SIZE_MB = 2;
@@ -55,6 +56,7 @@ export function ThemeSettingsMenu() {
     if (!isClient) return;
     const root = document.documentElement;
     root.style.setProperty('--background', previewTheme.background);
+    root.style.setProperty('--card', previewTheme.card);
     root.style.setProperty('--primary', previewTheme.primary);
     root.style.setProperty('--accent', previewTheme.accent);
     root.style.setProperty('--font-family', previewTheme.font === 'Inter' ? 'var(--font-inter)' : previewTheme.font.toLowerCase());
@@ -62,7 +64,7 @@ export function ThemeSettingsMenu() {
     root.style.setProperty('--bg-overlay-opacity', previewTheme.backgroundImage ? String(previewTheme.backgroundOpacity) : '0');
   }, [previewTheme, isClient]);
 
-  const handleColorChange = (name: 'background' | 'primary' | 'accent', value: string) => {
+  const handleColorChange = (name: 'background' | 'primary' | 'accent' | 'card', value: string) => {
     const hslValue = hexToHsl(value);
     if (hslValue) {
       setPreviewTheme(prev => ({ ...prev, [name]: hslValue }));
@@ -104,6 +106,7 @@ export function ThemeSettingsMenu() {
   }
 
   const [bgH, bgS, bgL] = parseHsl(previewTheme.background);
+  const [cardH, cardS, cardL] = parseHsl(previewTheme.card);
   const [prH, prS, prL] = parseHsl(previewTheme.primary);
   const [acH, acS, acL] = parseHsl(previewTheme.accent);
 
@@ -164,8 +167,9 @@ export function ThemeSettingsMenu() {
               <div className="grid grid-cols-3 gap-4">
                 {colorPresets.map(preset => (
                   <button key={preset.name} onClick={() => setPreviewTheme(p => ({...p, ...preset.settings}))} className="space-y-2 focus:outline-none focus:ring-2 focus:ring-ring rounded-lg p-1">
-                    <div className="flex -space-x-2 justify-center">
+                    <div className="flex -space-x-3 justify-center">
                         <div className="w-8 h-8 rounded-full border-2 border-background" style={{ backgroundColor: hslToHex(...parseHsl(preset.settings.background!)) }}/>
+                        <div className="w-8 h-8 rounded-full border-2 border-background" style={{ backgroundColor: hslToHex(...parseHsl(preset.settings.card!)) }}/>
                         <div className="w-8 h-8 rounded-full border-2 border-background" style={{ backgroundColor: hslToHex(...parseHsl(preset.settings.primary!)) }}/>
                         <div className="w-8 h-8 rounded-full border-2 border-background" style={{ backgroundColor: hslToHex(...parseHsl(preset.settings.accent!)) }}/>
                     </div>
@@ -175,10 +179,14 @@ export function ThemeSettingsMenu() {
               </div>
             </TabsContent>
             <TabsContent value="custom" className="pt-4 space-y-6">
-               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div className="space-y-2">
                   <Label>Background</Label>
                   <Input type="color" value={hslToHex(bgH, bgS, bgL)} onChange={e => handleColorChange('background', e.target.value)} className="h-12 w-full"/>
+                </div>
+                 <div className="space-y-2">
+                  <Label>Surface/Card</Label>
+                  <Input type="color" value={hslToHex(cardH, cardS, cardL)} onChange={e => handleColorChange('card', e.target.value)} className="h-12 w-full"/>
                 </div>
                 <div className="space-y-2">
                   <Label>Primary</Label>

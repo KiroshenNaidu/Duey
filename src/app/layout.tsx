@@ -4,6 +4,7 @@ import { AppDataProvider } from '@/context/AppDataContext';
 import { BottomNav } from '@/components/BottomNav';
 import { Toaster } from "@/components/ui/toaster";
 import { ThemeProvider } from '@/components/ThemeProvider';
+import { FloatingTools } from '@/components/FloatingTools';
 
 export const metadata: Metadata = {
   title: 'DebtMate',
@@ -32,6 +33,7 @@ export default function RootLayout({
               </main>
               <BottomNav />
             </div>
+            <FloatingTools />
             <Toaster />
           </AppDataProvider>
         </ThemeProvider>

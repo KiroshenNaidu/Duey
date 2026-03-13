@@ -12,6 +12,7 @@ const inter = Inter({
 
 const defaultTheme: ThemeSettings = {
   background: '220 14% 10%',
+  card: '220 14% 12%',
   primary: '225 50% 50%',
   accent: '188 78% 57%',
   font: 'Inter',
@@ -27,6 +28,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
     if (theme) {
       root.style.setProperty('--background', theme.background);
+      root.style.setProperty('--card', theme.card);
       root.style.setProperty('--primary', theme.primary);
       root.style.setProperty('--accent', theme.accent);
 
