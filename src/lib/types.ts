@@ -12,6 +12,7 @@ export interface HistoryEntry {
   debtTitle: string;
   date: string; // ISO 8601 format
   amount: number;
+  type?: 'payment' | 'creation';
 }
 
 export interface AppData {

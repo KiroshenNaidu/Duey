@@ -41,6 +41,17 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       payment_score: 0,
     };
     setDebts((prev) => [...prev, newDebt]);
+
+    const newHistoryEntry: HistoryEntry = {
+      id: `${newDebt.id}-created`,
+      debtId: newDebt.id,
+      debtTitle: newDebt.title,
+      date: new Date().toISOString(),
+      amount: newDebt.total_owed,
+      type: 'creation',
+    };
+    setHistory((prev) => [newHistoryEntry, ...prev]);
+
     toast({
       title: 'Debt Added',
       description: `"${newDebt.title}" has been added to your list.`,
@@ -69,6 +80,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
         debtTitle: updatedDebt.title,
         date: new Date().toISOString(),
         amount: updatedDebt.installment_amount,
+        type: 'payment',
       };
       setHistory((prev) => [newHistoryEntry, ...prev]);
 
