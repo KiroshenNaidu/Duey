@@ -1,6 +1,6 @@
 'use client';
 
-import { useContext } from 'react';
+import { useContext, useState, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { AppDataContext } from '@/context/AppDataContext';
@@ -9,9 +9,26 @@ import { format } from 'date-fns';
 import { Separator } from './ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { HistoryEntry } from '@/lib/types';
+import { Skeleton } from './ui/skeleton';
 
 export function HistoryLog() {
   const { debts, history } = useContext(AppDataContext);
+  const [isClient, setIsClient] = useState(false);
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+
+  if (!isClient) {
+    return (
+        <Card>
+            <CardContent className="p-4 space-y-2">
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-64 w-full" />
+            </CardContent>
+        </Card>
+    );
+  }
   
   if (history.length === 0) {
     return (
