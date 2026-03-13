@@ -163,12 +163,21 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
   };
 
   const clearData = () => {
-    setDebts([]);
-    setHistory([]);
-     toast({
-        title: 'Data Cleared',
-        description: 'All your data has been removed.',
-      });
+    // Go direct to localStorage to ensure all app data is cleared
+    window.localStorage.removeItem('debts');
+    window.localStorage.removeItem('history');
+    window.localStorage.removeItem('transportSettings');
+    window.localStorage.removeItem('transportOverrides');
+    window.localStorage.removeItem('themeSettings');
+
+    toast({
+      title: 'Data Cleared',
+      description: 'All app data has been removed. The app will now reload.',
+    });
+    
+    setTimeout(() => {
+        window.location.reload();
+    }, 1500);
   };
 
   const logTransportPayment = (amount: number, month: string) => {
