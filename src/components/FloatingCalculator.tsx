@@ -3,6 +3,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { Button } from './ui/button';
 import { Card, CardContent, CardHeader } from './ui/card';
 import { X } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 const DraggableCard = ({ children, title, onClose, isOpen }: { children: React.ReactNode, title: string, onClose: () => void, isOpen: boolean }) => {
   const cardRef = useRef<HTMLDivElement>(null);
@@ -98,77 +99,95 @@ const DraggableCard = ({ children, title, onClose, isOpen }: { children: React.R
 export function FloatingCalculator({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) {
   const [display, setDisplay] = useState('0');
   const [expression, setExpression] = useState('');
+  const [isOperatorClicked, setIsOperatorClicked] = useState(false);
 
   const handleInput = (value: string) => {
-    if (display === 'Error') {
-      setDisplay('0');
-      setExpression('');
-    }
-    if (display === '0' && value !== '.') {
+    // If last action was hitting =, start a new calculation
+    if (expression.includes('=')) {
+        clear();
         setDisplay(value);
-    } else {
-        setDisplay(display + value);
+        return;
     }
-    setExpression(prev => prev + value);
+    if (isOperatorClicked) {
+        setDisplay(value);
+        setIsOperatorClicked(false);
+    } else {
+        setDisplay(prev => (prev === '0' && value !== '.') ? value : prev + value);
+    }
   };
 
   const handleOperator = (operator: string) => {
-    if (display === 'Error') return;
-    const lastChar = expression.slice(-1);
-    if (['+', '-', '*', '/'].includes(lastChar)) {
-      setExpression(prev => prev.slice(0, -1) + operator);
+    // If last action was hitting =, use the result as the start of the new expression
+    if (expression.includes('=')) {
+        setExpression(display + operator);
+    } else if (isOperator(display)) { // Allows changing operator
+        setExpression(prev => prev.slice(0, -1) + operator);
     } else {
-      setExpression(prev => prev + operator);
+        setExpression(prev => prev + display + operator);
     }
     setDisplay(operator);
+    setIsOperatorClicked(true);
   };
   
   const calculate = () => {
-    if (display === 'Error') return;
+    if (isOperator(display)) return; // Don't calculate if last input was operator
+
+    let finalExpression = expression + display;
     try {
-      // Unsafe eval, but acceptable for this sandboxed calculator feature.
-      const result = eval(expression.replace(/--/g, '+'));
-      setDisplay(String(result));
-      setExpression(String(result));
+      const result = eval(finalExpression.replace(/×/g, '*').replace(/÷/g, '/').replace(/−/g, '-'));
+      const resultString = String(parseFloat(result.toPrecision(15)));
+      
+      setExpression(finalExpression + '=' + resultString);
+      setDisplay(resultString);
     } catch {
       setDisplay('Error');
       setExpression('');
     }
+    setIsOperatorClicked(false);
   };
 
   const clear = () => {
     setDisplay('0');
     setExpression('');
+    setIsOperatorClicked(false);
   };
 
+  const isOperator = (char: string) => ['+', '−', '×', '÷'].includes(char);
+  
   const buttons = [
-    '7', '8', '9', '/',
-    '4', '5', '6', '*',
-    '1', '2', '3', '-',
-    '0', '.', '=', '+',
+    { display: '7', value: '7' }, { display: '8', value: '8' }, { display: '9', value: '9' }, { display: '÷', value: '÷', op: true },
+    { display: '4', value: '4' }, { display: '5', value: '5' }, { display: '6', value: '6' }, { display: '×', value: '×', op: true },
+    { display: '1', value: '1' }, { display: '2', value: '2' }, { display: '3', value: '3' }, { display: '−', value: '−', op: true },
+    { display: '0', value: '0' }, { display: '.', value: '.' }, { display: '=', value: '=' }, { display: '+', value: '+', op: true },
   ];
 
-  const handleButtonClick = (btn: string) => {
-    if (!isNaN(parseInt(btn)) || btn === '.') {
-      handleInput(btn);
-    } else if (['+', '-', '*', '/'].includes(btn)) {
-      handleOperator(btn);
-    } else if (btn === '=') {
-      calculate();
+  const handleButtonClick = (btn: typeof buttons[0]) => {
+    if (btn.value === '=') {
+        calculate();
+    } else if (btn.op) {
+        handleOperator(btn.value);
+    } else {
+        handleInput(btn.value);
     }
   };
 
   return (
      <DraggableCard title="Calculator" onClose={onClose} isOpen={isOpen}>
       <div className="space-y-2">
-        <div className="bg-background/50 rounded p-2 text-right text-3xl font-mono truncate">
-          {display}
+        <div className="bg-background/50 rounded p-2 text-right font-mono space-y-1">
+            <div className="text-muted-foreground text-lg h-7 truncate">{expression}</div>
+            <div className="text-4xl truncate">{display}</div>
         </div>
         <div className="grid grid-cols-4 gap-2">
-            <Button onClick={clear} variant="destructive" className="col-span-4 h-14 text-lg">Clear</Button>
+            <Button onClick={clear} variant="destructive" className="col-span-4 h-12 text-lg">Clear</Button>
             {buttons.map(btn => (
-                <Button key={btn} onClick={() => handleButtonClick(btn)} variant="outline" className="h-14 text-lg">
-                    {btn}
+                <Button 
+                    key={btn.value} 
+                    onClick={() => handleButtonClick(btn)} 
+                    variant={btn.op ? 'secondary' : 'outline'} 
+                    className="h-14 text-xl"
+                >
+                    {btn.display}
                 </Button>
             ))}
         </div>
