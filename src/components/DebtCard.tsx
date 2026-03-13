@@ -7,7 +7,7 @@ import { Progress } from '@/components/ui/progress';
 import { AppDataContext } from '@/context/AppDataContext';
 import { formatCurrency } from '@/lib/utils';
 import type { Debt } from '@/lib/types';
-import { Pencil, Trash2, Plus, Minus, Check } from 'lucide-react';
+import { Pencil, Trash2, Check, CalendarDays } from 'lucide-react';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import {
@@ -22,6 +22,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { cn } from '@/lib/utils';
+import { PaymentCalendarDialog } from './PaymentCalendarDialog';
 
 interface DebtCardProps {
   debt: Debt;
@@ -35,18 +36,18 @@ export function DebtCard({ debt }: DebtCardProps) {
   const [editedTitle, setEditedTitle] = useState(debt.title);
   const [editedTotalOwed, setEditedTotalOwed] = useState(debt.total_owed.toString());
   const [editedInstallmentAmount, setEditedInstallmentAmount] = useState(debt.installment_amount.toString());
-  const [editedPaymentScore, setEditedPaymentScore] = useState(debt.payment_score);
+  
+  const paymentCount = (debt.paymentDates || []).length;
 
   useEffect(() => {
     setEditedTitle(debt.title);
     setEditedTotalOwed(debt.total_owed.toString());
     setEditedInstallmentAmount(debt.installment_amount.toString());
-    setEditedPaymentScore(debt.payment_score);
   }, [debt]);
 
   const totalInstallments = debt.installment_amount > 0 ? Math.ceil(debt.total_owed / debt.installment_amount) : 0;
-  const amountPaid = debt.payment_score * debt.installment_amount;
-  const progress = totalInstallments > 0 ? (debt.payment_score / totalInstallments) * 100 : debt.total_owed > 0 ? 0 : 100;
+  const amountPaid = paymentCount * debt.installment_amount;
+  const progress = totalInstallments > 0 ? (paymentCount / totalInstallments) * 100 : debt.total_owed > 0 ? 0 : 100;
   const isPaidOff = progress >= 100 && debt.total_owed > 0;
 
   const handleUpdate = () => {
@@ -57,7 +58,6 @@ export function DebtCard({ debt }: DebtCardProps) {
       title: editedTitle,
       total_owed: totalOwedNum,
       installment_amount: installmentAmountNum,
-      payment_score: editedPaymentScore,
     });
     setIsEditing(false);
   };
@@ -74,10 +74,6 @@ export function DebtCard({ debt }: DebtCardProps) {
     }
   }
 
-  const editedTotalNum = parseFloat(editedTotalOwed) || 0;
-  const editedInstallmentNum = parseFloat(editedInstallmentAmount) || 1;
-  const editedTotalInstallments = editedInstallmentNum > 0 ? Math.ceil(editedTotalNum / editedInstallmentNum) : 0;
-
   return (
     <Card className={cn(
         "overflow-hidden transition-all duration-300",
@@ -87,11 +83,9 @@ export function DebtCard({ debt }: DebtCardProps) {
         <div className="flex justify-between items-center gap-2">
           <CardTitle className="text-lg font-semibold truncate pr-2">{debt.title}</CardTitle>
           <div className="flex items-center gap-2">
-            {!isEditing && (
-              <span className="text-sm text-muted-foreground whitespace-nowrap">
-                {debt.payment_score} of {totalInstallments}
-              </span>
-            )}
+            <span className="text-sm text-muted-foreground whitespace-nowrap">
+              {paymentCount} of {totalInstallments}
+            </span>
             <Button variant="ghost" size="icon" className="h-8 w-8 flex-shrink-0" onClick={handleToggleEdit}>
               {isEditing ? <Check className="h-5 w-5" /> : <Pencil className="h-4 w-4" />}
             </Button>
@@ -127,38 +121,33 @@ export function DebtCard({ debt }: DebtCardProps) {
                 </div>
             </div>
             
-            <div className="space-y-2">
-                <Label>Payment Adjustments</Label>
-                <div className="flex items-center justify-center gap-4 p-2 bg-secondary rounded-md">
-                    <Button variant="ghost" size="icon" onClick={() => setEditedPaymentScore(s => Math.max(0, s - 1))} disabled={editedPaymentScore <= 0}>
-                        <Minus />
-                    </Button>
-                    <span className="text-xl font-bold tabular-nums w-24 text-center">{editedPaymentScore} / {editedTotalInstallments || 0}</span>
-                    <Button variant="ghost" size="icon" onClick={() => setEditedPaymentScore(s => Math.min(editedTotalInstallments, s + 1))} disabled={editedPaymentScore >= editedTotalInstallments}>
-                        <Plus />
-                    </Button>
-                </div>
-            </div>
             <div className="flex justify-between items-center pt-4 border-t">
-                <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                        <Button variant="outline" size="icon">
-                            <Trash2 className="text-destructive" />
+                <div className='flex gap-2'>
+                    <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                            <Button variant="outline" size="icon">
+                                <Trash2 className="text-destructive" />
+                            </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                            <AlertDialogHeader>
+                            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                                This will permanently delete the "{debt.title}" debt. This action cannot be undone.
+                            </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction onClick={handleDelete} className={cn(buttonVariants({variant: 'destructive'}))}>Delete</AlertDialogAction>
+                            </AlertDialogFooter>
+                        </AlertDialogContent>
+                    </AlertDialog>
+                    <PaymentCalendarDialog debt={debt}>
+                       <Button variant="outline" size="icon">
+                            <CalendarDays />
                         </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                        <AlertDialogHeader>
-                        <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                            This will permanently delete the "{debt.title}" debt. This action cannot be undone.
-                        </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction onClick={handleDelete} className={cn(buttonVariants({variant: 'destructive'}))}>Delete</AlertDialogAction>
-                        </AlertDialogFooter>
-                    </AlertDialogContent>
-                </AlertDialog>
+                    </PaymentCalendarDialog>
+                </div>
                  <Button onClick={() => incrementPayment(debt.id)} disabled={isPaidOff}>
                     +1 Payment
                  </Button>

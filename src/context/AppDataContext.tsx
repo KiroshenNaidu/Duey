@@ -4,15 +4,17 @@ import React, { createContext, ReactNode } from 'react';
 import useLocalStorage from '@/hooks/useLocalStorage';
 import type { AppData, Debt, HistoryEntry } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
+import { isSameDay } from 'date-fns';
 
 interface AppContextType extends AppData {
-  addDebt: (debt: Omit<Debt, 'id' | 'payment_score'>) => void;
+  addDebt: (debt: Omit<Debt, 'id' | 'payment_score' | 'paymentDates'>) => void;
   updateDebt: (debtId: string, updatedData: Partial<Omit<Debt, 'id'>>) => void;
   deleteDebt: (debtId: string) => void;
   importData: (data: AppData) => void;
   clearData: () => void;
   incrementPayment: (debtId: string) => void;
   logTransportPayment: (amount: number, month: string) => void;
+  togglePaymentDate: (debtId: string, date: Date) => void;
 }
 
 const defaultState: AppData = {
@@ -29,6 +31,7 @@ export const AppDataContext = createContext<AppContextType>({
   clearData: () => {},
   incrementPayment: () => {},
   logTransportPayment: () => {},
+  togglePaymentDate: () => {},
 });
 
 export function AppDataProvider({ children }: { children: ReactNode }) {
@@ -36,11 +39,12 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
   const [history, setHistory] = useLocalStorage<HistoryEntry[]>('history', defaultState.history);
   const { toast } = useToast();
 
-  const addDebt = (debtData: Omit<Debt, 'id' | 'payment_score'>) => {
+  const addDebt = (debtData: Omit<Debt, 'id' | 'payment_score' | 'paymentDates'>) => {
     const newDebt: Debt = {
       ...debtData,
       id: new Date().toISOString(),
       payment_score: 0,
+      paymentDates: [],
     };
     setDebts((prev) => [...prev, newDebt]);
 
@@ -62,12 +66,32 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
 
   const incrementPayment = (debtId: string) => {
     let updatedDebt: Debt | undefined;
+    const today = new Date();
+
     setDebts((prevDebts) =>
       prevDebts.map((debt) => {
         if (debt.id === debtId) {
+          const paymentDates = debt.paymentDates || [];
+          const dateAlreadyLogged = paymentDates.some(d => isSameDay(new Date(d), today));
+
+          if (dateAlreadyLogged) {
+            toast({
+              variant: 'destructive',
+              title: 'Already Logged',
+              description: 'A payment for today has already been recorded for this debt.',
+            });
+            updatedDebt = debt; // No changes
+            return debt;
+          }
+
           const totalInstallments = Math.ceil(debt.total_owed / debt.installment_amount);
           if (debt.payment_score < totalInstallments) {
-            updatedDebt = { ...debt, payment_score: debt.payment_score + 1 };
+             const newPaymentDates = [...paymentDates, today.toISOString()];
+             updatedDebt = { 
+               ...debt, 
+               paymentDates: newPaymentDates,
+               payment_score: newPaymentDates.length 
+             };
             return updatedDebt;
           }
         }
@@ -75,7 +99,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       })
     );
 
-    if (updatedDebt) {
+    if (updatedDebt && updatedDebt.paymentDates && updatedDebt.paymentDates.some(d => isSameDay(new Date(d), today))) {
       const newHistoryEntry: HistoryEntry = {
         id: new Date().toISOString(),
         debtId: updatedDebt.id,
@@ -98,6 +122,36 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const togglePaymentDate = (debtId: string, date: Date) => {
+    setDebts(prevDebts => prevDebts.map(debt => {
+      if (debt.id === debtId) {
+        const paymentDates = debt.paymentDates || [];
+        const dateString = date.toISOString();
+        
+        let newPaymentDates: string[];
+        const existingIndex = paymentDates.findIndex(d => isSameDay(new Date(d), date));
+
+        if (existingIndex > -1) {
+          // Date exists, so remove it
+          newPaymentDates = paymentDates.filter((_, index) => index !== existingIndex);
+        } else {
+          // Date doesn't exist, so add it
+          newPaymentDates = [...paymentDates, dateString];
+        }
+
+        // Sort dates for consistency
+        newPaymentDates.sort((a, b) => new Date(a).getTime() - new Date(b).getTime());
+
+        return {
+          ...debt,
+          paymentDates: newPaymentDates,
+          payment_score: newPaymentDates.length,
+        };
+      }
+      return debt;
+    }));
+  };
+
   const updateDebt = (debtId: string, updatedData: Partial<Omit<Debt, 'id'>>) => {
     let oldDebt: Debt | undefined;
     let newDebt: Debt | undefined;
@@ -105,7 +159,9 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       prevDebts.map(debt => {
         if (debt.id === debtId) {
           oldDebt = debt;
-          newDebt = { ...debt, ...updatedData };
+          // When core debt details change, recalculate payment score from calendar
+          const payment_score = (debt.paymentDates || []).length;
+          newDebt = { ...debt, ...updatedData, payment_score };
           return newDebt;
         }
         return debt;
@@ -205,6 +261,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     clearData,
     incrementPayment,
     logTransportPayment,
+    togglePaymentDate,
   };
 
   return <AppDataContext.Provider value={value}>{children}</AppDataContext.Provider>;

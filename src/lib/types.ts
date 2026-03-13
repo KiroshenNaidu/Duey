@@ -4,6 +4,7 @@ export interface Debt {
   total_owed: number;
   installment_amount: number;
   payment_score: number;
+  paymentDates?: string[];
 }
 
 export interface HistoryEntry {
