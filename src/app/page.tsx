@@ -17,7 +17,7 @@ export default function Home() {
       {debts.length === 0 ? (
         <Card className="text-center py-12">
           <CardHeader>
-            <CardTitle>Welcome to DebtMate!</CardTitle>
+            <CardTitle>Stop acting like you didnt forget</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-muted-foreground">You haven't added any debts yet.</p>
