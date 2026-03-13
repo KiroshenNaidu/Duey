@@ -13,7 +13,7 @@ export function HistoryLog() {
   if (history.length === 0) {
     return (
         <Card>
-            <CardContent className="pt-6 text-center text-muted-foreground">
+            <CardContent className="py-10 text-center text-muted-foreground">
                 No payment history yet.
             </CardContent>
         </Card>
@@ -24,16 +24,16 @@ export function HistoryLog() {
     <Card>
       <CardContent className="p-0">
         <ScrollArea className="h-72">
-          <div className="p-4 space-y-4">
+          <div className="divide-y divide-border">
             {history.map((entry) => (
-              <div key={entry.id} className="flex justify-between items-center">
+              <div key={entry.id} className="flex justify-between items-center p-4">
                 <div>
-                  <p className="font-semibold">{entry.debtTitle}</p>
-                  <p className="text-sm text-muted-foreground">
-                    {format(new Date(entry.date), "PPP p")}
+                  <p className="font-semibold text-sm">{entry.debtTitle}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {format(new Date(entry.date), "PPp")}
                   </p>
                 </div>
-                <p className="font-mono text-lg text-green-400">
+                <p className="font-mono text-base font-semibold text-green-400 shrink-0 pl-4">
                   {formatCurrency(entry.amount)}
                 </p>
               </div>

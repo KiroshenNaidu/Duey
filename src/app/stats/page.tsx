@@ -2,7 +2,7 @@
 
 import { useContext, useMemo, useState, useEffect } from 'react';
 import { AppDataContext } from '@/context/AppDataContext';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { formatCurrency } from '@/lib/utils';
 import { DebtProgressCharts } from '@/components/DebtProgressCharts';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -26,63 +26,37 @@ function StatsOverview() {
     return { globalTotalDebt, globalAmountPaid, globalRemainingBalance };
   }, [debts]);
 
+  const overviewItems = [
+    { title: 'Total Debt', value: stats.globalTotalDebt },
+    { title: 'Amount Paid', value: stats.globalAmountPaid },
+    { title: 'Remaining', value: stats.globalRemainingBalance },
+  ];
+
   if (!isClient) {
     return (
-      <div className="grid gap-4 md:grid-cols-3">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm font-medium text-muted-foreground">Total Debt</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Skeleton className="h-8 w-3/4" />
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm font-medium text-muted-foreground">Amount Paid</CardTitle>
-          </CardHeader>
-          <CardContent>
-             <Skeleton className="h-8 w-3/4" />
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm font-medium text-muted-foreground">Remaining</CardTitle>
-          </CardHeader>
-          <CardContent>
-             <Skeleton className="h-8 w-3/4" />
-          </CardContent>
-        </Card>
+      <div className="grid gap-3 md:grid-cols-3">
+        {overviewItems.map(item => (
+          <Card key={item.title}>
+            <CardContent className="p-4">
+              <p className="text-sm font-medium text-muted-foreground">{item.title}</p>
+              <Skeleton className="h-7 w-3/4 mt-1" />
+            </CardContent>
+          </Card>
+        ))}
       </div>
     );
   }
 
   return (
-    <div className="grid gap-4 md:grid-cols-3">
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-sm font-medium text-muted-foreground">Total Debt</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-2xl font-bold">{formatCurrency(stats.globalTotalDebt)}</p>
-        </CardContent>
-      </Card>
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-sm font-medium text-muted-foreground">Amount Paid</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-2xl font-bold">{formatCurrency(stats.globalAmountPaid)}</p>
-        </CardContent>
-      </Card>
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-sm font-medium text-muted-foreground">Remaining</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-2xl font-bold">{formatCurrency(stats.globalRemainingBalance)}</p>
-        </CardContent>
-      </Card>
+    <div className="grid gap-3 md:grid-cols-3">
+      {overviewItems.map(item => (
+        <Card key={item.title}>
+          <CardContent className="p-4">
+            <p className="text-sm font-medium text-muted-foreground">{item.title}</p>
+            <p className="text-2xl font-bold">{formatCurrency(item.value)}</p>
+          </CardContent>
+        </Card>
+      ))}
     </div>
   );
 }
@@ -97,18 +71,18 @@ export default function StatsPage() {
 
   return (
     <div className="container mx-auto max-w-2xl space-y-6">
-      <h1 className="text-3xl font-bold text-foreground">Statistics</h1>
+      <h1 className="text-3xl font-bold text-foreground mb-4">Statistics</h1>
       
       <section>
-        <h2 className="text-xl font-semibold mb-4">Total Overview</h2>
+        <h2 className="text-xl font-semibold mb-2">Total Overview</h2>
         <StatsOverview />
       </section>
 
       {isClient && debts.length > 0 && (
         <section>
-          <h2 className="text-xl font-semibold mb-4">Debt Progress</h2>
+          <h2 className="text-xl font-semibold mb-2">Debt Progress</h2>
           <Card>
-            <CardContent className="pt-6">
+            <CardContent className="p-2 sm:p-4">
               <DebtProgressCharts />
             </CardContent>
           </Card>

@@ -61,12 +61,12 @@ export function BackupAndRestore() {
 
   return (
     <Card>
-      <CardContent className="pt-6 space-y-4">
-        <div className="flex flex-col sm:flex-row gap-4">
-            <Button onClick={handleExport} className="flex-1">
+      <CardContent className="p-4 space-y-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <Button onClick={handleExport}>
                 <Download className="mr-2 h-4 w-4" /> Export Data
             </Button>
-            <Button onClick={handleImportClick} variant="secondary" className="flex-1">
+            <Button onClick={handleImportClick} variant="secondary">
                 <Upload className="mr-2 h-4 w-4" /> Import Data
             </Button>
             <input
