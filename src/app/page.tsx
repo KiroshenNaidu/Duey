@@ -12,7 +12,7 @@ export default function Home() {
 
   return (
     <div className="container mx-auto max-w-2xl">
-      <h1 className="text-3xl font-bold mb-6 text-foreground">My Debts</h1>
+      <h1 className="text-3xl font-bold mb-6 text-foreground">TaxMaxxing</h1>
 
       {debts.length === 0 ? (
         <Card className="text-center py-12">
