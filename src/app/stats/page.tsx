@@ -1,13 +1,19 @@
 'use client';
 
-import { useContext, useMemo } from 'react';
+import { useContext, useMemo, useState, useEffect } from 'react';
 import { AppDataContext } from '@/context/AppDataContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { formatCurrency } from '@/lib/utils';
 import { DebtProgressCharts } from '@/components/DebtProgressCharts';
+import { Skeleton } from '@/components/ui/skeleton';
 
 function StatsOverview() {
   const { debts } = useContext(AppDataContext);
+  const [isClient, setIsClient] = useState(false);
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   const stats = useMemo(() => {
     const globalTotalDebt = debts.reduce((acc, debt) => acc + debt.total_owed, 0);
@@ -19,6 +25,37 @@ function StatsOverview() {
 
     return { globalTotalDebt, globalAmountPaid, globalRemainingBalance };
   }, [debts]);
+
+  if (!isClient) {
+    return (
+      <div className="grid gap-4 md:grid-cols-3">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm font-medium text-muted-foreground">Total Debt</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Skeleton className="h-8 w-3/4" />
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm font-medium text-muted-foreground">Amount Paid</CardTitle>
+          </CardHeader>
+          <CardContent>
+             <Skeleton className="h-8 w-3/4" />
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm font-medium text-muted-foreground">Remaining</CardTitle>
+          </CardHeader>
+          <CardContent>
+             <Skeleton className="h-8 w-3/4" />
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="grid gap-4 md:grid-cols-3">
@@ -52,6 +89,11 @@ function StatsOverview() {
 
 export default function StatsPage() {
   const { debts } = useContext(AppDataContext);
+  const [isClient, setIsClient] = useState(false);
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   return (
     <div className="container mx-auto max-w-2xl space-y-6">
@@ -62,7 +104,7 @@ export default function StatsPage() {
         <StatsOverview />
       </section>
 
-      {debts.length > 0 && (
+      {isClient && debts.length > 0 && (
         <section>
           <h2 className="text-xl font-semibold mb-4">Debt Progress</h2>
           <Card>

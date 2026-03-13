@@ -1,12 +1,18 @@
 'use client';
 
-import { useContext, useMemo } from 'react';
+import { useContext, useMemo, useState, useEffect } from 'react';
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Tooltip, ResponsiveContainer, LabelList } from 'recharts';
 import { AppDataContext } from '@/context/AppDataContext';
 import { formatCurrency } from '@/lib/utils';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export function DebtProgressCharts() {
   const { debts } = useContext(AppDataContext);
+  const [isClient, setIsClient] = useState(false);
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   const chartData = useMemo(() => {
     return debts.map((debt) => {
@@ -23,6 +29,10 @@ export function DebtProgressCharts() {
       };
     });
   }, [debts]);
+  
+  if (!isClient) {
+    return <Skeleton className="h-[300px] w-full" />;
+  }
   
   return (
      <div style={{ width: '100%', height: 300 }}>
