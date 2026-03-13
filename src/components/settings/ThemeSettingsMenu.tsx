@@ -1,6 +1,5 @@
 'use client';
 import { useState, useEffect, useRef } from 'react';
-import useLocalStorage from '@/hooks/useLocalStorage';
 import type { ThemeSettings } from '@/lib/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
@@ -8,14 +7,14 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Slider } from '@/components/ui/slider';
 import { Button } from '@/components/ui/button';
-import { hexToHsl, hslToHex } from '@/lib/utils';
+import { hexToHsl, hslToHex, idbGet, idbSet } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Upload } from 'lucide-react';
+import { Upload, Loader2 } from 'lucide-react';
 
 const defaultTheme: ThemeSettings = {
   background: '220 14% 10%',
-  card: '220 14% 12%',
+  surface: '220 14% 12%',
   primary: '225 50% 50%',
   accent: '188 78% 57%',
   font: 'Inter',
@@ -23,16 +22,16 @@ const defaultTheme: ThemeSettings = {
   backgroundOpacity: 0.1,
 };
 
-const colorPresets: { name: string; settings: Partial<ThemeSettings> }[] = [
-  { name: 'Default', settings: { background: '220 14% 10%', card: '220 14% 12%', primary: '225 50% 50%', accent: '188 78% 57%' } },
-  { name: 'Forest', settings: { background: '120 15% 15%', card: '120 15% 18%', primary: '140 40% 45%', accent: '90 50% 60%' } },
-  { name: 'Ocean', settings: { background: '210 30% 20%', card: '210 30% 25%', primary: '200 60% 50%', accent: '180 70% 45%' } },
-  { name: 'Sunset', settings: { background: '25 20% 18%', card: '25 20% 22%', primary: '30 80% 60%', accent: '0 70% 65%' } },
-  { name: 'Rose', settings: { background: '340 10% 15%', card: '340 10% 20%', primary: '330 50% 60%', accent: '350 70% 70%' } },
-  { name: 'Mono', settings: { background: '240 5% 12%', card: '240 5% 15%', primary: '240 5% 80%', accent: '240 5% 50%' } },
+const colorPresets: { name: string; settings: Partial<Omit<ThemeSettings, 'backgroundImage' | 'backgroundOpacity'>> }[] = [
+  { name: 'Default', settings: { background: '220 14% 10%', surface: '220 14% 12%', primary: '225 50% 50%', accent: '188 78% 57%' } },
+  { name: 'Forest', settings: { background: '120 15% 15%', surface: '120 15% 18%', primary: '140 40% 45%', accent: '90 50% 60%' } },
+  { name: 'Ocean', settings: { background: '210 30% 20%', surface: '210 30% 25%', primary: '200 60% 50%', accent: '180 70% 45%' } },
+  { name: 'Sunset', settings: { background: '25 20% 18%', surface: '25 20% 22%', primary: '30 80% 60%', accent: '0 70% 65%' } },
+  { name: 'Rose', settings: { background: '340 10% 15%', surface: '340 10% 20%', primary: '330 50% 60%', accent: '350 70% 70%' } },
+  { name: 'Mono', settings: { background: '240 5% 12%', surface: '240 5% 15%', primary: '240 5% 80%', accent: '240 5% 50%' } },
 ];
 
-const MAX_IMAGE_SIZE_MB = 2;
+const MAX_IMAGE_DIMENSION = 2500;
 
 function parseHsl(hslStr: string): [number, number, number] {
   if (!hslStr) return [0,0,0];
@@ -41,22 +40,31 @@ function parseHsl(hslStr: string): [number, number, number] {
 }
 
 export function ThemeSettingsMenu() {
-  const [storedTheme, setStoredTheme] = useLocalStorage<ThemeSettings>('themeSettings', defaultTheme);
-  const [previewTheme, setPreviewTheme] = useState(storedTheme);
+  const [storedTheme, setStoredTheme] = useState<Omit<ThemeSettings, 'backgroundImage'>>(defaultTheme);
+  const [previewTheme, setPreviewTheme] = useState<ThemeSettings>(defaultTheme);
   const [isClient, setIsClient] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
   useEffect(() => {
     setIsClient(true);
-    setPreviewTheme(storedTheme);
-  }, [storedTheme]);
+    async function loadInitialTheme() {
+        const storedSettings = localStorage.getItem('themeSettings');
+        const themeToLoad = storedSettings ? JSON.parse(storedSettings) : defaultTheme;
+        setStoredTheme(themeToLoad);
+        
+        const storedImage = await idbGet<string>('backgroundImage');
+        setPreviewTheme({ ...themeToLoad, backgroundImage: storedImage || '' });
+    }
+    loadInitialTheme();
+  }, []);
   
   useEffect(() => {
     if (!isClient) return;
     const root = document.documentElement;
     root.style.setProperty('--background', previewTheme.background);
-    root.style.setProperty('--card', previewTheme.card);
+    root.style.setProperty('--card', previewTheme.surface);
     root.style.setProperty('--primary', previewTheme.primary);
     root.style.setProperty('--accent', previewTheme.accent);
     root.style.setProperty('--font-family', previewTheme.font === 'Inter' ? 'var(--font-inter)' : previewTheme.font.toLowerCase());
@@ -64,7 +72,7 @@ export function ThemeSettingsMenu() {
     root.style.setProperty('--bg-overlay-opacity', previewTheme.backgroundImage ? String(previewTheme.backgroundOpacity) : '0');
   }, [previewTheme, isClient]);
 
-  const handleColorChange = (name: 'background' | 'primary' | 'accent' | 'card', value: string) => {
+  const handleColorChange = (name: 'background' | 'primary' | 'accent' | 'surface', value: string) => {
     const hslValue = hexToHsl(value);
     if (hslValue) {
       setPreviewTheme(prev => ({ ...prev, [name]: hslValue }));
@@ -73,31 +81,64 @@ export function ThemeSettingsMenu() {
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (file) {
-      if (file.size > MAX_IMAGE_SIZE_MB * 1024 * 1024) {
-        toast({
-          title: 'Image Too Large',
-          description: `Please select an image smaller than ${MAX_IMAGE_SIZE_MB}MB.`,
-          variant: 'destructive',
+    if (!file) return;
+
+    setIsProcessing(true);
+    const reader = new FileReader();
+    
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        let { width, height } = img;
+        if (width > MAX_IMAGE_DIMENSION || height > MAX_IMAGE_DIMENSION) {
+          if (width > height) {
+            height = Math.round((height * MAX_IMAGE_DIMENSION) / width);
+            width = MAX_IMAGE_DIMENSION;
+          } else {
+            width = Math.round((width * MAX_IMAGE_DIMENSION) / height);
+            height = MAX_IMAGE_DIMENSION;
+          }
+        }
+        
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+            toast({ title: "Could not process image", variant: "destructive" });
+            setIsProcessing(false);
+            return;
+        }
+        ctx.drawImage(img, 0, 0, width, height);
+
+        // For GIFs, we can't resize, so we use the original.
+        const dataUrl = file.type === 'image/gif' ? (e.target?.result as string) : canvas.toDataURL(file.type, 0.9);
+
+        idbSet('backgroundImage', dataUrl).then(() => {
+          setPreviewTheme(p => ({...p, backgroundImage: dataUrl}));
+          setIsProcessing(false);
+          toast({ title: 'Background updated!' });
         });
-        return;
-      }
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        setPreviewTheme(p => ({...p, backgroundImage: e.target?.result as string}));
       };
-      reader.readAsDataURL(file);
-      event.target.value = '';
-    }
+      img.src = e.target?.result as string;
+    };
+
+    reader.readAsDataURL(file);
+    event.target.value = '';
   };
 
   const handleSave = () => {
-    setStoredTheme(previewTheme);
+    const { backgroundImage, ...settingsToSave } = previewTheme;
+    localStorage.setItem('themeSettings', JSON.stringify(settingsToSave));
+    setStoredTheme(settingsToSave);
+    // The background image is already saved in IndexedDB
     toast({ title: 'Theme Saved', description: 'Your new theme has been applied.' });
   };
 
   const handleCancel = () => {
-    setPreviewTheme(storedTheme);
+    idbGet<string>('backgroundImage').then(storedImage => {
+        setPreviewTheme({ ...storedTheme, backgroundImage: storedImage || '' });
+    });
     toast({ title: 'Changes Reverted' });
   };
 
@@ -106,7 +147,7 @@ export function ThemeSettingsMenu() {
   }
 
   const [bgH, bgS, bgL] = parseHsl(previewTheme.background);
-  const [cardH, cardS, cardL] = parseHsl(previewTheme.card);
+  const [suH, suS, suL] = parseHsl(previewTheme.surface);
   const [prH, prS, prL] = parseHsl(previewTheme.primary);
   const [acH, acS, acL] = parseHsl(previewTheme.accent);
 
@@ -129,8 +170,8 @@ export function ThemeSettingsMenu() {
                 style={{ opacity: previewTheme.backgroundOpacity }}
              />
           </div>
-           <Button onClick={() => fileInputRef.current?.click()} className="w-full">
-            <Upload className="mr-2 h-4 w-4" /> Upload Image
+           <Button onClick={() => fileInputRef.current?.click()} className="w-full" disabled={isProcessing}>
+            {isProcessing ? <><Loader2 className="mr-2 h-4 w-4 animate-spin"/> Processing...</> : <><Upload className="mr-2 h-4 w-4" /> Upload Image</>}
           </Button>
           <input
             type="file"
@@ -169,7 +210,7 @@ export function ThemeSettingsMenu() {
                   <button key={preset.name} onClick={() => setPreviewTheme(p => ({...p, ...preset.settings}))} className="space-y-2 focus:outline-none focus:ring-2 focus:ring-ring rounded-lg p-1">
                     <div className="flex -space-x-3 justify-center">
                         <div className="w-8 h-8 rounded-full border-2 border-background" style={{ backgroundColor: hslToHex(...parseHsl(preset.settings.background!)) }}/>
-                        <div className="w-8 h-8 rounded-full border-2 border-background" style={{ backgroundColor: hslToHex(...parseHsl(preset.settings.card!)) }}/>
+                        <div className="w-8 h-8 rounded-full border-2 border-background" style={{ backgroundColor: hslToHex(...parseHsl(preset.settings.surface!)) }}/>
                         <div className="w-8 h-8 rounded-full border-2 border-background" style={{ backgroundColor: hslToHex(...parseHsl(preset.settings.primary!)) }}/>
                         <div className="w-8 h-8 rounded-full border-2 border-background" style={{ backgroundColor: hslToHex(...parseHsl(preset.settings.accent!)) }}/>
                     </div>
@@ -186,7 +227,7 @@ export function ThemeSettingsMenu() {
                 </div>
                  <div className="space-y-2">
                   <Label>Surface/Card</Label>
-                  <Input type="color" value={hslToHex(cardH, cardS, cardL)} onChange={e => handleColorChange('card', e.target.value)} className="h-12 w-full"/>
+                  <Input type="color" value={hslToHex(suH, suS, suL)} onChange={e => handleColorChange('surface', e.target.value)} className="h-12 w-full"/>
                 </div>
                 <div className="space-y-2">
                   <Label>Primary</Label>

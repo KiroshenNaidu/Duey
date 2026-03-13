@@ -1,5 +1,6 @@
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
+import { openDB, DBSchema, IDBPDatabase } from 'idb';
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -70,4 +71,51 @@ export function hslToHex(h: number, s: number, l: number): string {
   b = Math.round((b + m) * 255);
 
   return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+}
+
+// --- IndexedDB Key-Value Store ---
+const DB_NAME = 'AppDataStore';
+const DB_VERSION = 1;
+const STORE_NAME = 'KeyValueStore';
+
+interface MyDB extends DBSchema {
+  [STORE_NAME]: {
+    key: string;
+    value: any;
+  };
+}
+
+let dbPromise: Promise<IDBPDatabase<MyDB>> | null = null;
+
+function getDb(): Promise<IDBPDatabase<MyDB>> {
+  if (typeof window === 'undefined') {
+    return Promise.reject('IndexedDB cannot be used in SSR.');
+  }
+  if (!dbPromise) {
+    dbPromise = openDB<MyDB>(DB_NAME, DB_VERSION, {
+      upgrade(db) {
+        db.createObjectStore(STORE_NAME);
+      },
+    });
+  }
+  return dbPromise;
+}
+
+export async function idbGet<T>(key: string): Promise<T | undefined> {
+  try {
+    const db = await getDb();
+    return db.get(STORE_NAME, key);
+  } catch (error) {
+    console.error('Failed to get from IndexedDB', error);
+    return undefined;
+  }
+}
+
+export async function idbSet(key: string, value: any): Promise<void> {
+   try {
+    const db = await getDb();
+    await db.put(STORE_NAME, value, key);
+  } catch (error) {
+    console.error('Failed to set in IndexedDB', error);
+  }
 }

@@ -23,7 +23,7 @@ export interface AppData {
 
 export interface ThemeSettings {
   background: string;
-  card: string;
+  surface: string;
   primary: string;
   accent: string;
   font: 'Inter' | 'Serif' | 'Mono';

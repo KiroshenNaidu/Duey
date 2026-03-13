@@ -28,7 +28,7 @@ export default function RootLayout({
         <ThemeProvider>
           <AppDataProvider>
             <div className="flex flex-col min-h-dvh bg-transparent">
-              <main className="flex-1 overflow-y-auto pb-24 pt-4 px-4">
+              <main className="flex-1 overflow-y-auto pb-32 pt-4 px-4">
                 {children}
               </main>
               <BottomNav />
