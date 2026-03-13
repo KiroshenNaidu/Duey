@@ -35,8 +35,8 @@ export function AddDebtDialog({ children }: { children: ReactNode }) {
     resolver: zodResolver(debtSchema),
     defaultValues: {
       title: '',
-      total_owed: undefined,
-      installment_amount: undefined,
+      total_owed: '' as any,
+      installment_amount: '' as any,
     }
   });
 
