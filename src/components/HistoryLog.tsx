@@ -6,29 +6,55 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { AppDataContext } from '@/context/AppDataContext';
 import { formatCurrency, cn } from '@/lib/utils';
 import { format } from 'date-fns';
-import { Separator } from './ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { HistoryEntry } from '@/lib/types';
 import { Skeleton } from './ui/skeleton';
+import { Check } from 'lucide-react';
 
-function HistoryItem({ entry }: { entry: HistoryEntry }) {
+type ProcessedHistoryEntry = HistoryEntry & { balanceAfter?: number };
+
+function HistoryItem({ entry }: { entry: ProcessedHistoryEntry }) {
     const isCreation = entry.type === 'creation';
     const isTransport = entry.type === 'transport';
-    const color = isCreation || isTransport ? "text-destructive" : "text-green-500";
-    const sign = isCreation || isTransport ? '-' : '+';
-    const title = isTransport ? entry.debtTitle : (isCreation ? 'Debt Added' : 'Payment');
+    const isPayment = entry.type === 'payment';
+
+    const title = isCreation ? 'Initial Debt'
+                : isTransport ? entry.debtTitle
+                : 'Installment Logged';
 
     return (
-        <div className="flex justify-between items-center p-3">
+        <div className="flex justify-between items-start p-3">
             <div>
                 <p className="font-semibold text-sm">{title}</p>
                 <p className="text-xs text-muted-foreground">
                     {format(new Date(entry.date), "PPP")}
                 </p>
             </div>
-            <p className={cn("font-mono font-semibold text-sm", color)}>
-                {sign}{formatCurrency(entry.amount)}
-            </p>
+
+            <div className="text-right">
+                {isCreation && (
+                    <p className="font-mono font-semibold text-sm text-foreground">
+                        {formatCurrency(entry.amount)}
+                    </p>
+                )}
+                {isTransport && (
+                    <p className="font-mono font-semibold text-sm text-destructive">
+                        -{formatCurrency(entry.amount)}
+                    </p>
+                )}
+                {isPayment && (
+                    <p className="font-mono font-semibold text-sm text-green-500 flex items-center justify-end gap-1">
+                        <Check className="h-4 w-4" />
+                        {formatCurrency(entry.amount)}
+                    </p>
+                )}
+
+                {isPayment && entry.balanceAfter !== undefined && entry.balanceAfter !== null && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                        Remaining: {formatCurrency(entry.balanceAfter)}
+                    </p>
+                )}
+            </div>
         </div>
     );
 }
@@ -99,13 +125,28 @@ export function HistoryLog() {
           </TabsList>
             
           {debtsWithHistory.map((debt) => {
-             const debtHistory = history.filter(h => h.debtId === debt.id)
-                .sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+             const debtChronologicalHistory = history
+                .filter(h => h.debtId === debt.id)
+                .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()); // Oldest to newest
+
+            const creationEntry = debtChronologicalHistory.find(e => e.type === 'creation');
+            let runningBalance = creationEntry ? creationEntry.amount : debt.total_owed;
+            
+            const processedHistory: ProcessedHistoryEntry[] = debtChronologicalHistory
+                .map(entry => {
+                    if (entry.type === 'payment') {
+                        runningBalance -= entry.amount;
+                        return { ...entry, balanceAfter: Math.max(0, runningBalance) };
+                    }
+                    return entry;
+                })
+                .reverse(); // Newest to oldest for display
+
             return (
               <TabsContent key={debt.id} value={debt.id} className="m-0">
                 <ScrollArea className="h-64 border rounded-md">
                    <div className="p-1 space-y-1 divide-y divide-border">
-                     {debtHistory.map((entry) => <HistoryItem key={entry.id} entry={entry} />)}
+                     {processedHistory.map((entry) => <HistoryItem key={entry.id} entry={entry} />)}
                   </div>
                 </ScrollArea>
               </TabsContent>

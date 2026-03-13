@@ -7,10 +7,16 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 export function formatCurrency(amount: number) {
-  return new Intl.NumberFormat('en-ZA', {
+  const formatted = new Intl.NumberFormat('en-ZA', {
     style: 'currency',
     currency: 'ZAR',
   }).format(amount);
+  
+  // Add a space if it's missing after 'R'
+  if (formatted.startsWith('R') && !formatted.startsWith('R ')) {
+      return `R ${formatted.substring(1)}`;
+  }
+  return formatted;
 }
 
 export function hexToHsl(hex: string): string | null {
