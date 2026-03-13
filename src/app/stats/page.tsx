@@ -6,6 +6,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { formatCurrency } from '@/lib/utils';
 import { DebtProgressCharts } from '@/components/DebtProgressCharts';
 import { Skeleton } from '@/components/ui/skeleton';
+import { HistoryLog } from '@/components/HistoryLog';
 
 function StatsOverview() {
   const { debts, history } = useContext(AppDataContext);
@@ -66,7 +67,7 @@ function StatsOverview() {
 }
 
 export default function StatsPage() {
-  const { debts } = useContext(AppDataContext);
+  const { debts, history } = useContext(AppDataContext);
   const [isClient, setIsClient] = useState(false);
 
   useEffect(() => {
@@ -90,6 +91,13 @@ export default function StatsPage() {
               <DebtProgressCharts />
             </CardContent>
           </Card>
+        </section>
+      )}
+
+      {isClient && history.length > 0 && (
+        <section>
+          <h2 className="text-xl font-semibold mb-2">Payment History</h2>
+          <HistoryLog />
         </section>
       )}
     </div>
