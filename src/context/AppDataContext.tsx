@@ -12,6 +12,7 @@ interface AppContextType extends AppData {
   importData: (data: AppData) => void;
   clearData: () => void;
   incrementPayment: (debtId: string) => void;
+  logTransportPayment: (amount: number, month: string) => void;
 }
 
 const defaultState: AppData = {
@@ -27,6 +28,7 @@ export const AppDataContext = createContext<AppContextType>({
   importData: () => {},
   clearData: () => {},
   incrementPayment: () => {},
+  logTransportPayment: () => {},
 });
 
 export function AppDataProvider({ children }: { children: ReactNode }) {
@@ -167,7 +169,22 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
         title: 'Data Cleared',
         description: 'All your data has been removed.',
       });
-  }
+  };
+
+  const logTransportPayment = (amount: number, month: string) => {
+    const newHistoryEntry: HistoryEntry = {
+      id: new Date().toISOString(),
+      debtTitle: `Transport: ${month}`,
+      date: new Date().toISOString(),
+      amount: amount,
+      type: 'transport',
+    };
+    setHistory((prev) => [newHistoryEntry, ...prev]);
+    toast({
+      title: 'Payment Logged',
+      description: `Transport payment for ${month} has been recorded.`,
+    });
+  };
 
   const value = {
     debts,
@@ -178,6 +195,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     importData,
     clearData,
     incrementPayment,
+    logTransportPayment,
   };
 
   return <AppDataContext.Provider value={value}>{children}</AppDataContext.Provider>;

@@ -8,11 +8,11 @@ export interface Debt {
 
 export interface HistoryEntry {
   id: string;
-  debtId: string;
+  debtId?: string;
   debtTitle: string;
   date: string; // ISO 8601 format
   amount: number;
-  type?: 'payment' | 'creation';
+  type: 'payment' | 'creation' | 'transport';
 }
 
 export interface AppData {
