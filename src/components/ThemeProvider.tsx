@@ -58,7 +58,20 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     root.style.setProperty('--bg-image-url', backgroundImage ? `url(${backgroundImage})` : 'none');
     root.style.setProperty('--bg-overlay-opacity', backgroundImage ? String(theme.backgroundOpacity) : '0');
     
+    if (backgroundImage) {
+      document.body.classList.add('has-bg-image');
+    } else {
+      document.body.classList.remove('has-bg-image');
+    }
+    
   }, [themeSettings, backgroundImage, isThemeReady]);
+
+  useEffect(() => {
+    // Cleanup function to remove class on component unmount (e.g., for HMR)
+    return () => {
+      document.body.classList.remove('has-bg-image');
+    };
+  }, []);
 
   return <div className={`${inter.variable}`}>{children}</div>;
 }

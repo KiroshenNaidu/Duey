@@ -4,7 +4,7 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
+    --background: 220 14% 10%;
     --foreground: 220 14% 10%;
     --card: 0 0% 100%;
     --card-foreground: 220 14% 10%;
@@ -70,6 +70,10 @@
   body {
     @apply bg-background text-foreground;
     font-family: var(--font-family);
+  }
+
+  body.has-bg-image {
+    @apply bg-transparent;
   }
   
   body::before {
