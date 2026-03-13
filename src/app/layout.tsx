@@ -3,12 +3,7 @@ import './globals.css';
 import { AppDataProvider } from '@/context/AppDataContext';
 import { BottomNav } from '@/components/BottomNav';
 import { Toaster } from "@/components/ui/toaster";
-import { Inter } from 'next/font/google';
-
-const inter = Inter({
-  subsets: ['latin'],
-  variable: '--font-inter',
-})
+import { ThemeProvider } from '@/components/ThemeProvider';
 
 export const metadata: Metadata = {
   title: 'DebtMate',
@@ -28,16 +23,18 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark">
       <head />
-      <body className={`${inter.variable} font-body antialiased`}>
-        <AppDataProvider>
-          <div className="flex flex-col min-h-dvh bg-background">
-            <main className="flex-1 overflow-y-auto pb-24 pt-4 px-4">
-              {children}
-            </main>
-            <BottomNav />
-          </div>
-          <Toaster />
-        </AppDataProvider>
+      <body className="font-body antialiased">
+        <ThemeProvider>
+          <AppDataProvider>
+            <div className="flex flex-col min-h-dvh bg-transparent">
+              <main className="flex-1 overflow-y-auto pb-24 pt-4 px-4">
+                {children}
+              </main>
+              <BottomNav />
+            </div>
+            <Toaster />
+          </AppDataProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

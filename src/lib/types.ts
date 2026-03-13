@@ -19,3 +19,12 @@ export interface AppData {
   debts: Debt[];
   history: HistoryEntry[];
 }
+
+export interface ThemeSettings {
+  background: string;
+  primary: string;
+  accent: string;
+  font: 'Inter' | 'Serif' | 'Mono';
+  backgroundImage: string;
+  backgroundOpacity: number;
+}

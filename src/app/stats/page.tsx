@@ -7,6 +7,7 @@ import { formatCurrency } from '@/lib/utils';
 import { DebtProgressCharts } from '@/components/DebtProgressCharts';
 import { Skeleton } from '@/components/ui/skeleton';
 import { HistoryLog } from '@/components/HistoryLog';
+import { TransportStatusCard } from '@/components/TransportStatusCard';
 
 function StatsOverview() {
   const { debts, history } = useContext(AppDataContext);
@@ -82,6 +83,14 @@ export default function StatsPage() {
         <h2 className="text-xl font-semibold mb-2">Total Overview</h2>
         <StatsOverview />
       </section>
+      
+      {isClient && (
+        <section>
+            <h2 className="text-xl font-semibold mb-2">This Month's Transport</h2>
+            <TransportStatusCard />
+        </section>
+      )}
+
 
       {isClient && debts.length > 0 && (
         <section>
