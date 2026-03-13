@@ -26,14 +26,14 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const [isThemeReady, setIsThemeReady] = useState(false);
 
   useEffect(() => {
-    async function loadBackground() {
+    async function loadInitialTheme() {
       const storedImage = await idbGet<string>('backgroundImage');
       if (storedImage) {
         setBackgroundImage(storedImage);
       }
       setIsThemeReady(true);
     }
-    loadBackground();
+    loadInitialTheme();
   }, []);
 
   useEffect(() => {
@@ -55,10 +55,11 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       root.style.setProperty('--font-family', 'monospace');
     }
     
+    const body = document.body;
     if (backgroundImage) {
-      document.body.classList.add('has-bg-image');
+      body.classList.add('has-bg-image');
     } else {
-      document.body.classList.remove('has-bg-image');
+      body.classList.remove('has-bg-image');
     }
     
   }, [themeSettings, backgroundImage, isThemeReady]);
@@ -72,15 +73,17 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   return (
     <div className={`${inter.variable}`}>
-      {isThemeReady && backgroundImage && (
-        <>
+      {isThemeReady && (
+         <>
           <div
+            id="global-bg-image"
             className="fixed inset-0 z-[-10] bg-cover bg-center transition-all duration-500"
-            style={{ backgroundImage: `url(${backgroundImage})` }}
+            style={{ backgroundImage: backgroundImage ? `url(${backgroundImage})` : 'none' }}
           />
           <div
+            id="global-bg-overlay"
             className="fixed inset-0 z-[-9] bg-black transition-opacity duration-500"
-            style={{ opacity: themeSettings.backgroundOpacity }}
+            style={{ opacity: backgroundImage ? themeSettings.backgroundOpacity : 0 }}
           />
         </>
       )}

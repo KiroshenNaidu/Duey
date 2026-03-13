@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { hexToHsl, hslToHex, idbGet, idbSet } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Upload, Loader2 } from 'lucide-react';
+import { Upload, Loader2, Trash2 } from 'lucide-react';
 
 const defaultTheme: ThemeSettings = {
   background: '220 14% 10%',
@@ -41,6 +41,7 @@ function parseHsl(hslStr: string): [number, number, number] {
 
 export function ThemeSettingsMenu() {
   const [storedTheme, setStoredTheme] = useState<Omit<ThemeSettings, 'backgroundImage'>>(defaultTheme);
+  const [initialBackgroundImage, setInitialBackgroundImage] = useState('');
   const [previewTheme, setPreviewTheme] = useState<ThemeSettings>(defaultTheme);
   const [isClient, setIsClient] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -55,11 +56,13 @@ export function ThemeSettingsMenu() {
         setStoredTheme(themeToLoad);
         
         const storedImage = await idbGet<string>('backgroundImage');
+        setInitialBackgroundImage(storedImage || '');
         setPreviewTheme({ ...themeToLoad, backgroundImage: storedImage || '' });
     }
     loadInitialTheme();
   }, []);
   
+  // Effect for live-previews within the settings page
   useEffect(() => {
     if (!isClient) return;
     const root = document.documentElement;
@@ -68,8 +71,6 @@ export function ThemeSettingsMenu() {
     root.style.setProperty('--primary', previewTheme.primary);
     root.style.setProperty('--accent', previewTheme.accent);
     root.style.setProperty('--font-family', previewTheme.font === 'Inter' ? 'var(--font-inter)' : previewTheme.font.toLowerCase());
-    root.style.setProperty('--bg-image-url', previewTheme.backgroundImage ? `url(${previewTheme.backgroundImage})` : 'none');
-    root.style.setProperty('--bg-overlay-opacity', previewTheme.backgroundImage ? String(previewTheme.backgroundOpacity) : '0');
   }, [previewTheme, isClient]);
 
   const handleColorChange = (name: 'background' | 'primary' | 'accent' | 'surface', value: string) => {
@@ -111,14 +112,12 @@ export function ThemeSettingsMenu() {
         }
         ctx.drawImage(img, 0, 0, width, height);
 
-        // For GIFs, we can't resize, so we use the original.
         const dataUrl = file.type === 'image/gif' ? (e.target?.result as string) : canvas.toDataURL(file.type, 0.9);
 
-        idbSet('backgroundImage', dataUrl).then(() => {
-          setPreviewTheme(p => ({...p, backgroundImage: dataUrl}));
-          setIsProcessing(false);
-          toast({ title: 'Background updated!' });
-        });
+        // Don't save to idb yet, just update the preview state
+        setPreviewTheme(p => ({...p, backgroundImage: dataUrl}));
+        setIsProcessing(false);
+        toast({ title: 'Background preview updated.' });
       };
       img.src = e.target?.result as string;
     };
@@ -126,24 +125,32 @@ export function ThemeSettingsMenu() {
     reader.readAsDataURL(file);
     event.target.value = '';
   };
+  
+  const handleRemoveImage = () => {
+    setPreviewTheme(p => ({ ...p, backgroundImage: '' }));
+    toast({ title: 'Background image removed from preview.' });
+  }
 
   const handleSave = () => {
     const { backgroundImage, ...settingsToSave } = previewTheme;
-    localStorage.setItem('themeSettings', JSON.stringify(settingsToSave));
-    setStoredTheme(settingsToSave);
-    // The background image is already saved in IndexedDB
-    toast({ title: 'Theme Saved', description: 'Your new theme has been applied.' });
+    
+    idbSet('backgroundImage', backgroundImage).then(() => {
+        localStorage.setItem('themeSettings', JSON.stringify(settingsToSave));
+        toast({ title: 'Theme Saved!', description: 'Reloading app to apply changes...' });
+        
+        setTimeout(() => {
+            window.location.reload();
+        }, 1000);
+    });
   };
 
   const handleCancel = () => {
-    idbGet<string>('backgroundImage').then(storedImage => {
-        setPreviewTheme({ ...storedTheme, backgroundImage: storedImage || '' });
-    });
+    setPreviewTheme({ ...storedTheme, backgroundImage: initialBackgroundImage });
     toast({ title: 'Changes Reverted' });
   };
 
   if (!isClient) {
-    return null; // or a skeleton loader
+    return null;
   }
 
   const [bgH, bgS, bgL] = parseHsl(previewTheme.background);
@@ -157,22 +164,27 @@ export function ThemeSettingsMenu() {
         <CardHeader><CardTitle className="text-xl">Background Image</CardTitle></CardHeader>
         <CardContent className="space-y-4">
           <div 
-            className="w-full aspect-video rounded-lg bg-cover bg-center relative" 
+            className="w-full aspect-video rounded-lg bg-cover bg-center relative bg-secondary" 
             style={{ backgroundImage: `url(${previewTheme.backgroundImage})` }}
           >
              {!previewTheme.backgroundImage && (
-                <div className="flex items-center justify-center h-full w-full bg-secondary rounded-lg">
+                <div className="flex items-center justify-center h-full w-full rounded-lg">
                     <p className="text-muted-foreground">No image selected</p>
                 </div>
              )}
              <div 
                 className="absolute inset-0 bg-black rounded-lg"
-                style={{ opacity: previewTheme.backgroundOpacity }}
+                style={{ opacity: previewTheme.backgroundOpacity, transition: 'opacity 0.2s' }}
              />
           </div>
-           <Button onClick={() => fileInputRef.current?.click()} className="w-full" disabled={isProcessing}>
-            {isProcessing ? <><Loader2 className="mr-2 h-4 w-4 animate-spin"/> Processing...</> : <><Upload className="mr-2 h-4 w-4" /> Upload Image</>}
-          </Button>
+           <div className="grid grid-cols-2 gap-2">
+            <Button onClick={() => fileInputRef.current?.click()} className="w-full" disabled={isProcessing}>
+              {isProcessing ? <><Loader2 className="mr-2 h-4 w-4 animate-spin"/> Processing...</> : <><Upload className="mr-2 h-4 w-4" /> Upload</>}
+            </Button>
+            <Button onClick={handleRemoveImage} variant="destructive" className="w-full" disabled={!previewTheme.backgroundImage && !isProcessing}>
+              <Trash2 className="mr-2 h-4 w-4" /> Remove
+            </Button>
+           </div>
           <input
             type="file"
             ref={fileInputRef}
