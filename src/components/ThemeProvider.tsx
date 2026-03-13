@@ -55,9 +55,6 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       root.style.setProperty('--font-family', 'monospace');
     }
     
-    root.style.setProperty('--bg-image-url', backgroundImage ? `url(${backgroundImage})` : 'none');
-    root.style.setProperty('--bg-overlay-opacity', backgroundImage ? String(theme.backgroundOpacity) : '0');
-    
     if (backgroundImage) {
       document.body.classList.add('has-bg-image');
     } else {
@@ -73,5 +70,21 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  return <div className={`${inter.variable}`}>{children}</div>;
+  return (
+    <div className={`${inter.variable}`}>
+      {isThemeReady && backgroundImage && (
+        <>
+          <div
+            className="fixed inset-0 z-[-10] bg-cover bg-center transition-all duration-500"
+            style={{ backgroundImage: `url(${backgroundImage})` }}
+          />
+          <div
+            className="fixed inset-0 z-[-9] bg-black transition-opacity duration-500"
+            style={{ opacity: themeSettings.backgroundOpacity }}
+          />
+        </>
+      )}
+      {children}
+    </div>
+  );
 }

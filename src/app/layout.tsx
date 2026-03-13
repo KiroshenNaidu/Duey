@@ -27,7 +27,7 @@ export default function RootLayout({
       <body className="font-body antialiased">
         <ThemeProvider>
           <AppDataProvider>
-            <div className="flex flex-col min-h-dvh bg-transparent">
+            <div className="flex flex-col min-h-dvh bg-transparent relative z-0">
               <main className="flex-1 overflow-y-auto pb-32 pt-4 px-4">
                 {children}
               </main>
