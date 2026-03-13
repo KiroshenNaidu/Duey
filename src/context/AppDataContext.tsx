@@ -65,60 +65,64 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
   };
 
   const incrementPayment = (debtId: string) => {
-    let updatedDebt: Debt | undefined;
     const today = new Date();
+    const debtToUpdate = debts.find((d) => d.id === debtId);
+
+    if (!debtToUpdate) return;
+
+    const paymentDates = debtToUpdate.paymentDates || [];
+    const dateAlreadyLogged = paymentDates.some((d) => isSameDay(new Date(d), today));
+
+    if (dateAlreadyLogged) {
+      toast({
+        variant: 'destructive',
+        title: 'Already Logged',
+        description: 'A payment for today has already been recorded for this debt.',
+      });
+      return;
+    }
+
+    const totalInstallments =
+      debtToUpdate.installment_amount > 0
+        ? Math.ceil(debtToUpdate.total_owed / debtToUpdate.installment_amount)
+        : 0;
+    if (debtToUpdate.payment_score >= totalInstallments && debtToUpdate.total_owed > 0) {
+      // Already paid off
+      return;
+    }
+
+    const newPaymentDates = [...paymentDates, today.toISOString()];
+    const updatedDebt: Debt = {
+      ...debtToUpdate,
+      paymentDates: newPaymentDates,
+      payment_score: newPaymentDates.length,
+    };
 
     setDebts((prevDebts) =>
-      prevDebts.map((debt) => {
-        if (debt.id === debtId) {
-          const paymentDates = debt.paymentDates || [];
-          const dateAlreadyLogged = paymentDates.some(d => isSameDay(new Date(d), today));
-
-          if (dateAlreadyLogged) {
-            toast({
-              variant: 'destructive',
-              title: 'Already Logged',
-              description: 'A payment for today has already been recorded for this debt.',
-            });
-            updatedDebt = debt; // No changes
-            return debt;
-          }
-
-          const totalInstallments = Math.ceil(debt.total_owed / debt.installment_amount);
-          if (debt.payment_score < totalInstallments) {
-             const newPaymentDates = [...paymentDates, today.toISOString()];
-             updatedDebt = { 
-               ...debt, 
-               paymentDates: newPaymentDates,
-               payment_score: newPaymentDates.length 
-             };
-            return updatedDebt;
-          }
-        }
-        return debt;
-      })
+      prevDebts.map((debt) => (debt.id === debtId ? updatedDebt : debt))
     );
 
-    if (updatedDebt && updatedDebt.paymentDates && updatedDebt.paymentDates.some(d => isSameDay(new Date(d), today))) {
-      const newHistoryEntry: HistoryEntry = {
-        id: new Date().toISOString(),
-        debtId: updatedDebt.id,
-        debtTitle: updatedDebt.title,
-        date: new Date().toISOString(),
-        amount: updatedDebt.installment_amount,
-        type: 'payment',
-      };
-      setHistory((prev) => [newHistoryEntry, ...prev]);
+    const newHistoryEntry: HistoryEntry = {
+      id: new Date().toISOString(),
+      debtId: updatedDebt.id,
+      debtTitle: updatedDebt.title,
+      date: new Date().toISOString(),
+      amount: updatedDebt.installment_amount,
+      type: 'payment',
+    };
+    setHistory((prev) => [newHistoryEntry, ...prev]);
 
-      const totalInstallments = Math.ceil(updatedDebt.total_owed / updatedDebt.installment_amount);
-      if(updatedDebt.payment_score === totalInstallments) {
-        toast({
-          title: 'Congratulations!',
-          description: `You've fully paid off "${updatedDebt.title}"!`,
-          variant: 'default',
-          className: 'bg-green-600 text-white border-green-600'
-        });
-      }
+    const newTotalInstallments =
+      updatedDebt.installment_amount > 0
+        ? Math.ceil(updatedDebt.total_owed / updatedDebt.installment_amount)
+        : 0;
+    if (updatedDebt.payment_score === newTotalInstallments && updatedDebt.total_owed > 0) {
+      toast({
+        title: 'Congratulations!',
+        description: `You've fully paid off "${updatedDebt.title}"!`,
+        variant: 'default',
+        className: 'bg-green-600 text-white border-green-600',
+      });
     }
   };
 
@@ -153,19 +157,14 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
   };
 
   const updateDebt = (debtId: string, updatedData: Partial<Omit<Debt, 'id'>>) => {
-    let oldDebt: Debt | undefined;
-    let newDebt: Debt | undefined;
-    setDebts(prevDebts => 
-      prevDebts.map(debt => {
-        if (debt.id === debtId) {
-          oldDebt = debt;
-          // When core debt details change, recalculate payment score from calendar
-          const payment_score = (debt.paymentDates || []).length;
-          newDebt = { ...debt, ...updatedData, payment_score };
-          return newDebt;
-        }
-        return debt;
-      })
+    const oldDebt = debts.find((d) => d.id === debtId);
+    if (!oldDebt) return;
+
+    const payment_score = (oldDebt.paymentDates || []).length;
+    const newDebt: Debt = { ...oldDebt, ...updatedData, payment_score };
+
+    setDebts((prevDebts) =>
+      prevDebts.map((debt) => (debt.id === debtId ? newDebt : debt))
     );
 
     toast({
@@ -173,20 +172,18 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       description: 'Your debt details have been saved.',
     });
 
-    if (oldDebt && newDebt) {
-      const oldTotalInstallments = oldDebt.installment_amount > 0 ? Math.ceil(oldDebt.total_owed / oldDebt.installment_amount) : 0;
-      const newTotalInstallments = newDebt.installment_amount > 0 ? Math.ceil(newDebt.total_owed / newDebt.installment_amount) : 0;
-      const wasPaidOff = oldDebt.payment_score >= oldTotalInstallments && oldDebt.total_owed > 0;
-      const isNowPaidOff = newDebt.payment_score >= newTotalInstallments && newDebt.total_owed > 0;
+    const oldTotalInstallments = oldDebt.installment_amount > 0 ? Math.ceil(oldDebt.total_owed / oldDebt.installment_amount) : 0;
+    const newTotalInstallments = newDebt.installment_amount > 0 ? Math.ceil(newDebt.total_owed / newDebt.installment_amount) : 0;
+    const wasPaidOff = oldDebt.payment_score >= oldTotalInstallments && oldDebt.total_owed > 0;
+    const isNowPaidOff = newDebt.payment_score >= newTotalInstallments && newDebt.total_owed > 0;
 
-      if (!wasPaidOff && isNowPaidOff) {
-           toast({
-              title: 'Congratulations!',
-              description: `You've fully paid off "${newDebt.title}"!`,
-              variant: 'default',
-              className: 'bg-green-600 text-white border-green-600'
-          });
-      }
+    if (!wasPaidOff && isNowPaidOff) {
+      toast({
+        title: 'Congratulations!',
+        description: `You've fully paid off "${newDebt.title}"!`,
+        variant: 'default',
+        className: 'bg-green-600 text-white border-green-600'
+      });
     }
   };
 
