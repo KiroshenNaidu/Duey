@@ -8,7 +8,7 @@ import { DebtProgressCharts } from '@/components/DebtProgressCharts';
 import { Skeleton } from '@/components/ui/skeleton';
 
 function StatsOverview() {
-  const { debts } = useContext(AppDataContext);
+  const { debts, history } = useContext(AppDataContext);
   const [isClient, setIsClient] = useState(false);
 
   useEffect(() => {
@@ -22,19 +22,23 @@ function StatsOverview() {
       0
     );
     const globalRemainingBalance = globalTotalDebt - globalAmountPaid;
+    const totalTransportPaid = history
+      .filter((item) => item.type === 'transport')
+      .reduce((acc, item) => acc + item.amount, 0);
 
-    return { globalTotalDebt, globalAmountPaid, globalRemainingBalance };
-  }, [debts]);
+    return { globalTotalDebt, globalAmountPaid, globalRemainingBalance, totalTransportPaid };
+  }, [debts, history]);
 
   const overviewItems = [
     { title: 'Total Debt', value: stats.globalTotalDebt },
     { title: 'Amount Paid', value: stats.globalAmountPaid },
-    { title: 'Remaining', value: stats.globalRemainingBalance },
+    { title: 'Transport Paid', value: stats.totalTransportPaid },
+    { title: 'Remaining Debt', value: stats.globalRemainingBalance },
   ];
 
   if (!isClient) {
     return (
-      <div className="grid gap-3 md:grid-cols-3">
+      <div className="grid gap-3 md:grid-cols-2">
         {overviewItems.map(item => (
           <Card key={item.title}>
             <CardContent className="p-4">
@@ -48,7 +52,7 @@ function StatsOverview() {
   }
 
   return (
-    <div className="grid gap-3 md:grid-cols-3">
+    <div className="grid gap-3 md:grid-cols-2">
       {overviewItems.map(item => (
         <Card key={item.title}>
           <CardContent className="p-4">
@@ -70,7 +74,7 @@ export default function StatsPage() {
   }, []);
 
   return (
-    <div className="container mx-auto max-w-2xl space-y-6">
+    <div className="container mx-auto max-w-2xl space-y-4">
       <h1 className="text-3xl font-bold text-foreground mb-4">Statistics</h1>
       
       <section>
