@@ -66,7 +66,7 @@ export default function StatsPage() {
 
   return (
     <div className="container mx-auto max-w-md space-y-3">
-      <h1 className="text-xl font-bold text-foreground mb-3">Statistics</h1>
+      <h1 className="text-xl font-bold text-white mb-3">Statistics</h1>
       
       <section>
         <h2 className="text-base font-semibold mb-2">Total Overview</h2>

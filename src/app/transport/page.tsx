@@ -79,7 +79,7 @@ export default function TransportPage() {
 
   return (
     <div className="container mx-auto max-w-md space-y-3">
-      <h1 className="text-xl font-bold text-foreground">Transport</h1>
+      <h1 className="text-xl font-bold text-white">Transport</h1>
 
       <Accordion type="single" collapsible>
         <AccordionItem value="settings">
