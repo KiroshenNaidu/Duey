@@ -20,6 +20,7 @@ const defaultState: AppState = {
     accent: '188 78% 57%',
     font: 'Inter',
     foreground: '0 0% 98%',
+    accentForeground: '220 14% 10%',
   },
   userThemes: [],
   notepadContent: '',
@@ -137,14 +138,17 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
   };
 
   const updateDebt = useCallback((debtId: string, updatedData: Partial<Omit<Debt, 'id' | 'paymentDates'>>) => {
+    let oldDebt: Debt | undefined;
+    let newDebt: Debt | undefined;
+    
     setAppState(prev => {
-        const oldDebt = prev.debts.find(d => d.id === debtId);
+        oldDebt = prev.debts.find(d => d.id === debtId);
         if (!oldDebt) return prev;
         
-        const newDebt = { ...oldDebt, ...updatedData };
+        newDebt = { ...oldDebt, ...updatedData };
         return {
             ...prev,
-            debts: prev.debts.map(d => (d.id === debtId ? newDebt : d)),
+            debts: prev.debts.map(d => (d.id === debtId ? newDebt! : d)),
         };
     });
   }, []);
@@ -164,9 +168,6 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
   };
   
   const togglePaymentDate = useCallback((debtId: string, date: Date) => {
-    let wasAdded = false;
-    let newHistoryEntry: HistoryEntry | null = null;
-  
     setAppState(prev => {
       const debt = prev.debts.find(d => d.id === debtId);
       if (!debt) return prev;
@@ -176,10 +177,10 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       const existingIndex = paymentDates.findIndex(d => isSameDay(new Date(d), date));
   
       let newPaymentDates: string[];
+      let wasAdded = false;
   
       if (existingIndex > -1) {
         newPaymentDates = paymentDates.filter((_, index) => index !== existingIndex);
-        wasAdded = false;
       } else {
         newPaymentDates = [...paymentDates, dateToToggle];
         wasAdded = true;
@@ -188,8 +189,9 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
   
       const newDebt = { ...debt, paymentDates: newPaymentDates };
   
+      let updatedHistory = prev.history;
       if (wasAdded) {
-        newHistoryEntry = {
+        const newHistoryEntry: HistoryEntry = {
           id: new Date().toISOString(),
           debtId: debt.id,
           debtTitle: debt.title,
@@ -197,10 +199,9 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
           amount: debt.installment_amount,
           type: 'payment'
         };
+        updatedHistory = [newHistoryEntry, ...prev.history];
       }
       
-      const updatedHistory = newHistoryEntry ? [newHistoryEntry, ...prev.history] : prev.history;
-
       return {
         ...prev,
         debts: prev.debts.map(d => d.id === debtId ? newDebt : d),
@@ -235,7 +236,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const deleteUserTheme = useCallback((themeId: string) => {
-    let themeName = 'preset';
+    let themeName: string | undefined;
     setAppState(prev => {
         const themeToDelete = prev.userThemes.find(t => t.id === themeId);
         if (!themeToDelete) return prev;
@@ -259,9 +260,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
   };
 
   const clearData = () => {
-    const keysToRemove = [
-        'appState', 
-    ];
+    const keysToRemove = ['appState'];
     keysToRemove.forEach(key => {
         try {
             localStorage.removeItem(key);
@@ -293,7 +292,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     importData,
     clearData,
     getAppState: () => appState,
-  }), [appState, addDebt, updateDebt, deleteDebt, togglePaymentDate, logPaymentForToday, addUserTheme, deleteUserTheme, importData, clearData]);
+  }), [appState, deleteDebt, togglePaymentDate, addUserTheme, deleteUserTheme]);
 
   if (!isLoaded) return null;
 

@@ -42,6 +42,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     root.style.setProperty('--primary', themeSettings.primary);
     root.style.setProperty('--accent', themeSettings.accent);
     root.style.setProperty('--foreground', themeSettings.foreground);
+    root.style.setProperty('--accent-foreground', themeSettings.accentForeground);
     
     if (themeSettings.font === 'Inter') {
       root.style.setProperty('--font-family', `var(--font-inter)`);

@@ -21,6 +21,7 @@ const defaultThemeSettings: Omit<ThemeSettings, 'backgroundImage'> = {
   primary: '228 50% 50%',
   accent: '191 79% 57%',
   foreground: '210 14% 91%',
+  accentForeground: '220 14% 10%',
   font: 'Inter',
   backgroundOpacity: 0.1,
 };
@@ -29,11 +30,12 @@ const systemPresets: Omit<UserTheme, 'id'>[] = [
     { 
         name: 'Default Dark', 
         settings: { 
-            background: '218 13% 10%',   // rgb(22, 24, 29)
-            surface: '218 15% 12%',      // rgb(26, 29, 35)
-            primary: '228 50% 50%',      // rgb(64, 96, 191)
-            accent: '191 79% 57%',       // rgb(60, 203, 231)
-            foreground: '210 14% 91%',   // A light gray for text
+            background: '220 14% 10%',
+            surface: '220 14% 12%',
+            primary: '225 50% 50%',
+            accent: '188 78% 57%',
+            foreground: '0 0% 98%',
+            accentForeground: '220 14% 10%',
             font: 'Inter' 
         } 
     },
@@ -53,6 +55,7 @@ const areThemeSettingsEqual = (s1: Omit<ThemeSettings, 'backgroundImage' | 'back
            s1.primary === s2.primary &&
            s1.accent === s2.accent &&
            s1.foreground === s2.foreground &&
+           s1.accentForeground === s2.accentForeground &&
            s1.font === s2.font;
 };
 
@@ -92,7 +95,15 @@ export function ThemeSettingsMenu() {
     root.style.setProperty('--primary', previewTheme.primary);
     root.style.setProperty('--accent', previewTheme.accent);
     root.style.setProperty('--foreground', previewTheme.foreground);
-    root.style.setProperty('--font-family', previewTheme.font === 'Inter' ? 'var(--font-inter)' : previewTheme.font.toLowerCase());
+    root.style.setProperty('--accent-foreground', previewTheme.accentForeground);
+
+    if (previewTheme.font === 'Inter') {
+      root.style.setProperty('--font-family', 'var(--font-inter)');
+    } else if (previewTheme.font === 'Serif') {
+        root.style.setProperty('--font-family', 'serif');
+    } else {
+        root.style.setProperty('--font-family', 'monospace');
+    }
 
     // Apply live preview for background image and overlay
     const bgImageDiv = document.getElementById('global-bg-image');
@@ -128,7 +139,15 @@ export function ThemeSettingsMenu() {
         root.style.setProperty('--primary', themeSettings.primary);
         root.style.setProperty('--accent', themeSettings.accent);
         root.style.setProperty('--foreground', themeSettings.foreground);
-        root.style.setProperty('--font-family', themeSettings.font === 'Inter' ? 'var(--font-inter)' : themeSettings.font.toLowerCase());
+        root.style.setProperty('--accent-foreground', themeSettings.accentForeground);
+        
+        if (themeSettings.font === 'Inter') {
+            root.style.setProperty('--font-family', 'var(--font-inter)');
+        } else if (themeSettings.font === 'Serif') {
+            root.style.setProperty('--font-family', 'serif');
+        } else {
+            root.style.setProperty('--font-family', 'monospace');
+        }
 
         const storedImage = await idbGet<string>('backgroundImage');
         const bgImageDiv = document.getElementById('global-bg-image');
@@ -151,7 +170,7 @@ export function ThemeSettingsMenu() {
     };
   }, [isClient, themeSettings]);
 
-  const handleColorChange = (name: 'background' | 'primary' | 'accent' | 'surface' | 'foreground', value: string) => {
+  const handleColorChange = (name: 'background' | 'primary' | 'accent' | 'surface' | 'foreground' | 'accentForeground', value: string) => {
     const hslValue = hexToHsl(value);
     if (hslValue) {
       setPreviewTheme(prev => ({ ...prev, [name]: hslValue }));
@@ -348,12 +367,13 @@ export function ThemeSettingsMenu() {
                 </ScrollArea>
             </TabsContent>
             <TabsContent value="custom" className="pt-6 space-y-6">
-               <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
+               <div className="grid grid-cols-3 gap-4">
                 <div className="space-y-2"><Label className='text-xs'>Background</Label><Input type="color" value={hslToHex(...parseHsl(previewTheme.background))} onChange={e => handleColorChange('background', e.target.value)} className="h-12 w-full p-1"/></div>
                 <div className="space-y-2"><Label className='text-xs'>Surface</Label><Input type="color" value={hslToHex(...parseHsl(previewTheme.surface))} onChange={e => handleColorChange('surface', e.target.value)} className="h-12 w-full p-1"/></div>
                 <div className="space-y-2"><Label className='text-xs'>Primary</Label><Input type="color" value={hslToHex(...parseHsl(previewTheme.primary))} onChange={e => handleColorChange('primary', e.target.value)} className="h-12 w-full p-1"/></div>
                 <div className="space-y-2"><Label className='text-xs'>Accent</Label><Input type="color" value={hslToHex(...parseHsl(previewTheme.accent))} onChange={e => handleColorChange('accent', e.target.value)} className="h-12 w-full p-1"/></div>
                 <div className="space-y-2"><Label className='text-xs'>Text</Label><Input type="color" value={hslToHex(...parseHsl(previewTheme.foreground))} onChange={e => handleColorChange('foreground', e.target.value)} className="h-12 w-full p-1"/></div>
+                <div className="space-y-2"><Label className='text-xs'>Accent Text</Label><Input type="color" value={hslToHex(...parseHsl(previewTheme.accentForeground))} onChange={e => handleColorChange('accentForeground', e.target.value)} className="h-12 w-full p-1"/></div>
               </div>
               <div className="space-y-2">
                 <Label className='text-xs'>Font Family</Label>

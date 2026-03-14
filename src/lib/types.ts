@@ -33,6 +33,7 @@ export interface ThemeSettings {
   backgroundImage: string;
   backgroundOpacity: number;
   foreground: string;
+  accentForeground: string;
 }
 
 export interface UserTheme {
