@@ -54,8 +54,11 @@ const areThemeSettingsEqual = (s1: Omit<ThemeSettings, 'backgroundImage' | 'back
 export function ThemeSettingsMenu() {
   const { themeSettings, setThemeSettings, userThemes, addUserTheme, deleteUserTheme } = useContext(AppDataContext);
   
-  const [initialBackgroundImage, setInitialBackgroundImage] = useState('');
-  const [previewTheme, setPreviewTheme] = useState<ThemeSettings>({ ...defaultThemeSettings, backgroundImage: ''});
+  const [previewTheme, setPreviewTheme] = useState<ThemeSettings>(() => ({
+    ...defaultThemeSettings,
+    ...themeSettings,
+    backgroundImage: '',
+  }));
   const [isClient, setIsClient] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -66,16 +69,14 @@ export function ThemeSettingsMenu() {
 
   useEffect(() => {
     setIsClient(true);
-    async function loadInitialTheme() {
-        setPreviewTheme(p => ({...p, ...themeSettings}));
-        const storedImage = await idbGet<string>('backgroundImage');
-        if (storedImage) {
-            setInitialBackgroundImage(storedImage);
-            setPreviewTheme(p => ({ ...p, backgroundImage: storedImage }));
-        }
+    async function loadInitialImage() {
+      const storedImage = await idbGet<string>('backgroundImage');
+      if (storedImage) {
+        setPreviewTheme(p => ({ ...p, backgroundImage: storedImage }));
+      }
     }
-    loadInitialTheme();
-  }, [themeSettings]);
+    loadInitialImage();
+  }, []);
   
   useEffect(() => {
     if (!isClient) return;
@@ -86,12 +87,8 @@ export function ThemeSettingsMenu() {
     root.style.setProperty('--accent', previewTheme.accent);
     root.style.setProperty('--font-family', previewTheme.font === 'Inter' ? 'var(--font-inter)' : previewTheme.font.toLowerCase());
     
-    const body = document.body;
-    if (previewTheme.backgroundImage) {
-      body.classList.add('has-bg-image');
-    } else {
-      body.classList.remove('has-bg-image');
-    }
+    document.body.style.opacity = previewTheme.backgroundImage ? (1 - previewTheme.backgroundOpacity).toString() : '1';
+
   }, [previewTheme, isClient]);
 
   const handleColorChange = (name: 'background' | 'primary' | 'accent' | 'surface', value: string) => {
@@ -152,18 +149,25 @@ export function ThemeSettingsMenu() {
 
   const handleSave = () => {
     const { backgroundImage, ...settingsToSave } = previewTheme;
-    idbSet('backgroundImage', backgroundImage).then(() => {
+    
+    const savePromise = idbSet('backgroundImage', backgroundImage);
+
+    savePromise.then(() => {
         setThemeSettings(settingsToSave);
         toast({ title: 'Theme Saved!', description: 'Reloading app to apply changes...' });
         
         setTimeout(() => {
             window.location.reload();
         }, 1000);
+    }).catch(error => {
+        console.error("Failed to save background image to IndexedDB", error);
+        toast({ title: 'Save Failed', description: 'Could not save background image.', variant: 'destructive'});
     });
   };
 
-  const handleCancel = () => {
-    setPreviewTheme({ ...themeSettings, backgroundImage: initialBackgroundImage });
+  const handleCancel = async () => {
+    const storedImage = await idbGet<string>('backgroundImage');
+    setPreviewTheme({ ...themeSettings, backgroundImage: storedImage || '' });
     toast({ title: 'Changes Reverted' });
   };
 
