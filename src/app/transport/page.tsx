@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useContext, useEffect } from 'react';
 import { AppDataContext } from '@/context/AppDataContext';
-import { format, getDay, add, sub, isSameMonth, isSameDay, startOfMonth, isWeekend } from 'date-fns';
+import { format, getDay, add, sub, isSameMonth, isSameDay, startOfMonth, isWeekend, isFuture, startOfToday } from 'date-fns';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -19,7 +19,7 @@ import type { TransportSettings } from '@/lib/types';
 const WEEK_DAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
 export default function TransportPage() {
-  const { transportSettings, setTransportSettings, transportOverrides, setTransportOverrides, logTransportPayment } = useContext(AppDataContext);
+  const { transportSettings, setTransportSettings, transportOverrides, setTransportOverrides, logTransportPayment, history } = useContext(AppDataContext);
   
   const [currentDate, setCurrentDate] = useState(new Date());
   const [isEditingCalendar, setIsEditingCalendar] = useState(false);
@@ -27,6 +27,18 @@ export default function TransportPage() {
   const { toast } = useToast();
 
   useEffect(() => { setIsClient(true) }, []);
+
+  const today = startOfToday();
+  const isCurrentMonth = isSameMonth(currentDate, today);
+  const isFutureMonth = isFuture(startOfMonth(currentDate));
+
+  const { isPaidForMonth, monthStr } = useMemo(() => {
+    const monthStr = format(currentDate, 'MMMM yyyy');
+    const paymentForThisMonth = history.find(entry => 
+      entry.type === 'transport' && entry.debtTitle === `Transport: ${monthStr}`
+    );
+    return { isPaidForMonth: !!paymentForThisMonth, monthStr };
+  }, [currentDate, history]);
 
   const handleSettingsChange = (field: keyof TransportSettings, value: string | number) => {
     setTransportSettings({ ...transportSettings, [field]: value });
@@ -52,15 +64,7 @@ export default function TransportPage() {
       toast({ title: "Nothing to pay", description: "Total amount for the month is zero.", variant: 'default' });
       return;
     }
-    logTransportPayment(totalDue, format(currentDate, 'MMMM yyyy'));
-    
-    // Clear overrides for the current month
-    const newOverrides = { ...transportOverrides };
-    daysInMonth.forEach(day => {
-      const isoDate = day.toISOString().split('T')[0];
-      delete newOverrides[isoDate];
-    });
-    setTransportOverrides(newOverrides);
+    logTransportPayment(totalDue, monthStr);
   };
 
   const firstDayOfMonth = getDay(startOfMonth(currentDate));
@@ -121,17 +125,21 @@ export default function TransportPage() {
             <Button variant="ghost" size="icon" onClick={() => setCurrentDate(sub(currentDate, { months: 1 }))}>
               <ChevronLeft />
             </Button>
-            <CardTitle className="text-center">{format(currentDate, 'MMMM yyyy')}</CardTitle>
+            <CardTitle className="text-center text-base">
+              {format(currentDate, 'MMMM yyyy')}
+              {isCurrentMonth && <span className="text-muted-foreground font-normal text-sm"> (Current Month)</span>}
+            </CardTitle>
             <Button variant="ghost" size="icon" onClick={() => setCurrentDate(add(currentDate, { months: 1 }))}>
               <ChevronRight />
             </Button>
           </div>
           <div className="flex items-center space-x-2 mt-2 justify-end">
-            <Label htmlFor="edit-calendar" className="text-xs">{isEditingCalendar ? 'Editing' : 'Edit'}</Label>
-            <Switch id="edit-calendar" checked={isEditingCalendar} onCheckedChange={setIsEditingCalendar} />
+            <Label htmlFor="edit-calendar" className={cn("text-xs", (isFutureMonth || isPaidForMonth) && "opacity-50")}>{isEditingCalendar ? 'Editing' : 'Edit'}</Label>
+            <Switch id="edit-calendar" checked={isEditingCalendar} onCheckedChange={setIsEditingCalendar} disabled={isFutureMonth || isPaidForMonth} />
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="calendar-container">
+          {isPaidForMonth && <div className="paid-stamp">PAID</div>}
           <div className="grid grid-cols-7 gap-1 text-center text-xs font-semibold text-muted-foreground">
             {WEEK_DAYS.map((day, i) => <div key={i}>{day}</div>)}
           </div>
@@ -140,19 +148,19 @@ export default function TransportPage() {
             {daysInMonth.map(day => {
               const isoDate = day.toISOString().split('T')[0];
               const isTravelDay = transportOverrides[isoDate] !== undefined ? transportOverrides[isoDate] : !isWeekend(day);
-              const isToday = isSameDay(day, new Date()) && isSameMonth(day, new Date());
+              const isToday = isSameDay(day, new Date());
               return (
                 <button
                   key={isoDate}
-                  disabled={!isEditingCalendar}
+                  disabled={!isEditingCalendar || isFutureMonth || isPaidForMonth}
                   onClick={() => handleDayToggle(day)}
                   className={cn(
                     "h-8 w-8 rounded-full flex items-center justify-center transition-all duration-200 text-xs",
-                    isEditingCalendar ? 'cursor-pointer' : 'cursor-default',
+                    (isEditingCalendar && !isPaidForMonth) ? 'cursor-pointer' : 'cursor-default',
                     isTravelDay ? 'bg-primary/90 text-primary-foreground' : 'bg-muted text-muted-foreground',
                     !isTravelDay && 'opacity-60',
                     isToday && "ring-2 ring-accent ring-offset-2 ring-offset-background",
-                    isEditingCalendar && "hover:scale-105"
+                    (isEditingCalendar && !isPaidForMonth) && "hover:scale-105"
                   )}
                 >
                   {format(day, 'd')}
@@ -165,15 +173,15 @@ export default function TransportPage() {
       
       <Card>
          <CardHeader>
-            <CardTitle>Monthly Summary</CardTitle>
+            <CardTitle className="text-base">Monthly Summary</CardTitle>
          </CardHeader>
          <CardContent className="flex justify-between items-baseline">
             <p className='text-sm'><span className='font-bold'>{travelDaysCount}</span> travel days</p>
             <p className="text-lg font-bold whitespace-nowrap">{formatCurrency(totalDue)}</p>
         </CardContent>
         <CardFooter>
-            <Button className="w-full" onClick={handleMarkAsPaid}>
-                Mark as Paid for {format(currentDate, 'MMMM')}
+            <Button className="w-full" onClick={handleMarkAsPaid} disabled={isFutureMonth || isPaidForMonth || totalDue <= 0}>
+                {isPaidForMonth ? '✓ Payment Confirmed' : `Mark as Paid for ${format(currentDate, 'MMMM')}`}
             </Button>
         </CardFooter>
       </Card>
