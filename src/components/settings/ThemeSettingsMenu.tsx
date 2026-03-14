@@ -8,7 +8,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Slider } from '@/components/ui/slider';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { hexToHsl, hslToHex, idbGet, idbSet, cn } from '@/lib/utils';
-import { useToast } from '@/hooks/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Upload, Loader2, Trash2, Check, Sparkles } from 'lucide-react';
 import { AppDataContext } from '@/context/AppDataContext';
@@ -62,7 +61,6 @@ export function ThemeSettingsMenu() {
   const [isClient, setIsClient] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const { toast } = useToast();
 
   const [isSaveDialogOpen, setIsSaveDialogOpen] = useState(false);
   const [newThemeName, setNewThemeName] = useState('');
@@ -174,7 +172,7 @@ export function ThemeSettingsMenu() {
         canvas.height = height;
         const ctx = canvas.getContext('2d');
         if (!ctx) {
-            toast({ title: "Could not process image", variant: "destructive" });
+            console.error("Could not process image");
             setIsProcessing(false);
             return;
         }
@@ -183,7 +181,6 @@ export function ThemeSettingsMenu() {
         const dataUrl = file.type === 'image/gif' ? (e.target?.result as string) : canvas.toDataURL(file.type, 0.9);
         setPreviewTheme(p => ({...p, backgroundImage: dataUrl}));
         setIsProcessing(false);
-        toast({ title: 'Background preview updated.' });
       };
       img.src = e.target?.result as string;
     };
@@ -194,7 +191,6 @@ export function ThemeSettingsMenu() {
   
   const handleRemoveImage = () => {
     setPreviewTheme(p => ({ ...p, backgroundImage: '' }));
-    toast({ title: 'Background image removed from preview.' });
   }
 
   const handleSave = () => {
@@ -204,26 +200,22 @@ export function ThemeSettingsMenu() {
 
     savePromise.then(() => {
         setThemeSettings(settingsToSave);
-        toast({ title: 'Theme Saved!', description: 'Reloading app to apply changes...' });
         
         setTimeout(() => {
             window.location.reload();
         }, 1000);
     }).catch(error => {
         console.error("Failed to save background image to IndexedDB", error);
-        toast({ title: 'Save Failed', description: 'Could not save background image.', variant: 'destructive'});
     });
   };
 
   const handleCancel = async () => {
     const storedImage = await idbGet<string>('backgroundImage');
     setPreviewTheme({ ...themeSettings, backgroundImage: storedImage || '' });
-    toast({ title: 'Changes Reverted' });
   };
 
   const handleSavePreset = () => {
     if (!newThemeName.trim()) {
-        toast({ variant: 'destructive', title: 'Invalid Name', description: 'Please enter a name for your preset.' });
         return;
     }
     const { backgroundImage, backgroundOpacity, ...settingsToSave } = previewTheme;

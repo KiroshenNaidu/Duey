@@ -9,7 +9,6 @@ import { Download, Upload, Trash2, Code, Sparkles } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Textarea } from '@/components/ui/textarea';
-import { useToast } from '@/hooks/use-toast';
 
 export function DataManagementMenu() {
   const { getAppState, importData, clearData } = useContext(AppDataContext);
@@ -17,7 +16,7 @@ export function DataManagementMenu() {
   
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [jsonString, setJsonString] = useState('');
-  const { toast } = useToast();
+  const [error, setError] = useState('');
 
   const handleExport = () => {
     const appData = getAppState();
@@ -48,7 +47,7 @@ export function DataManagementMenu() {
           importData(data);
         } catch (error) {
           console.error('Failed to parse backup file:', error);
-          toast({ title: 'Import Failed', description: 'Invalid backup file format.', variant: 'destructive'});
+          setError('Invalid backup file format.');
         }
       };
       reader.readAsText(file);
@@ -60,10 +59,12 @@ export function DataManagementMenu() {
     const appState = getAppState();
     setJsonString(JSON.stringify(appState, null, 2));
     setIsEditorOpen(true);
+    setError('');
   };
   
   const handleSaveChanges = () => {
     try {
+      setError('');
       const newState: AppData = JSON.parse(jsonString);
 
       if (!newState.debts || !Array.isArray(newState.debts)) throw new Error("'debts' array is missing or invalid.");
@@ -72,29 +73,21 @@ export function DataManagementMenu() {
       
       importData(newState);
       
-      toast({
-        title: 'Success!',
-        description: 'Raw data has been updated. The app will now reload.',
-      });
-      
       setTimeout(() => { window.location.reload(); }, 1000);
       setIsEditorOpen(false);
 
     } catch (e: any) {
-      toast({
-        variant: 'destructive',
-        title: 'Validation Error',
-        description: `Invalid data: ${e.message}`,
-      });
+      setError(`Validation Error: ${e.message}`);
     }
   };
 
   const handlePrettify = () => {
     try {
+        setError('');
         const parsed = JSON.parse(jsonString);
         setJsonString(JSON.stringify(parsed, null, 2));
     } catch {
-        toast({ variant: 'destructive', title: 'Invalid JSON', description: 'Cannot prettify invalid JSON.' });
+        setError('Cannot prettify invalid JSON.');
     }
   };
 
@@ -191,6 +184,7 @@ export function DataManagementMenu() {
             className="h-[60vh] font-mono text-xs"
             placeholder="Raw JSON data..."
           />
+          {error && <p className="text-sm text-destructive">{error}</p>}
           <DialogFooter>
             <DialogClose asChild>
               <Button type="button" variant="secondary">Cancel</Button>

@@ -2,9 +2,7 @@
 
 import React, { createContext, ReactNode, useEffect, useState, useMemo } from 'react';
 import type { AppState, Debt, HistoryEntry, AppData, ThemeSettings, TransportSettings, TransportOverrides, UserTheme } from '@/lib/types';
-import { useToast } from '@/hooks/use-toast';
 import { isSameDay, startOfDay } from 'date-fns';
-import { Toaster } from '@/components/ui/toaster';
 import { getPaymentCount, getTotalInstallments } from '@/lib/calculations';
 import { idbClear } from '@/lib/utils';
 
@@ -67,7 +65,6 @@ export const AppDataContext = createContext<AppContextType>({
 export function AppDataProvider({ children }: { children: ReactNode }) {
   const [appState, setAppState] = useState<AppState>(defaultState);
   const [isLoaded, setIsLoaded] = useState(false);
-  const { toast } = useToast();
 
   useEffect(() => {
     try {
@@ -137,62 +134,57 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       type: 'creation',
     };
     setAppState(prev => ({ ...prev, debts: [...prev.debts, newDebt], history: [newHistoryEntry, ...prev.history] }));
-    toast({ title: 'Debt Added', description: `"${newDebt.title}" has been added.` });
   };
 
   const updateDebt = (debtId: string, updatedData: Partial<Omit<Debt, 'id' | 'paymentDates'>>) => {
-    const oldDebt = appState.debts.find(d => d.id === debtId);
-    if (!oldDebt) return;
-
-    const newDebt = { ...oldDebt, ...updatedData };
-    
-    setAppState(prev => ({
-        ...prev,
-        debts: prev.debts.map(d => d.id === debtId ? newDebt : d)
-    }));
-
-    const wasPaidOff = getPaymentCount(oldDebt) >= getTotalInstallments(oldDebt) && oldDebt.total_owed > 0;
-    const isNowPaidOff = getPaymentCount(newDebt) >= getTotalInstallments(newDebt) && newDebt.total_owed > 0;
-
-    if (!wasPaidOff && isNowPaidOff) {
-        toast({
-            title: 'Congratulations!',
-            description: `You've fully paid off "${newDebt.title}"!`,
-            className: 'bg-green-600 text-white border-green-600',
-        });
-    }
+    setAppState(prev => {
+        const oldDebt = prev.debts.find(d => d.id === debtId);
+        if (!oldDebt) return prev;
+        
+        const newDebt = { ...oldDebt, ...updatedData };
+        return {
+            ...prev,
+            debts: prev.debts.map(d => (d.id === debtId ? newDebt : d)),
+        };
+    });
   };
 
   const deleteDebt = (debtId: string) => {
-    const debtToDelete = appState.debts.find(d => d.id === debtId);
-    if (debtToDelete) {
-      setAppState(prev => ({ ...prev, debts: prev.debts.filter(debt => debt.id !== debtId), history: prev.history.filter(h => h.debtId !== debtId) }));
-      toast({ title: 'Debt Deleted', description: `"${debtToDelete.title}" has been removed.` });
-    }
-  };
-
-  const togglePaymentDate = (debtId: string, date: Date) => {
-    const debt = appState.debts.find(d => d.id === debtId);
-    if (!debt) return;
-
-    const paymentDates = debt.paymentDates || [];
-    const dateToToggle = startOfDay(date).toISOString();
-    const existingIndex = paymentDates.findIndex(d => isSameDay(new Date(d), date));
-
-    let newPaymentDates: string[];
-    let wasAdded = false;
-
-    if (existingIndex > -1) {
-        newPaymentDates = paymentDates.filter((_, index) => index !== existingIndex);
-    } else {
-        newPaymentDates = [...paymentDates, dateToToggle];
-        wasAdded = true;
-    }
-    newPaymentDates.sort((a, b) => new Date(a).getTime() - new Date(b).getTime());
-    
-    const newDebt = { ...debt, paymentDates: newPaymentDates };
-    
     setAppState(prev => {
+      const debtToDelete = prev.debts.find(d => d.id === debtId);
+      if (debtToDelete) {
+        return {
+          ...prev,
+          debts: prev.debts.filter(debt => debt.id !== debtId),
+          history: prev.history.filter(h => h.debtId !== debtId),
+        };
+      }
+      return prev;
+    });
+  };
+  
+  const togglePaymentDate = (debtId: string, date: Date) => {
+    setAppState(prev => {
+        const debt = prev.debts.find(d => d.id === debtId);
+        if (!debt) return prev;
+        
+        const paymentDates = debt.paymentDates || [];
+        const dateToToggle = startOfDay(date).toISOString();
+        const existingIndex = paymentDates.findIndex(d => isSameDay(new Date(d), date));
+
+        let newPaymentDates: string[];
+        let wasAdded = false;
+
+        if (existingIndex > -1) {
+            newPaymentDates = paymentDates.filter((_, index) => index !== existingIndex);
+        } else {
+            newPaymentDates = [...paymentDates, dateToToggle];
+            wasAdded = true;
+        }
+        newPaymentDates.sort((a, b) => new Date(a).getTime() - new Date(b).getTime());
+        
+        const newDebt = { ...debt, paymentDates: newPaymentDates };
+        
         const newHistoryEntry = wasAdded ? {
             id: new Date().toISOString(),
             debtId: debt.id,
@@ -215,7 +207,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     if (!debt) return;
     const isAlreadyLogged = (debt.paymentDates || []).some(d => isSameDay(new Date(d), new Date()));
     if (isAlreadyLogged) {
-        toast({ variant: 'destructive', title: 'Already Logged', description: 'A payment for today has already been recorded for this debt.' });
+        console.warn('Already Logged: A payment for today has already been recorded for this debt.');
         return;
     }
     togglePaymentDate(debtId, new Date());
@@ -224,7 +216,6 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
   const logTransportPayment = (amount: number, month: string) => {
     const newHistoryEntry: HistoryEntry = { id: new Date().toISOString(), debtTitle: `Transport: ${month}`, date: new Date().toISOString(), amount, type: 'transport' };
     setAppState(prev => ({ ...prev, history: [newHistoryEntry, ...prev.history] }));
-    toast({ title: 'Payment Logged', description: `Transport payment for ${month} has been recorded.` });
   };
 
   const addUserTheme = (name: string, settings: Omit<ThemeSettings, 'backgroundImage' | 'backgroundOpacity'>) => {
@@ -234,28 +225,27 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       settings
     };
     setAppState(prev => ({ ...prev, userThemes: [...prev.userThemes, newTheme] }));
-    toast({ title: 'Preset Saved', description: `"${name}" has been added to My Themes.` });
   };
 
   const deleteUserTheme = (themeId: string) => {
-    const themeToDelete = appState.userThemes.find(t => t.id === themeId);
-    if (!themeToDelete) return;
+    setAppState(prev => {
+        const themeToDelete = prev.userThemes.find(t => t.id === themeId);
+        if (!themeToDelete) return prev;
 
-    setAppState(prev => ({
-        ...prev,
-        userThemes: prev.userThemes.filter(t => t.id !== themeId)
-    }));
-    toast({ title: 'Preset Deleted', description: `"${themeToDelete.name}" has been removed.` });
+        return {
+            ...prev,
+            userThemes: prev.userThemes.filter(t => t.id !== themeId)
+        };
+    });
   };
 
   const importData = (data: AppData) => {
     try {
       if (data.debts && data.history && data.themeSettings) {
         setAppState(prev => ({ ...defaultState, ...prev, ...data, schemaVersion: CURRENT_SCHEMA_VERSION }));
-        toast({ title: 'Success', description: 'Your data has been imported.' });
       } else { throw new Error('Missing critical data fields.') }
     } catch (e: any) {
-      toast({ title: 'Error', description: `Invalid data format: ${e.message}`, variant: 'destructive' });
+      console.error(`Invalid data format: ${e.message}`);
     }
   };
 
@@ -280,7 +270,6 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
 
     idbClear().finally(() => {
         setAppState(defaultState);
-        toast({ title: 'Data Cleared', description: 'All app data has been removed. The app will now reload.' });
         setTimeout(() => window.location.reload(), 1500);
     });
   };
@@ -310,7 +299,6 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
   return (
     <AppDataContext.Provider value={value}>
       {children}
-      <Toaster />
     </AppDataContext.Provider>
   );
 }

@@ -23,7 +23,6 @@ import {
 } from "@/components/ui/alert-dialog"
 import { PaymentCalendarDialog } from './PaymentCalendarDialog';
 import { getPaymentCount, getTotalInstallments, getAmountPaid, getProgress } from '@/lib/calculations';
-import { useToast } from '@/hooks/use-toast';
 import { isSameDay } from 'date-fns';
 
 interface DebtCardProps {
@@ -31,9 +30,8 @@ interface DebtCardProps {
 }
 
 export function DebtCard({ debt }: DebtCardProps) {
-  const { updateDebt, deleteDebt, togglePaymentDate } = useContext(AppDataContext);
+  const { updateDebt, deleteDebt, logPaymentForToday } = useContext(AppDataContext);
   const [isEditing, setIsEditing] = useState(false);
-  const { toast } = useToast();
 
   const [editedTitle, setEditedTitle] = useState(debt.title);
   const [editedTotalOwed, setEditedTotalOwed] = useState(debt.total_owed.toString());
@@ -76,8 +74,7 @@ export function DebtCard({ debt }: DebtCardProps) {
   }
 
   const handleLogPaymentForToday = () => {
-    const today = new Date();
-    togglePaymentDate(debt.id, today);
+    logPaymentForToday(debt.id);
   };
 
   return (

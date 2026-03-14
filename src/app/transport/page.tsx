@@ -11,7 +11,6 @@ import { Label } from '@/components/ui/label';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Switch } from '@/components/ui/switch';
 import { formatCurrency, cn } from '@/lib/utils';
-import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
 import { calculateTransportMonth } from '@/lib/calculations';
 import type { TransportSettings } from '@/lib/types';
@@ -24,7 +23,6 @@ export default function TransportPage() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [isEditingCalendar, setIsEditingCalendar] = useState(false);
   const [isClient, setIsClient] = useState(false);
-  const { toast } = useToast();
 
   useEffect(() => { setIsClient(true) }, []);
 
@@ -61,7 +59,6 @@ export default function TransportPage() {
   
   const handleMarkAsPaid = () => {
     if (totalDue <= 0) {
-      toast({ title: "Nothing to pay", description: "Total amount for the month is zero.", variant: 'default' });
       return;
     }
     logTransportPayment(totalDue, monthStr);
