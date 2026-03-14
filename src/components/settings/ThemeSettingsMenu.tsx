@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Slider } from '@/components/ui/slider';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { hexToHsl, hslToHex, idbGet, idbSet, cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -26,13 +26,13 @@ const defaultThemeSettings: Omit<ThemeSettings, 'backgroundImage'> = {
 };
 
 const systemPresets: Omit<UserTheme, 'id'>[] = [
-    { name: 'Sky', settings: { background: '234 92% 93%', surface: '219 86% 83%', primary: '244 86% 76%', accent: '243 76% 68%', font: 'Inter' } },
-    { name: 'Rose', settings: { background: '345 48% 96%', surface: '355 100% 91%', primary: '349 100% 85%', accent: '344 100% 82%', font: 'Inter' } },
-    { name: 'Cyber', settings: { background: '0 0% 0%', surface: '193 100% 22%', primary: '41 92% 55%', accent: '0 0% 100%', font: 'Inter' } },
-    { name: 'Slate', settings: { background: '236 15% 14%', surface: '231 13% 25%', primary: '234 15% 32%', accent: '231 15% 48%', font: 'Inter' } },
-    { name: 'Matrix', settings: { background: '180 100% 7%', surface: '180 100% 10%', primary: '180 100% 13%', accent: '180 100% 17%', font: 'Inter' } },
-    { name: 'Amethyst', settings: { background: '278 21% 11%', surface: '262 23% 30%', primary: '265 59% 68%', accent: '262 24% 51%', font: 'Inter' } },
-    { name: 'Deep Purple', settings: { background: '278 21% 11%', surface: '262 23% 30%', primary: '262 24% 51%', accent: '262 24% 51%', font: 'Inter' } },
+    { name: 'Sky', settings: { background: '222 83% 95%', surface: '220 63% 90%', primary: '221 83% 79%', accent: '222 93% 86%' } },
+    { name: 'Rose', settings: { background: '350 87% 96%', surface: '350 77% 93%', primary: '350 93% 88%', accent: '350 100% 89%' } },
+    { name: 'Cyber', settings: { background: '0 0% 0%', surface: '200 100% 22%', primary: '53 98% 54%', accent: '0 0% 100%' } },
+    { name: 'Slate', settings: { background: '223 10% 15%', surface: '223 9% 27%', primary: '223 11% 41%', accent: '223 10% 21%' } },
+    { name: 'Matrix', settings: { background: '120 100% 7%', surface: '120 100% 10%', primary: '120 100% 13%', accent: '120 100% 17%' } },
+    { name: 'Amethyst', settings: { background: '260 20% 11%', surface: '260 17% 25%', primary: '260 35% 58%', accent: '260 20% 40%' } },
+    { name: 'Deep Purple', settings: { background: '260 20% 11%', surface: '260 17% 25%', primary: '260 20% 40%', accent: '260 20% 40%' } },
 ];
 
 const MAX_IMAGE_DIMENSION = 2500;
