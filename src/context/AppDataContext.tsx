@@ -1,9 +1,11 @@
+
 'use client';
 
 import React, { createContext, ReactNode, useEffect, useState, useMemo, useCallback } from 'react';
 import type { AppState, Debt, HistoryEntry, AppData, ThemeSettings, TransportSettings, TransportOverrides, UserTheme } from '@/lib/types';
 import { isSameDay, startOfDay } from 'date-fns';
-import { idbClear } from '@/lib/utils';
+import { doc, onSnapshot, setDoc, getDoc } from 'firebase/firestore';
+import { getFirestore } from '@/firebase';
 
 const CURRENT_SCHEMA_VERSION = 3;
 
@@ -69,108 +71,103 @@ export const AppDataContext = createContext<AppContextType>({
 export function AppDataProvider({ children }: { children: ReactNode }) {
   const [appState, setAppState] = useState<AppState>(defaultState);
   const [isLoaded, setIsLoaded] = useState(false);
+  const [userId, setUserId] = useState<string | null>(null);
 
+  // Initialize User ID and load optimistic local state
   useEffect(() => {
-    try {
-      const storedStateRaw = localStorage.getItem('appState');
-      let stateToLoad: AppState = defaultState;
-
-      if (storedStateRaw) {
-        const parsedData = JSON.parse(storedStateRaw);
-        
-        if (!parsedData.schemaVersion || parsedData.schemaVersion < CURRENT_SCHEMA_VERSION) {
-           console.log(`Migrating data from v${parsedData.schemaVersion || 1} to v${CURRENT_SCHEMA_VERSION}...`);
-           if (parsedData.schemaVersion < 3) {
-             const oldDebts = JSON.parse(localStorage.getItem('debts') || '[]').map((d: any) => {
-                const { paymentDates, ...rest } = d;
-                return rest;
-             });
-             const oldHistory = JSON.parse(localStorage.getItem('history') || '[]');
-             const oldTransportSettings = JSON.parse(localStorage.getItem('transportSettings') || '{}');
-             const oldTransportOverrides = JSON.parse(localStorage.getItem('transportOverrides') || '{}');
-             const oldThemeSettings = JSON.parse(localStorage.getItem('themeSettings') || '{}');
-             const oldNotepadContent = localStorage.getItem('quick-note') || '';
-
-             stateToLoad = {
-                 ...defaultState,
-                 debts: oldDebts,
-                 history: oldHistory,
-                 transportSettings: oldTransportSettings.driverName !== undefined ? oldTransportSettings : defaultState.transportSettings,
-                 transportOverrides: Object.keys(oldTransportOverrides).length > 0 ? oldTransportOverrides : defaultState.transportOverrides,
-                 themeSettings: oldThemeSettings.primary !== undefined ? {...defaultState.themeSettings, ...oldThemeSettings} : defaultState.themeSettings,
-                 userThemes: [],
-                 notepadContent: oldNotepadContent || defaultState.notepadContent,
-             };
-           } else {
-             stateToLoad = { ...defaultState, ...parsedData };
-           }
-
-           if (!stateToLoad.themeSettings.uiScale) {
-              stateToLoad.themeSettings.uiScale = 1.0;
-           }
-
-           stateToLoad.schemaVersion = CURRENT_SCHEMA_VERSION;
-        } else {
-            stateToLoad = { ...defaultState, ...parsedData };
-        }
-      }
-      setAppState(stateToLoad);
-    } catch (error) {
-      console.error('Failed to load or parse app state:', error);
-      setAppState(defaultState);
-    } finally {
-        setIsLoaded(true);
+    let devId = localStorage.getItem('duey_device_id');
+    if (!devId) {
+      devId = crypto.randomUUID();
+      localStorage.setItem('duey_device_id', devId);
     }
+    setUserId(devId);
+
+    const storedStateRaw = localStorage.getItem('appState');
+    if (storedStateRaw) {
+      try {
+        setAppState(JSON.parse(storedStateRaw));
+      } catch (e) {
+        console.error("Failed to parse local optimistic state", e);
+      }
+    }
+    setIsLoaded(true);
   }, []);
 
+  // Sync with Firestore
   useEffect(() => {
-    if (isLoaded) {
-      localStorage.setItem('appState', JSON.stringify(appState));
-    }
-  }, [appState, isLoaded]);
+    if (!userId || !isLoaded) return;
+
+    const db = getFirestore();
+    if (!db) return; // Wait for initialization
+
+    const userDocRef = doc(db, 'users', userId);
+
+    const unsubscribe = onSnapshot(userDocRef, (snapshot) => {
+      if (snapshot.exists()) {
+        const remoteData = snapshot.data() as AppState;
+        setAppState(prev => ({
+          ...prev,
+          ...remoteData,
+          schemaVersion: CURRENT_SCHEMA_VERSION
+        }));
+        // Update optimistic local storage
+        localStorage.setItem('appState', JSON.stringify(remoteData));
+      }
+    });
+
+    return () => unsubscribe();
+  }, [userId, isLoaded]);
+
+  // Push updates to Firestore
+  const syncToFirestore = useCallback((newState: AppState) => {
+    if (!userId) return;
+    const db = getFirestore();
+    if (!db) return;
+    
+    setDoc(doc(db, 'users', userId), newState, { merge: true });
+    localStorage.setItem('appState', JSON.stringify(newState));
+  }, [userId]);
+
+  const updateStateAndSync = (updater: (prev: AppState) => AppState) => {
+    setAppState(prev => {
+      const next = updater(prev);
+      syncToFirestore(next);
+      return next;
+    });
+  };
 
   const addDebt = (debtData: Omit<Debt, 'id'>) => {
-    const newDebt: Debt = { ...debtData, id: new Date().toISOString() };
-    const newHistoryEntry: HistoryEntry = {
-      id: `${newDebt.id}-created`,
-      debtId: newDebt.id,
-      debtTitle: newDebt.title,
-      date: new Date().toISOString(),
-      amount: newDebt.total_owed,
-      type: 'creation',
-    };
-    setAppState(prev => ({ ...prev, debts: [...prev.debts, newDebt], history: [newHistoryEntry, ...prev.history] }));
+    updateStateAndSync(prev => {
+      const newDebt: Debt = { ...debtData, id: crypto.randomUUID() };
+      const newHistoryEntry: HistoryEntry = {
+        id: `${newDebt.id}-created`,
+        debtId: newDebt.id,
+        debtTitle: newDebt.title,
+        date: new Date().toISOString(),
+        amount: newDebt.total_owed,
+        type: 'creation',
+      };
+      return { ...prev, debts: [...prev.debts, newDebt], history: [newHistoryEntry, ...prev.history] };
+    });
   };
 
   const updateDebt = useCallback((debtId: string, updatedData: Partial<Omit<Debt, 'id'>>) => {
-    setAppState(prev => {
-        const oldDebt = prev.debts.find(d => d.id === debtId);
-        if (!oldDebt) return prev;
-        
-        const newDebt = { ...oldDebt, ...updatedData };
-        return {
-            ...prev,
-            debts: prev.debts.map(d => (d.id === debtId ? newDebt : d)),
-        };
-    });
-  }, []);
+    updateStateAndSync(prev => ({
+      ...prev,
+      debts: prev.debts.map(d => (d.id === debtId ? { ...d, ...updatedData } : d)),
+    }));
+  }, [userId]);
 
   const deleteDebt = (debtId: string) => {
-    setAppState(prev => {
-      const debtToDelete = prev.debts.find(d => d.id === debtId);
-      if (debtToDelete) {
-        return {
-          ...prev,
-          debts: prev.debts.filter(debt => debt.id !== debtId),
-          history: prev.history.filter(h => h.debtId !== debtId),
-        };
-      }
-      return prev;
-    });
+    updateStateAndSync(prev => ({
+      ...prev,
+      debts: prev.debts.filter(debt => debt.id !== debtId),
+      history: prev.history.filter(h => h.debtId !== debtId),
+    }));
   };
   
   const togglePaymentDate = useCallback((debtId: string, date: Date) => {
-    setAppState(prev => {
+    updateStateAndSync(prev => {
       const debt = prev.debts.find(d => d.id === debtId);
       if (!debt) return prev;
   
@@ -182,128 +179,86 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       );
       
       let updatedHistory: HistoryEntry[];
-
       if (existingPayment) {
-          // If a payment exists on this day, remove it
           updatedHistory = prev.history.filter(h => h.id !== existingPayment.id);
       } else {
-          // If no payment exists, add a new one for the installment amount
-          const newHistoryEntry: HistoryEntry = {
-              id: new Date().toISOString(),
+          updatedHistory = [{
+              id: crypto.randomUUID(),
               debtId: debt.id,
               debtTitle: debt.title,
               date: dateToToggle.toISOString(),
               amount: debt.installment_amount,
               type: 'payment'
-          };
-          updatedHistory = [newHistoryEntry, ...prev.history];
+          }, ...prev.history];
       }
-
       return { ...prev, history: updatedHistory };
     });
-  }, []);
+  }, [userId]);
   
   const logPaymentForToday = (debtId: string) => {
-    const debt = appState.debts.find(d => d.id === debtId);
-    if (!debt) return;
-    
-    const isAlreadyLogged = appState.history.some(h => 
-        h.debtId === debtId && 
-        h.type === 'payment' && 
-        isSameDay(new Date(h.date), new Date())
-    );
-
-    if (isAlreadyLogged) {
-        console.warn('Already Logged: A payment for today has already been recorded for this debt.');
-        return;
-    }
-    
-    const newHistoryEntry: HistoryEntry = {
-        id: new Date().toISOString(),
-        debtId: debt.id,
-        debtTitle: debt.title,
-        date: new Date().toISOString(),
-        amount: debt.installment_amount,
-        type: 'payment'
-    };
-    setAppState(prev => ({ ...prev, history: [newHistoryEntry, ...prev.history] }));
+    updateStateAndSync(prev => {
+      const debt = prev.debts.find(d => d.id === debtId);
+      if (!debt) return prev;
+      
+      const newHistoryEntry: HistoryEntry = {
+          id: crypto.randomUUID(),
+          debtId: debt.id,
+          debtTitle: debt.title,
+          date: new Date().toISOString(),
+          amount: debt.installment_amount,
+          type: 'payment'
+      };
+      return { ...prev, history: [newHistoryEntry, ...prev.history] };
+    });
   };
 
   const logCustomPayment = (debtId: string, amount: number) => {
-    const debt = appState.debts.find(d => d.id === debtId);
-    if (!debt || amount <= 0) return;
+    updateStateAndSync(prev => {
+      const debt = prev.debts.find(d => d.id === debtId);
+      if (!debt || amount <= 0) return prev;
 
-    const newHistoryEntry: HistoryEntry = {
-      id: new Date().toISOString(),
-      debtId: debt.id,
-      debtTitle: debt.title,
-      date: new Date().toISOString(),
-      amount,
-      type: 'payment'
-    };
-    setAppState(prev => ({ ...prev, history: [newHistoryEntry, ...prev.history] }));
+      const newHistoryEntry: HistoryEntry = {
+        id: crypto.randomUUID(),
+        debtId: debt.id,
+        debtTitle: debt.title,
+        date: new Date().toISOString(),
+        amount,
+        type: 'payment'
+      };
+      return { ...prev, history: [newHistoryEntry, ...prev.history] };
+    });
   };
 
   const logTransportPayment = (amount: number, month: string) => {
-    const newHistoryEntry: HistoryEntry = { id: new Date().toISOString(), debtTitle: `Transport: ${month}`, date: new Date().toISOString(), amount, type: 'transport' };
-    setAppState(prev => ({ ...prev, history: [newHistoryEntry, ...prev.history] }));
+    updateStateAndSync(prev => ({
+      ...prev,
+      history: [{ id: crypto.randomUUID(), debtTitle: `Transport: ${month}`, date: new Date().toISOString(), amount, type: 'transport' }, ...prev.history]
+    }));
   };
 
   const addUserTheme = useCallback((name: string, settings: Omit<ThemeSettings, 'backgroundImage' | 'backgroundOpacity'>) => {
-    const newTheme: UserTheme = {
-      id: new Date().toISOString(),
-      name,
-      settings
-    };
-    setAppState(prev => ({ ...prev, userThemes: [...prev.userThemes, newTheme] }));
-  }, []);
+    updateStateAndSync(prev => ({
+      ...prev,
+      userThemes: [...prev.userThemes, { id: crypto.randomUUID(), name, settings }]
+    }));
+  }, [userId]);
 
   const deleteUserTheme = useCallback((themeId: string) => {
-    setAppState(prev => {
-        const themeToDelete = prev.userThemes.find(t => t.id === themeId);
-        if (!themeToDelete) return prev;
-
-        return {
-            ...prev,
-            userThemes: prev.userThemes.filter(t => t.id !== themeId)
-        };
-    });
-  }, []);
+    updateStateAndSync(prev => ({
+      ...prev,
+      userThemes: prev.userThemes.filter(t => t.id !== themeId)
+    }));
+  }, [userId]);
 
   const importData = (data: AppData) => {
-    try {
-      if (data.debts && data.history && data.themeSettings) {
-        setAppState(prev => ({ ...defaultState, ...prev, ...data, schemaVersion: CURRENT_SCHEMA_VERSION }));
-      } else { throw new Error('Missing critical data fields.') }
-    } catch (e: any) {
-      console.error(`Invalid data format: ${e.message}`);
-    }
+    updateStateAndSync(prev => ({ ...prev, ...data, schemaVersion: CURRENT_SCHEMA_VERSION }));
   };
 
   const clearData = () => {
-    const keysToRemove = [
-      'appState',
-      // also include old keys for a full cleanup from migration
-      'debts', 
-      'history', 
-      'transportSettings', 
-      'transportOverrides', 
-      'themeSettings',
-      'quick-note'
-    ];
-    
-    keysToRemove.forEach(key => {
-        try {
-            localStorage.removeItem(key);
-        } catch (e) {
-            console.error(`Could not remove ${key} from localStorage`, e);
-        }
-    });
-
-    idbClear().finally(() => {
-        setAppState(defaultState);
-        setTimeout(() => window.location.reload(), 500);
-    });
+    const keysToRemove = ['appState', 'duey_device_id'];
+    keysToRemove.forEach(key => localStorage.removeItem(key));
+    setAppState(defaultState);
+    window.location.reload();
   };
 
   const value = useMemo(() => ({
@@ -314,17 +269,17 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     togglePaymentDate,
     logPaymentForToday,
     logCustomPayment,
-    setTransportSettings: (settings: TransportSettings) => setAppState(p => ({ ...p, transportSettings: settings })),
-    setTransportOverrides: (overrides: TransportOverrides) => setAppState(p => ({ ...p, transportOverrides: overrides })),
+    setTransportSettings: (settings: TransportSettings) => updateStateAndSync(p => ({ ...p, transportSettings: settings })),
+    setTransportOverrides: (overrides: TransportOverrides) => updateStateAndSync(p => ({ ...p, transportOverrides: overrides })),
     logTransportPayment,
-    setThemeSettings: (settings: Omit<ThemeSettings, 'backgroundImage'>) => setAppState(p => ({ ...p, themeSettings: settings })),
-    setNotepadContent: (content: string) => setAppState(p => ({ ...p, notepadContent: content })),
+    setThemeSettings: (settings: Omit<ThemeSettings, 'backgroundImage'>) => updateStateAndSync(p => ({ ...p, themeSettings: settings })),
+    setNotepadContent: (content: string) => updateStateAndSync(p => ({ ...p, notepadContent: content })),
     addUserTheme,
     deleteUserTheme,
     importData,
     clearData,
     getAppState: () => appState,
-  }), [appState, deleteDebt, togglePaymentDate, addUserTheme, deleteUserTheme, updateDebt]);
+  }), [appState, userId]);
 
   if (!isLoaded) return null;
 

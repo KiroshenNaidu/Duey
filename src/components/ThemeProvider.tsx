@@ -1,10 +1,10 @@
+
 'use client';
 
 import { ReactNode, useEffect, useState, useContext } from 'react';
 import { idbGet } from '@/lib/utils';
 import { Inter } from 'next/font/google';
 import { AppDataContext } from '@/context/AppDataContext';
-import { Skeleton } from './ui/skeleton';
 
 const inter = Inter({
   subsets: ['latin'],
@@ -16,6 +16,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const [backgroundImage, setBackgroundImage] = useState('');
   const [isImageReady, setIsImageReady] = useState(false);
 
+  // Immediate load from local storage to prevent flicker
   useEffect(() => {
     async function loadInitialImage() {
       try {
@@ -24,7 +25,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
           setBackgroundImage(storedImage);
         }
       } catch (error) {
-        console.error("Failed to load background image from IndexedDB", error);
+        console.error("Failed to load background image", error);
       } finally {
         setIsImageReady(true);
       }
@@ -33,10 +34,9 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    if (!isImageReady || !themeSettings) return; 
+    if (!themeSettings) return; 
     
     const root = document.documentElement;
-    
     root.style.setProperty('--background', themeSettings.background);
     root.style.setProperty('--card', themeSettings.surface);
     root.style.setProperty('--primary', themeSettings.primary);
@@ -52,36 +52,16 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       root.style.setProperty('--font-family', 'monospace');
     }
     
+    document.body.style.zoom = `${themeSettings.uiScale || 1.0}`;
+    
     const body = document.body;
     if (backgroundImage) {
       body.classList.add('has-bg-image');
     } else {
       body.classList.remove('has-bg-image');
     }
-
-    body.style.zoom = `${themeSettings.uiScale}`;
     
   }, [themeSettings, backgroundImage, isImageReady]);
-
-  useEffect(() => {
-    return () => {
-      document.body.classList.remove('has-bg-image');
-      document.body.style.zoom = '1';
-    };
-  }, []);
-
-  if (!isImageReady || !themeSettings) {
-    return (
-        <div className={`${inter.variable}`}>
-            <div className="flex flex-col min-h-dvh bg-background relative z-0 p-4 space-y-4">
-              <Skeleton className="h-12 w-1/2" />
-              <Skeleton className="h-24 w-full" />
-              <Skeleton className="h-24 w-full" />
-              <Skeleton className="h-24 w-full" />
-            </div>
-        </div>
-    );
-  }
 
   return (
     <div className={`${inter.variable}`}>
@@ -94,7 +74,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
           <div
             id="global-bg-overlay"
             className="fixed inset-0 z-[-9] bg-black transition-opacity duration-500"
-            style={{ opacity: backgroundImage ? themeSettings.backgroundOpacity : 0 }}
+            style={{ opacity: backgroundImage ? 0.1 : 0 }}
           />
         </>
       {children}

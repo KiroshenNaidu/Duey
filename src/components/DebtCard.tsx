@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useContext, useState, useEffect } from 'react';
@@ -47,8 +48,7 @@ export function DebtCard({ debt }: DebtCardProps) {
   const totalInstallments = getTotalInstallments(debt);
   const amountPaid = getAmountPaid(debt, history);
   const progress = getProgress(debt, history);
-  const remainingBalance = getRemainingBalance(debt, history);
-  const isPaidOff = remainingBalance <= 0 && debt.total_owed > 0;
+  const isPaidOff = progress >= 100;
 
   const handleUpdate = () => {
     const totalOwedNum = parseFloat(editedTotalOwed) || 0;
@@ -115,7 +115,7 @@ export function DebtCard({ debt }: DebtCardProps) {
 
       <div className={cn(
         "transition-[max-height,padding] duration-500 ease-in-out overflow-hidden",
-        isEditing ? "max-h-[500px] p-3 pt-0" : "max-h-0 p-0"
+        isEditing ? "max-h-[600px] p-3 pt-0" : "max-h-0 p-0"
       )}>
         <div className="space-y-4 pt-4 border-t">
             <div className="space-y-2">
@@ -145,7 +145,7 @@ export function DebtCard({ debt }: DebtCardProps) {
                     />
                     <Button 
                         onClick={handleLogCustomPayment} 
-                        disabled={!customAmount || parseFloat(customAmount) <= 0 || isPaidOff}
+                        disabled={!customAmount || parseFloat(customAmount) <= 0}
                         className="bg-accent text-accent-foreground hover:bg-accent/90 flex-shrink-0"
                     >
                         Log
@@ -180,7 +180,7 @@ export function DebtCard({ debt }: DebtCardProps) {
                         </Button>
                     </PaymentCalendarDialog>
                 </div>
-                 <Button onClick={handleLogPaymentForToday} disabled={isPaidOff}>
+                 <Button onClick={handleLogPaymentForToday}>
                     +1 Installment
                  </Button>
             </div>

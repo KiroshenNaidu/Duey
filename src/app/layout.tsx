@@ -1,9 +1,11 @@
+
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import { AppDataProvider } from '@/context/AppDataContext';
 import { BottomNav } from '@/components/BottomNav';
 import { ThemeProvider } from '@/components/ThemeProvider';
 import { FloatingTools } from '@/components/FloatingTools';
+import { FirebaseClientProvider } from '@/firebase/client-provider';
 
 export const metadata: Metadata = {
   title: 'Duey',
@@ -24,17 +26,19 @@ export default function RootLayout({
     <html lang="en" className="dark">
       <head />
       <body className="font-body antialiased">
-        <AppDataProvider>
-          <ThemeProvider>
-            <div className="flex flex-col min-h-dvh bg-transparent relative z-0">
-              <main className="flex-1 overflow-y-auto pb-20 pt-20 px-3">
-                {children}
-              </main>
-              <BottomNav />
-            </div>
-            <FloatingTools />
-          </ThemeProvider>
-        </AppDataProvider>
+        <FirebaseClientProvider>
+          <AppDataProvider>
+            <ThemeProvider>
+              <div className="flex flex-col min-h-dvh bg-transparent relative z-0">
+                <main className="flex-1 overflow-y-auto pb-20 pt-20 px-3">
+                  {children}
+                </main>
+                <BottomNav />
+              </div>
+              <FloatingTools />
+            </ThemeProvider>
+          </AppDataProvider>
+        </FirebaseClientProvider>
       </body>
     </html>
   );

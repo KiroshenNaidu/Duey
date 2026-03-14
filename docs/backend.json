@@ -1,0 +1,84 @@
+
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "The complete application state for a single user, stored per device identifier.",
+      "type": "object",
+      "properties": {
+        "schemaVersion": { "type": "number" },
+        "debts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "title": { "type": "string" },
+              "total_owed": { "type": "number" },
+              "installment_amount": { "type": "number" }
+            }
+          }
+        },
+        "history": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "debtId": { "type": "string" },
+              "debtTitle": { "type": "string" },
+              "date": { "type": "string" },
+              "amount": { "type": "number" },
+              "type": { "enum": ["payment", "creation", "transport"] }
+            }
+          }
+        },
+        "transportSettings": {
+          "type": "object",
+          "properties": {
+            "driverName": { "type": "string" },
+            "dailyFee": { "type": "number" }
+          }
+        },
+        "transportOverrides": {
+          "type": "object",
+          "additionalProperties": { "type": "boolean" }
+        },
+        "themeSettings": {
+          "type": "object",
+          "properties": {
+            "background": { "type": "string" },
+            "surface": { "type": "string" },
+            "primary": { "type": "string" },
+            "accent": { "type": "string" },
+            "font": { "enum": ["Inter", "Serif", "Mono"] },
+            "foreground": { "type": "string" },
+            "accentForeground": { "type": "string" },
+            "uiScale": { "type": "number" }
+          }
+        },
+        "userThemes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "name": { "type": "string" },
+              "settings": { "type": "object" }
+            }
+          }
+        },
+        "notepadContent": { "type": "string" }
+      }
+    }
+  },
+  "auth": {
+    "providers": ["anonymous"]
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "#/backend/entities/UserProfile",
+      "description": "Stores all persistent data for a specific user device."
+    }
+  }
+}
