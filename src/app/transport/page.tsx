@@ -133,7 +133,7 @@ export default function TransportPage() {
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-7 gap-1 text-center text-xs font-semibold text-muted-foreground">
-            {WEEK_DAYS.map(day => <div key={day}>{day}</div>)}
+            {WEEK_DAYS.map((day, i) => <div key={i}>{day}</div>)}
           </div>
           <div className="grid grid-cols-7 gap-1 mt-2">
             {Array.from({ length: firstDayOfMonth }).map((_, i) => <div key={`empty-${i}`} />)}
