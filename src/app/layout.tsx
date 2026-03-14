@@ -6,7 +6,7 @@ import { ThemeProvider } from '@/components/ThemeProvider';
 import { FloatingTools } from '@/components/FloatingTools';
 
 export const metadata: Metadata = {
-  title: 'DebtMate',
+  title: 'Duey',
   description: 'Manual Debt & Payment Tracker',
   manifest: '/manifest.json',
 };

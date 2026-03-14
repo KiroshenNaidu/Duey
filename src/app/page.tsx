@@ -18,7 +18,7 @@ export default function Home() {
 
   return (
     <div className="container mx-auto max-w-md">
-      <h1 className="text-xl font-bold mb-3 text-foreground">TaxMaxxing</h1>
+      <h1 className="text-xl font-bold mb-3 text-foreground">Duey</h1>
 
       {!isClient ? (
         <div className="space-y-3">
