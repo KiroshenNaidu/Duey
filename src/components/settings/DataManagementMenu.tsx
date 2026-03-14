@@ -92,21 +92,21 @@ export function DataManagementMenu() {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <Card>
-        <CardContent className="p-4 space-y-3">
-          <Button onClick={handleExport} className="w-full justify-start h-auto p-4 text-left">
-              <Download className="mr-4 h-5 w-5 flex-shrink-0" />
+        <CardContent className="p-2 space-y-2">
+          <Button onClick={handleExport} className="w-full justify-start h-auto p-3 text-left">
+              <Download className="mr-3 h-4 w-4 flex-shrink-0" />
               <div>
-                <p className='font-semibold text-base'>Export Data</p>
-                <p className='font-normal text-sm text-primary-foreground/80'>Save a local backup of your data.</p>
+                <p className='font-semibold text-sm'>Export Data</p>
+                <p className='font-normal text-[10px] text-primary-foreground/80'>Save a local backup of your data</p>
               </div>
           </Button>
-          <Button onClick={handleImportClick} variant="secondary" className="w-full justify-start h-auto p-4 text-left">
-              <Upload className="mr-4 h-5 w-5 flex-shrink-0" />
+          <Button onClick={handleImportClick} variant="secondary" className="w-full justify-start h-auto p-3 text-left">
+              <Upload className="mr-3 h-4 w-4 flex-shrink-0" />
                <div>
-                <p className='font-semibold text-base'>Import Data</p>
-                <p className='font-normal text-sm text-secondary-foreground/80'>Restore from a backup file.</p>
+                <p className='font-semibold text-sm'>Import Data</p>
+                <p className='font-normal text-[10px] text-secondary-foreground/80'>Restore from a backup file</p>
               </div>
           </Button>
           <input
@@ -120,14 +120,14 @@ export function DataManagementMenu() {
       </Card>
       
       <Card>
-        <CardContent className="p-4">
+        <CardContent className="p-2">
           <AlertDialog>
             <AlertDialogTrigger asChild>
-              <Button variant="ghost" className="w-full justify-start h-auto p-4 text-left">
-                <Code className="mr-4 h-5 w-5 flex-shrink-0" />
+              <Button variant="ghost" className="w-full justify-start h-auto p-3 text-left">
+                <Code className="mr-3 h-4 w-4 flex-shrink-0" />
                 <div>
-                    <p className='font-semibold text-base'>Developer Mode</p>
-                    <p className='font-normal text-sm text-muted-foreground'>Edit raw application state.</p>
+                    <p className='font-semibold text-sm'>Developer Mode</p>
+                    <p className='font-normal text-[10px] text-muted-foreground'>Edit raw application state</p>
                 </div>
               </Button>
             </AlertDialogTrigger>
@@ -135,7 +135,7 @@ export function DataManagementMenu() {
               <AlertDialogHeader>
                 <AlertDialogTitle>Enter Developer Mode?</AlertDialogTitle>
                 <AlertDialogDescription>
-                  Warning: Manual changes to raw data can break the app. This is for advanced users only. Proceed with caution.
+                  Warning: Manual changes to raw data can break the app. This is for advanced users only.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
@@ -147,10 +147,10 @@ export function DataManagementMenu() {
         </CardContent>
       </Card>
 
-      <div className="pt-4">
+      <div className="pt-2">
         <AlertDialog>
           <AlertDialogTrigger asChild>
-            <Button variant="destructive" className="w-full">
+            <Button variant="destructive" className="w-full h-9 text-xs">
               <Trash2 className="mr-2 h-4 w-4" /> 
               Reset All Data
             </Button>
@@ -159,7 +159,7 @@ export function DataManagementMenu() {
             <AlertDialogHeader>
               <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
               <AlertDialogDescription>
-                This action cannot be undone. This will permanently delete all app data including debts, history, and settings.
+                This action cannot be undone. This will permanently delete all app data.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
