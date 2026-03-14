@@ -58,12 +58,15 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     } else {
       body.classList.remove('has-bg-image');
     }
+
+    body.style.zoom = `${themeSettings.uiScale}`;
     
   }, [themeSettings, backgroundImage, isImageReady]);
 
   useEffect(() => {
     return () => {
       document.body.classList.remove('has-bg-image');
+      document.body.style.zoom = '1';
     };
   }, []);
 

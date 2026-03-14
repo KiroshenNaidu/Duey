@@ -9,34 +9,36 @@ import { Slider } from '@/components/ui/slider';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { hexToHsl, hslToHex, idbGet, idbSet, cn } from '@/lib/utils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Upload, Loader2, Trash2, Check } from 'lucide-react';
+import { Upload, Loader2, Trash2, Check, Plus, Minus } from 'lucide-react';
 import { AppDataContext } from '@/context/AppDataContext';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { ScrollArea } from '../ui/scroll-area';
 
 const defaultThemeSettings: Omit<ThemeSettings, 'backgroundImage'> = {
-  background: '218 13% 10%',
-  surface: '218 15% 12%',
-  primary: '228 50% 50%',
+  background: '223 13% 10%',
+  surface: '222 15% 12%',
+  primary: '227 50% 50%',
   accent: '191 79% 57%',
-  foreground: '210 14% 91%',
-  accentForeground: '220 14% 10%',
+  foreground: '0 0% 98%',
+  accentForeground: '0 0% 98%',
   font: 'Inter',
   backgroundOpacity: 0.1,
+  uiScale: 1.0,
 };
 
 const systemPresets: Omit<UserTheme, 'id'>[] = [
     { 
-        name: 'Default Dark', 
+        name: 'Default', 
         settings: { 
-            background: '220 14% 10%',
-            surface: '220 14% 12%',
-            primary: '225 50% 50%',
-            accent: '188 78% 57%',
+            background: '223 13% 10%',
+            surface: '222 15% 12%',
+            primary: '227 50% 50%',
+            accent: '191 79% 57%',
             foreground: '0 0% 98%',
-            accentForeground: '220 14% 10%',
-            font: 'Inter' 
+            accentForeground: '0 0% 98%',
+            font: 'Inter',
+            uiScale: 1.0,
         } 
     },
 ];
@@ -56,7 +58,8 @@ const areThemeSettingsEqual = (s1: Omit<ThemeSettings, 'backgroundImage' | 'back
            s1.accent === s2.accent &&
            s1.foreground === s2.foreground &&
            s1.accentForeground === s2.accentForeground &&
-           s1.font === s2.font;
+           s1.font === s2.font &&
+           s1.uiScale === s2.uiScale;
 };
 
 export function ThemeSettingsMenu() {
@@ -88,7 +91,6 @@ export function ThemeSettingsMenu() {
   useEffect(() => {
     if (!isClient) return;
 
-    // Apply live preview for colors and fonts
     const root = document.documentElement;
     root.style.setProperty('--background', previewTheme.background);
     root.style.setProperty('--card', previewTheme.surface);
@@ -105,7 +107,6 @@ export function ThemeSettingsMenu() {
         root.style.setProperty('--font-family', 'monospace');
     }
 
-    // Apply live preview for background image and overlay
     const bgImageDiv = document.getElementById('global-bg-image');
     const bgOverlayDiv = document.getElementById('global-bg-overlay');
     
@@ -122,16 +123,15 @@ export function ThemeSettingsMenu() {
     } else {
         body.classList.remove('has-bg-image');
     }
+    
+    body.style.zoom = `${previewTheme.uiScale}`;
 
   }, [previewTheme, isClient]);
 
-  // Effect for cleanup on unmount
   useEffect(() => {
     if (!isClient) return;
 
     return () => {
-      // This function is called when the component unmounts.
-      // We need to revert the styles back to what is globally saved.
       async function revertStyles() {
         const root = document.documentElement;
         root.style.setProperty('--background', themeSettings.background);
@@ -165,6 +165,8 @@ export function ThemeSettingsMenu() {
         } else {
           body.classList.remove('has-bg-image');
         }
+
+        body.style.zoom = `${themeSettings.uiScale}`;
       }
       revertStyles();
     };
@@ -253,6 +255,15 @@ export function ThemeSettingsMenu() {
     setNewThemeName('');
     setIsSaveDialogOpen(false);
   };
+  
+  const handleScale = (direction: 'up' | 'down') => {
+    setPreviewTheme(prev => {
+      const currentScale = prev.uiScale || 1.0;
+      let newScale = direction === 'up' ? currentScale + 0.05 : currentScale - 0.05;
+      newScale = Math.max(0.8, Math.min(1.2, newScale)); // Clamp between 80% and 120%
+      return { ...prev, uiScale: parseFloat(newScale.toFixed(2)) };
+    });
+  };
 
   const isCurrentThemeSaved = useMemo(() => {
     const { backgroundImage, backgroundOpacity, ...currentSettings } = previewTheme;
@@ -308,6 +319,23 @@ export function ThemeSettingsMenu() {
 
   return (
     <div className="space-y-6">
+        <Card>
+            <CardHeader><CardTitle className="text-base">UI Size</CardTitle></CardHeader>
+            <CardContent>
+                <div className="flex items-center justify-center gap-4">
+                    <Button variant="outline" size="icon" className="rounded-full" onClick={() => handleScale('down')}>
+                        <Minus className="h-4 w-4" />
+                    </Button>
+                    <span className="text-lg font-bold w-24 text-center tabular-nums">
+                        {((previewTheme.uiScale || 1.0) * 100).toFixed(0)}%
+                    </span>
+                    <Button variant="outline" size="icon" className="rounded-full" onClick={() => handleScale('up')}>
+                        <Plus className="h-4 w-4" />
+                    </Button>
+                </div>
+            </CardContent>
+        </Card>
+
       <Card>
         <CardHeader><CardTitle className="text-base">Background Image</CardTitle></CardHeader>
         <CardContent className="space-y-4">
@@ -398,7 +426,7 @@ export function ThemeSettingsMenu() {
       
       <div className="flex justify-end gap-2 py-4">
         <Button variant="ghost" onClick={handleCancel}>Cancel</Button>
-        <Button onClick={handleSave}>Save Theme</Button>
+        <Button onClick={handleSave}>Save Display Settings</Button>
       </div>
 
        <Dialog open={isSaveDialogOpen} onOpenChange={setIsSaveDialogOpen}>

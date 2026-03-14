@@ -34,6 +34,7 @@ export interface ThemeSettings {
   backgroundOpacity: number;
   foreground: string;
   accentForeground: string;
+  uiScale: number;
 }
 
 export interface UserTheme {

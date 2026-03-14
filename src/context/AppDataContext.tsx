@@ -5,7 +5,7 @@ import type { AppState, Debt, HistoryEntry, AppData, ThemeSettings, TransportSet
 import { isSameDay, startOfDay } from 'date-fns';
 import { idbClear } from '@/lib/utils';
 
-const CURRENT_SCHEMA_VERSION = 2;
+const CURRENT_SCHEMA_VERSION = 3;
 
 const defaultState: AppState = {
   schemaVersion: CURRENT_SCHEMA_VERSION,
@@ -14,13 +14,14 @@ const defaultState: AppState = {
   transportSettings: { driverName: '', dailyFee: 0 },
   transportOverrides: {},
   themeSettings: {
-    background: '220 14% 10%',
-    surface: '220 14% 12%',
-    primary: '225 50% 50%',
-    accent: '188 78% 57%',
+    background: '223 13% 10%',
+    surface: '222 15% 12%',
+    primary: '227 50% 50%',
+    accent: '191 79% 57%',
     font: 'Inter',
     foreground: '0 0% 98%',
-    accentForeground: '220 14% 10%',
+    accentForeground: '0 0% 98%',
+    uiScale: 1.0,
   },
   userThemes: [],
   notepadContent: '',
@@ -77,7 +78,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
         
         if (!parsedData.schemaVersion || parsedData.schemaVersion < CURRENT_SCHEMA_VERSION) {
            console.log(`Migrating data from v${parsedData.schemaVersion || 1} to v${CURRENT_SCHEMA_VERSION}...`);
-           if (parsedData.schemaVersion === undefined) { // Migrating from legacy separate keys
+           if (parsedData.schemaVersion < 2) {
              const oldDebts = JSON.parse(localStorage.getItem('debts') || '[]');
              const oldHistory = JSON.parse(localStorage.getItem('history') || '[]');
              const oldTransportSettings = JSON.parse(localStorage.getItem('transportSettings') || '{}');
@@ -87,9 +88,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
 
              const migratedDebts = oldDebts.map((d: any) => {
                 const { payment_score, ...rest } = d;
-                if (!d.paymentDates && payment_score > 0) {
-                  // Cannot reconstruct dates from score, so paymentDates will be empty.
-                }
+                if (!d.paymentDates && payment_score > 0) { }
                 return rest;
              });
 
@@ -103,7 +102,14 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
                  userThemes: [],
                  notepadContent: oldNotepadContent || defaultState.notepadContent,
              };
+           } else {
+             stateToLoad = { ...defaultState, ...parsedData };
            }
+
+           if (!stateToLoad.themeSettings.uiScale) {
+              stateToLoad.themeSettings.uiScale = 1.0;
+           }
+
            stateToLoad.schemaVersion = CURRENT_SCHEMA_VERSION;
         } else {
             stateToLoad = { ...defaultState, ...parsedData };
@@ -138,17 +144,14 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
   };
 
   const updateDebt = useCallback((debtId: string, updatedData: Partial<Omit<Debt, 'id' | 'paymentDates'>>) => {
-    let oldDebt: Debt | undefined;
-    let newDebt: Debt | undefined;
-    
     setAppState(prev => {
-        oldDebt = prev.debts.find(d => d.id === debtId);
+        const oldDebt = prev.debts.find(d => d.id === debtId);
         if (!oldDebt) return prev;
         
-        newDebt = { ...oldDebt, ...updatedData };
+        const newDebt = { ...oldDebt, ...updatedData };
         return {
             ...prev,
-            debts: prev.debts.map(d => (d.id === debtId ? newDebt! : d)),
+            debts: prev.debts.map(d => (d.id === debtId ? newDebt : d)),
         };
     });
   }, []);
@@ -236,11 +239,9 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const deleteUserTheme = useCallback((themeId: string) => {
-    let themeName: string | undefined;
     setAppState(prev => {
         const themeToDelete = prev.userThemes.find(t => t.id === themeId);
         if (!themeToDelete) return prev;
-        themeName = themeToDelete.name;
 
         return {
             ...prev,
@@ -292,7 +293,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     importData,
     clearData,
     getAppState: () => appState,
-  }), [appState, deleteDebt, togglePaymentDate, addUserTheme, deleteUserTheme]);
+  }), [appState, deleteDebt, togglePaymentDate, addUserTheme, deleteUserTheme, updateDebt]);
 
   if (!isLoaded) return null;
 
