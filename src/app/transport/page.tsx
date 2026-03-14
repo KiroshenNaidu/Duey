@@ -85,8 +85,11 @@ export default function TransportPage() {
 
       <Accordion type="single" collapsible className="border-none">
         <AccordionItem value="settings" className="border-none">
-          <AccordionTrigger className="hover:no-underline py-0 border-none">
-            <div className='flex justify-between w-full pr-4 items-center bg-card p-3 rounded-t-xl'>
+          <AccordionTrigger className="hover:no-underline py-0 border-none group">
+            <div className={cn(
+              "flex justify-between w-full pr-4 items-center bg-card p-3 transition-all duration-200",
+              "rounded-xl group-data-[state=open]:rounded-b-none group-data-[state=open]:rounded-t-xl"
+            )}>
               <h2 className="text-base font-semibold">Settings</h2>
               <div className='flex flex-col items-end text-[10px] text-muted-foreground'>
                 <span>{transportSettings.driverName || 'Set Driver'}</span>
