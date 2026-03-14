@@ -1,11 +1,10 @@
 'use client';
 
 import { useContext, useMemo, useState, useEffect } from 'react';
-import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Tooltip, ResponsiveContainer, LabelList } from 'recharts';
 import { AppDataContext } from '@/context/AppDataContext';
-import { formatCurrency } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
-import { getProgress, getAmountPaid, getRemainingBalance } from '@/lib/calculations';
+import { getProgress } from '@/lib/calculations';
+import { Progress } from '@/components/ui/progress';
 
 export function DebtProgressCharts() {
   const { debts, history } = useContext(AppDataContext);
@@ -15,46 +14,43 @@ export function DebtProgressCharts() {
     setIsClient(true);
   }, []);
 
-  const chartData = useMemo(() => {
-    return debts.map((debt) => {
-      return {
-        name: debt.title,
-        progress: Math.round(getProgress(debt, history)),
-        paid: getAmountPaid(debt, history),
-        remaining: getRemainingBalance(debt, history),
-        total: debt.total_owed,
-      };
-    });
+  const debtProgressData = useMemo(() => {
+    return debts.map((debt) => ({
+      id: debt.id,
+      name: debt.title,
+      progress: getProgress(debt, history),
+    })).sort((a, b) => b.progress - a.progress);
   }, [debts, history]);
-  
+
   if (!isClient) {
-    return <Skeleton className="h-[300px] w-full" />;
+    return (
+      <div className="space-y-3">
+        <div className="flex items-center gap-4"><Skeleton className="h-4 w-12" /><Skeleton className="h-2 w-full" /></div>
+        <div className="flex items-center gap-4"><Skeleton className="h-4 w-12" /><Skeleton className="h-2 w-full" /></div>
+        <div className="flex items-center gap-4"><Skeleton className="h-4 w-12" /><Skeleton className="h-2 w-full" /></div>
+      </div>
+    );
   }
-  
+
+  if (debts.length === 0) {
+    return (
+        <p className="text-sm text-muted-foreground text-center py-4">No debts with progress to show.</p>
+    );
+  }
+
   return (
-     <div style={{ width: '100%', height: 300 }}>
-        <ResponsiveContainer>
-            <BarChart data={chartData} layout="vertical" margin={{ top: 5, right: 20, left: 20, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--muted))" />
-                <XAxis type="number" domain={[0, 100]} tickFormatter={(value) => `${value}%`} stroke="hsl(var(--muted-foreground))" />
-                <YAxis dataKey="name" type="category" width={80} tick={{ fill: 'hsl(var(--foreground))' }} tickLine={false} axisLine={false} />
-                <Tooltip
-                    cursor={{ fill: 'hsl(var(--card))' }}
-                    contentStyle={{
-                        backgroundColor: 'hsl(var(--background))',
-                        borderColor: 'hsl(var(--border))',
-                    }}
-                    labelStyle={{ color: 'hsl(var(--foreground))' }}
-                     formatter={(value, name, props) => {
-                        if (name === 'progress') return [`${value}% Complete`, 'Progress'];
-                        return [formatCurrency(Number(value)), name.charAt(0).toUpperCase() + name.slice(1)];
-                    }}
-                />
-                <Bar dataKey="progress" fill="hsl(var(--primary))" background={{ fill: 'hsl(var(--muted))' }}>
-                   <LabelList dataKey="progress" position="right" formatter={(value: number) => `${value}%`} fill="hsl(var(--foreground))"/>
-                </Bar>
-            </BarChart>
-        </ResponsiveContainer>
+    <div className="space-y-3">
+      {debtProgressData.map((debt) => (
+        <div key={debt.id} className="grid grid-cols-[auto_1fr_auto] items-center gap-x-3">
+          <span className="text-xs font-medium text-foreground truncate">
+            {debt.name.substring(0, 5)}
+          </span>
+          <Progress value={debt.progress} className="h-2 bg-card [&>*]:bg-accent" />
+          <span className="text-xs font-mono text-muted-foreground w-8 text-right">
+            {Math.round(debt.progress)}%
+          </span>
+        </div>
+      ))}
     </div>
   );
 }

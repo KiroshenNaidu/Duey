@@ -48,7 +48,7 @@ function StatsOverview() {
         <Card key={item.title}>
           <CardContent className="p-3">
             <p className="text-xs font-medium text-muted-foreground">{item.title}</p>
-            <p className="text-lg font-bold">{formatCurrency(item.value)}</p>
+            <p className="text-base font-bold">{formatCurrency(item.value)}</p>
           </CardContent>
         </Card>
       ))}
@@ -85,7 +85,7 @@ export default function StatsPage() {
         <section>
           <h2 className="text-base font-semibold mb-2">Debt Progress</h2>
           <Card>
-            <CardContent className="p-2">
+            <CardContent className="p-4">
               <DebtProgressCharts />
             </CardContent>
           </Card>

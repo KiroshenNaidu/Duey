@@ -96,7 +96,7 @@ export function DebtCard({ debt }: DebtCardProps) {
           <CardTitle className="text-base font-bold truncate pr-2">{debt.title}</CardTitle>
           <div className="flex items-center gap-2">
             <span className="text-xs text-muted-foreground whitespace-nowrap">
-              {paymentCount} of {totalInstallments}
+              {paymentCount} of {totalInstallments} ({Math.round(progress)}%)
             </span>
             <Button variant="ghost" size="icon" className="h-8 w-8 flex-shrink-0" onClick={handleToggleEdit}>
               {isEditing ? <Check className="h-4 w-4" /> : <Pencil className="h-4 w-4" />}

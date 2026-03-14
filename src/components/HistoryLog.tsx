@@ -25,7 +25,7 @@ function HistoryItem({ entry }: { entry: ProcessedHistoryEntry }) {
                 : 'Installment Logged';
 
     return (
-        <div className="flex justify-between items-start p-3">
+        <div className="flex justify-between items-start p-2">
             <div>
                 <p className="font-semibold text-sm">{title}</p>
                 <p className="text-xs text-muted-foreground">
@@ -92,7 +92,7 @@ export function HistoryLog() {
   if (!isClient) {
     return (
         <Card>
-            <CardContent className="p-4 space-y-2">
+            <CardContent className="p-2 space-y-2">
                 <Skeleton className="h-10 w-full" />
                 <Skeleton className="h-64 w-full" />
             </CardContent>
@@ -114,7 +114,7 @@ export function HistoryLog() {
 
   return (
     <Card>
-      <CardContent className="p-4">
+      <CardContent className="p-2">
         <Tabs defaultValue={defaultTab} className="w-full">
           <TabsList className="h-auto flex-wrap justify-start p-1 mb-2">
             {debtsWithHistory.map((debt) => (
