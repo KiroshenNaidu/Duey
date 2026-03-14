@@ -144,7 +144,7 @@ export default function TransportPage() {
             <CardTitle className={cn("text-center text-base flex flex-col items-center", isCurrentMonth ? "text-accent" : "text-foreground")}>
               <span>{format(currentDate, 'MMMM yyyy')}</span>
               <span className="text-[10px] font-semibold flex items-center gap-1 uppercase tracking-tighter">
-                {isCurrentMonth ? `(${format(new Date(), 'MMMM')})` : <><Lock className="h-2 w-2" /> (Read-Only)</>}
+                {isCurrentMonth ? `(Current Month)` : <><Lock className="h-2 w-2" /> (Read-Only)</>}
               </span>
             </CardTitle>
             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setCurrentDate(add(currentDate, { months: 1 }))}>
