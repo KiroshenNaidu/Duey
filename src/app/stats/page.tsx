@@ -84,16 +84,16 @@ export default function StatsPage() {
 
   return (
     <div className="container mx-auto max-w-md space-y-4">
-      <h1 className="text-xl font-bold text-accent mb-1">Statistics</h1>
+      <h1 className="text-xl font-bold text-foreground mb-1">Statistics</h1>
       
       <section>
-        <h2 className="text-xs font-semibold mb-2 text-accent uppercase tracking-widest">Overview</h2>
+        <h2 className="text-xs font-semibold mb-2 text-foreground uppercase tracking-widest">Overview</h2>
         <StatsOverview />
       </section>
       
       {isClient && (
         <section>
-            <h2 className="text-xs font-semibold mb-2 text-accent uppercase tracking-widest">Monthly Transport</h2>
+            <h2 className="text-xs font-semibold mb-2 text-foreground uppercase tracking-widest">Monthly Transport</h2>
             <TransportStatusCard />
         </section>
       )}
@@ -101,7 +101,7 @@ export default function StatsPage() {
 
       {isClient && debts.length > 0 && (
         <section>
-          <h2 className="text-xs font-semibold mb-2 text-accent uppercase tracking-widest">Debt Progress</h2>
+          <h2 className="text-xs font-semibold mb-2 text-foreground uppercase tracking-widest">Debt Progress</h2>
           <Card>
             <CardContent className="p-3">
               <DebtProgressCharts />
@@ -112,7 +112,7 @@ export default function StatsPage() {
 
       {isClient && history.length > 0 && (
         <section>
-          <h2 className="text-xs font-semibold mb-2 text-accent uppercase tracking-widest">Payment History</h2>
+          <h2 className="text-xs font-semibold mb-2 text-foreground uppercase tracking-widest">Payment History</h2>
           <HistoryLog />
         </section>
       )}

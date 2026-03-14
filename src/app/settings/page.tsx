@@ -26,7 +26,7 @@ const SettingsHeader = ({ title, onBack }: { title: string; onBack?: () => void 
         <ChevronLeft className="h-6 w-6" />
       </button>
     )}
-    <h1 className="text-xl font-bold text-accent">{title}</h1>
+    <h1 className="text-xl font-bold text-foreground">{title}</h1>
   </div>
 );
 
