@@ -281,7 +281,17 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
   };
 
   const clearData = () => {
-    const keysToRemove = ['appState'];
+    const keysToRemove = [
+      'appState',
+      // also include old keys for a full cleanup from migration
+      'debts', 
+      'history', 
+      'transportSettings', 
+      'transportOverrides', 
+      'themeSettings',
+      'quick-note'
+    ];
+    
     keysToRemove.forEach(key => {
         try {
             localStorage.removeItem(key);
