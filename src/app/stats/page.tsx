@@ -3,7 +3,7 @@
 import { useContext, useMemo, useState, useEffect } from 'react';
 import { AppDataContext } from '@/context/AppDataContext';
 import { Card, CardContent } from '@/components/ui/card';
-import { formatCurrency } from '@/lib/utils';
+import { formatCurrency, cn } from '@/lib/utils';
 import { DebtProgressCharts } from '@/components/DebtProgressCharts';
 import { Skeleton } from '@/components/ui/skeleton';
 import { HistoryLog } from '@/components/HistoryLog';
@@ -21,20 +21,36 @@ function StatsOverview() {
   const stats = useMemo(() => calculateGlobalStats(debts, history), [debts, history]);
 
   const overviewItems = [
-    { title: 'Total Debt', value: stats.globalTotalDebt },
-    { title: 'Amount Paid', value: stats.globalAmountPaid },
-    { title: 'Transport Paid', value: stats.totalTransportPaid },
-    { title: 'Remaining Debt', value: stats.globalRemainingBalance },
+    { 
+      title: 'Total Debt', 
+      value: stats.globalTotalDebt,
+      colorClass: 'text-foreground'
+    },
+    { 
+      title: 'Amount Paid', 
+      value: stats.globalAmountPaid,
+      colorClass: 'text-green-500'
+    },
+    { 
+      title: 'Transport Paid', 
+      value: stats.totalTransportPaid,
+      colorClass: 'text-foreground'
+    },
+    { 
+      title: 'Remaining', 
+      value: stats.globalRemainingBalance,
+      colorClass: 'text-red-500'
+    },
   ];
 
   if (!isClient) {
     return (
-      <div className="grid gap-3 md:grid-cols-2">
-        {overviewItems.map(item => (
-          <Card key={item.title}>
-            <CardContent className="p-3">
-              <p className="text-xs font-medium text-muted-foreground">{item.title}</p>
-              <Skeleton className="h-7 w-3/4 mt-1" />
+      <div className="grid grid-cols-2 gap-2">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <Card key={i}>
+            <CardContent className="p-2">
+              <Skeleton className="h-3 w-3/4 mb-1" />
+              <Skeleton className="h-5 w-1/2" />
             </CardContent>
           </Card>
         ))}
@@ -43,12 +59,14 @@ function StatsOverview() {
   }
 
   return (
-    <div className="grid gap-3 md:grid-cols-2">
+    <div className="grid grid-cols-2 gap-2">
       {overviewItems.map(item => (
         <Card key={item.title}>
-          <CardContent className="p-3">
-            <p className="text-xs font-medium text-muted-foreground">{item.title}</p>
-            <p className="text-base font-bold">{formatCurrency(item.value)}</p>
+          <CardContent className="p-2 flex flex-col justify-center">
+            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">{item.title}</p>
+            <p className={cn("text-sm font-bold truncate", item.colorClass)}>
+              {formatCurrency(item.value)}
+            </p>
           </CardContent>
         </Card>
       ))}
@@ -65,17 +83,17 @@ export default function StatsPage() {
   }, []);
 
   return (
-    <div className="container mx-auto max-w-md space-y-3">
-      <h1 className="text-xl font-bold text-white mb-3">Statistics</h1>
+    <div className="container mx-auto max-w-md space-y-4">
+      <h1 className="text-xl font-bold text-white mb-1">Statistics</h1>
       
       <section>
-        <h2 className="text-base font-semibold mb-2">Total Overview</h2>
+        <h2 className="text-xs font-semibold mb-2 text-muted-foreground uppercase">Overview</h2>
         <StatsOverview />
       </section>
       
       {isClient && (
         <section>
-            <h2 className="text-base font-semibold mb-2">This Month's Transport</h2>
+            <h2 className="text-xs font-semibold mb-2 text-muted-foreground uppercase">Monthly Transport</h2>
             <TransportStatusCard />
         </section>
       )}
@@ -83,9 +101,9 @@ export default function StatsPage() {
 
       {isClient && debts.length > 0 && (
         <section>
-          <h2 className="text-base font-semibold mb-2">Debt Progress</h2>
+          <h2 className="text-xs font-semibold mb-2 text-muted-foreground uppercase">Debt Progress</h2>
           <Card>
-            <CardContent className="p-4">
+            <CardContent className="p-3">
               <DebtProgressCharts />
             </CardContent>
           </Card>
@@ -94,7 +112,7 @@ export default function StatsPage() {
 
       {isClient && history.length > 0 && (
         <section>
-          <h2 className="text-base font-semibold mb-2">Payment History</h2>
+          <h2 className="text-xs font-semibold mb-2 text-muted-foreground uppercase">Payment History</h2>
           <HistoryLog />
         </section>
       )}
