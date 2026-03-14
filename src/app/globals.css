@@ -81,24 +81,27 @@
 /* Transport Page Styling */
 .calendar-container {
     position: relative;
+    overflow: hidden;
 }
 
 .paid-stamp {
     position: absolute;
     top: 50%;
     left: 50%;
+    /* Order of transform is critical: translate first to center, then rotate */
     transform: translate(-50%, -50%) rotate(-15deg);
     border: 6px solid hsla(var(--accent) / 0.4);
     color: hsla(var(--accent) / 0.4);
-    font-size: 5rem;
+    font-size: clamp(3rem, 15vw, 5rem);
     font-weight: 900;
     letter-spacing: 5px;
     text-transform: uppercase;
-    padding: 10px 40px;
+    padding: clamp(5px, 2vw, 10px) clamp(20px, 8vw, 40px);
     border-radius: 15px;
     pointer-events: none;
     user-select: none;
     z-index: 10;
+    white-space: nowrap;
     mask-image: linear-gradient(to bottom, rgba(0,0,0,1) 70%, rgba(0,0,0,0.8));
     text-shadow: 2px 2px 5px rgba(0,0,0,0.2);
 }
