@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, ReactNode, useEffect, useState, useMemo } from 'react';
-import type { AppState, Debt, HistoryEntry, AppData, ThemeSettings, TransportSettings, TransportOverrides } from '@/lib/types';
+import type { AppState, Debt, HistoryEntry, AppData, ThemeSettings, TransportSettings, TransportOverrides, UserTheme } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { isSameDay, startOfDay } from 'date-fns';
 import { Toaster } from '@/components/ui/toaster';
@@ -21,8 +21,8 @@ const defaultState: AppState = {
     primary: '225 50% 50%',
     accent: '188 78% 57%',
     font: 'Inter',
-    backgroundOpacity: 0.1,
   },
+  userThemes: [],
   notepadContent: '',
 };
 
@@ -37,6 +37,8 @@ interface AppContextType extends AppState {
   logTransportPayment: (amount: number, month: string) => void;
   setThemeSettings: (settings: Omit<ThemeSettings, 'backgroundImage'>) => void;
   setNotepadContent: (content: string) => void;
+  addUserTheme: (name: string, settings: Omit<ThemeSettings, 'backgroundImage' | 'backgroundOpacity'>) => void;
+  deleteUserTheme: (themeId: string) => void;
   importData: (data: AppData) => void;
   clearData: () => void;
   getAppState: () => AppState;
@@ -54,6 +56,8 @@ export const AppDataContext = createContext<AppContextType>({
   logTransportPayment: () => {},
   setThemeSettings: () => {},
   setNotepadContent: () => {},
+  addUserTheme: () => {},
+  deleteUserTheme: () => {},
   importData: () => {},
   clearData: () => {},
   getAppState: () => defaultState,
@@ -97,6 +101,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
                  transportSettings: oldTransportSettings.driverName !== undefined ? oldTransportSettings : defaultState.transportSettings,
                  transportOverrides: Object.keys(oldTransportOverrides).length > 0 ? oldTransportOverrides : defaultState.transportOverrides,
                  themeSettings: oldThemeSettings.primary !== undefined ? oldThemeSettings : defaultState.themeSettings,
+                 userThemes: [],
                  notepadContent: oldNotepadContent || defaultState.notepadContent,
              };
            }
@@ -208,10 +213,30 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     toast({ title: 'Payment Logged', description: `Transport payment for ${month} has been recorded.` });
   };
 
+  const addUserTheme = (name: string, settings: Omit<ThemeSettings, 'backgroundImage' | 'backgroundOpacity'>) => {
+    const newTheme: UserTheme = {
+      id: new Date().toISOString(),
+      name,
+      settings
+    };
+    setAppState(prev => ({ ...prev, userThemes: [...prev.userThemes, newTheme] }));
+    toast({ title: 'Preset Saved', description: `"${name}" has been added to My Themes.` });
+  };
+
+  const deleteUserTheme = (themeId: string) => {
+    setAppState(prev => {
+      const themeToDelete = prev.userThemes.find(t => t.id === themeId);
+      if (themeToDelete) {
+        toast({ title: 'Preset Deleted', description: `"${themeToDelete.name}" has been removed.` });
+      }
+      return { ...prev, userThemes: prev.userThemes.filter(t => t.id !== themeId) };
+    });
+  };
+
   const importData = (data: AppData) => {
     try {
       if (data.debts && data.history && data.themeSettings) {
-        setAppState(prev => ({ ...prev, ...data, schemaVersion: CURRENT_SCHEMA_VERSION }));
+        setAppState(prev => ({ ...defaultState, ...prev, ...data, schemaVersion: CURRENT_SCHEMA_VERSION }));
         toast({ title: 'Success', description: 'Your data has been imported.' });
       } else { throw new Error('Missing critical data fields.') }
     } catch (e: any) {
@@ -242,9 +267,12 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     logTransportPayment,
     setThemeSettings: (settings: Omit<ThemeSettings, 'backgroundImage'>) => setAppState(p => ({ ...p, themeSettings: settings })),
     setNotepadContent: (content: string) => setAppState(p => ({ ...p, notepadContent: content })),
+    addUserTheme,
+    deleteUserTheme,
     importData,
     clearData,
     getAppState: () => appState,
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }), [appState]);
 
   if (!isLoaded) return null;

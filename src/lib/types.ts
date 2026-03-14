@@ -34,6 +34,12 @@ export interface ThemeSettings {
   backgroundOpacity: number;
 }
 
+export interface UserTheme {
+    id: string;
+    name: string;
+    settings: Omit<ThemeSettings, 'backgroundImage' | 'backgroundOpacity'>;
+}
+
 // Unified App State
 export interface AppState {
   schemaVersion: number;
@@ -42,6 +48,7 @@ export interface AppState {
   transportSettings: TransportSettings;
   transportOverrides: TransportOverrides;
   themeSettings: Omit<ThemeSettings, 'backgroundImage'>;
+  userThemes: UserTheme[];
   notepadContent: string;
 }
 
