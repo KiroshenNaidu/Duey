@@ -6,6 +6,7 @@ import { useToast } from '@/hooks/use-toast';
 import { isSameDay, startOfDay } from 'date-fns';
 import { Toaster } from '@/components/ui/toaster';
 import { getPaymentCount, getTotalInstallments } from '@/lib/calculations';
+import { idbClear } from '@/lib/utils';
 
 const CURRENT_SCHEMA_VERSION = 2;
 
@@ -144,13 +145,14 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     if (!oldDebt) return;
 
     const newDebt = { ...oldDebt, ...updatedData };
-    const wasPaidOff = getPaymentCount(oldDebt) >= getTotalInstallments(oldDebt) && oldDebt.total_owed > 0;
-    const isNowPaidOff = getPaymentCount(newDebt) >= getTotalInstallments(newDebt) && newDebt.total_owed > 0;
-
+    
     setAppState(prev => ({
         ...prev,
         debts: prev.debts.map(d => d.id === debtId ? newDebt : d)
     }));
+
+    const wasPaidOff = getPaymentCount(oldDebt) >= getTotalInstallments(oldDebt) && oldDebt.total_owed > 0;
+    const isNowPaidOff = getPaymentCount(newDebt) >= getTotalInstallments(newDebt) && newDebt.total_owed > 0;
 
     if (!wasPaidOff && isNowPaidOff) {
         toast({
@@ -170,44 +172,39 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
   };
 
   const togglePaymentDate = (debtId: string, date: Date) => {
+    const debt = appState.debts.find(d => d.id === debtId);
+    if (!debt) return;
+
+    const paymentDates = debt.paymentDates || [];
+    const dateToToggle = startOfDay(date).toISOString();
+    const existingIndex = paymentDates.findIndex(d => isSameDay(new Date(d), date));
+
+    let newPaymentDates: string[];
+    let wasAdded = false;
+
+    if (existingIndex > -1) {
+        newPaymentDates = paymentDates.filter((_, index) => index !== existingIndex);
+    } else {
+        newPaymentDates = [...paymentDates, dateToToggle];
+        wasAdded = true;
+    }
+    newPaymentDates.sort((a, b) => new Date(a).getTime() - new Date(b).getTime());
+    
+    const newDebt = { ...debt, paymentDates: newPaymentDates };
+    
     setAppState(prev => {
-        let newHistoryEntry: HistoryEntry | null = null;
-        const newDebts = prev.debts.map(debt => {
-            if (debt.id === debtId) {
-                const paymentDates = debt.paymentDates || [];
-                const dateToToggle = startOfDay(date).toISOString();
-                const existingIndex = paymentDates.findIndex(d => isSameDay(new Date(d), date));
-                let newPaymentDates: string[];
-                let wasAdded = false;
-
-                if (existingIndex > -1) {
-                    newPaymentDates = paymentDates.filter((_, index) => index !== existingIndex);
-                    // Note: History entry for the removed payment is NOT deleted.
-                } else {
-                    newPaymentDates = [...paymentDates, dateToToggle];
-                    wasAdded = true;
-                }
-                newPaymentDates.sort((a, b) => new Date(a).getTime() - new Date(b).getTime());
-
-                if (wasAdded) {
-                    newHistoryEntry = {
-                        id: new Date().toISOString(),
-                        debtId: debt.id,
-                        debtTitle: debt.title,
-                        date: date.toISOString(),
-                        amount: debt.installment_amount,
-                        type: 'payment'
-                    };
-                }
-
-                return { ...debt, paymentDates: newPaymentDates };
-            }
-            return debt;
-        });
+        const newHistoryEntry = wasAdded ? {
+            id: new Date().toISOString(),
+            debtId: debt.id,
+            debtTitle: debt.title,
+            date: date.toISOString(),
+            amount: debt.installment_amount,
+            type: 'payment'
+        } as HistoryEntry : null;
 
         return {
             ...prev,
-            debts: newDebts,
+            debts: prev.debts.map(d => d.id === debtId ? newDebt : d),
             history: newHistoryEntry ? [newHistoryEntry, ...prev.history] : prev.history,
         };
     });
@@ -242,14 +239,13 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
 
   const deleteUserTheme = (themeId: string) => {
     const themeToDelete = appState.userThemes.find(t => t.id === themeId);
+    if (!themeToDelete) return;
+
     setAppState(prev => ({
         ...prev,
         userThemes: prev.userThemes.filter(t => t.id !== themeId)
     }));
-
-    if (themeToDelete) {
-        toast({ title: 'Preset Deleted', description: `"${themeToDelete.name}" has been removed.` });
-    }
+    toast({ title: 'Preset Deleted', description: `"${themeToDelete.name}" has been removed.` });
   };
 
   const importData = (data: AppData) => {
@@ -264,14 +260,29 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
   };
 
   const clearData = () => {
-    Object.keys(localStorage).forEach(key => {
-        if (key.startsWith('appState') || key === 'debts' || key === 'history' || key === 'transportSettings' || key === 'transportOverrides' || key === 'themeSettings' || key === 'quick-note') {
+    const keysToRemove = [
+        'appState', 
+        'debts', 
+        'history', 
+        'transportSettings', 
+        'transportOverrides', 
+        'themeSettings', 
+        'userThemes',
+        'quick-note'
+    ];
+    keysToRemove.forEach(key => {
+        try {
             localStorage.removeItem(key);
+        } catch (e) {
+            console.error(`Could not remove ${key} from localStorage`, e);
         }
     });
-    setAppState(defaultState);
-    toast({ title: 'Data Cleared', description: 'All app data has been removed. The app will now reload.' });
-    setTimeout(() => window.location.reload(), 1500);
+
+    idbClear().finally(() => {
+        setAppState(defaultState);
+        toast({ title: 'Data Cleared', description: 'All app data has been removed. The app will now reload.' });
+        setTimeout(() => window.location.reload(), 1500);
+    });
   };
 
   const value = useMemo(() => ({

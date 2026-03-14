@@ -125,3 +125,12 @@ export async function idbSet(key: string, value: any): Promise<void> {
     console.error('Failed to set in IndexedDB', error);
   }
 }
+
+export async function idbClear(): Promise<void> {
+  try {
+    const db = await getDb();
+    await db.clear(STORE_NAME);
+  } catch (error) {
+    console.error('Failed to clear IndexedDB', error);
+  }
+}
