@@ -140,22 +140,25 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
   };
 
   const updateDebt = (debtId: string, updatedData: Partial<Omit<Debt, 'id' | 'paymentDates'>>) => {
-    setAppState(prev => {
-      const newDebts = prev.debts.map(debt => {
-        if (debt.id === debtId) {
-          const oldDebt = debt;
-          const newDebt = { ...oldDebt, ...updatedData };
-          const wasPaidOff = getPaymentCount(oldDebt) >= getTotalInstallments(oldDebt) && oldDebt.total_owed > 0;
-          const isNowPaidOff = getPaymentCount(newDebt) >= getTotalInstallments(newDebt) && newDebt.total_owed > 0;
-          if (!wasPaidOff && isNowPaidOff) {
-            toast({ title: 'Congratulations!', description: `You've fully paid off "${newDebt.title}"!`, className: 'bg-green-600 text-white border-green-600' });
-          }
-          return newDebt;
-        }
-        return debt;
-      });
-      return { ...prev, debts: newDebts };
-    });
+    const oldDebt = appState.debts.find(d => d.id === debtId);
+    if (!oldDebt) return;
+
+    const newDebt = { ...oldDebt, ...updatedData };
+    const wasPaidOff = getPaymentCount(oldDebt) >= getTotalInstallments(oldDebt) && oldDebt.total_owed > 0;
+    const isNowPaidOff = getPaymentCount(newDebt) >= getTotalInstallments(newDebt) && newDebt.total_owed > 0;
+
+    setAppState(prev => ({
+        ...prev,
+        debts: prev.debts.map(d => d.id === debtId ? newDebt : d)
+    }));
+
+    if (!wasPaidOff && isNowPaidOff) {
+        toast({
+            title: 'Congratulations!',
+            description: `You've fully paid off "${newDebt.title}"!`,
+            className: 'bg-green-600 text-white border-green-600',
+        });
+    }
   };
 
   const deleteDebt = (debtId: string) => {
@@ -168,31 +171,45 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
 
   const togglePaymentDate = (debtId: string, date: Date) => {
     setAppState(prev => {
-      let wasAdded = false;
-      const newDebts = prev.debts.map(debt => {
-        if (debt.id === debtId) {
-          const paymentDates = debt.paymentDates || [];
-          const dateToToggle = startOfDay(date).toISOString();
-          const existingIndex = paymentDates.findIndex(d => isSameDay(new Date(d), date));
-          let newPaymentDates: string[];
-          if (existingIndex > -1) {
-            newPaymentDates = paymentDates.filter((_, index) => index !== existingIndex);
-          } else {
-            newPaymentDates = [...paymentDates, dateToToggle];
-            wasAdded = true;
-          }
-          newPaymentDates.sort((a, b) => new Date(a).getTime() - new Date(b).getTime());
-          
-          if (wasAdded) {
-            const newHistoryEntry: HistoryEntry = { id: new Date().toISOString(), debtId: debt.id, debtTitle: debt.title, date: date.toISOString(), amount: debt.installment_amount, type: 'payment' };
-            setAppState(p => ({ ...p, history: [newHistoryEntry, ...p.history] }));
-          }
-          
-          return { ...debt, paymentDates: newPaymentDates };
-        }
-        return debt;
-      });
-      return { ...prev, debts: newDebts };
+        let newHistoryEntry: HistoryEntry | null = null;
+        const newDebts = prev.debts.map(debt => {
+            if (debt.id === debtId) {
+                const paymentDates = debt.paymentDates || [];
+                const dateToToggle = startOfDay(date).toISOString();
+                const existingIndex = paymentDates.findIndex(d => isSameDay(new Date(d), date));
+                let newPaymentDates: string[];
+                let wasAdded = false;
+
+                if (existingIndex > -1) {
+                    newPaymentDates = paymentDates.filter((_, index) => index !== existingIndex);
+                    // Note: History entry for the removed payment is NOT deleted.
+                } else {
+                    newPaymentDates = [...paymentDates, dateToToggle];
+                    wasAdded = true;
+                }
+                newPaymentDates.sort((a, b) => new Date(a).getTime() - new Date(b).getTime());
+
+                if (wasAdded) {
+                    newHistoryEntry = {
+                        id: new Date().toISOString(),
+                        debtId: debt.id,
+                        debtTitle: debt.title,
+                        date: date.toISOString(),
+                        amount: debt.installment_amount,
+                        type: 'payment'
+                    };
+                }
+
+                return { ...debt, paymentDates: newPaymentDates };
+            }
+            return debt;
+        });
+
+        return {
+            ...prev,
+            debts: newDebts,
+            history: newHistoryEntry ? [newHistoryEntry, ...prev.history] : prev.history,
+        };
     });
   };
   
@@ -224,13 +241,15 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
   };
 
   const deleteUserTheme = (themeId: string) => {
-    setAppState(prev => {
-      const themeToDelete = prev.userThemes.find(t => t.id === themeId);
-      if (themeToDelete) {
+    const themeToDelete = appState.userThemes.find(t => t.id === themeId);
+    setAppState(prev => ({
+        ...prev,
+        userThemes: prev.userThemes.filter(t => t.id !== themeId)
+    }));
+
+    if (themeToDelete) {
         toast({ title: 'Preset Deleted', description: `"${themeToDelete.name}" has been removed.` });
-      }
-      return { ...prev, userThemes: prev.userThemes.filter(t => t.id !== themeId) };
-    });
+    }
   };
 
   const importData = (data: AppData) => {
