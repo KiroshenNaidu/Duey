@@ -85,11 +85,11 @@ export default function TransportPage() {
 
       <Accordion type="single" collapsible className="border-none">
         <AccordionItem value="settings" className="border-none">
-          <AccordionTrigger className="hover:no-underline py-0 border-none group">
-            <div className={cn(
-              "flex justify-between w-full pr-4 items-center bg-card p-3 transition-all duration-200",
-              "rounded-xl group-data-[state=open]:rounded-b-none group-data-[state=open]:rounded-t-xl"
-            )}>
+          <AccordionTrigger className={cn(
+            "hover:no-underline py-3 px-4 border-none transition-all duration-200 bg-card",
+            "rounded-xl data-[state=open]:rounded-b-none data-[state=open]:rounded-t-xl"
+          )}>
+            <div className="flex flex-1 justify-between items-center mr-4">
               <h2 className="text-base font-semibold">Settings</h2>
               <div className='flex flex-col items-end text-[10px] text-muted-foreground'>
                 <span>{transportSettings.driverName || 'Set Driver'}</span>
@@ -110,7 +110,7 @@ export default function TransportPage() {
                 value={transportSettings.driverName}
                 onChange={e => handleSettingsChange('driverName', e.target.value)}
                 placeholder="e.g., John Doe"
-                className="bg-surface border-border focus-visible:ring-accent focus:border-accent transition-all duration-200"
+                className="border-border focus-visible:ring-accent focus:border-accent transition-all duration-200"
               />
             </div>
             <div className="space-y-2">
@@ -126,7 +126,7 @@ export default function TransportPage() {
                 value={transportSettings.dailyFee}
                 onChange={e => handleSettingsChange('dailyFee', parseFloat(e.target.value) || 0)}
                 placeholder="e.g., 50"
-                className="bg-surface border-border focus-visible:ring-accent focus:border-accent transition-all duration-200"
+                className="border-border focus-visible:ring-accent focus:border-accent transition-all duration-200"
               />
             </div>
             <Button className="w-full bg-primary font-bold text-white hover:bg-primary/90 mt-2 shadow-md transition-transform active:scale-[0.98]">
