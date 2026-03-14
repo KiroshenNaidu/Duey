@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Duey</string>
+    <string name="title_activity_main">Duey</string>
+    <string name="package_name">com.duey.app</string>
+    <string name="custom_url_scheme">com.duey.app</string>
+</resources>

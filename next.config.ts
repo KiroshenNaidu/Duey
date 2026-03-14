@@ -1,7 +1,9 @@
-import type {NextConfig} from 'next';
+import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  // 1. ADD THIS LINE (Required for APKs)
+  output: 'export', 
+  
   typescript: {
     ignoreBuildErrors: true,
   },
@@ -9,6 +11,9 @@ const nextConfig: NextConfig = {
     ignoreDuringBuilds: true,
   },
   images: {
+    // 2. ADD THIS LINE (Required for APKs)
+    unoptimized: true, 
+    
     remotePatterns: [
       {
         protocol: 'https',
@@ -32,4 +37,4 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+export default nextConfig;npm install @capacitor/core @capacitor/cli @capacitor/android
