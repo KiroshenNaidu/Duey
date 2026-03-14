@@ -3,7 +3,7 @@
 import { useState, useMemo, useContext, useEffect } from 'react';
 import { AppDataContext } from '@/context/AppDataContext';
 import { format, getDay, add, sub, isSameMonth, isSameDay, startOfMonth, isWeekend, isFuture, startOfToday } from 'date-fns';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Save } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -81,37 +81,52 @@ export default function TransportPage() {
     <div className="container mx-auto max-w-md space-y-3">
       <h1 className="text-xl font-bold text-white">Transport</h1>
 
-      <Accordion type="single" collapsible>
-        <AccordionItem value="settings">
-          <AccordionTrigger>
+      <Accordion type="single" collapsible className="border-none">
+        <AccordionItem value="settings" className="border-none">
+          <AccordionTrigger className="hover:no-underline py-2">
             <div className='flex justify-between w-full pr-4 items-center'>
               <h2 className="text-base font-semibold">Settings</h2>
               <div className='flex flex-col items-end text-[10px] text-muted-foreground'>
-                <span>{transportSettings.driverName}</span>
+                <span>{transportSettings.driverName || 'Set Driver'}</span>
                 <span>{formatCurrency(transportSettings.dailyFee)}/day</span>
               </div>
             </div>
           </AccordionTrigger>
-          <AccordionContent className="space-y-4 pt-2">
+          <AccordionContent className="space-y-4 pt-4 pb-6 px-1">
             <div className="space-y-2">
-              <Label htmlFor="driverName">Driver Name</Label>
+              <Label 
+                htmlFor="driverName" 
+                className="text-xs font-semibold bg-background/40 px-2 py-1 rounded-sm inline-block backdrop-blur-sm shadow-sm"
+              >
+                Driver Name
+              </Label>
               <Input
                 id="driverName"
                 value={transportSettings.driverName}
                 onChange={e => handleSettingsChange('driverName', e.target.value)}
                 placeholder="e.g., John Doe"
+                className="bg-card border-border focus-visible:ring-accent focus:border-accent transition-all duration-200"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="dailyFee">Daily Fee (R)</Label>
+              <Label 
+                htmlFor="dailyFee" 
+                className="text-xs font-semibold bg-background/40 px-2 py-1 rounded-sm inline-block backdrop-blur-sm shadow-sm"
+              >
+                Daily Fee (R)
+              </Label>
               <Input
                 id="dailyFee"
                 type="number"
                 value={transportSettings.dailyFee}
                 onChange={e => handleSettingsChange('dailyFee', parseFloat(e.target.value) || 0)}
                 placeholder="e.g., 50"
+                className="bg-card border-border focus-visible:ring-accent focus:border-accent transition-all duration-200"
               />
             </div>
+            <Button className="w-full bg-primary font-bold text-white hover:bg-primary/90 mt-2 shadow-md transition-transform active:scale-[0.98]">
+              <Save className="mr-2 h-4 w-4" /> Save Settings
+            </Button>
           </AccordionContent>
         </AccordionItem>
       </Accordion>
@@ -177,7 +192,7 @@ export default function TransportPage() {
             <p className="text-lg font-bold whitespace-nowrap">{formatCurrency(totalDue)}</p>
         </CardContent>
         <CardFooter>
-            <Button className="w-full" onClick={handleMarkAsPaid} disabled={isFutureMonth || isPaidForMonth || totalDue <= 0}>
+            <Button className="w-full font-bold" onClick={handleMarkAsPaid} disabled={isFutureMonth || isPaidForMonth || totalDue <= 0}>
                 {isPaidForMonth ? '✓ Payment Confirmed' : `Mark as Paid for ${format(currentDate, 'MMMM')}`}
             </Button>
         </CardFooter>
