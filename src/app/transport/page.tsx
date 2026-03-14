@@ -3,7 +3,7 @@
 import { useState, useMemo, useContext, useEffect } from 'react';
 import { AppDataContext } from '@/context/AppDataContext';
 import { format, getDay, add, sub, isSameMonth, startOfMonth, isWeekend, startOfToday } from 'date-fns';
-import { ChevronLeft, ChevronRight, Save, Lock } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Lock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -29,7 +29,6 @@ export default function TransportPage() {
   const today = startOfToday();
   const isCurrentMonth = isSameMonth(currentDate, today);
   
-  // Future/Past Locking: Editing only allowed for current month
   const isLocked = !isCurrentMonth;
 
   const { isPaidForMonth, monthStr } = useMemo(() => {
@@ -86,22 +85,22 @@ export default function TransportPage() {
       <Accordion type="single" collapsible className="border-none">
         <AccordionItem value="settings" className="border-none">
           <AccordionTrigger className={cn(
-            "hover:no-underline py-3 px-4 border-none transition-all duration-200 bg-card",
+            "hover:no-underline py-2 px-3 border-none transition-all duration-200 bg-card",
             "rounded-xl data-[state=open]:rounded-b-none data-[state=open]:rounded-t-xl"
           )}>
             <div className="flex flex-1 justify-between items-center mr-4">
-              <h2 className="text-base font-semibold">Settings</h2>
+              <h2 className="text-sm font-semibold">Settings</h2>
               <div className='flex flex-col items-end text-[10px] text-muted-foreground'>
                 <span>{transportSettings.driverName || 'Set Driver'}</span>
                 <span>{formatCurrency(transportSettings.dailyFee)}/day</span>
               </div>
             </div>
           </AccordionTrigger>
-          <AccordionContent className="space-y-4 pt-4 pb-6 px-3 bg-card rounded-b-xl">
-            <div className="space-y-2">
+          <AccordionContent className="space-y-3 pt-3 pb-4 px-3 bg-card rounded-b-xl">
+            <div className="space-y-1">
               <Label 
                 htmlFor="driverName" 
-                className="text-xs font-semibold bg-background/40 px-2 py-1 rounded-sm inline-block backdrop-blur-sm shadow-sm text-foreground"
+                className="text-[10px] font-semibold bg-background/40 px-2 py-0.5 rounded-sm inline-block backdrop-blur-sm shadow-sm text-foreground"
               >
                 Driver Name
               </Label>
@@ -110,13 +109,13 @@ export default function TransportPage() {
                 value={transportSettings.driverName}
                 onChange={e => handleSettingsChange('driverName', e.target.value)}
                 placeholder="e.g., John Doe"
-                className="border-border focus-visible:ring-accent focus:border-accent transition-all duration-200"
+                className="h-8 text-xs border-border focus-visible:ring-accent focus:border-accent transition-all duration-200"
               />
             </div>
-            <div className="space-y-2">
+            <div className="space-y-1">
               <Label 
                 htmlFor="dailyFee" 
-                className="text-xs font-semibold bg-background/40 px-2 py-1 rounded-sm inline-block backdrop-blur-sm shadow-sm text-foreground"
+                className="text-[10px] font-semibold bg-background/40 px-2 py-0.5 rounded-sm inline-block backdrop-blur-sm shadow-sm text-foreground"
               >
                 Daily Fee (R)
               </Label>
@@ -126,34 +125,34 @@ export default function TransportPage() {
                 value={transportSettings.dailyFee}
                 onChange={e => handleSettingsChange('dailyFee', parseFloat(e.target.value) || 0)}
                 placeholder="e.g., 50"
-                className="border-border focus-visible:ring-accent focus:border-accent transition-all duration-200"
+                className="h-8 text-xs border-border focus-visible:ring-accent focus:border-accent transition-all duration-200"
               />
             </div>
-            <Button className="w-full bg-primary font-bold text-white hover:bg-primary/90 mt-2 shadow-md transition-transform active:scale-[0.98]">
-              <Save className="mr-2 h-4 w-4" /> Save Settings
+            <Button className="w-full h-8 bg-primary text-xs font-bold text-white hover:bg-primary/90 mt-1 shadow-md transition-transform active:scale-[0.98]">
+               Save Settings
             </Button>
           </AccordionContent>
         </AccordionItem>
       </Accordion>
 
       <Card>
-        <CardHeader>
+        <CardHeader className="p-3">
           <div className="flex justify-between items-center">
-            <Button variant="ghost" size="icon" onClick={() => setCurrentDate(sub(currentDate, { months: 1 }))}>
-              <ChevronLeft />
+            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setCurrentDate(sub(currentDate, { months: 1 }))}>
+              <ChevronLeft className="h-4 w-4" />
             </Button>
             <CardTitle className={cn("text-center text-base flex flex-col items-center", isCurrentMonth ? "text-accent" : "text-foreground")}>
               <span>{format(currentDate, 'MMMM yyyy')}</span>
               <span className="text-[10px] font-semibold flex items-center gap-1 uppercase tracking-tighter">
-                {isCurrentMonth ? '(Active)' : <><Lock className="h-2 w-2" /> (Read-Only)</>}
+                {isCurrentMonth ? `(${format(new Date(), 'MMMM')})` : <><Lock className="h-2 w-2" /> (Read-Only)</>}
               </span>
             </CardTitle>
-            <Button variant="ghost" size="icon" onClick={() => setCurrentDate(add(currentDate, { months: 1 }))}>
-              <ChevronRight />
+            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setCurrentDate(add(currentDate, { months: 1 }))}>
+              <ChevronRight className="h-4 w-4" />
             </Button>
           </div>
-          <div className="flex items-center space-x-2 mt-2 justify-end">
-            <Label htmlFor="edit-calendar" className={cn("text-xs", (isLocked || isPaidForMonth) && "opacity-50")}>
+          <div className="flex items-center space-x-2 mt-1 justify-end">
+            <Label htmlFor="edit-calendar" className={cn("text-[10px]", (isLocked || isPaidForMonth) && "opacity-50")}>
               {isEditingCalendar ? 'Editing' : 'Edit'}
             </Label>
             <Switch 
@@ -161,16 +160,16 @@ export default function TransportPage() {
               checked={isEditingCalendar} 
               onCheckedChange={setIsEditingCalendar} 
               disabled={isLocked || isPaidForMonth} 
-              className={cn((isLocked || isPaidForMonth) && "opacity-50 cursor-not-allowed")}
+              className={cn("h-4 w-8", (isLocked || isPaidForMonth) && "opacity-50 cursor-not-allowed")}
             />
           </div>
         </CardHeader>
-        <CardContent className="calendar-container">
+        <CardContent className="calendar-container p-3 pt-0">
           {isPaidForMonth && <div className="paid-stamp">PAID</div>}
-          <div className="grid grid-cols-7 gap-1 text-center text-xs font-semibold text-muted-foreground">
+          <div className="grid grid-cols-7 gap-1 text-center text-[10px] font-semibold text-muted-foreground">
             {WEEK_DAYS.map((day, i) => <div key={i}>{day}</div>)}
           </div>
-          <div className="grid grid-cols-7 gap-1 mt-2">
+          <div className="grid grid-cols-7 gap-1 mt-1">
             {Array.from({ length: firstDayOfMonth }).map((_, i) => <div key={`empty-${i}`} />)}
             {daysInMonth.map(day => {
               const isoDate = day.toISOString().split('T')[0];
@@ -182,11 +181,11 @@ export default function TransportPage() {
                   disabled={!isEditingCalendar || isLocked || isPaidForMonth}
                   onClick={() => handleDayToggle(day)}
                   className={cn(
-                    "h-8 w-8 rounded-full flex items-center justify-center transition-all duration-200 text-xs",
+                    "h-7 w-7 rounded-full flex items-center justify-center transition-all duration-200 text-[10px]",
                     (isEditingCalendar && !isLocked && !isPaidForMonth) ? 'cursor-pointer' : 'cursor-default',
                     isTravelDay ? 'bg-primary/90 text-primary-foreground' : 'bg-muted text-muted-foreground',
                     !isTravelDay && 'opacity-60',
-                    isToday && "ring-2 ring-accent ring-offset-2 ring-offset-background",
+                    isToday && "ring-1 ring-accent ring-offset-1 ring-offset-background",
                     (isEditingCalendar && !isLocked && !isPaidForMonth) && "hover:scale-105"
                   )}
                 >
@@ -199,16 +198,16 @@ export default function TransportPage() {
       </Card>
       
       <Card>
-         <CardHeader>
-            <CardTitle className="text-base text-accent uppercase text-xs tracking-widest">Monthly Summary</CardTitle>
+         <CardHeader className="p-3">
+            <CardTitle className="text-accent uppercase text-[10px] tracking-widest">Monthly Summary</CardTitle>
          </CardHeader>
-         <CardContent className="flex justify-between items-baseline">
-            <p className='text-sm text-foreground'><span className='font-bold'>{travelDaysCount}</span> travel days</p>
-            <p className="text-lg font-bold whitespace-nowrap text-foreground">{formatCurrency(totalDue)}</p>
+         <CardContent className="flex justify-between items-baseline p-3 pt-0">
+            <p className='text-xs text-foreground'><span className='font-bold'>{travelDaysCount}</span> travel days</p>
+            <p className="text-base font-bold whitespace-nowrap text-foreground">{formatCurrency(totalDue)}</p>
         </CardContent>
-        <CardFooter>
+        <CardFooter className="p-3 pt-0">
             <Button 
-              className="w-full font-bold" 
+              className="w-full h-8 text-xs font-bold" 
               onClick={handleMarkAsPaid} 
               disabled={isLocked || isPaidForMonth || totalDue <= 0}
             >
