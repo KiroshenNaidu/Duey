@@ -24,11 +24,13 @@ const defaultTheme: Omit<ThemeSettings, 'backgroundImage'> = {
 
 const colorPresets: { name: string; settings: Partial<Omit<ThemeSettings, 'backgroundImage' | 'backgroundOpacity'>> }[] = [
   { name: 'Default', settings: { background: '220 14% 10%', surface: '220 14% 12%', primary: '225 50% 50%', accent: '188 78% 57%' } },
-  { name: 'Forest', settings: { background: '120 15% 15%', surface: '120 15% 18%', primary: '140 40% 45%', accent: '90 50% 60%' } },
-  { name: 'Ocean', settings: { background: '210 30% 20%', surface: '210 30% 25%', primary: '200 60% 50%', accent: '180 70% 45%' } },
   { name: 'Sunset', settings: { background: '25 20% 18%', surface: '25 20% 22%', primary: '30 80% 60%', accent: '0 70% 65%' } },
-  { name: 'Rose', settings: { background: '340 10% 15%', surface: '340 10% 20%', primary: '330 50% 60%', accent: '350 70% 70%' } },
-  { name: 'Mono', settings: { background: '240 5% 12%', surface: '240 5% 15%', primary: '240 5% 80%', accent: '240 5% 50%' } },
+  { name: 'Forest', settings: { background: '120 15% 15%', surface: '120 15% 18%', primary: '140 40% 45%', accent: '90 50% 60%' } },
+  { name: 'Gold Rush', settings: { background: '210 100% 6%', surface: '210 100% 12%', primary: '42 92% 55%', accent: '0 0% 95%' } },
+  { name: 'Slate', settings: { background: '235 15% 14%', surface: '235 12% 25%', primary: '228 79% 64%', accent: '233 16% 48%' } },
+  { name: 'Sakura', settings: { background: '325 51% 11%', surface: '326 50% 20%', primary: '339 100% 81%', accent: '348 100% 86%' } },
+  { name: 'Lavender', settings: { background: '251 26% 14%', surface: '252 29% 25%', primary: '236 86% 76%', accent: '218 89% 83%' } },
+  { name: 'Teal', settings: { background: '180 100% 7%', surface: '180 100% 10%', primary: '180 100% 25%', accent: '174 72% 56%' } },
 ];
 
 const MAX_IMAGE_DIMENSION = 2500;
@@ -212,7 +214,7 @@ export function ThemeSettingsMenu() {
               <TabsTrigger value="custom">Custom</TabsTrigger>
             </TabsList>
             <TabsContent value="presets" className="pt-4">
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-3 sm:grid-cols-4 gap-4">
                 {colorPresets.map(preset => (
                   <button key={preset.name} onClick={() => setPreviewTheme(p => ({...p, ...preset.settings}))} className="space-y-2 focus:outline-none focus:ring-2 focus:ring-ring rounded-lg p-1">
                     <div className="flex -space-x-3 justify-center">
