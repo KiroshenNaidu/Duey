@@ -80,16 +80,66 @@ export function ThemeSettingsMenu() {
   
   useEffect(() => {
     if (!isClient) return;
+
+    // Apply live preview for colors and fonts
     const root = document.documentElement;
     root.style.setProperty('--background', previewTheme.background);
     root.style.setProperty('--card', previewTheme.surface);
     root.style.setProperty('--primary', previewTheme.primary);
     root.style.setProperty('--accent', previewTheme.accent);
     root.style.setProperty('--font-family', previewTheme.font === 'Inter' ? 'var(--font-inter)' : previewTheme.font.toLowerCase());
-    
-    document.body.style.opacity = previewTheme.backgroundImage ? (1 - previewTheme.backgroundOpacity).toString() : '1';
 
+    // Apply live preview for background image and overlay
+    const bgImageDiv = document.getElementById('global-bg-image');
+    const bgOverlayDiv = document.getElementById('global-bg-overlay');
+    const body = document.body;
+
+    if (previewTheme.backgroundImage) {
+      if (bgImageDiv) bgImageDiv.style.backgroundImage = `url(${previewTheme.backgroundImage})`;
+      if (bgOverlayDiv) bgOverlayDiv.style.opacity = String(previewTheme.backgroundOpacity);
+      body.classList.add('has-bg-image');
+    } else {
+      if (bgImageDiv) bgImageDiv.style.backgroundImage = 'none';
+      if (bgOverlayDiv) bgOverlayDiv.style.opacity = '0';
+      body.classList.remove('has-bg-image');
+    }
   }, [previewTheme, isClient]);
+
+  // Effect for cleanup on unmount
+  useEffect(() => {
+    if (!isClient) return;
+
+    return () => {
+      // This function is called when the component unmounts.
+      // We need to revert the styles back to what is globally saved.
+      async function revertStyles() {
+        const root = document.documentElement;
+        root.style.setProperty('--background', themeSettings.background);
+        root.style.setProperty('--card', themeSettings.surface);
+        root.style.setProperty('--primary', themeSettings.primary);
+        root.style.setProperty('--accent', themeSettings.accent);
+        root.style.setProperty('--font-family', themeSettings.font === 'Inter' ? 'var(--font-inter)' : themeSettings.font.toLowerCase());
+
+        const storedImage = await idbGet<string>('backgroundImage');
+        const bgImageDiv = document.getElementById('global-bg-image');
+        const bgOverlayDiv = document.getElementById('global-bg-overlay');
+        const body = document.body;
+        
+        if (bgImageDiv) {
+          bgImageDiv.style.backgroundImage = storedImage ? `url(${storedImage})` : 'none';
+        }
+        if (bgOverlayDiv) {
+          bgOverlayDiv.style.opacity = storedImage ? String(themeSettings.backgroundOpacity) : '0';
+        }
+        if (storedImage) {
+          body.classList.add('has-bg-image');
+        } else {
+          body.classList.remove('has-bg-image');
+        }
+      }
+      revertStyles();
+    };
+  }, [isClient, themeSettings]);
 
   const handleColorChange = (name: 'background' | 'primary' | 'accent' | 'surface', value: string) => {
     const hslValue = hexToHsl(value);
@@ -311,9 +361,9 @@ export function ThemeSettingsMenu() {
                 <Select value={previewTheme.font} onValueChange={(value: 'Inter' | 'Serif' | 'Mono') => setPreviewTheme(p => ({...p, font: value}))}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Inter">Inter (Modern)</SelectItem>
-                    <SelectItem value="Serif">Serif (Classic)</SelectItem>
-                    <SelectItem value="Mono">Mono (Technical)</SelectItem>
+                    <SelectItem value="Inter">Modern</SelectItem>
+                    <SelectItem value="Serif">Classic</SelectItem>
+                    <SelectItem value="Mono">Technical</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
