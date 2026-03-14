@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useContext, useEffect } from 'react';
 import { AppDataContext } from '@/context/AppDataContext';
-import { format, getDay, add, sub, isSameMonth, isSameDay } from 'date-fns';
+import { format, getDay, add, sub, isSameMonth, isSameDay, startOfMonth, isWeekend } from 'date-fns';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
