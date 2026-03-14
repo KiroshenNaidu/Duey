@@ -2,24 +2,31 @@ import type { Debt, HistoryEntry, TransportOverrides } from './types';
 import { isWeekend, getDaysInMonth, startOfMonth, add } from 'date-fns';
 
 // Debt Calculations
-export const getPaymentCount = (debt: Debt): number => (debt.paymentDates || []).length;
+export const getAmountPaid = (debt: Debt, history: HistoryEntry[]): number => {
+    return history
+        .filter(h => h.debtId === debt.id && h.type === 'payment')
+        .reduce((acc, p) => acc + p.amount, 0);
+};
+
+export const getPaymentCount = (debt: Debt, history: HistoryEntry[]): number => {
+    return history.filter(h => h.debtId === debt.id && h.type === 'payment').length;
+};
 
 export const getTotalInstallments = (debt: Debt): number => {
     if (debt.installment_amount <= 0) return 0;
     return Math.ceil(debt.total_owed / debt.installment_amount);
 };
 
-export const getAmountPaid = (debt: Debt): number => getPaymentCount(debt) * debt.installment_amount;
+export const getRemainingBalance = (debt: Debt, history: HistoryEntry[]): number => {
+    return Math.max(0, debt.total_owed - getAmountPaid(debt, history));
+};
 
-export const getRemainingBalance = (debt: Debt): number => Math.max(0, debt.total_owed - getAmountPaid(debt));
-
-export const getProgress = (debt: Debt): number => {
-    const totalInstallments = getTotalInstallments(debt);
-    if (totalInstallments <= 0) {
-        return debt.total_owed > 0 ? 0 : 100;
-    }
-    const paymentCount = getPaymentCount(debt);
-    const progress = (paymentCount / totalInstallments) * 100;
+export const getProgress = (debt: Debt, history: HistoryEntry[]): number => {
+    if (debt.total_owed <= 0) {
+        return getAmountPaid(debt, history) > 0 ? 100 : 0;
+    };
+    const amountPaid = getAmountPaid(debt, history);
+    const progress = (amountPaid / debt.total_owed) * 100;
     return Math.min(100, progress);
 };
 
@@ -27,7 +34,7 @@ export const getProgress = (debt: Debt): number => {
 // Stats Page Calculations
 export const calculateGlobalStats = (debts: Debt[], history: HistoryEntry[]) => {
     const globalTotalDebt = debts.reduce((acc, debt) => acc + debt.total_owed, 0);
-    const globalAmountPaid = debts.reduce((acc, debt) => acc + getAmountPaid(debt), 0);
+    const globalAmountPaid = debts.reduce((acc, debt) => acc + getAmountPaid(debt, history), 0);
     const globalRemainingBalance = globalTotalDebt - globalAmountPaid;
     const totalTransportPaid = history
       .filter((item) => item.type === 'transport')

@@ -8,7 +8,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { getProgress, getAmountPaid, getRemainingBalance } from '@/lib/calculations';
 
 export function DebtProgressCharts() {
-  const { debts } = useContext(AppDataContext);
+  const { debts, history } = useContext(AppDataContext);
   const [isClient, setIsClient] = useState(false);
 
   useEffect(() => {
@@ -19,13 +19,13 @@ export function DebtProgressCharts() {
     return debts.map((debt) => {
       return {
         name: debt.title,
-        progress: Math.round(getProgress(debt)),
-        paid: getAmountPaid(debt),
-        remaining: getRemainingBalance(debt),
+        progress: Math.round(getProgress(debt, history)),
+        paid: getAmountPaid(debt, history),
+        remaining: getRemainingBalance(debt, history),
         total: debt.total_owed,
       };
     });
-  }, [debts]);
+  }, [debts, history]);
   
   if (!isClient) {
     return <Skeleton className="h-[300px] w-full" />;

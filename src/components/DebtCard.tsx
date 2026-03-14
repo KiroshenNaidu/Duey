@@ -22,20 +22,20 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { PaymentCalendarDialog } from './PaymentCalendarDialog';
-import { getPaymentCount, getTotalInstallments, getAmountPaid, getProgress } from '@/lib/calculations';
-import { isSameDay } from 'date-fns';
+import { getPaymentCount, getTotalInstallments, getAmountPaid, getProgress, getRemainingBalance } from '@/lib/calculations';
 
 interface DebtCardProps {
   debt: Debt;
 }
 
 export function DebtCard({ debt }: DebtCardProps) {
-  const { updateDebt, deleteDebt, logPaymentForToday } = useContext(AppDataContext);
+  const { history, updateDebt, deleteDebt, logPaymentForToday, logCustomPayment } = useContext(AppDataContext);
   const [isEditing, setIsEditing] = useState(false);
 
   const [editedTitle, setEditedTitle] = useState(debt.title);
   const [editedTotalOwed, setEditedTotalOwed] = useState(debt.total_owed.toString());
   const [editedInstallmentAmount, setEditedInstallmentAmount] = useState(debt.installment_amount.toString());
+  const [customAmount, setCustomAmount] = useState('');
   
   useEffect(() => {
     setEditedTitle(debt.title);
@@ -43,11 +43,12 @@ export function DebtCard({ debt }: DebtCardProps) {
     setEditedInstallmentAmount(debt.installment_amount.toString());
   }, [debt]);
 
-  const paymentCount = getPaymentCount(debt);
+  const paymentCount = getPaymentCount(debt, history);
   const totalInstallments = getTotalInstallments(debt);
-  const amountPaid = getAmountPaid(debt);
-  const progress = getProgress(debt);
-  const isPaidOff = progress >= 100 && debt.total_owed > 0;
+  const amountPaid = getAmountPaid(debt, history);
+  const progress = getProgress(debt, history);
+  const remainingBalance = getRemainingBalance(debt, history);
+  const isPaidOff = remainingBalance <= 0 && debt.total_owed > 0;
 
   const handleUpdate = () => {
     const totalOwedNum = parseFloat(editedTotalOwed) || 0;
@@ -75,6 +76,14 @@ export function DebtCard({ debt }: DebtCardProps) {
 
   const handleLogPaymentForToday = () => {
     logPaymentForToday(debt.id);
+  };
+  
+  const handleLogCustomPayment = () => {
+    const amount = parseFloat(customAmount);
+    if (!isNaN(amount) && amount > 0) {
+      logCustomPayment(debt.id, amount);
+      setCustomAmount('');
+    }
   };
 
   return (
@@ -123,6 +132,26 @@ export function DebtCard({ debt }: DebtCardProps) {
                     <Input id={`installment-${debt.id}`} type="number" value={editedInstallmentAmount} onChange={(e) => setEditedInstallmentAmount(e.target.value)} />
                 </div>
             </div>
+
+             <div className="space-y-2 border-t pt-4 mt-2">
+                <Label htmlFor={`custom-payment-${debt.id}`} className="text-xs">Custom Payment Amount</Label>
+                <div className="flex items-center gap-2">
+                    <Input 
+                        id={`custom-payment-${debt.id}`} 
+                        type="number" 
+                        placeholder={`e.g., ${debt.installment_amount * 2}`} 
+                        value={customAmount}
+                        onChange={(e) => setCustomAmount(e.target.value)}
+                    />
+                    <Button 
+                        onClick={handleLogCustomPayment} 
+                        disabled={!customAmount || parseFloat(customAmount) <= 0 || isPaidOff}
+                        className="bg-accent text-accent-foreground hover:bg-accent/90 flex-shrink-0"
+                    >
+                        Log
+                    </Button>
+                </div>
+            </div>
             
             <div className="flex justify-between items-center pt-4 border-t">
                 <div className='flex gap-2'>
@@ -152,7 +181,7 @@ export function DebtCard({ debt }: DebtCardProps) {
                     </PaymentCalendarDialog>
                 </div>
                  <Button onClick={handleLogPaymentForToday} disabled={isPaidOff}>
-                    +1 Payment
+                    +1 Installment
                  </Button>
             </div>
         </div>

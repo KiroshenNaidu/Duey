@@ -21,6 +21,7 @@ function HistoryItem({ entry }: { entry: ProcessedHistoryEntry }) {
 
     const title = isCreation ? 'Initial Debt'
                 : isTransport ? entry.debtTitle
+                : isPayment ? entry.debtTitle
                 : 'Installment Logged';
 
     return (
@@ -134,13 +135,17 @@ export function HistoryLog() {
             
             const processedHistory: ProcessedHistoryEntry[] = debtChronologicalHistory
                 .map(entry => {
+                    let balanceAfter: number | undefined = undefined;
                     if (entry.type === 'payment') {
-                        const balanceAfter = runningBalance - entry.amount;
+                        balanceAfter = runningBalance - entry.amount;
                         runningBalance = balanceAfter;
                         return { ...entry, balanceAfter: Math.max(0, balanceAfter) };
                     }
                     if (entry.type === 'creation') {
                         runningBalance = entry.amount;
+                        // For creation, we can calculate the balance after all payments
+                        const totalPaid = getAmountPaid(debt, history);
+                        balanceAfter = debt.total_owed - totalPaid;
                     }
                     return entry;
                 })

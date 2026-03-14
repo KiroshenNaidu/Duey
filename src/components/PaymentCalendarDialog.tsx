@@ -74,16 +74,21 @@ function MonthCard({ monthDate, paidDates, onDayClick }: MonthCardProps) {
 export function PaymentCalendarDialog({ children, debt }: { children: ReactNode, debt: Debt }) {
   const [isOpen, setIsOpen] = useState(false);
   const [viewYear, setViewYear] = useState(new Date().getFullYear());
-  const { togglePaymentDate } = useContext(AppDataContext);
+  const { history, togglePaymentDate } = useContext(AppDataContext);
 
   const months = Array.from({ length: 12 }, (_, i) => new Date(viewYear, i, 1));
-  const paidDates = useMemo(() => (debt.paymentDates || []).map(d => parseISO(d)), [debt.paymentDates]);
+  const paidDates = useMemo(() => 
+    history
+        .filter(h => h.debtId === debt.id && h.type === 'payment')
+        .map(h => parseISO(h.date)), 
+    [history, debt.id]
+  );
 
   const handleDayClick = (date: Date) => {
     togglePaymentDate(debt.id, startOfDay(date));
   };
   
-  const paymentCount = getPaymentCount(debt);
+  const paymentCount = getPaymentCount(debt, history);
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>

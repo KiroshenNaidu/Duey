@@ -28,11 +28,12 @@ const defaultState: AppState = {
 };
 
 interface AppContextType extends AppState {
-  addDebt: (debt: Omit<Debt, 'id' | 'paymentDates'>) => void;
-  updateDebt: (debtId: string, updatedData: Partial<Omit<Debt, 'id' | 'paymentDates'>>) => void;
+  addDebt: (debt: Omit<Debt, 'id'>) => void;
+  updateDebt: (debtId: string, updatedData: Partial<Omit<Debt, 'id'>>) => void;
   deleteDebt: (debtId: string) => void;
   togglePaymentDate: (debtId: string, date: Date) => void;
   logPaymentForToday: (debtId: string) => void;
+  logCustomPayment: (debtId: string, amount: number) => void;
   setTransportSettings: (settings: TransportSettings) => void;
   setTransportOverrides: (overrides: TransportOverrides) => void;
   logTransportPayment: (amount: number, month: string) => void;
@@ -52,6 +53,7 @@ export const AppDataContext = createContext<AppContextType>({
   deleteDebt: () => {},
   togglePaymentDate: () => {},
   logPaymentForToday: () => {},
+  logCustomPayment: () => {},
   setTransportSettings: () => {},
   setTransportOverrides: () => {},
   logTransportPayment: () => {},
@@ -78,23 +80,20 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
         
         if (!parsedData.schemaVersion || parsedData.schemaVersion < CURRENT_SCHEMA_VERSION) {
            console.log(`Migrating data from v${parsedData.schemaVersion || 1} to v${CURRENT_SCHEMA_VERSION}...`);
-           if (parsedData.schemaVersion < 2) {
-             const oldDebts = JSON.parse(localStorage.getItem('debts') || '[]');
+           if (parsedData.schemaVersion < 3) {
+             const oldDebts = JSON.parse(localStorage.getItem('debts') || '[]').map((d: any) => {
+                const { paymentDates, ...rest } = d;
+                return rest;
+             });
              const oldHistory = JSON.parse(localStorage.getItem('history') || '[]');
              const oldTransportSettings = JSON.parse(localStorage.getItem('transportSettings') || '{}');
              const oldTransportOverrides = JSON.parse(localStorage.getItem('transportOverrides') || '{}');
              const oldThemeSettings = JSON.parse(localStorage.getItem('themeSettings') || '{}');
              const oldNotepadContent = localStorage.getItem('quick-note') || '';
 
-             const migratedDebts = oldDebts.map((d: any) => {
-                const { payment_score, ...rest } = d;
-                if (!d.paymentDates && payment_score > 0) { }
-                return rest;
-             });
-
              stateToLoad = {
                  ...defaultState,
-                 debts: migratedDebts,
+                 debts: oldDebts,
                  history: oldHistory,
                  transportSettings: oldTransportSettings.driverName !== undefined ? oldTransportSettings : defaultState.transportSettings,
                  transportOverrides: Object.keys(oldTransportOverrides).length > 0 ? oldTransportOverrides : defaultState.transportOverrides,
@@ -130,8 +129,8 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     }
   }, [appState, isLoaded]);
 
-  const addDebt = (debtData: Omit<Debt, 'id' | 'paymentDates'>) => {
-    const newDebt: Debt = { ...debtData, id: new Date().toISOString(), paymentDates: [] };
+  const addDebt = (debtData: Omit<Debt, 'id'>) => {
+    const newDebt: Debt = { ...debtData, id: new Date().toISOString() };
     const newHistoryEntry: HistoryEntry = {
       id: `${newDebt.id}-created`,
       debtId: newDebt.id,
@@ -143,7 +142,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     setAppState(prev => ({ ...prev, debts: [...prev.debts, newDebt], history: [newHistoryEntry, ...prev.history] }));
   };
 
-  const updateDebt = useCallback((debtId: string, updatedData: Partial<Omit<Debt, 'id' | 'paymentDates'>>) => {
+  const updateDebt = useCallback((debtId: string, updatedData: Partial<Omit<Debt, 'id'>>) => {
     setAppState(prev => {
         const oldDebt = prev.debts.find(d => d.id === debtId);
         if (!oldDebt) return prev;
@@ -175,53 +174,74 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       const debt = prev.debts.find(d => d.id === debtId);
       if (!debt) return prev;
   
-      const paymentDates = debt.paymentDates || [];
-      const dateToToggle = startOfDay(date).toISOString();
-      const existingIndex = paymentDates.findIndex(d => isSameDay(new Date(d), date));
-  
-      let newPaymentDates: string[];
-      let wasAdded = false;
-  
-      if (existingIndex > -1) {
-        newPaymentDates = paymentDates.filter((_, index) => index !== existingIndex);
-      } else {
-        newPaymentDates = [...paymentDates, dateToToggle];
-        wasAdded = true;
-      }
-      newPaymentDates.sort((a, b) => new Date(a).getTime() - new Date(b).getTime());
-  
-      const newDebt = { ...debt, paymentDates: newPaymentDates };
-  
-      let updatedHistory = prev.history;
-      if (wasAdded) {
-        const newHistoryEntry: HistoryEntry = {
-          id: new Date().toISOString(),
-          debtId: debt.id,
-          debtTitle: debt.title,
-          date: date.toISOString(),
-          amount: debt.installment_amount,
-          type: 'payment'
-        };
-        updatedHistory = [newHistoryEntry, ...prev.history];
-      }
+      const dateToToggle = startOfDay(date);
+      const existingPayment = prev.history.find(h =>
+          h.debtId === debtId &&
+          h.type === 'payment' &&
+          isSameDay(new Date(h.date), dateToToggle)
+      );
       
-      return {
-        ...prev,
-        debts: prev.debts.map(d => d.id === debtId ? newDebt : d),
-        history: updatedHistory,
-      };
+      let updatedHistory: HistoryEntry[];
+
+      if (existingPayment) {
+          // If a payment exists on this day, remove it
+          updatedHistory = prev.history.filter(h => h.id !== existingPayment.id);
+      } else {
+          // If no payment exists, add a new one for the installment amount
+          const newHistoryEntry: HistoryEntry = {
+              id: new Date().toISOString(),
+              debtId: debt.id,
+              debtTitle: debt.title,
+              date: dateToToggle.toISOString(),
+              amount: debt.installment_amount,
+              type: 'payment'
+          };
+          updatedHistory = [newHistoryEntry, ...prev.history];
+      }
+
+      return { ...prev, history: updatedHistory };
     });
   }, []);
   
   const logPaymentForToday = (debtId: string) => {
     const debt = appState.debts.find(d => d.id === debtId);
     if (!debt) return;
-    const isAlreadyLogged = (debt.paymentDates || []).some(d => isSameDay(new Date(d), new Date()));
+    
+    const isAlreadyLogged = appState.history.some(h => 
+        h.debtId === debtId && 
+        h.type === 'payment' && 
+        isSameDay(new Date(h.date), new Date())
+    );
+
     if (isAlreadyLogged) {
         console.warn('Already Logged: A payment for today has already been recorded for this debt.');
         return;
     }
-    togglePaymentDate(debtId, new Date());
+    
+    const newHistoryEntry: HistoryEntry = {
+        id: new Date().toISOString(),
+        debtId: debt.id,
+        debtTitle: debt.title,
+        date: new Date().toISOString(),
+        amount: debt.installment_amount,
+        type: 'payment'
+    };
+    setAppState(prev => ({ ...prev, history: [newHistoryEntry, ...prev.history] }));
+  };
+
+  const logCustomPayment = (debtId: string, amount: number) => {
+    const debt = appState.debts.find(d => d.id === debtId);
+    if (!debt || amount <= 0) return;
+
+    const newHistoryEntry: HistoryEntry = {
+      id: new Date().toISOString(),
+      debtId: debt.id,
+      debtTitle: debt.title,
+      date: new Date().toISOString(),
+      amount,
+      type: 'payment'
+    };
+    setAppState(prev => ({ ...prev, history: [newHistoryEntry, ...prev.history] }));
   };
 
   const logTransportPayment = (amount: number, month: string) => {
@@ -283,6 +303,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     deleteDebt,
     togglePaymentDate,
     logPaymentForToday,
+    logCustomPayment,
     setTransportSettings: (settings: TransportSettings) => setAppState(p => ({ ...p, transportSettings: settings })),
     setTransportOverrides: (overrides: TransportOverrides) => setAppState(p => ({ ...p, transportOverrides: overrides })),
     logTransportPayment,

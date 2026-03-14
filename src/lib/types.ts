@@ -3,7 +3,6 @@ export interface Debt {
   title: string;
   total_owed: number;
   installment_amount: number;
-  paymentDates?: string[];
 }
 
 export interface HistoryEntry {
