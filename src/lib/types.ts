@@ -34,6 +34,7 @@ export interface ThemeSettings {
   foreground: string;
   accentForeground: string;
   uiScale: number;
+  uiStyle: 'solid' | 'glass';
 }
 
 export interface UserTheme {

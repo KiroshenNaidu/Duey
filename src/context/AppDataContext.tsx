@@ -1,10 +1,9 @@
-
 'use client';
 
 import React, { createContext, ReactNode, useEffect, useState, useMemo, useCallback } from 'react';
 import type { AppState, Debt, HistoryEntry, AppData, ThemeSettings, TransportSettings, TransportOverrides, UserTheme } from '@/lib/types';
 import { isSameDay, startOfDay } from 'date-fns';
-import { doc, onSnapshot, setDoc, getDoc } from 'firebase/firestore';
+import { doc, onSnapshot, setDoc } from 'firebase/firestore';
 import { getFirestore } from '@/firebase';
 
 const CURRENT_SCHEMA_VERSION = 3;
@@ -24,6 +23,7 @@ const defaultState: AppState = {
     foreground: '0 0% 98%',
     accentForeground: '0 0% 98%',
     uiScale: 1.0,
+    uiStyle: 'solid',
   },
   userThemes: [],
   notepadContent: '',
@@ -73,7 +73,6 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
   const [isLoaded, setIsLoaded] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
 
-  // Initialize User ID and load optimistic local state
   useEffect(() => {
     let devId = localStorage.getItem('duey_device_id');
     if (!devId) {
@@ -93,12 +92,11 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     setIsLoaded(true);
   }, []);
 
-  // Sync with Firestore
   useEffect(() => {
     if (!userId || !isLoaded) return;
 
     const db = getFirestore();
-    if (!db) return; // Wait for initialization
+    if (!db) return;
 
     const userDocRef = doc(db, 'users', userId);
 
@@ -110,7 +108,6 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
           ...remoteData,
           schemaVersion: CURRENT_SCHEMA_VERSION
         }));
-        // Update optimistic local storage
         localStorage.setItem('appState', JSON.stringify(remoteData));
       }
     });
@@ -118,7 +115,6 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     return () => unsubscribe();
   }, [userId, isLoaded]);
 
-  // Push updates to Firestore
   const syncToFirestore = useCallback((newState: AppState) => {
     if (!userId) return;
     const db = getFirestore();

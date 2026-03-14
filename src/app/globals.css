@@ -1,4 +1,3 @@
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -44,7 +43,7 @@
   }
 }
 
-/* Red and Green Indicator Protection - Hardcoded to bypass theme variations */
+/* Red and Green Indicator Protection */
 .text-green-500 {
     color: #22c55e !important;
 }
@@ -52,6 +51,34 @@
     color: #ef4444 !important;
 }
 
+/* Glass UI Mode Styles */
+.ui-glass .bg-card,
+.ui-glass .bg-popover,
+.ui-glass .bg-background[style*="--background"] {
+  background-color: hsla(var(--card) / 0.7) !important;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid hsla(var(--accent) / 0.1) !important;
+}
+
+.ui-glass .bg-primary {
+  background-color: hsla(var(--primary) / 0.7) !important;
+  backdrop-filter: blur(8px);
+}
+
+.ui-glass .bg-accent {
+  background-color: hsla(var(--accent) / 0.7) !important;
+  backdrop-filter: blur(8px);
+}
+
+.ui-glass nav.fixed {
+  background-color: hsla(var(--card) / 0.7) !important;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-top: 1px solid hsla(var(--accent) / 0.2) !important;
+}
+
+/* Transport Page Styling */
 .calendar-container {
     position: relative;
 }

@@ -1,4 +1,3 @@
-
 'use client';
 
 import { ReactNode, useEffect, useState, useContext } from 'react';
@@ -16,7 +15,6 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const [backgroundImage, setBackgroundImage] = useState('');
   const [isImageReady, setIsImageReady] = useState(false);
 
-  // Immediate load from local storage to prevent flicker
   useEffect(() => {
     async function loadInitialImage() {
       try {
@@ -60,6 +58,12 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     } else {
       body.classList.remove('has-bg-image');
     }
+
+    if (themeSettings.uiStyle === 'glass') {
+      body.classList.add('ui-glass');
+    } else {
+      body.classList.remove('ui-glass');
+    }
     
   }, [themeSettings, backgroundImage, isImageReady]);
 
@@ -74,7 +78,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
           <div
             id="global-bg-overlay"
             className="fixed inset-0 z-[-9] bg-black transition-opacity duration-500"
-            style={{ opacity: backgroundImage ? 0.1 : 0 }}
+            style={{ opacity: backgroundImage ? themeSettings.backgroundOpacity : 0 }}
           />
         </>
       {children}

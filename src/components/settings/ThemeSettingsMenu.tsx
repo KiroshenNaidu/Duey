@@ -9,11 +9,12 @@ import { Slider } from '@/components/ui/slider';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { hexToHsl, hslToHex, idbGet, idbSet, cn } from '@/lib/utils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Upload, Loader2, Trash2, Check, Plus, Minus } from 'lucide-react';
+import { Upload, Loader2, Trash2, Check, Plus, Minus, Layout, Box } from 'lucide-react';
 import { AppDataContext } from '@/context/AppDataContext';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { ScrollArea } from '../ui/scroll-area';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 
 const defaultThemeSettings: Omit<ThemeSettings, 'backgroundImage'> = {
   background: '223 13% 10%',
@@ -25,6 +26,7 @@ const defaultThemeSettings: Omit<ThemeSettings, 'backgroundImage'> = {
   font: 'Inter',
   backgroundOpacity: 0.1,
   uiScale: 1.0,
+  uiStyle: 'solid',
 };
 
 const systemPresets: Omit<UserTheme, 'id'>[] = [
@@ -39,6 +41,7 @@ const systemPresets: Omit<UserTheme, 'id'>[] = [
             accentForeground: '0 0% 98%',
             font: 'Inter',
             uiScale: 1.0,
+            uiStyle: 'solid',
         } 
     },
 ];
@@ -59,7 +62,8 @@ const areThemeSettingsEqual = (s1: Omit<ThemeSettings, 'backgroundImage' | 'back
            s1.foreground === s2.foreground &&
            s1.accentForeground === s2.accentForeground &&
            s1.font === s2.font &&
-           s1.uiScale === s2.uiScale;
+           s1.uiScale === s2.uiScale &&
+           s1.uiStyle === s2.uiStyle;
 };
 
 export function ThemeSettingsMenu() {
@@ -123,54 +127,16 @@ export function ThemeSettingsMenu() {
     } else {
         body.classList.remove('has-bg-image');
     }
+
+    if (previewTheme.uiStyle === 'glass') {
+        body.classList.add('ui-glass');
+    } else {
+        body.classList.remove('ui-glass');
+    }
     
     body.style.zoom = `${previewTheme.uiScale}`;
 
   }, [previewTheme, isClient]);
-
-  useEffect(() => {
-    if (!isClient) return;
-
-    return () => {
-      async function revertStyles() {
-        const root = document.documentElement;
-        root.style.setProperty('--background', themeSettings.background);
-        root.style.setProperty('--card', themeSettings.surface);
-        root.style.setProperty('--primary', themeSettings.primary);
-        root.style.setProperty('--accent', themeSettings.accent);
-        root.style.setProperty('--foreground', themeSettings.foreground);
-        root.style.setProperty('--accent-foreground', themeSettings.accentForeground);
-        
-        if (themeSettings.font === 'Inter') {
-            root.style.setProperty('--font-family', 'var(--font-inter)');
-        } else if (themeSettings.font === 'Serif') {
-            root.style.setProperty('--font-family', 'serif');
-        } else {
-            root.style.setProperty('--font-family', 'monospace');
-        }
-
-        const storedImage = await idbGet<string>('backgroundImage');
-        const bgImageDiv = document.getElementById('global-bg-image');
-        const bgOverlayDiv = document.getElementById('global-bg-overlay');
-        const body = document.body;
-        
-        if (bgImageDiv) {
-          bgImageDiv.style.backgroundImage = storedImage ? `url(${storedImage})` : 'none';
-        }
-        if (bgOverlayDiv) {
-          bgOverlayDiv.style.opacity = storedImage ? String(themeSettings.backgroundOpacity) : '0';
-        }
-        if (storedImage) {
-          body.classList.add('has-bg-image');
-        } else {
-          body.classList.remove('has-bg-image');
-        }
-
-        body.style.zoom = `${themeSettings.uiScale}`;
-      }
-      revertStyles();
-    };
-  }, [isClient, themeSettings]);
 
   const handleColorChange = (name: 'background' | 'primary' | 'accent' | 'surface' | 'foreground' | 'accentForeground', value: string) => {
     const hslValue = hexToHsl(value);
@@ -205,7 +171,6 @@ export function ThemeSettingsMenu() {
         canvas.height = height;
         const ctx = canvas.getContext('2d');
         if (!ctx) {
-            console.error("Could not process image");
             setIsProcessing(false);
             return;
         }
@@ -229,15 +194,11 @@ export function ThemeSettingsMenu() {
   const handleSave = () => {
     const { backgroundImage, ...settingsToSave } = previewTheme;
     
-    const savePromise = idbSet('backgroundImage', backgroundImage);
-
-    savePromise.then(() => {
+    idbSet('backgroundImage', backgroundImage).then(() => {
         setThemeSettings(settingsToSave);
         setTimeout(() => {
             window.location.reload();
         }, 500);
-    }).catch(error => {
-        console.error("Failed to save background image to IndexedDB", error);
     });
   };
 
@@ -247,9 +208,7 @@ export function ThemeSettingsMenu() {
   };
 
   const handleSavePreset = () => {
-    if (!newThemeName.trim()) {
-        return;
-    }
+    if (!newThemeName.trim()) return;
     const { backgroundImage, backgroundOpacity, ...settingsToSave } = previewTheme;
     addUserTheme(newThemeName, settingsToSave);
     setNewThemeName('');
@@ -260,7 +219,7 @@ export function ThemeSettingsMenu() {
     setPreviewTheme(prev => {
       const currentScale = prev.uiScale || 1.0;
       let newScale = direction === 'up' ? currentScale + 0.05 : currentScale - 0.05;
-      newScale = Math.max(0.8, Math.min(1.2, newScale)); // Clamp between 80% and 120%
+      newScale = Math.max(0.8, Math.min(1.2, newScale));
       return { ...prev, uiScale: parseFloat(newScale.toFixed(2)) };
     });
   };
@@ -333,6 +292,44 @@ export function ThemeSettingsMenu() {
                         <Plus className="h-4 w-4" />
                     </Button>
                 </div>
+            </CardContent>
+        </Card>
+
+        <Card>
+            <CardHeader><CardTitle className="text-base">UI Style</CardTitle></CardHeader>
+            <CardContent>
+                <RadioGroup 
+                    value={previewTheme.uiStyle} 
+                    onValueChange={(val: 'solid' | 'glass') => setPreviewTheme(p => ({...p, uiStyle: val}))}
+                    className="grid grid-cols-2 gap-4"
+                >
+                    <div>
+                        <RadioGroupItem value="solid" id="style-solid" className="sr-only" />
+                        <Label
+                            htmlFor="style-solid"
+                            className={cn(
+                                "flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary",
+                                previewTheme.uiStyle === 'solid' && "border-primary"
+                            )}
+                        >
+                            <Box className="mb-3 h-6 w-6" />
+                            Solid
+                        </Label>
+                    </div>
+                    <div>
+                        <RadioGroupItem value="glass" id="style-glass" className="sr-only" />
+                        <Label
+                            htmlFor="style-glass"
+                            className={cn(
+                                "flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary",
+                                previewTheme.uiStyle === 'glass' && "border-primary"
+                            )}
+                        >
+                            <Layout className="mb-3 h-6 w-6" />
+                            Glass
+                        </Label>
+                    </div>
+                </RadioGroup>
             </CardContent>
         </Card>
 
