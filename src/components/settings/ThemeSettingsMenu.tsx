@@ -24,14 +24,15 @@ const defaultTheme: Omit<ThemeSettings, 'backgroundImage'> = {
 
 const colorPresets: { name: string; settings: Partial<Omit<ThemeSettings, 'backgroundImage' | 'backgroundOpacity'>> }[] = [
   { name: 'Default', settings: { background: '220 14% 10%', surface: '220 14% 12%', primary: '225 50% 50%', accent: '188 78% 57%' } },
-  { name: 'Sunset', settings: { background: '25 20% 18%', surface: '25 20% 22%', primary: '30 80% 60%', accent: '0 70% 65%' } },
-  { name: 'Forest', settings: { background: '120 15% 15%', surface: '120 15% 18%', primary: '140 40% 45%', accent: '90 50% 60%' } },
-  { name: 'Gold Rush', settings: { background: '210 100% 6%', surface: '210 100% 12%', primary: '42 92% 55%', accent: '0 0% 95%' } },
-  { name: 'Slate', settings: { background: '235 15% 14%', surface: '235 12% 25%', primary: '228 79% 64%', accent: '233 16% 48%' } },
-  { name: 'Sakura', settings: { background: '325 51% 11%', surface: '326 50% 20%', primary: '339 100% 81%', accent: '348 100% 86%' } },
-  { name: 'Lavender', settings: { background: '251 26% 14%', surface: '252 29% 25%', primary: '236 86% 76%', accent: '218 89% 83%' } },
-  { name: 'Teal', settings: { background: '180 100% 7%', surface: '180 100% 10%', primary: '180 100% 25%', accent: '174 72% 56%' } },
+  { name: 'Iris', settings: { background: '231 93% 94%', surface: '221 88% 83%', primary: '234 85% 76%', accent: '244 76% 68%' } },
+  { name: 'Blush', settings: { background: '345 48% 96%', surface: '357 100% 91%', primary: '346 100% 86%', accent: '338 100% 81%' } },
+  { name: 'Cyber', settings: { background: '0 0% 0%', surface: '193 100% 22%', primary: '41 92% 55%', accent: '0 0% 100%' } },
+  { name: 'Graphite', settings: { background: '237 15% 14%', surface: '236 13% 25%', primary: '235 15% 31%', accent: '233 16% 48%' } },
+  { name: 'Depths', settings: { background: '180 100% 7%', surface: '180 100% 10%', primary: '180 100% 13%', accent: '180 100% 17%' } },
+  { name: 'Amethyst', settings: { background: '278 21% 11%', surface: '262 23% 30%', primary: '262 24% 51%', accent: '265 59% 68%' } },
+  { name: 'Mono', settings: { background: '262 24% 31%', surface: '262 24% 41%', primary: '262 24% 51%', accent: '262 24% 61%' } },
 ];
+
 
 const MAX_IMAGE_DIMENSION = 2500;
 
