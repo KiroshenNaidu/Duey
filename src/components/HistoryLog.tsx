@@ -27,7 +27,7 @@ function HistoryItem({ entry }: { entry: ProcessedHistoryEntry }) {
     return (
         <div className="flex justify-between items-start p-2">
             <div>
-                <p className="font-semibold text-sm">{title}</p>
+                <p className="font-semibold text-sm text-foreground">{title}</p>
                 <p className="text-xs text-muted-foreground">
                     {format(new Date(entry.date), "PPP")}
                 </p>
@@ -40,7 +40,7 @@ function HistoryItem({ entry }: { entry: ProcessedHistoryEntry }) {
                     </p>
                 )}
                 {isTransport && (
-                    <p className="font-mono font-semibold text-sm text-destructive">
+                    <p className="font-mono font-semibold text-sm text-red-500">
                         -{formatCurrency(entry.amount)}
                     </p>
                 )}

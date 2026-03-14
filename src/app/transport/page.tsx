@@ -81,7 +81,7 @@ export default function TransportPage() {
 
   return (
     <div className="container mx-auto max-w-md space-y-3">
-      <h1 className="text-xl font-bold text-white">Transport</h1>
+      <h1 className="text-xl font-bold text-accent">Transport</h1>
 
       <Accordion type="single" collapsible className="border-none">
         <AccordionItem value="settings" className="border-none">
@@ -101,7 +101,7 @@ export default function TransportPage() {
             <div className="space-y-2">
               <Label 
                 htmlFor="driverName" 
-                className="text-xs font-semibold bg-background/40 px-2 py-1 rounded-sm inline-block backdrop-blur-sm shadow-sm"
+                className="text-xs font-semibold bg-background/40 px-2 py-1 rounded-sm inline-block backdrop-blur-sm shadow-sm text-foreground"
               >
                 Driver Name
               </Label>
@@ -116,7 +116,7 @@ export default function TransportPage() {
             <div className="space-y-2">
               <Label 
                 htmlFor="dailyFee" 
-                className="text-xs font-semibold bg-background/40 px-2 py-1 rounded-sm inline-block backdrop-blur-sm shadow-sm"
+                className="text-xs font-semibold bg-background/40 px-2 py-1 rounded-sm inline-block backdrop-blur-sm shadow-sm text-foreground"
               >
                 Daily Fee (R)
               </Label>
@@ -142,9 +142,9 @@ export default function TransportPage() {
             <Button variant="ghost" size="icon" onClick={() => setCurrentDate(sub(currentDate, { months: 1 }))}>
               <ChevronLeft />
             </Button>
-            <CardTitle className="text-center text-base flex flex-col items-center">
+            <CardTitle className={cn("text-center text-base flex flex-col items-center", isCurrentMonth ? "text-accent" : "text-foreground")}>
               <span>{format(currentDate, 'MMMM yyyy')}</span>
-              <span className="text-[10px] font-semibold text-muted-foreground flex items-center gap-1">
+              <span className="text-[10px] font-semibold flex items-center gap-1 uppercase tracking-tighter">
                 {isCurrentMonth ? '(Active)' : <><Lock className="h-2 w-2" /> (Read-Only)</>}
               </span>
             </CardTitle>
@@ -200,11 +200,11 @@ export default function TransportPage() {
       
       <Card>
          <CardHeader>
-            <CardTitle className="text-base">Monthly Summary</CardTitle>
+            <CardTitle className="text-base text-accent uppercase text-xs tracking-widest">Monthly Summary</CardTitle>
          </CardHeader>
          <CardContent className="flex justify-between items-baseline">
-            <p className='text-sm'><span className='font-bold'>{travelDaysCount}</span> travel days</p>
-            <p className="text-lg font-bold whitespace-nowrap">{formatCurrency(totalDue)}</p>
+            <p className='text-sm text-foreground'><span className='font-bold'>{travelDaysCount}</span> travel days</p>
+            <p className="text-lg font-bold whitespace-nowrap text-foreground">{formatCurrency(totalDue)}</p>
         </CardContent>
         <CardFooter>
             <Button 
