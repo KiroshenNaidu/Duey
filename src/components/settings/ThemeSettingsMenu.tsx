@@ -9,29 +9,34 @@ import { Slider } from '@/components/ui/slider';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { hexToHsl, hslToHex, idbGet, idbSet, cn } from '@/lib/utils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Upload, Loader2, Trash2, Check, Sparkles } from 'lucide-react';
+import { Upload, Loader2, Trash2, Check } from 'lucide-react';
 import { AppDataContext } from '@/context/AppDataContext';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { ScrollArea } from '../ui/scroll-area';
 
 const defaultThemeSettings: Omit<ThemeSettings, 'backgroundImage'> = {
-  background: '220 14% 10%',
-  surface: '220 14% 12%',
-  primary: '225 50% 50%',
-  accent: '188 78% 57%',
+  background: '218 13% 10%',
+  surface: '218 15% 12%',
+  primary: '228 50% 50%',
+  accent: '191 79% 57%',
+  foreground: '210 14% 91%',
   font: 'Inter',
   backgroundOpacity: 0.1,
 };
 
 const systemPresets: Omit<UserTheme, 'id'>[] = [
-    { name: 'Sky', settings: { background: '222 83% 95%', surface: '220 63% 90%', primary: '221 83% 79%', accent: '222 93% 86%' } },
-    { name: 'Rose', settings: { background: '350 87% 96%', surface: '350 77% 93%', primary: '350 93% 88%', accent: '350 100% 89%' } },
-    { name: 'Cyber', settings: { background: '0 0% 0%', surface: '200 100% 22%', primary: '53 98% 54%', accent: '0 0% 100%' } },
-    { name: 'Slate', settings: { background: '223 10% 15%', surface: '223 9% 27%', primary: '223 11% 41%', accent: '223 10% 21%' } },
-    { name: 'Matrix', settings: { background: '120 100% 7%', surface: '120 100% 10%', primary: '120 100% 13%', accent: '120 100% 17%' } },
-    { name: 'Amethyst', settings: { background: '260 20% 11%', surface: '260 17% 25%', primary: '260 35% 58%', accent: '260 20% 40%' } },
-    { name: 'Deep Purple', settings: { background: '260 20% 11%', surface: '260 17% 25%', primary: '260 20% 40%', accent: '260 20% 40%' } },
+    { 
+        name: 'Default Dark', 
+        settings: { 
+            background: '218 13% 10%',   // rgb(22, 24, 29)
+            surface: '218 15% 12%',      // rgb(26, 29, 35)
+            primary: '228 50% 50%',      // rgb(64, 96, 191)
+            accent: '191 79% 57%',       // rgb(60, 203, 231)
+            foreground: '210 14% 91%',   // A light gray for text
+            font: 'Inter' 
+        } 
+    },
 ];
 
 const MAX_IMAGE_DIMENSION = 2500;
@@ -47,6 +52,7 @@ const areThemeSettingsEqual = (s1: Omit<ThemeSettings, 'backgroundImage' | 'back
            s1.surface === s2.surface &&
            s1.primary === s2.primary &&
            s1.accent === s2.accent &&
+           s1.foreground === s2.foreground &&
            s1.font === s2.font;
 };
 
@@ -85,22 +91,27 @@ export function ThemeSettingsMenu() {
     root.style.setProperty('--card', previewTheme.surface);
     root.style.setProperty('--primary', previewTheme.primary);
     root.style.setProperty('--accent', previewTheme.accent);
+    root.style.setProperty('--foreground', previewTheme.foreground);
     root.style.setProperty('--font-family', previewTheme.font === 'Inter' ? 'var(--font-inter)' : previewTheme.font.toLowerCase());
 
     // Apply live preview for background image and overlay
     const bgImageDiv = document.getElementById('global-bg-image');
     const bgOverlayDiv = document.getElementById('global-bg-overlay');
-    const body = document.body;
-
-    if (previewTheme.backgroundImage) {
-      if (bgImageDiv) bgImageDiv.style.backgroundImage = `url(${previewTheme.backgroundImage})`;
-      if (bgOverlayDiv) bgOverlayDiv.style.opacity = String(previewTheme.backgroundOpacity);
-      body.classList.add('has-bg-image');
-    } else {
-      if (bgImageDiv) bgImageDiv.style.backgroundImage = 'none';
-      if (bgOverlayDiv) bgOverlayDiv.style.opacity = '0';
-      body.classList.remove('has-bg-image');
+    
+    if (bgImageDiv) {
+        bgImageDiv.style.backgroundImage = previewTheme.backgroundImage ? `url(${previewTheme.backgroundImage})` : 'none';
     }
+    if (bgOverlayDiv) {
+        bgOverlayDiv.style.opacity = String(previewTheme.backgroundImage ? previewTheme.backgroundOpacity : 0);
+    }
+    
+    const body = document.body;
+    if (previewTheme.backgroundImage) {
+        body.classList.add('has-bg-image');
+    } else {
+        body.classList.remove('has-bg-image');
+    }
+
   }, [previewTheme, isClient]);
 
   // Effect for cleanup on unmount
@@ -116,6 +127,7 @@ export function ThemeSettingsMenu() {
         root.style.setProperty('--card', themeSettings.surface);
         root.style.setProperty('--primary', themeSettings.primary);
         root.style.setProperty('--accent', themeSettings.accent);
+        root.style.setProperty('--foreground', themeSettings.foreground);
         root.style.setProperty('--font-family', themeSettings.font === 'Inter' ? 'var(--font-inter)' : themeSettings.font.toLowerCase());
 
         const storedImage = await idbGet<string>('backgroundImage');
@@ -139,7 +151,7 @@ export function ThemeSettingsMenu() {
     };
   }, [isClient, themeSettings]);
 
-  const handleColorChange = (name: 'background' | 'primary' | 'accent' | 'surface', value: string) => {
+  const handleColorChange = (name: 'background' | 'primary' | 'accent' | 'surface' | 'foreground', value: string) => {
     const hslValue = hexToHsl(value);
     if (hslValue) {
       setPreviewTheme(prev => ({ ...prev, [name]: hslValue }));
@@ -200,10 +212,9 @@ export function ThemeSettingsMenu() {
 
     savePromise.then(() => {
         setThemeSettings(settingsToSave);
-        
         setTimeout(() => {
             window.location.reload();
-        }, 1000);
+        }, 500);
     }).catch(error => {
         console.error("Failed to save background image to IndexedDB", error);
     });
@@ -237,11 +248,6 @@ export function ThemeSettingsMenu() {
   }, [previewTheme]);
 
   if (!isClient) return null;
-
-  const [bgH, bgS, bgL] = parseHsl(previewTheme.background);
-  const [suH, suS, suL] = parseHsl(previewTheme.surface);
-  const [prH, prS, prL] = parseHsl(previewTheme.primary);
-  const [acH, acS, acL] = parseHsl(previewTheme.accent);
 
   const PresetCard = ({ name, settings, onDelete, isActive }: { name: string, settings: Omit<ThemeSettings, 'backgroundImage' | 'backgroundOpacity'>, onDelete?: () => void, isActive: boolean }) => (
     <div className="space-y-2">
@@ -284,10 +290,10 @@ export function ThemeSettingsMenu() {
   return (
     <div className="space-y-6">
       <Card>
-        <CardHeader><CardTitle className="text-xl">Background Image</CardTitle></CardHeader>
+        <CardHeader><CardTitle className="text-base">Background Image</CardTitle></CardHeader>
         <CardContent className="space-y-4">
           <div className="w-full aspect-video rounded-lg bg-cover bg-center relative bg-secondary" style={{ backgroundImage: `url(${previewTheme.backgroundImage})` }}>
-             {!previewTheme.backgroundImage && <div className="flex items-center justify-center h-full w-full rounded-lg"><p className="text-muted-foreground">No image selected</p></div>}
+             {!previewTheme.backgroundImage && <div className="flex items-center justify-center h-full w-full rounded-lg"><p className="text-muted-foreground text-xs">No image selected</p></div>}
              <div className="absolute inset-0 bg-black rounded-lg" style={{ opacity: previewTheme.backgroundOpacity, transition: 'opacity 0.2s' }}/>
           </div>
            <div className="grid grid-cols-2 gap-2">
@@ -300,7 +306,7 @@ export function ThemeSettingsMenu() {
            </div>
           <input type="file" ref={fileInputRef} onChange={handleFileChange} accept="image/*" className="hidden" />
           <div className="space-y-2">
-            <Label>Overlay Opacity</Label>
+            <Label className='text-xs'>Overlay Opacity</Label>
             <div className="flex items-center gap-4">
               <Slider value={[previewTheme.backgroundOpacity]} onValueChange={([v]) => setPreviewTheme(p => ({...p, backgroundOpacity: v}))} max={1} step={0.05} disabled={!previewTheme.backgroundImage} />
               <span className="text-sm text-muted-foreground w-12 text-right">{(previewTheme.backgroundOpacity * 100).toFixed(0)}%</span>
@@ -310,7 +316,7 @@ export function ThemeSettingsMenu() {
       </Card>
 
       <Card>
-        <CardHeader><CardTitle className="text-xl">Colors & Font</CardTitle></CardHeader>
+        <CardHeader><CardTitle className="text-base">Colors & Font</CardTitle></CardHeader>
         <CardContent>
           <Tabs defaultValue="presets" className='w-full'>
             <TabsList className="grid w-full grid-cols-2">
@@ -321,7 +327,7 @@ export function ThemeSettingsMenu() {
                 <ScrollArea className="h-[400px] -mx-4 px-4">
                     <div className='space-y-8'>
                         <div>
-                            <h3 className="text-lg font-semibold mb-4 text-foreground">System Presets</h3>
+                            <h3 className="text-sm font-semibold mb-4 text-foreground">System Preset</h3>
                             <div className="grid grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-6">
                                 {systemPresets.map(preset => (
                                     <PresetCard key={preset.name} name={preset.name} settings={preset.settings} isActive={areThemeSettingsEqual(currentActiveSettings, preset.settings)} />
@@ -330,7 +336,7 @@ export function ThemeSettingsMenu() {
                         </div>
                         {userThemes.length > 0 && (
                             <div>
-                                <h3 className="text-lg font-semibold mb-4 text-foreground">My Themes</h3>
+                                <h3 className="text-sm font-semibold mb-4 text-foreground">My Themes</h3>
                                 <div className="grid grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-6">
                                     {userThemes.map(theme => (
                                         <PresetCard key={theme.id} name={theme.name} settings={theme.settings} onDelete={() => deleteUserTheme(theme.id)} isActive={areThemeSettingsEqual(currentActiveSettings, theme.settings)} />
@@ -342,14 +348,15 @@ export function ThemeSettingsMenu() {
                 </ScrollArea>
             </TabsContent>
             <TabsContent value="custom" className="pt-6 space-y-6">
-               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                <div className="space-y-2"><Label>Background</Label><Input type="color" value={hslToHex(bgH, bgS, bgL)} onChange={e => handleColorChange('background', e.target.value)} className="h-12 w-full"/></div>
-                <div className="space-y-2"><Label>Surface/Card</Label><Input type="color" value={hslToHex(suH, suS, suL)} onChange={e => handleColorChange('surface', e.target.value)} className="h-12 w-full"/></div>
-                <div className="space-y-2"><Label>Primary</Label><Input type="color" value={hslToHex(prH, prS, prL)} onChange={e => handleColorChange('primary', e.target.value)} className="h-12 w-full"/></div>
-                <div className="space-y-2"><Label>Accent</Label><Input type="color" value={hslToHex(acH, acS, acL)} onChange={e => handleColorChange('accent', e.target.value)} className="h-12 w-full"/></div>
+               <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
+                <div className="space-y-2"><Label className='text-xs'>Background</Label><Input type="color" value={hslToHex(...parseHsl(previewTheme.background))} onChange={e => handleColorChange('background', e.target.value)} className="h-12 w-full p-1"/></div>
+                <div className="space-y-2"><Label className='text-xs'>Surface</Label><Input type="color" value={hslToHex(...parseHsl(previewTheme.surface))} onChange={e => handleColorChange('surface', e.target.value)} className="h-12 w-full p-1"/></div>
+                <div className="space-y-2"><Label className='text-xs'>Primary</Label><Input type="color" value={hslToHex(...parseHsl(previewTheme.primary))} onChange={e => handleColorChange('primary', e.target.value)} className="h-12 w-full p-1"/></div>
+                <div className="space-y-2"><Label className='text-xs'>Accent</Label><Input type="color" value={hslToHex(...parseHsl(previewTheme.accent))} onChange={e => handleColorChange('accent', e.target.value)} className="h-12 w-full p-1"/></div>
+                <div className="space-y-2"><Label className='text-xs'>Text</Label><Input type="color" value={hslToHex(...parseHsl(previewTheme.foreground))} onChange={e => handleColorChange('foreground', e.target.value)} className="h-12 w-full p-1"/></div>
               </div>
               <div className="space-y-2">
-                <Label>Font Family</Label>
+                <Label className='text-xs'>Font Family</Label>
                 <Select value={previewTheme.font} onValueChange={(value: 'Inter' | 'Serif' | 'Mono') => setPreviewTheme(p => ({...p, font: value}))}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>

@@ -7,7 +7,7 @@ export interface Debt {
 }
 
 export interface HistoryEntry {
-  id: string;
+  id:string;
   debtId?: string;
   debtTitle: string;
   date: string; // ISO 8601 format
@@ -32,6 +32,7 @@ export interface ThemeSettings {
   font: 'Inter' | 'Serif' | 'Mono';
   backgroundImage: string;
   backgroundOpacity: number;
+  foreground: string;
 }
 
 export interface UserTheme {

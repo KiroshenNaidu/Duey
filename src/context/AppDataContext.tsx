@@ -1,9 +1,8 @@
 'use client';
 
-import React, { createContext, ReactNode, useEffect, useState, useMemo } from 'react';
+import React, { createContext, ReactNode, useEffect, useState, useMemo, useCallback } from 'react';
 import type { AppState, Debt, HistoryEntry, AppData, ThemeSettings, TransportSettings, TransportOverrides, UserTheme } from '@/lib/types';
 import { isSameDay, startOfDay } from 'date-fns';
-import { getPaymentCount, getTotalInstallments } from '@/lib/calculations';
 import { idbClear } from '@/lib/utils';
 
 const CURRENT_SCHEMA_VERSION = 2;
@@ -20,6 +19,7 @@ const defaultState: AppState = {
     primary: '225 50% 50%',
     accent: '188 78% 57%',
     font: 'Inter',
+    foreground: '0 0% 98%',
   },
   userThemes: [],
   notepadContent: '',
@@ -98,7 +98,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
                  history: oldHistory,
                  transportSettings: oldTransportSettings.driverName !== undefined ? oldTransportSettings : defaultState.transportSettings,
                  transportOverrides: Object.keys(oldTransportOverrides).length > 0 ? oldTransportOverrides : defaultState.transportOverrides,
-                 themeSettings: oldThemeSettings.primary !== undefined ? oldThemeSettings : defaultState.themeSettings,
+                 themeSettings: oldThemeSettings.primary !== undefined ? {...defaultState.themeSettings, ...oldThemeSettings} : defaultState.themeSettings,
                  userThemes: [],
                  notepadContent: oldNotepadContent || defaultState.notepadContent,
              };
@@ -136,7 +136,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     setAppState(prev => ({ ...prev, debts: [...prev.debts, newDebt], history: [newHistoryEntry, ...prev.history] }));
   };
 
-  const updateDebt = (debtId: string, updatedData: Partial<Omit<Debt, 'id' | 'paymentDates'>>) => {
+  const updateDebt = useCallback((debtId: string, updatedData: Partial<Omit<Debt, 'id' | 'paymentDates'>>) => {
     setAppState(prev => {
         const oldDebt = prev.debts.find(d => d.id === debtId);
         if (!oldDebt) return prev;
@@ -147,7 +147,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
             debts: prev.debts.map(d => (d.id === debtId ? newDebt : d)),
         };
     });
-  };
+  }, []);
 
   const deleteDebt = (debtId: string) => {
     setAppState(prev => {
@@ -163,44 +163,51 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     });
   };
   
-  const togglePaymentDate = (debtId: string, date: Date) => {
+  const togglePaymentDate = useCallback((debtId: string, date: Date) => {
+    let wasAdded = false;
+    let newHistoryEntry: HistoryEntry | null = null;
+  
     setAppState(prev => {
-        const debt = prev.debts.find(d => d.id === debtId);
-        if (!debt) return prev;
-        
-        const paymentDates = debt.paymentDates || [];
-        const dateToToggle = startOfDay(date).toISOString();
-        const existingIndex = paymentDates.findIndex(d => isSameDay(new Date(d), date));
-
-        let newPaymentDates: string[];
-        let wasAdded = false;
-
-        if (existingIndex > -1) {
-            newPaymentDates = paymentDates.filter((_, index) => index !== existingIndex);
-        } else {
-            newPaymentDates = [...paymentDates, dateToToggle];
-            wasAdded = true;
-        }
-        newPaymentDates.sort((a, b) => new Date(a).getTime() - new Date(b).getTime());
-        
-        const newDebt = { ...debt, paymentDates: newPaymentDates };
-        
-        const newHistoryEntry = wasAdded ? {
-            id: new Date().toISOString(),
-            debtId: debt.id,
-            debtTitle: debt.title,
-            date: date.toISOString(),
-            amount: debt.installment_amount,
-            type: 'payment'
-        } as HistoryEntry : null;
-
-        return {
-            ...prev,
-            debts: prev.debts.map(d => d.id === debtId ? newDebt : d),
-            history: newHistoryEntry ? [newHistoryEntry, ...prev.history] : prev.history,
+      const debt = prev.debts.find(d => d.id === debtId);
+      if (!debt) return prev;
+  
+      const paymentDates = debt.paymentDates || [];
+      const dateToToggle = startOfDay(date).toISOString();
+      const existingIndex = paymentDates.findIndex(d => isSameDay(new Date(d), date));
+  
+      let newPaymentDates: string[];
+  
+      if (existingIndex > -1) {
+        newPaymentDates = paymentDates.filter((_, index) => index !== existingIndex);
+        wasAdded = false;
+      } else {
+        newPaymentDates = [...paymentDates, dateToToggle];
+        wasAdded = true;
+      }
+      newPaymentDates.sort((a, b) => new Date(a).getTime() - new Date(b).getTime());
+  
+      const newDebt = { ...debt, paymentDates: newPaymentDates };
+  
+      if (wasAdded) {
+        newHistoryEntry = {
+          id: new Date().toISOString(),
+          debtId: debt.id,
+          debtTitle: debt.title,
+          date: date.toISOString(),
+          amount: debt.installment_amount,
+          type: 'payment'
         };
+      }
+      
+      const updatedHistory = newHistoryEntry ? [newHistoryEntry, ...prev.history] : prev.history;
+
+      return {
+        ...prev,
+        debts: prev.debts.map(d => d.id === debtId ? newDebt : d),
+        history: updatedHistory,
+      };
     });
-  };
+  }, []);
   
   const logPaymentForToday = (debtId: string) => {
     const debt = appState.debts.find(d => d.id === debtId);
@@ -218,26 +225,28 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     setAppState(prev => ({ ...prev, history: [newHistoryEntry, ...prev.history] }));
   };
 
-  const addUserTheme = (name: string, settings: Omit<ThemeSettings, 'backgroundImage' | 'backgroundOpacity'>) => {
+  const addUserTheme = useCallback((name: string, settings: Omit<ThemeSettings, 'backgroundImage' | 'backgroundOpacity'>) => {
     const newTheme: UserTheme = {
       id: new Date().toISOString(),
       name,
       settings
     };
     setAppState(prev => ({ ...prev, userThemes: [...prev.userThemes, newTheme] }));
-  };
+  }, []);
 
-  const deleteUserTheme = (themeId: string) => {
+  const deleteUserTheme = useCallback((themeId: string) => {
+    let themeName = 'preset';
     setAppState(prev => {
         const themeToDelete = prev.userThemes.find(t => t.id === themeId);
         if (!themeToDelete) return prev;
+        themeName = themeToDelete.name;
 
         return {
             ...prev,
             userThemes: prev.userThemes.filter(t => t.id !== themeId)
         };
     });
-  };
+  }, []);
 
   const importData = (data: AppData) => {
     try {
@@ -252,13 +261,6 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
   const clearData = () => {
     const keysToRemove = [
         'appState', 
-        'debts', 
-        'history', 
-        'transportSettings', 
-        'transportOverrides', 
-        'themeSettings', 
-        'userThemes',
-        'quick-note'
     ];
     keysToRemove.forEach(key => {
         try {
@@ -270,7 +272,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
 
     idbClear().finally(() => {
         setAppState(defaultState);
-        setTimeout(() => window.location.reload(), 1500);
+        setTimeout(() => window.location.reload(), 500);
     });
   };
 
@@ -291,8 +293,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     importData,
     clearData,
     getAppState: () => appState,
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }), [appState]);
+  }), [appState, addDebt, updateDebt, deleteDebt, togglePaymentDate, logPaymentForToday, addUserTheme, deleteUserTheme, importData, clearData]);
 
   if (!isLoaded) return null;
 
