@@ -67,7 +67,7 @@ export default function TransportPage() {
 
   if (!isClient) {
     return (
-      <div className="container mx-auto max-w-2xl space-y-4">
+      <div className="container mx-auto max-w-2xl space-y-3">
         <Skeleton className="h-10 w-48" />
         <Skeleton className="h-20 w-full" />
         <Skeleton className="h-96 w-full" />
@@ -77,14 +77,14 @@ export default function TransportPage() {
   }
 
   return (
-    <div className="container mx-auto max-w-2xl space-y-4">
-      <h1 className="text-3xl font-bold text-foreground">Transport</h1>
+    <div className="container mx-auto max-w-2xl space-y-3">
+      <h1 className="text-2xl font-bold text-foreground">Transport</h1>
 
       <Accordion type="single" collapsible>
         <AccordionItem value="settings">
           <AccordionTrigger>
             <div className='flex justify-between w-full pr-4 items-center'>
-              <h2 className="text-xl font-semibold">Settings</h2>
+              <h2 className="text-lg font-semibold">Settings</h2>
               <span className='text-sm text-muted-foreground'>{transportSettings.driverName} - {formatCurrency(transportSettings.dailyFee)}/day</span>
             </div>
           </AccordionTrigger>
@@ -144,7 +144,7 @@ export default function TransportPage() {
                   disabled={!isEditingCalendar}
                   onClick={() => handleDayToggle(day)}
                   className={cn(
-                    "h-10 w-10 rounded-full flex items-center justify-center transition-all duration-200",
+                    "h-9 w-9 rounded-full flex items-center justify-center transition-all duration-200 text-sm",
                     isEditingCalendar ? 'cursor-pointer' : 'cursor-default',
                     isTravelDay ? 'bg-primary/90 text-primary-foreground' : 'bg-muted text-muted-foreground',
                     !isTravelDay && 'opacity-60',
@@ -166,7 +166,7 @@ export default function TransportPage() {
          </CardHeader>
          <CardContent className="flex justify-between items-center">
             <p><span className='font-bold'>{travelDaysCount}</span> travel days</p>
-            <p className="text-2xl font-bold">{formatCurrency(totalDue)}</p>
+            <p className="text-xl font-bold">{formatCurrency(totalDue)}</p>
         </CardContent>
         <CardFooter>
             <Button className="w-full" onClick={handleMarkAsPaid}>

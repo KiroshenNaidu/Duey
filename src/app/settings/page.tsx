@@ -20,27 +20,27 @@ const menuItems: MenuItem[] = [
 ];
 
 const SettingsHeader = ({ title, onBack }: { title: string; onBack?: () => void }) => (
-  <div className="relative flex items-center justify-center pt-2 pb-6">
+  <div className="relative flex items-center justify-center pt-0 pb-4">
     {onBack && (
       <button onClick={onBack} className="absolute left-0 top-1/2 -translate-y-1/2 p-2 rounded-full hover:bg-secondary">
         <ChevronLeft className="h-6 w-6" />
       </button>
     )}
-    <h1 className="text-3xl font-bold text-foreground">{title}</h1>
+    <h1 className="text-2xl font-bold text-foreground">{title}</h1>
   </div>
 );
 
 const MainMenu = ({ onNavigate }: { onNavigate: (menu: 'theme' | 'data' | 'notifications') => void }) => (
-  <div className="space-y-4">
+  <div className="space-y-3">
     {menuItems.map((item) => (
       <button
         key={item.id}
         onClick={() => onNavigate(item.id)}
-        className="w-full text-left p-6 bg-card rounded-3xl flex items-center gap-6 transition-transform hover:scale-[1.02] focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background"
+        className="w-full text-left p-4 bg-card rounded-3xl flex items-center gap-4 transition-transform hover:scale-[1.02] focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background"
       >
-        <item.icon className="h-8 w-8 text-accent" />
+        <item.icon className="h-6 w-6 text-accent" />
         <div>
-          <p className="text-xl font-semibold text-card-foreground">{item.title}</p>
+          <p className="text-lg font-semibold text-card-foreground">{item.title}</p>
           <p className="text-sm text-muted-foreground">{item.description}</p>
         </div>
       </button>

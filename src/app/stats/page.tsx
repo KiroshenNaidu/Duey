@@ -48,7 +48,7 @@ function StatsOverview() {
         <Card key={item.title}>
           <CardContent className="p-4">
             <p className="text-sm font-medium text-muted-foreground">{item.title}</p>
-            <p className="text-2xl font-bold">{formatCurrency(item.value)}</p>
+            <p className="text-xl font-bold">{formatCurrency(item.value)}</p>
           </CardContent>
         </Card>
       ))}
@@ -65,17 +65,17 @@ export default function StatsPage() {
   }, []);
 
   return (
-    <div className="container mx-auto max-w-2xl space-y-4">
-      <h1 className="text-3xl font-bold text-foreground mb-4">Statistics</h1>
+    <div className="container mx-auto max-w-2xl space-y-3">
+      <h1 className="text-2xl font-bold text-foreground mb-4">Statistics</h1>
       
       <section>
-        <h2 className="text-xl font-semibold mb-2">Total Overview</h2>
+        <h2 className="text-lg font-semibold mb-2">Total Overview</h2>
         <StatsOverview />
       </section>
       
       {isClient && (
         <section>
-            <h2 className="text-xl font-semibold mb-2">This Month's Transport</h2>
+            <h2 className="text-lg font-semibold mb-2">This Month's Transport</h2>
             <TransportStatusCard />
         </section>
       )}
@@ -83,7 +83,7 @@ export default function StatsPage() {
 
       {isClient && debts.length > 0 && (
         <section>
-          <h2 className="text-xl font-semibold mb-2">Debt Progress</h2>
+          <h2 className="text-lg font-semibold mb-2">Debt Progress</h2>
           <Card>
             <CardContent className="p-2 sm:p-4">
               <DebtProgressCharts />
@@ -94,7 +94,7 @@ export default function StatsPage() {
 
       {isClient && history.length > 0 && (
         <section>
-          <h2 className="text-xl font-semibold mb-2">Payment History</h2>
+          <h2 className="text-lg font-semibold mb-2">Payment History</h2>
           <HistoryLog />
         </section>
       )}

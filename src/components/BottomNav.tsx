@@ -16,7 +16,7 @@ export function BottomNav() {
   const pathname = usePathname();
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 h-20 bg-card/95 backdrop-blur-sm border-t border-accent/[.2] z-50">
+    <nav className="fixed bottom-0 left-0 right-0 h-16 bg-card/95 backdrop-blur-sm border-t border-accent/[.2] z-50">
       <div className="flex justify-around items-center h-full max-w-2xl mx-auto">
         {navItems.map((item) => {
           const isActive = pathname === item.href;
@@ -29,8 +29,8 @@ export function BottomNav() {
                 isActive ? 'text-accent' : 'text-muted-foreground hover:text-foreground'
               )}
             >
-              <item.icon className="h-6 w-6" />
-              <span className="text-xs font-medium">{item.label}</span>
+              <item.icon className="h-5 w-5" />
+              <span className="text-[11px] font-medium">{item.label}</span>
             </Link>
           );
         })}

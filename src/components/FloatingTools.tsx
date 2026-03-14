@@ -21,11 +21,11 @@ export function FloatingTools() {
   return (
     <>
       <QuickNotepad />
-      <div className="fixed bottom-24 left-6 z-40">
+      <div className="fixed bottom-20 left-4 z-40">
          <Button
           variant="outline"
           size="icon"
-          className="h-16 w-16 rounded-full shadow-lg bg-card/80 backdrop-blur-sm border-2 border-primary/20"
+          className="h-14 w-14 rounded-full shadow-lg bg-card/80 backdrop-blur-sm border-2 border-primary/20"
           onClick={() => setIsCalculatorOpen(true)}
         >
           <Calculator />

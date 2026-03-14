@@ -77,38 +77,29 @@ export function DebtCard({ debt }: DebtCardProps) {
 
   const handleLogPaymentForToday = () => {
     const today = new Date();
-    const isAlreadyLogged = (debt.paymentDates || []).some(d => isSameDay(new Date(d), today));
-    if (isAlreadyLogged) {
-        toast({
-            variant: 'destructive',
-            title: 'Already Logged',
-            description: 'A payment for today has already been recorded for this debt.',
-        });
-        return;
-    }
     togglePaymentDate(debt.id, today);
-};
+  };
 
   return (
     <Card className={cn(
         "overflow-hidden transition-all duration-300",
         isEditing ? "border-accent ring-2 ring-accent" : "border-border"
       )}>
-      <CardHeader className="p-4">
+      <CardHeader>
         <div className="flex justify-between items-center gap-2">
-          <CardTitle className="text-lg font-semibold truncate pr-2">{debt.title}</CardTitle>
+          <CardTitle className="text-base font-bold truncate pr-2">{debt.title}</CardTitle>
           <div className="flex items-center gap-2">
             <span className="text-sm text-muted-foreground whitespace-nowrap">
               {paymentCount} of {totalInstallments}
             </span>
-            <Button variant="ghost" size="icon" className="h-10 w-10 flex-shrink-0" onClick={handleToggleEdit}>
-              {isEditing ? <Check className="h-5 w-5" /> : <Pencil className="h-4 w-4" />}
+            <Button variant="ghost" size="icon" className="h-8 w-8 flex-shrink-0" onClick={handleToggleEdit}>
+              {isEditing ? <Check className="h-4 w-4" /> : <Pencil className="h-4 w-4" />}
             </Button>
           </div>
         </div>
       </CardHeader>
       
-      <CardContent className="p-4 pt-0 space-y-2">
+      <CardContent className="space-y-2">
          <Progress value={progress} className={cn("h-1.5", isPaidOff ? '[&>*]:bg-green-500' : '')} />
          <div className="flex justify-between items-baseline">
             <span className="text-xs text-muted-foreground">{formatCurrency(amountPaid)} Paid</span>
@@ -140,7 +131,7 @@ export function DebtCard({ debt }: DebtCardProps) {
                 <div className='flex gap-2'>
                     <AlertDialog>
                         <AlertDialogTrigger asChild>
-                            <Button variant="outline" size="icon" className="h-11 w-11">
+                            <Button variant="outline" size="icon" className="h-10 w-10">
                                 <Trash2 className="text-destructive" />
                             </Button>
                         </AlertDialogTrigger>
@@ -158,7 +149,7 @@ export function DebtCard({ debt }: DebtCardProps) {
                         </AlertDialogContent>
                     </AlertDialog>
                     <PaymentCalendarDialog debt={debt}>
-                       <Button variant="outline" size="icon" className="h-11 w-11">
+                       <Button variant="outline" size="icon" className="h-10 w-10">
                             <CalendarDays />
                         </Button>
                     </PaymentCalendarDialog>
