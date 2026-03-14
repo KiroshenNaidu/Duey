@@ -1,5 +1,1 @@
-# Firebase Studio
-
-This is a NextJS starter in Firebase Studio.
-
-To get started, take a look at src/app/page.tsx.
+Because I struggle to keep track of financial details in my head, I built this app to act as my external memory. It allows me to log payments and monitor my spending habits in one easy-to-access place.
