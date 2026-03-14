@@ -16,7 +16,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { calculateTransportMonth } from '@/lib/calculations';
 import type { TransportSettings } from '@/lib/types';
 
-const WEEK_DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const WEEK_DAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
 export default function TransportPage() {
   const { transportSettings, setTransportSettings, transportOverrides, setTransportOverrides, logTransportPayment } = useContext(AppDataContext);
@@ -67,7 +67,7 @@ export default function TransportPage() {
 
   if (!isClient) {
     return (
-      <div className="container mx-auto max-w-2xl space-y-3">
+      <div className="container mx-auto max-w-md space-y-3">
         <Skeleton className="h-10 w-48" />
         <Skeleton className="h-20 w-full" />
         <Skeleton className="h-96 w-full" />
@@ -77,15 +77,18 @@ export default function TransportPage() {
   }
 
   return (
-    <div className="container mx-auto max-w-2xl space-y-3">
-      <h1 className="text-2xl font-bold text-foreground">Transport</h1>
+    <div className="container mx-auto max-w-md space-y-3">
+      <h1 className="text-xl font-bold text-foreground">Transport</h1>
 
       <Accordion type="single" collapsible>
         <AccordionItem value="settings">
           <AccordionTrigger>
             <div className='flex justify-between w-full pr-4 items-center'>
-              <h2 className="text-lg font-semibold">Settings</h2>
-              <span className='text-sm text-muted-foreground'>{transportSettings.driverName} - {formatCurrency(transportSettings.dailyFee)}/day</span>
+              <h2 className="text-base font-semibold">Settings</h2>
+              <div className='flex flex-col items-end text-[10px] text-muted-foreground'>
+                <span>{transportSettings.driverName}</span>
+                <span>{formatCurrency(transportSettings.dailyFee)}/day</span>
+              </div>
             </div>
           </AccordionTrigger>
           <AccordionContent className="space-y-4 pt-2">
@@ -124,12 +127,12 @@ export default function TransportPage() {
             </Button>
           </div>
           <div className="flex items-center space-x-2 mt-2 justify-end">
-            <Label htmlFor="edit-calendar">{isEditingCalendar ? 'Editing' : 'Edit'}</Label>
+            <Label htmlFor="edit-calendar" className="text-xs">{isEditingCalendar ? 'Editing' : 'Edit'}</Label>
             <Switch id="edit-calendar" checked={isEditingCalendar} onCheckedChange={setIsEditingCalendar} />
           </div>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-7 gap-1 text-center font-semibold text-muted-foreground">
+          <div className="grid grid-cols-7 gap-1 text-center text-xs font-semibold text-muted-foreground">
             {WEEK_DAYS.map(day => <div key={day}>{day}</div>)}
           </div>
           <div className="grid grid-cols-7 gap-1 mt-2">
@@ -144,7 +147,7 @@ export default function TransportPage() {
                   disabled={!isEditingCalendar}
                   onClick={() => handleDayToggle(day)}
                   className={cn(
-                    "h-9 w-9 rounded-full flex items-center justify-center transition-all duration-200 text-sm",
+                    "h-8 w-8 rounded-full flex items-center justify-center transition-all duration-200 text-xs",
                     isEditingCalendar ? 'cursor-pointer' : 'cursor-default',
                     isTravelDay ? 'bg-primary/90 text-primary-foreground' : 'bg-muted text-muted-foreground',
                     !isTravelDay && 'opacity-60',
@@ -162,11 +165,11 @@ export default function TransportPage() {
       
       <Card>
          <CardHeader>
-            <CardTitle className='text-lg'>Monthly Summary</CardTitle>
+            <CardTitle>Monthly Summary</CardTitle>
          </CardHeader>
-         <CardContent className="flex justify-between items-center">
-            <p><span className='font-bold'>{travelDaysCount}</span> travel days</p>
-            <p className="text-xl font-bold">{formatCurrency(totalDue)}</p>
+         <CardContent className="flex justify-between items-baseline">
+            <p className='text-sm'><span className='font-bold'>{travelDaysCount}</span> travel days</p>
+            <p className="text-lg font-bold whitespace-nowrap">{formatCurrency(totalDue)}</p>
         </CardContent>
         <CardFooter>
             <Button className="w-full" onClick={handleMarkAsPaid}>

@@ -25,10 +25,10 @@ export function FloatingTools() {
          <Button
           variant="outline"
           size="icon"
-          className="h-14 w-14 rounded-full shadow-lg bg-card/80 backdrop-blur-sm border-2 border-primary/20"
+          className="h-12 w-12 rounded-full shadow-lg bg-card/80 backdrop-blur-sm border-2 border-primary/20"
           onClick={() => setIsCalculatorOpen(true)}
         >
-          <Calculator />
+          <Calculator className="h-5 w-5" />
         </Button>
       </div>
 

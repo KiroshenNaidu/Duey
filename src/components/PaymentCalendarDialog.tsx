@@ -43,7 +43,7 @@ function MonthCard({ monthDate, paidDates, onDayClick }: MonthCardProps) {
 
   return (
     <div className="p-3 border rounded-lg bg-card">
-      <h3 className="text-center font-semibold mb-2">{format(monthDate, 'MMMM')}</h3>
+      <h3 className="text-center font-semibold mb-2 text-sm">{format(monthDate, 'MMMM')}</h3>
       <div className="grid grid-cols-7 gap-1 text-center text-xs font-mono text-muted-foreground">
         {WEEK_DAYS.map((day, i) => <div key={i}>{day}</div>)}
       </div>
@@ -56,7 +56,7 @@ function MonthCard({ monthDate, paidDates, onDayClick }: MonthCardProps) {
               key={day.toString()}
               onClick={() => onDayClick(day)}
               className={cn(
-                "h-9 w-9 rounded-full flex items-center justify-center text-xs transition-all hover:bg-secondary",
+                "h-8 w-8 rounded-full flex items-center justify-center text-xs transition-all hover:bg-secondary",
                 isPaid ? "bg-accent text-accent-foreground hover:bg-accent/90" : "bg-transparent",
                 isBefore(day, new Date()) && !isSameDay(day, new Date()) ? "text-muted-foreground" : "text-foreground",
               )}
@@ -88,26 +88,26 @@ export function PaymentCalendarDialog({ children, debt }: { children: ReactNode,
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>{children}</DialogTrigger>
-      <DialogContent className="max-w-3xl w-full h-[90dvh] flex flex-col p-4 sm:p-6">
+      <DialogContent className="max-w-3xl w-full h-[90dvh] flex flex-col p-3 sm:p-4">
         <DialogHeader>
-          <DialogTitle className="truncate pr-16">{debt.title}: Payment History</DialogTitle>
+          <DialogTitle className="truncate pr-16 text-base">{debt.title}: Payment History</DialogTitle>
            <div className="flex justify-between items-center pt-2">
             <div className="flex items-center gap-2">
               <Button variant="outline" size="icon" onClick={() => setViewYear(y => y - 1)}>
                 <ChevronLeft />
               </Button>
-              <span className="text-lg font-bold w-24 text-center">{viewYear}</span>
+              <span className="text-base font-bold w-24 text-center">{viewYear}</span>
               <Button variant="outline" size="icon" onClick={() => setViewYear(y => y + 1)} disabled={viewYear === new Date().getFullYear()}>
                 <ChevronRight />
               </Button>
             </div>
-            <p className="text-sm font-semibold text-muted-foreground">
+            <p className="text-xs font-semibold text-muted-foreground">
               Total Payments: <span className="text-foreground font-bold">{paymentCount}</span>
             </p>
           </div>
         </DialogHeader>
-        <ScrollArea className="flex-1 -mx-4 sm:-mx-6 px-4 sm:px-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 py-4">
+        <ScrollArea className="flex-1 -mx-3 sm:-mx-4 px-3 sm:px-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 py-4">
                 {months.map(month => (
                     <MonthCard 
                         key={month.toString()}

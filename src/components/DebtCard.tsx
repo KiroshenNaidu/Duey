@@ -89,7 +89,7 @@ export function DebtCard({ debt }: DebtCardProps) {
         <div className="flex justify-between items-center gap-2">
           <CardTitle className="text-base font-bold truncate pr-2">{debt.title}</CardTitle>
           <div className="flex items-center gap-2">
-            <span className="text-sm text-muted-foreground whitespace-nowrap">
+            <span className="text-xs text-muted-foreground whitespace-nowrap">
               {paymentCount} of {totalInstallments}
             </span>
             <Button variant="ghost" size="icon" className="h-8 w-8 flex-shrink-0" onClick={handleToggleEdit}>
@@ -109,20 +109,20 @@ export function DebtCard({ debt }: DebtCardProps) {
 
       <div className={cn(
         "transition-[max-height,padding] duration-500 ease-in-out overflow-hidden",
-        isEditing ? "max-h-[500px] p-4 pt-0" : "max-h-0 p-0"
+        isEditing ? "max-h-[500px] p-3 pt-0" : "max-h-0 p-0"
       )}>
         <div className="space-y-4 pt-4 border-t">
             <div className="space-y-2">
-                <Label htmlFor={`title-${debt.id}`}>Title</Label>
+                <Label htmlFor={`title-${debt.id}`} className="text-xs">Title</Label>
                 <Input id={`title-${debt.id}`} value={editedTitle} onChange={(e) => setEditedTitle(e.target.value)} />
             </div>
             <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                    <Label htmlFor={`total-${debt.id}`}>Total Owed</Label>
+                    <Label htmlFor={`total-${debt.id}`} className="text-xs">Total Owed</Label>
                     <Input id={`total-${debt.id}`} type="number" value={editedTotalOwed} onChange={(e) => setEditedTotalOwed(e.target.value)} />
                 </div>
                 <div className="space-y-2">
-                    <Label htmlFor={`installment-${debt.id}`}>Installment</Label>
+                    <Label htmlFor={`installment-${debt.id}`} className="text-xs">Installment</Label>
                     <Input id={`installment-${debt.id}`} type="number" value={editedInstallmentAmount} onChange={(e) => setEditedInstallmentAmount(e.target.value)} />
                 </div>
             </div>

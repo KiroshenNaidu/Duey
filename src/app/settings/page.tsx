@@ -26,7 +26,7 @@ const SettingsHeader = ({ title, onBack }: { title: string; onBack?: () => void 
         <ChevronLeft className="h-6 w-6" />
       </button>
     )}
-    <h1 className="text-2xl font-bold text-foreground">{title}</h1>
+    <h1 className="text-xl font-bold text-foreground">{title}</h1>
   </div>
 );
 
@@ -36,12 +36,12 @@ const MainMenu = ({ onNavigate }: { onNavigate: (menu: 'theme' | 'data' | 'notif
       <button
         key={item.id}
         onClick={() => onNavigate(item.id)}
-        className="w-full text-left p-4 bg-card rounded-3xl flex items-center gap-4 transition-transform hover:scale-[1.02] focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background"
+        className="w-full text-left p-3 bg-card rounded-2xl flex items-center gap-4 transition-transform hover:scale-[1.02] focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background"
       >
-        <item.icon className="h-6 w-6 text-accent" />
+        <item.icon className="h-5 w-5 text-accent" />
         <div>
-          <p className="text-lg font-semibold text-card-foreground">{item.title}</p>
-          <p className="text-sm text-muted-foreground">{item.description}</p>
+          <p className="text-base font-semibold text-card-foreground">{item.title}</p>
+          <p className="text-xs text-muted-foreground">{item.description}</p>
         </div>
       </button>
     ))}
@@ -55,7 +55,7 @@ export default function SettingsPage() {
 
   if (activeMenu === 'theme') {
     return (
-      <div className="container mx-auto max-w-2xl">
+      <div className="container mx-auto max-w-md">
         <SettingsHeader title="Theme" onBack={handleBack} />
         <ThemeSettingsMenu />
       </div>
@@ -64,7 +64,7 @@ export default function SettingsPage() {
   
   if (activeMenu === 'data') {
     return (
-      <div className="container mx-auto max-w-2xl">
+      <div className="container mx-auto max-w-md">
         <SettingsHeader title="Data Management" onBack={handleBack} />
         <DataManagementMenu />
       </div>
@@ -73,7 +73,7 @@ export default function SettingsPage() {
   
   if (activeMenu === 'notifications') {
     return (
-      <div className="container mx-auto max-w-2xl">
+      <div className="container mx-auto max-w-md">
         <SettingsHeader title="Notifications" onBack={handleBack} />
         <NotificationsMenu />
       </div>
@@ -81,7 +81,7 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="container mx-auto max-w-2xl">
+    <div className="container mx-auto max-w-md">
       <SettingsHeader title="Settings" />
       <MainMenu onNavigate={setActiveMenu} />
     </div>

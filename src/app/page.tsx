@@ -17,8 +17,8 @@ export default function Home() {
   }, []);
 
   return (
-    <div className="container mx-auto max-w-2xl">
-      <h1 className="text-2xl font-bold mb-4 text-foreground">TaxMaxxing</h1>
+    <div className="container mx-auto max-w-md">
+      <h1 className="text-xl font-bold mb-3 text-foreground">TaxMaxxing</h1>
 
       {!isClient ? (
         <div className="space-y-3">
@@ -29,11 +29,11 @@ export default function Home() {
       ) : debts.length === 0 ? (
         <Card className="text-center">
           <CardHeader>
-            <CardTitle className='text-lg'>Stop acting like you didnt forget</CardTitle>
+            <CardTitle className='text-base'>Stop acting like you didnt forget</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-sm text-muted-foreground">You haven't added any debts yet.</p>
-            <p className="text-sm text-muted-foreground">Click the '+' button to get started.</p>
+            <p className="text-xs text-muted-foreground">You haven't added any debts yet.</p>
+            <p className="text-xs text-muted-foreground">Click the '+' button to get started.</p>
           </CardContent>
         </Card>
       ) : (
@@ -47,9 +47,9 @@ export default function Home() {
       <AddDebtDialog>
         <button
           aria-label="Add new debt"
-          className="fixed bottom-20 right-4 h-14 w-14 bg-primary rounded-full flex items-center justify-center text-primary-foreground shadow-lg hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background transition-transform transform hover:scale-105"
+          className="fixed bottom-20 right-4 h-12 w-12 bg-primary rounded-full flex items-center justify-center text-primary-foreground shadow-lg hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background transition-transform transform hover:scale-105"
         >
-          <Plus className="h-7 w-7" />
+          <Plus className="h-6 w-6" />
         </button>
       </AddDebtDialog>
     </div>
