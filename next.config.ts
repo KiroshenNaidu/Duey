@@ -37,4 +37,4 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;npm install @capacitor/core @capacitor/cli @capacitor/android
+export default nextConfig;
