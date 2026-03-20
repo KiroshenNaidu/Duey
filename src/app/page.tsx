@@ -47,7 +47,7 @@ export default function Home() {
       <AddDebtDialog>
         <button
           aria-label="Add new debt"
-          className="fixed bottom-20 right-4 h-12 w-12 bg-primary rounded-full flex items-center justify-center text-primary-foreground shadow-lg hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background transition-transform transform hover:scale-105"
+          className="fixed bottom-1 left-1/2 -translate-x-1/2 h-12 w-12 bg-primary rounded-full flex items-center justify-center text-primary-foreground shadow-lg hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background transition-transform transform hover:scale-105 z-[60]"
         >
           <Plus className="h-6 w-6" />
         </button>

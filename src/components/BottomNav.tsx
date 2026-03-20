@@ -29,7 +29,7 @@ export function BottomNav() {
                 isActive ? 'text-accent' : 'text-muted-foreground hover:text-foreground'
               )}
             >
-              <item.icon className="h-4 w-4" />
+              <item.icon className="h-3.5 w-3.5" />
               <span className="text-[10px] font-medium">{item.label}</span>
             </Link>
           );
