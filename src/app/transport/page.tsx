@@ -80,7 +80,7 @@ export default function TransportPage() {
 
   return (
     <div className="container mx-auto max-w-md space-y-3">
-      <h1 className="text-xl font-bold text-foreground">Transport</h1>
+      <h1 className="text-xl font-bold text-foreground text-center">Transport</h1>
 
       <Accordion type="single" collapsible className="border-none">
         <AccordionItem value="settings" className="border-none">
@@ -141,7 +141,7 @@ export default function TransportPage() {
             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setCurrentDate(sub(currentDate, { months: 1 }))}>
               <ChevronLeft className="h-4 w-4" />
             </Button>
-            <CardTitle className="text-center text-base flex flex-col items-center text-foreground">
+            <CardTitle className="text-center text-base flex flex-col items-center">
               <span className={cn(isCurrentMonth ? "text-accent" : "text-foreground")}>
                 {format(currentDate, 'MMMM yyyy')}
               </span>
