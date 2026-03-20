@@ -30,9 +30,10 @@ export default function RootLayout({
             <ThemeProvider>
               <div className="flex flex-col min-h-dvh bg-transparent relative z-0">
                 <BottomNav />
-                <main className="flex-1 overflow-y-auto pt-16 pb-20 px-2">
+                <main className="flex-1 overflow-y-auto pt-16 pb-16 px-2">
                   {children}
                 </main>
+                <div className="fixed bottom-0 left-0 right-0 h-14 bg-card/95 backdrop-blur-sm border-t border-accent/[.1] z-50" />
                 <FloatingTools />
               </div>
             </ThemeProvider>
