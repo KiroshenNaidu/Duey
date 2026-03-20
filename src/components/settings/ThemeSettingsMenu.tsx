@@ -15,6 +15,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogC
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { ScrollArea } from '../ui/scroll-area';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import Link from 'next/link';
 
 const defaultThemeSettings: Omit<ThemeSettings, 'backgroundImage'> = {
   background: '223 13% 10%',
@@ -200,11 +201,6 @@ export function ThemeSettingsMenu() {
             window.location.reload();
         }, 500);
     });
-  };
-
-  const handleCancel = async () => {
-    const storedImage = await idbGet<string>('backgroundImage');
-    setPreviewTheme({ ...themeSettings, backgroundImage: storedImage || '' });
   };
 
   const handleSavePreset = () => {
@@ -422,7 +418,7 @@ export function ThemeSettingsMenu() {
       </Card>
       
       <div className="flex justify-end gap-2 py-4">
-        <Button variant="ghost" onClick={handleCancel}>Cancel</Button>
+        <Link href="/settings" className={cn(buttonVariants({ variant: "ghost" }))}>Cancel</Link>
         <Button onClick={handleSave}>Save Display Settings</Button>
       </div>
 
