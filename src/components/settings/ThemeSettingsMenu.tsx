@@ -67,7 +67,7 @@ const areThemeSettingsEqual = (s1: Omit<ThemeSettings, 'backgroundImage' | 'back
            s1.uiStyle === s2.uiStyle;
 };
 
-export function ThemeSettingsMenu() {
+export function ThemeSettingsMenu({ onBack }: { onBack?: () => void }) {
   const { themeSettings, setThemeSettings, userThemes, addUserTheme, deleteUserTheme } = useContext(AppDataContext);
   
   const [previewTheme, setPreviewTheme] = useState<ThemeSettings>(() => ({
@@ -418,7 +418,18 @@ export function ThemeSettingsMenu() {
       </Card>
       
       <div className="flex justify-end gap-2 py-4">
-        <Link href="/settings" className={cn(buttonVariants({ variant: "ghost" }))}>Cancel</Link>
+        <Link 
+          href="/settings" 
+          className={cn(buttonVariants({ variant: "ghost" }))}
+          onClick={(e) => {
+            if (onBack) {
+              e.preventDefault();
+              onBack();
+            }
+          }}
+        >
+          Cancel
+        </Link>
         <Button onClick={handleSave}>Save Display Settings</Button>
       </div>
 

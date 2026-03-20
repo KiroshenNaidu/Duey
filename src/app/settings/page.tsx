@@ -57,7 +57,7 @@ export default function SettingsPage() {
     return (
       <div className="container mx-auto max-w-md">
         <SettingsHeader title="Theme" onBack={handleBack} />
-        <ThemeSettingsMenu />
+        <ThemeSettingsMenu onBack={handleBack} />
       </div>
     );
   }
