@@ -23,7 +23,7 @@ export function QuickNotepad() {
   return (
     <Sheet onOpenChange={() => setTotal(null)}>
       <SheetTrigger asChild>
-        <Button variant="outline" size="icon" className="fixed top-4 right-4 z-50 h-12 w-12 rounded-full shadow-lg bg-card/80 backdrop-blur-sm">
+        <Button variant="outline" size="icon" className="fixed bottom-4 right-4 z-50 h-12 w-12 rounded-full shadow-lg bg-card/80 backdrop-blur-sm">
           <StickyNote />
         </Button>
       </SheetTrigger>

@@ -29,12 +29,12 @@ export default function RootLayout({
           <AppDataProvider>
             <ThemeProvider>
               <div className="flex flex-col min-h-dvh bg-transparent relative z-0">
-                <main className="flex-1 overflow-y-auto pb-16 pt-16 px-2">
+                <BottomNav />
+                <main className="flex-1 overflow-y-auto pt-16 pb-20 px-2">
                   {children}
                 </main>
-                <BottomNav />
+                <FloatingTools />
               </div>
-              <FloatingTools />
             </ThemeProvider>
           </AppDataProvider>
         </FirebaseClientProvider>
