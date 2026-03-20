@@ -1,12 +1,14 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { usePathname } from 'next/navigation';
 import { Button } from './ui/button';
 import { Calculator } from 'lucide-react';
 import { QuickNotepad } from './QuickNotepad';
 import { FloatingCalculator } from './FloatingCalculator';
 
 export function FloatingTools() {
+  const pathname = usePathname();
   const [isCalculatorOpen, setIsCalculatorOpen] = useState(false);
   const [isClient, setIsClient] = useState(false);
 
@@ -15,6 +17,11 @@ export function FloatingTools() {
   }, []);
 
   if (!isClient) {
+    return null;
+  }
+
+  // ONLY render the calculator and notes button on the Debt (home) page
+  if (pathname !== '/') {
     return null;
   }
 
