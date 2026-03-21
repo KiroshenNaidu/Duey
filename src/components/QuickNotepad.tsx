@@ -1,18 +1,19 @@
 'use client';
-import { useContext } from 'react';
+import { useContext, useState } from 'react';
 import { Button } from './ui/button';
 import { Textarea } from './ui/textarea';
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetClose } from './ui/sheet';
+import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { StickyNote, X } from 'lucide-react';
 import { AppDataContext } from '@/context/AppDataContext';
 import { cn } from '@/lib/utils';
 
 export function QuickNotepad() {
   const { notepadContent, setNotepadContent } = useContext(AppDataContext);
+  const [isOpen, setIsOpen] = useState(false);
 
   return (
-    <Sheet>
-      <SheetTrigger asChild>
+    <Popover open={isOpen} onOpenChange={setIsOpen}>
+      <PopoverTrigger asChild>
         <Button 
           variant="outline" 
           size="icon" 
@@ -20,32 +21,35 @@ export function QuickNotepad() {
         >
           <StickyNote className="h-5 w-5" />
         </Button>
-      </SheetTrigger>
-      <SheetContent 
-        className="w-[40%] sm:w-[40%] max-w-none bg-card/90 backdrop-blur-md p-4 border-l border-accent/10" 
-        side="right"
-        // Custom close button is handled inside the header for better access
+      </PopoverTrigger>
+      <PopoverContent 
+        className="w-[85vw] sm:w-[40vw] max-w-md h-[45vh] bg-card/90 backdrop-blur-md p-4 border border-accent/10 mb-4 mr-4 shadow-2xl rounded-2xl flex flex-col" 
+        side="top"
+        align="end"
       >
-        <SheetHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-          <SheetTitle className="text-sm font-bold uppercase tracking-wider opacity-90">Quick Notepad</SheetTitle>
-          <SheetClose className="rounded-full h-8 w-8 flex items-center justify-center hover:bg-accent/10 transition-colors">
-            <X className="h-5 w-5 text-primary" />
+        <div className="flex flex-row items-center justify-between pb-3">
+          <h2 className="text-sm font-bold uppercase tracking-wider opacity-90 text-foreground">Quick Notepad</h2>
+          <button 
+            onClick={() => setIsOpen(false)}
+            className="rounded-full h-8 w-8 flex items-center justify-center hover:bg-accent/10 transition-colors"
+          >
+            <X className="h-6 w-6 text-primary" />
             <span className="sr-only">Close</span>
-          </SheetClose>
-        </SheetHeader>
-        <div className="flex flex-col h-[calc(100%-3rem)] py-2">
+          </button>
+        </div>
+        <div className="flex flex-col h-full py-2">
           <Textarea
             value={notepadContent}
             onChange={(e) => setNotepadContent(e.target.value)}
             className={cn(
               "flex-1 text-sm bg-background/30 h-full resize-none border-none",
-              "focus-visible:ring-0 focus-visible:ring-offset-0", // Remove colorful outline
+              "focus-visible:ring-0 focus-visible:ring-offset-0", // No colourful outline
               "placeholder:text-muted-foreground/40"
             )}
             placeholder="Jot down some notes..."
           />
         </div>
-      </SheetContent>
-    </Sheet>
+      </PopoverContent>
+    </Popover>
   );
 }
