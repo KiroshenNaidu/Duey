@@ -78,14 +78,14 @@ const DraggableCard = ({ children, title, onClose, isOpen }: { children: React.R
       className="fixed z-50 w-[80vw] max-w-[300px] md:w-[40vw]"
       style={{ left: `${position.x}px`, top: `${position.y}px`, touchAction: 'none' }}
     >
-      <Card className="shadow-2xl bg-card/90 backdrop-blur-md">
+      <Card className="shadow-2xl bg-card/90 backdrop-blur-md border border-accent/20">
          <CardHeader 
            onMouseDown={onDragStart} 
            onTouchStart={onDragStart}
-           className="cursor-move p-2 flex flex-row items-center justify-between"
+           className="cursor-move p-2 flex flex-row items-center justify-between border-b border-accent/10"
          >
-          <span className="font-semibold text-sm pl-2">{title}</span>
-          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onClose} onTouchEnd={onClose}><X size={18} /></Button>
+          <span className="font-semibold text-sm pl-2">Calculator</span>
+          <Button variant="ghost" size="icon" className="h-8 w-8 text-primary" onClick={onClose} onTouchEnd={onClose}><X size={18} /></Button>
          </CardHeader>
          <CardContent className="p-2">
           {children}
@@ -102,7 +102,6 @@ export function FloatingCalculator({ isOpen, onClose }: { isOpen: boolean, onClo
   const [isOperatorClicked, setIsOperatorClicked] = useState(false);
 
   const handleInput = (value: string) => {
-    // If last action was hitting =, start a new calculation
     if (expression.includes('=')) {
         clear();
         setDisplay(value);
@@ -117,10 +116,9 @@ export function FloatingCalculator({ isOpen, onClose }: { isOpen: boolean, onClo
   };
 
   const handleOperator = (operator: string) => {
-    // If last action was hitting =, use the result as the start of the new expression
     if (expression.includes('=')) {
         setExpression(display + operator);
-    } else if (isOperator(display)) { // Allows changing operator
+    } else if (isOperator(display)) {
         setExpression(prev => prev.slice(0, -1) + operator);
     } else {
         setExpression(prev => prev + display + operator);
@@ -130,7 +128,7 @@ export function FloatingCalculator({ isOpen, onClose }: { isOpen: boolean, onClo
   };
   
   const calculate = () => {
-    if (isOperator(display)) return; // Don't calculate if last input was operator
+    if (isOperator(display)) return;
 
     let finalExpression = expression + display;
     try {
@@ -155,13 +153,13 @@ export function FloatingCalculator({ isOpen, onClose }: { isOpen: boolean, onClo
   const isOperator = (char: string) => ['+', '−', '×', '÷'].includes(char);
   
   const buttons = [
-    { display: '7', value: '7' }, { display: '8', value: '8' }, { display: '9', value: '9' }, { display: '÷', value: '÷', op: true },
-    { display: '4', value: '4' }, { display: '5', value: '5' }, { display: '6', value: '6' }, { display: '×', value: '×', op: true },
-    { display: '1', value: '1' }, { display: '2', value: '2' }, { display: '3', value: '3' }, { display: '−', value: '−', op: true },
-    { display: '0', value: '0' }, { display: '.', value: '.' }, { display: '=', value: '=' }, { display: '+', value: '+', op: true },
+    { display: '7', value: '7', type: 'num' }, { display: '8', value: '8', type: 'num' }, { display: '9', value: '9', type: 'num' }, { display: '÷', value: '÷', op: true },
+    { display: '4', value: '4', type: 'num' }, { display: '5', value: '5', type: 'num' }, { display: '6', value: '6', type: 'num' }, { display: '×', value: '×', op: true },
+    { display: '1', value: '1', type: 'num' }, { display: '2', value: '2', type: 'num' }, { display: '3', value: '3', type: 'num' }, { display: '−', value: '−', op: true },
+    { display: '0', value: '0', type: 'num' }, { display: '.', value: '.', type: 'num' }, { display: '=', value: '=', op: true }, { display: '+', value: '+', op: true },
   ];
 
-  const handleButtonClick = (btn: typeof buttons[0]) => {
+  const handleButtonClick = (btn: any) => {
     if (btn.value === '=') {
         calculate();
     } else if (btn.op) {
@@ -174,22 +172,29 @@ export function FloatingCalculator({ isOpen, onClose }: { isOpen: boolean, onClo
   return (
      <DraggableCard title="Calculator" onClose={onClose} isOpen={isOpen}>
       <div className="space-y-2">
-        <div className="bg-background/50 rounded p-2 text-right font-mono space-y-1">
-            <div className="text-muted-foreground text-lg h-7 truncate">{expression}</div>
-            <div className="text-4xl truncate">{display}</div>
+        <div className="bg-background/50 rounded p-2 text-right font-mono space-y-1 border border-accent/5">
+            <div className="text-muted-foreground text-xs h-4 truncate">{expression}</div>
+            <div className="text-3xl truncate font-bold">{display}</div>
         </div>
         <div className="grid grid-cols-4 gap-2">
-            <Button onClick={clear} variant="destructive" className="col-span-4 h-12 text-lg">Clear</Button>
-            {buttons.map(btn => (
-                <Button 
-                    key={btn.value} 
-                    onClick={() => handleButtonClick(btn)} 
-                    variant={btn.op ? 'secondary' : 'outline'} 
-                    className="h-14 text-xl"
-                >
-                    {btn.display}
-                </Button>
-            ))}
+            <Button onClick={clear} variant="destructive" className="col-span-4 h-10 text-sm font-bold">Clear</Button>
+            {buttons.map(btn => {
+                const isNumeric = btn.type === 'num';
+                return (
+                    <Button 
+                        key={btn.value} 
+                        onClick={() => handleButtonClick(btn)} 
+                        variant={isNumeric ? 'default' : (btn.value === '=' ? 'default' : 'secondary')}
+                        className={cn(
+                            "h-12 text-lg font-bold shadow-sm transition-transform active:scale-95",
+                            isNumeric && "bg-primary text-primary-foreground hover:bg-primary/90",
+                            !isNumeric && btn.value !== '=' && "bg-secondary text-secondary-foreground hover:bg-secondary/80"
+                        )}
+                    >
+                        {btn.display}
+                    </Button>
+                );
+            })}
         </div>
       </div>
     </DraggableCard>
