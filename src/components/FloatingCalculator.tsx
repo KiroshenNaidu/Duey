@@ -73,25 +73,42 @@ const DraggableCard = ({ children, title, onClose, isOpen }: { children: React.R
   if (!isOpen) return null;
 
   return (
-    <div
-      ref={cardRef}
-      className="fixed z-[100] w-[80vw] max-w-[300px] md:w-[40vw]"
-      style={{ left: `${position.x}px`, top: `${position.y}px`, touchAction: 'none' }}
-    >
-      <Card className="shadow-2xl bg-card/90 backdrop-blur-md border border-accent/20">
-         <CardHeader 
-           onMouseDown={onDragStart} 
-           onTouchStart={onDragStart}
-           className="cursor-move p-2 flex flex-row items-center justify-between border-b border-accent/10"
-         >
-          <span className="font-semibold text-sm pl-2">Calculator</span>
-          <Button variant="ghost" size="icon" className="h-8 w-8 text-primary" onClick={onClose} onTouchEnd={onClose}><X size={18} /></Button>
-         </CardHeader>
-         <CardContent className="p-2">
-          {children}
-         </CardContent>
-      </Card>
-    </div>
+    <>
+      {/* Backdrop to close when clicking outside */}
+      <div 
+        className="fixed inset-0 z-[95] bg-black/5 backdrop-blur-[1px]" 
+        onClick={onClose}
+      />
+      <div
+        ref={cardRef}
+        className="fixed z-[100] w-[85vw] max-w-[320px] shadow-2xl"
+        style={{ left: `${position.x}px`, top: `${position.y}px`, touchAction: 'none' }}
+      >
+        <Card className="bg-card/90 backdrop-blur-md border border-accent/20 rounded-2xl overflow-hidden">
+           <CardHeader 
+             onMouseDown={onDragStart} 
+             onTouchStart={onDragStart}
+             className="cursor-move p-3 flex flex-row items-center justify-between border-b border-accent/10"
+           >
+            <span className="font-bold text-xs uppercase tracking-wider opacity-80">Calculator</span>
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="h-8 w-8 text-primary hover:bg-primary/10 transition-colors" 
+              onClick={(e) => {
+                e.stopPropagation();
+                onClose();
+              }}
+            >
+              <X size={24} strokeWidth={2.5} />
+            </Button>
+           </CardHeader>
+           <CardContent className="p-3">
+            {children}
+           </CardContent>
+        </Card>
+      </div>
+    </>
   );
 };
 
@@ -171,24 +188,24 @@ export function FloatingCalculator({ isOpen, onClose }: { isOpen: boolean, onClo
 
   return (
      <DraggableCard title="Calculator" onClose={onClose} isOpen={isOpen}>
-      <div className="space-y-2">
-        <div className="bg-background/50 rounded p-2 text-right font-mono space-y-1 border border-accent/5">
-            <div className="text-muted-foreground text-xs h-4 truncate">{expression}</div>
-            <div className="text-3xl truncate font-bold">{display}</div>
+      <div className="space-y-3">
+        <div className="bg-background/40 rounded-xl p-3 text-right font-mono space-y-1 border border-accent/5 backdrop-blur-sm">
+            <div className="text-muted-foreground text-[10px] h-4 truncate tracking-wider">{expression}</div>
+            <div className="text-3xl truncate font-bold text-foreground">{display}</div>
         </div>
         <div className="grid grid-cols-4 gap-2">
-            <Button onClick={clear} variant="destructive" className="col-span-4 h-10 text-sm font-bold">Clear</Button>
+            <Button onClick={clear} variant="destructive" className="col-span-4 h-10 text-xs font-bold uppercase tracking-widest rounded-lg shadow-sm">Clear</Button>
             {buttons.map(btn => {
                 const isNumeric = btn.type === 'num';
                 return (
                     <Button 
                         key={btn.value} 
                         onClick={() => handleButtonClick(btn)} 
-                        variant={isNumeric ? 'default' : (btn.value === '=' ? 'default' : 'secondary')}
                         className={cn(
-                            "h-12 text-lg font-bold shadow-sm transition-transform active:scale-95",
+                            "h-12 text-lg font-bold shadow-sm transition-all active:scale-95 rounded-lg",
                             isNumeric && "bg-primary text-primary-foreground hover:bg-primary/90",
-                            !isNumeric && btn.value !== '=' && "bg-secondary text-secondary-foreground hover:bg-secondary/80"
+                            !isNumeric && btn.value === '=' && "bg-primary text-primary-foreground hover:bg-primary/90",
+                            !isNumeric && btn.value !== '=' && "bg-secondary/50 text-secondary-foreground hover:bg-secondary/80 border border-accent/10"
                         )}
                     >
                         {btn.display}
