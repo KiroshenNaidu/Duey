@@ -58,7 +58,7 @@ export default function TransportPage() {
     setTransportOverrides({ ...transportOverrides, [isoDate]: !isCurrentlyTravelDay });
   };
   
-  const handleMarkAs Paid = () => {
+  const handleMarkAsPaid = () => {
     if (totalDue <= 0 || isLocked) {
       return;
     }
