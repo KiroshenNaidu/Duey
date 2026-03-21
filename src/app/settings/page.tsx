@@ -55,7 +55,7 @@ export default function SettingsPage() {
 
   if (activeMenu === 'theme') {
     return (
-      <div className="container mx-auto max-w-md">
+      <div className="container mx-auto max-w-md pt-11">
         <SettingsHeader title="Theme" onBack={handleBack} />
         <ThemeSettingsMenu onBack={handleBack} />
       </div>
@@ -64,7 +64,7 @@ export default function SettingsPage() {
   
   if (activeMenu === 'data') {
     return (
-      <div className="container mx-auto max-w-md">
+      <div className="container mx-auto max-w-md pt-11">
         <SettingsHeader title="Data Management" onBack={handleBack} />
         <DataManagementMenu />
       </div>
@@ -73,7 +73,7 @@ export default function SettingsPage() {
   
   if (activeMenu === 'notifications') {
     return (
-      <div className="container mx-auto max-w-md">
+      <div className="container mx-auto max-w-md pt-11">
         <SettingsHeader title="Notifications" onBack={handleBack} />
         <NotificationsMenu />
       </div>
@@ -81,7 +81,7 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="container mx-auto max-w-md">
+    <div className="container mx-auto max-w-md pt-11">
       <SettingsHeader title="Settings" />
       <MainMenu onNavigate={setActiveMenu} />
     </div>

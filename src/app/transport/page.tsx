@@ -58,7 +58,7 @@ export default function TransportPage() {
     setTransportOverrides({ ...transportOverrides, [isoDate]: !isCurrentlyTravelDay });
   };
   
-  const handleMarkAsPaid = () => {
+  const handleMarkAs Paid = () => {
     if (totalDue <= 0 || isLocked) {
       return;
     }
@@ -69,7 +69,7 @@ export default function TransportPage() {
 
   if (!isClient) {
     return (
-      <div className="container mx-auto max-w-md space-y-3">
+      <div className="container mx-auto max-w-md space-y-3 pt-11">
         <Skeleton className="h-10 w-48" />
         <Skeleton className="h-20 w-full" />
         <Skeleton className="h-96 w-full" />
@@ -79,7 +79,7 @@ export default function TransportPage() {
   }
 
   return (
-    <div className="container mx-auto max-w-md space-y-3">
+    <div className="container mx-auto max-w-md space-y-3 pt-11">
       <h1 className="text-xl font-bold text-foreground text-center">Transport</h1>
 
       <Accordion type="single" collapsible className="border-none">

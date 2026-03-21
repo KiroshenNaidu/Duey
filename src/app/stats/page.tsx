@@ -83,7 +83,7 @@ export default function StatsPage() {
   }, []);
 
   return (
-    <div className="container mx-auto max-w-md space-y-4">
+    <div className="container mx-auto max-w-md space-y-4 pt-11">
       <h1 className="text-xl font-bold text-foreground mb-1 text-center">Statistics</h1>
       
       <section>

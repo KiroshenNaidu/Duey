@@ -17,7 +17,7 @@ export default function Home() {
   }, []);
 
   return (
-    <div className="container mx-auto max-w-md">
+    <div className="container mx-auto max-w-md pt-11">
       <h1 className="text-xl font-bold mb-3 text-foreground text-center">Duey</h1>
 
       {!isClient ? (
