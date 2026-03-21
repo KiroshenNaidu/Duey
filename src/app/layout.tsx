@@ -33,7 +33,7 @@ export default function RootLayout({
                 <main className="flex-1 overflow-y-auto pt-24 pb-20 px-2">
                   {children}
                 </main>
-                <div className="fixed bottom-0 left-0 right-0 h-16 bg-card/95 backdrop-blur-sm border-t border-accent/[.1] z-50" />
+                <div className="fixed bottom-0 left-0 right-0 h-16 bg-card/95 backdrop-blur-[6px] border-t border-accent/[.1] z-50" />
                 <FloatingTools />
               </div>
             </ThemeProvider>

@@ -88,7 +88,7 @@ const DraggableNotepadBox = ({
       className="fixed z-[110] w-[85vw] max-w-[320px] h-[40vh]"
       style={{ left: `${position.x}px`, top: `${position.y}px`, touchAction: 'none' }}
     >
-      <Card className="h-full shadow-2xl bg-card/90 backdrop-blur-md border border-accent/20 flex flex-col overflow-hidden rounded-2xl">
+      <Card className="h-full shadow-2xl bg-card/90 backdrop-blur-[18px] border border-accent/20 flex flex-col overflow-hidden rounded-2xl">
          <CardHeader 
            onMouseDown={onDragStart} 
            onTouchStart={onDragStart}
@@ -135,7 +135,7 @@ export function QuickNotepad() {
       <Button 
         variant="outline" 
         size="icon" 
-        className="fixed bottom-20 right-4 z-[60] h-12 w-12 rounded-full shadow-lg bg-card/80 backdrop-blur-sm border-2 border-accent/30"
+        className="fixed bottom-20 right-4 z-[60] h-12 w-12 rounded-full shadow-lg bg-card/80 backdrop-blur-[6px] border-2 border-accent/30"
         onClick={() => setIsOpen(prev => !prev)}
       >
         <StickyNote className="h-5 w-5" />

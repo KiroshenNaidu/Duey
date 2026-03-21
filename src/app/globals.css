@@ -67,25 +67,25 @@
 .ui-glass .bg-popover,
 .ui-glass .bg-background[style*="--background"] {
   background-color: hsla(var(--card) / 0.7) !important;
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
   border: 1px solid hsla(var(--accent) / 0.1) !important;
 }
 
 .ui-glass .bg-primary {
   background-color: hsla(var(--primary) / 0.7) !important;
-  backdrop-filter: blur(8px);
+  backdrop-filter: blur(12px);
 }
 
 .ui-glass .bg-accent {
   background-color: hsla(var(--accent) / 0.7) !important;
-  backdrop-filter: blur(8px);
+  backdrop-filter: blur(12px);
 }
 
 .ui-glass nav.fixed {
   background-color: hsla(var(--card) / 0.7) !important;
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
   border-bottom: 1px solid hsla(var(--accent) / 0.2) !important;
 }
 
