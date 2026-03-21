@@ -41,6 +41,17 @@
   body.has-bg-image {
     @apply bg-transparent;
   }
+
+  /* Remove spinners from number inputs */
+  input::-webkit-outer-spin-button,
+  input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+
+  input[type=number] {
+    -moz-appearance: textfield;
+  }
 }
 
 /* Protected Indicator Colors */
@@ -78,6 +89,14 @@
   border-bottom: 1px solid hsla(var(--accent) / 0.2) !important;
 }
 
+/* Ensure white text is legible in Glass mode with a subtle shadow */
+.ui-glass h1, 
+.ui-glass h2, 
+.ui-glass .text-foreground,
+.ui-glass .text-card-foreground {
+    text-shadow: 0 1px 3px rgba(0,0,0,0.6);
+}
+
 /* Transport Page Styling */
 .calendar-container {
     position: relative;
@@ -103,10 +122,4 @@
     white-space: nowrap;
     mask-image: linear-gradient(to bottom, rgba(0,0,0,1) 70%, rgba(0,0,0,0.8));
     text-shadow: 2px 2px 5px rgba(0,0,0,0.2);
-}
-
-/* Ensure vibrant text over glass */
-.ui-glass h1, .ui-glass h2, .ui-glass .text-accent, .ui-glass .text-red-500, .ui-glass .text-green-500, .ui-glass .text-foreground {
-    opacity: 1 !important;
-    text-shadow: 0 1px 2px rgba(0,0,0,0.5);
 }
