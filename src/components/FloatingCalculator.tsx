@@ -75,7 +75,7 @@ const DraggableCard = ({ children, title, onClose, isOpen }: { children: React.R
   return (
     <div
       ref={cardRef}
-      className="fixed z-50 w-[80vw] max-w-[300px] md:w-[40vw]"
+      className="fixed z-[100] w-[80vw] max-w-[300px] md:w-[40vw]"
       style={{ left: `${position.x}px`, top: `${position.y}px`, touchAction: 'none' }}
     >
       <Card className="shadow-2xl bg-card/90 backdrop-blur-md border border-accent/20">
