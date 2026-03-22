@@ -30,7 +30,7 @@ export default function RootLayout({
           <AppDataProvider>
             <ThemeProvider>
               <div className="flex flex-col min-h-dvh bg-transparent relative z-0">
-                <main className="flex-1 overflow-y-auto pt-[88px] pb-24 px-2">
+                <main className="flex-1 overflow-y-auto pt-32 pb-[50vh] px-2">
                   {children}
                 </main>
                 <EmptyBottomBar />
