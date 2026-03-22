@@ -17,7 +17,7 @@ export default function Home() {
   }, []);
 
   return (
-    <div className="container mx-auto max-w-md pt-11">
+    <div className="container mx-auto max-w-md">
       <h1 className="text-xl font-bold mb-3 text-foreground text-center">Duey</h1>
 
       {!isClient ? (
@@ -47,7 +47,7 @@ export default function Home() {
       <AddDebtDialog>
         <button
           aria-label="Add new debt"
-          className="fixed bottom-20 left-1/2 -translate-x-1/2 h-12 w-12 bg-primary rounded-full flex items-center justify-center text-primary-foreground shadow-lg hover:bg-primary/90 focus:outline-none transition-transform transform hover:scale-105 z-[60]"
+          className="fixed bottom-20 left-1/2 -translate-x-1/2 h-12 w-12 bg-primary rounded-full flex items-center justify-center text-primary-foreground shadow-lg hover:bg-primary/90 focus:outline-none transition-all active:scale-95 z-[60]"
         >
           <Plus className="h-6 w-6" />
         </button>
