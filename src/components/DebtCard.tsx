@@ -7,7 +7,7 @@ import { Progress } from '@/components/ui/progress';
 import { AppDataContext } from '@/context/AppDataContext';
 import { formatCurrency, cn } from '@/lib/utils';
 import type { Debt } from '@/lib/types';
-import { Pencil, Trash2, Check, CalendarDays } from 'lucide-react';
+import { Pencil, Trash2, CalendarDays } from 'lucide-react';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import {
@@ -56,6 +56,8 @@ export function DebtCard({ debt }: DebtCardProps) {
   const amountPaid = getAmountPaid(debt, history);
   const progress = getProgress(debt, history);
   const isPaidOff = progress >= 100;
+  const remainingBalance = getRemainingBalance(debt, history);
+  const installmentsLeft = Math.max(0, totalInstallments - paymentCount);
 
   const handleUpdate = () => {
     const totalOwedNum = parseFloat(editedTotalOwed) || 0;
@@ -106,6 +108,9 @@ export function DebtCard({ debt }: DebtCardProps) {
               </DialogTrigger>
               <DialogContent className="sm:max-w-[425px]">
                 <DialogHeader>
+                  <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest mb-1.5 leading-tight">
+                    {Math.round(progress)}% COMPLETE • {formatCurrency(amountPaid)} PAID / {formatCurrency(remainingBalance)} LEFT • {installmentsLeft} OF {totalInstallments} LEFT
+                  </p>
                   <DialogTitle>Debt Settings: {debt.title}</DialogTitle>
                 </DialogHeader>
                 <div className="space-y-4 pt-4 border-t">
