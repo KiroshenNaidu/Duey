@@ -23,6 +23,7 @@ export default function TransportPage() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [isEditingCalendar, setIsEditingCalendar] = useState(false);
   const [isClient, setIsClient] = useState(false);
+  const [accordionValue, setAccordionValue] = useState<string | undefined>(undefined);
 
   useEffect(() => { setIsClient(true) }, []);
 
@@ -65,6 +66,12 @@ export default function TransportPage() {
     logTransportPayment(totalDue, monthStr);
   };
 
+  const handleSaveSettings = () => {
+    // The settings are already saved on change in the inputs
+    // This button now programmatically closes the accordion
+    setAccordionValue("");
+  };
+
   const firstDayOfMonth = getDay(startOfMonth(currentDate));
 
   if (!isClient) {
@@ -82,7 +89,13 @@ export default function TransportPage() {
     <div className="container mx-auto max-w-md space-y-3 pt-11">
       <h1 className="text-xl font-bold text-foreground text-center">Transport</h1>
 
-      <Accordion type="single" collapsible className="border-none">
+      <Accordion 
+        type="single" 
+        collapsible 
+        value={accordionValue} 
+        onValueChange={setAccordionValue} 
+        className="border-none"
+      >
         <AccordionItem value="settings" className="border-none">
           <AccordionTrigger className={cn(
             "hover:no-underline py-2 px-3 border-none transition-all duration-200 bg-card",
@@ -128,7 +141,10 @@ export default function TransportPage() {
                 className="h-8 text-xs border-border focus-visible:ring-accent focus:border-accent transition-all duration-200"
               />
             </div>
-            <Button className="w-full h-8 bg-primary text-xs font-bold text-white hover:bg-primary/90 mt-1 shadow-md transition-transform active:scale-[0.98]">
+            <Button 
+              onClick={handleSaveSettings}
+              className="w-full h-8 bg-primary text-xs font-bold text-white hover:bg-primary/90 mt-1 shadow-md transition-transform active:scale-[0.98]"
+            >
                Save Settings
             </Button>
           </AccordionContent>

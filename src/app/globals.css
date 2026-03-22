@@ -76,9 +76,9 @@
 .ui-glass .bg-popover,
 .ui-glass [role="dialog"],
 .ui-glass .bg-background[style*="--background"] {
-  background-color: hsla(var(--card) / 0.6) !important;
-  backdrop-filter: blur(27px) saturate(180%);
-  -webkit-backdrop-filter: blur(27px) saturate(180%);
+  background-color: hsla(var(--card) / 0.8) !important; /* <--- OPACITY */
+  backdrop-filter: blur(20px) saturate(180%);  /* <--- BLUR & COLOR VIBRANCY */
+  -webkit-backdrop-filter: blur(20px) saturate(180%);  /* <--- FOR SAFARI/IPHONE */
   border: 1px solid hsla(var(--accent) / 0.15) !important;
   box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37) !important;
 }
@@ -86,7 +86,7 @@
 /* Navigation Bars and Floating Island Bars */
 .ui-glass nav.fixed,
 .ui-glass .fixed-bottom-bar {
-  background-color: hsla(var(--card) / 0.6) !important;
+  background-color: hsla(var(--card) / 0.8) !important;
   backdrop-filter: blur(27px) saturate(180%);
   -webkit-backdrop-filter: blur(27px) saturate(180%);
   border-color: hsla(var(--accent) / 0.2) !important;
