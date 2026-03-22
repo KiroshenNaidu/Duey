@@ -108,7 +108,7 @@ export function DebtCard({ debt }: DebtCardProps) {
               </DialogTrigger>
               <DialogContent className="sm:max-w-[425px]">
                 <DialogHeader>
-                  <DialogTitle>Debt Settings: {debt.title}</DialogTitle>
+                  <DialogTitle>{debt.title}</DialogTitle>
                   <div className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest mt-1.5 leading-tight space-y-0.5">
                     <div>{Math.round(progress)}% Complete</div>
                     <div>{formatCurrency(amountPaid)} / {formatCurrency(debt.total_owed)}</div>
