@@ -27,6 +27,7 @@ const defaultState: AppState = {
   },
   userThemes: [],
   notepadContent: '',
+  notificationsEnabled: false,
 };
 
 interface AppContextType extends AppState {
@@ -41,6 +42,7 @@ interface AppContextType extends AppState {
   logTransportPayment: (amount: number, month: string) => void;
   setThemeSettings: (settings: Omit<ThemeSettings, 'backgroundImage'>) => void;
   setNotepadContent: (content: string) => void;
+  setNotificationsEnabled: (enabled: boolean) => void;
   addUserTheme: (name: string, settings: Omit<ThemeSettings, 'backgroundImage' | 'backgroundOpacity'>) => void;
   deleteUserTheme: (themeId: string) => void;
   importData: (data: AppData) => void;
@@ -61,6 +63,7 @@ export const AppDataContext = createContext<AppContextType>({
   logTransportPayment: () => {},
   setThemeSettings: () => {},
   setNotepadContent: () => {},
+  setNotificationsEnabled: () => {},
   addUserTheme: () => {},
   deleteUserTheme: () => {},
   importData: () => {},
@@ -270,6 +273,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     logTransportPayment,
     setThemeSettings: (settings: Omit<ThemeSettings, 'backgroundImage'>) => updateStateAndSync(p => ({ ...p, themeSettings: settings })),
     setNotepadContent: (content: string) => updateStateAndSync(p => ({ ...p, notepadContent: content })),
+    setNotificationsEnabled: (enabled: boolean) => updateStateAndSync(p => ({ ...p, notificationsEnabled: enabled })),
     addUserTheme,
     deleteUserTheme,
     importData,

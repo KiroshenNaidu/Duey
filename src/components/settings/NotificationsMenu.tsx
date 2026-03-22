@@ -1,16 +1,19 @@
 'use client';
 
-import { useState } from 'react';
+import { useContext } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
+import { AppDataContext } from '@/context/AppDataContext';
 
 export function NotificationsMenu() {
-  const [remindersEnabled, setRemindersEnabled] = useState(false);
+  const { notificationsEnabled, setNotificationsEnabled } = useContext(AppDataContext);
 
   const handleToggle = (enabled: boolean) => {
-    setRemindersEnabled(enabled);
-    console.log(`This is a UI demonstration. True OS-level push notifications are not available in this web environment. Reminder state is now: ${enabled ? 'On' : 'Off'}.`);
+    setNotificationsEnabled(enabled);
+    if (enabled) {
+      console.log('User enabled monthly reminders. Note: True OS-level push notifications require a native wrapper or service worker setup.');
+    }
   };
 
   return (
@@ -23,7 +26,7 @@ export function NotificationsMenu() {
           </div>
           <Switch
             id="monthly-reminders"
-            checked={remindersEnabled}
+            checked={notificationsEnabled}
             onCheckedChange={handleToggle}
           />
         </div>

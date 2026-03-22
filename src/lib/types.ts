@@ -53,6 +53,7 @@ export interface AppState {
   themeSettings: Omit<ThemeSettings, 'backgroundImage'>;
   userThemes: UserTheme[];
   notepadContent: string;
+  notificationsEnabled: boolean;
 }
 
 // For Import/Export, which might not have all fields.
