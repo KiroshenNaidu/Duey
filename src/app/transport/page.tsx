@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useMemo, useContext, useEffect } from 'react';
+import { useMemo, useContext, useEffect, Suspense } from 'react';
 import { AppDataContext } from '@/context/AppDataContext';
-import { format, getDay, add, sub, isSameMonth, startOfMonth, isWeekend, startOfToday } from 'date-fns';
+import { format, getDay, add, sub, isSameMonth, startOfMonth, isWeekend, startOfToday, parseISO } from 'date-fns';
 import { ChevronLeft, ChevronRight, Lock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -14,22 +14,39 @@ import { formatCurrency, cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
 import { calculateTransportMonth } from '@/lib/calculations';
 import type { TransportSettings } from '@/lib/types';
+import { useRouter, useSearchParams } from 'next/navigation';
 
 const WEEK_DAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
-export default function TransportPage() {
-  const { transportSettings, setTransportSettings, transportOverrides, setTransportOverrides, logTransportPayment, history } = useContext(AppDataContext);
+function TransportContent() {
+  const { 
+    transportSettings, 
+    setTransportSettings, 
+    transportOverrides, 
+    setTransportOverrides, 
+    logTransportPayment, 
+    history 
+  } = useContext(AppDataContext);
   
-  const [currentDate, setCurrentDate] = useState(new Date());
-  const [isEditingCalendar, setIsEditingCalendar] = useState(false);
-  const [isClient, setIsClient] = useState(false);
-  const [accordionValue, setAccordionValue] = useState<string | undefined>(undefined);
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  
+  // Use URL param for date, defaulting to current month
+  const dateParam = searchParams.get('date');
+  const currentDate = useMemo(() => {
+    if (!dateParam) return startOfMonth(new Date());
+    try {
+      return parseISO(dateParam);
+    } catch {
+      return startOfMonth(new Date());
+    }
+  }, [dateParam]);
 
-  useEffect(() => { setIsClient(true) }, []);
+  const editParam = searchParams.get('edit') === 'true';
+  const accordionParam = searchParams.get('settings') === 'true';
 
   const today = startOfToday();
   const isCurrentMonth = isSameMonth(currentDate, today);
-  
   const isLocked = !isCurrentMonth;
 
   const { isPaidForMonth, monthStr } = useMemo(() => {
@@ -39,6 +56,27 @@ export default function TransportPage() {
     );
     return { isPaidForMonth: !!paymentForThisMonth, monthStr };
   }, [currentDate, history]);
+
+  const handleDateChange = (newDate: Date) => {
+    const iso = format(startOfMonth(newDate), 'yyyy-MM-dd');
+    const params = new URLSearchParams(searchParams.toString());
+    params.set('date', iso);
+    router.push(`/transport?${params.toString()}`);
+  };
+
+  const setIsEditingCalendar = (editing: boolean) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (editing) params.set('edit', 'true');
+    else params.delete('edit');
+    router.push(`/transport?${params.toString()}`);
+  };
+
+  const setAccordionValue = (val: string) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (val === 'settings') params.set('settings', 'true');
+    else params.delete('settings');
+    router.push(`/transport?${params.toString()}`);
+  };
 
   const handleSettingsChange = (field: keyof TransportSettings, value: string | number) => {
     setTransportSettings({ ...transportSettings, [field]: value });
@@ -50,7 +88,7 @@ export default function TransportPage() {
   );
 
   const handleDayToggle = (day: Date) => {
-    if (!isEditingCalendar || isLocked || isPaidForMonth) return;
+    if (!editParam || isLocked || isPaidForMonth) return;
     const isoDate = day.toISOString().split('T')[0];
     const isCurrentlyTravelDay = calculateTransportMonth(currentDate, transportOverrides, transportSettings.dailyFee)
                                   .daysInMonth.find(d => isSameMonth(d, day)) 
@@ -60,30 +98,11 @@ export default function TransportPage() {
   };
   
   const handleMarkAsPaid = () => {
-    if (totalDue <= 0 || isLocked) {
-      return;
-    }
+    if (totalDue <= 0 || isLocked) return;
     logTransportPayment(totalDue, monthStr);
   };
 
-  const handleSaveSettings = () => {
-    // The settings are already saved on change in the inputs
-    // This button now programmatically closes the accordion
-    setAccordionValue("");
-  };
-
   const firstDayOfMonth = getDay(startOfMonth(currentDate));
-
-  if (!isClient) {
-    return (
-      <div className="container mx-auto max-w-md space-y-3 pt-11">
-        <Skeleton className="h-10 w-48" />
-        <Skeleton className="h-20 w-full" />
-        <Skeleton className="h-96 w-full" />
-        <Skeleton className="h-24 w-full" />
-      </div>
-    );
-  }
 
   return (
     <div className="container mx-auto max-w-md space-y-3 pt-11">
@@ -92,7 +111,7 @@ export default function TransportPage() {
       <Accordion 
         type="single" 
         collapsible 
-        value={accordionValue} 
+        value={accordionParam ? 'settings' : ''} 
         onValueChange={setAccordionValue} 
         className="border-none"
       >
@@ -142,7 +161,7 @@ export default function TransportPage() {
               />
             </div>
             <Button 
-              onClick={handleSaveSettings}
+              onClick={() => setAccordionValue('')}
               className="w-full h-8 bg-primary text-xs font-bold text-white hover:bg-primary/90 mt-1 shadow-md transition-transform active:scale-[0.98]"
             >
                Save Settings
@@ -154,7 +173,7 @@ export default function TransportPage() {
       <Card>
         <CardHeader className="p-3">
           <div className="flex justify-between items-center">
-            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setCurrentDate(sub(currentDate, { months: 1 }))}>
+            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDateChange(sub(currentDate, { months: 1 }))}>
               <ChevronLeft className="h-4 w-4" />
             </Button>
             <CardTitle className="text-center text-base flex flex-col items-center">
@@ -165,17 +184,17 @@ export default function TransportPage() {
                 {isCurrentMonth ? `(Current Month)` : <><Lock className="h-2 w-2" /> (Read-Only)</>}
               </span>
             </CardTitle>
-            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setCurrentDate(add(currentDate, { months: 1 }))}>
+            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDateChange(add(currentDate, { months: 1 }))}>
               <ChevronRight className="h-4 w-4" />
             </Button>
           </div>
           <div className="flex items-center space-x-2 mt-1 justify-end">
             <Label htmlFor="edit-calendar" className={cn("text-[10px]", (isLocked || isPaidForMonth) && "opacity-50")}>
-              {isEditingCalendar ? 'Editing' : 'Edit'}
+              {editParam ? 'Editing' : 'Edit'}
             </Label>
             <Switch 
               id="edit-calendar" 
-              checked={isEditingCalendar} 
+              checked={editParam} 
               onCheckedChange={setIsEditingCalendar} 
               disabled={isLocked || isPaidForMonth} 
               className={cn("h-4 w-8", (isLocked || isPaidForMonth) && "opacity-50 cursor-not-allowed")}
@@ -196,15 +215,15 @@ export default function TransportPage() {
               return (
                 <button
                   key={isoDate}
-                  disabled={!isEditingCalendar || isLocked || isPaidForMonth}
+                  disabled={!editParam || isLocked || isPaidForMonth}
                   onClick={() => handleDayToggle(day)}
                   className={cn(
                     "h-7 w-7 rounded-full flex items-center justify-center transition-all duration-200 text-[10px]",
-                    (isEditingCalendar && !isLocked && !isPaidForMonth) ? 'cursor-pointer' : 'cursor-default',
+                    (editParam && !isLocked && !isPaidForMonth) ? 'cursor-pointer' : 'cursor-default',
                     isTravelDay ? 'bg-primary/90 text-primary-foreground' : 'bg-muted text-muted-foreground',
                     !isTravelDay && 'opacity-60',
                     isToday && "ring-1 ring-accent ring-offset-1 ring-offset-background",
-                    (isEditingCalendar && !isLocked && !isPaidForMonth) && "hover:scale-105"
+                    (editParam && !isLocked && !isPaidForMonth) && "hover:scale-105"
                   )}
                 >
                   {format(day, 'd')}
@@ -233,7 +252,21 @@ export default function TransportPage() {
             </Button>
         </CardFooter>
       </Card>
-
     </div>
+  );
+}
+
+export default function TransportPage() {
+  return (
+    <Suspense fallback={
+      <div className="container mx-auto max-w-md space-y-3 pt-11">
+        <Skeleton className="h-10 w-48" />
+        <Skeleton className="h-20 w-full" />
+        <Skeleton className="h-96 w-full" />
+        <Skeleton className="h-24 w-full" />
+      </div>
+    }>
+      <TransportContent />
+    </Suspense>
   );
 }

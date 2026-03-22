@@ -1,6 +1,6 @@
 'use client';
 
-import { useContext, useMemo, useState, useEffect } from 'react';
+import { useContext, useMemo, useState, useEffect, Suspense } from 'react';
 import { AppDataContext } from '@/context/AppDataContext';
 import { Card, CardContent } from '@/components/ui/card';
 import { formatCurrency, cn } from '@/lib/utils';
@@ -74,7 +74,7 @@ function StatsOverview() {
   );
 }
 
-export default function StatsPage() {
+function StatsContent() {
   const { debts, history } = useContext(AppDataContext);
   const [isClient, setIsClient] = useState(false);
 
@@ -117,5 +117,19 @@ export default function StatsPage() {
         </section>
       )}
     </div>
+  );
+}
+
+export default function StatsPage() {
+  return (
+    <Suspense fallback={
+      <div className="container mx-auto max-w-md pt-24 text-center">
+        <Skeleton className="h-8 w-48 mx-auto mb-4" />
+        <Skeleton className="h-32 w-full mb-4" />
+        <Skeleton className="h-64 w-full" />
+      </div>
+    }>
+      <StatsContent />
+    </Suspense>
   );
 }

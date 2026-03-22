@@ -11,6 +11,7 @@ import type { HistoryEntry } from '@/lib/types';
 import { Skeleton } from './ui/skeleton';
 import { Check } from 'lucide-react';
 import { getAmountPaid } from '@/lib/calculations';
+import { useRouter, useSearchParams } from 'next/navigation';
 
 type ProcessedHistoryEntry = HistoryEntry & { balanceAfter?: number };
 
@@ -64,6 +65,8 @@ function HistoryItem({ entry }: { entry: ProcessedHistoryEntry }) {
 
 export function HistoryLog() {
   const { debts, history } = useContext(AppDataContext);
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [isClient, setIsClient] = useState(false);
 
   useEffect(() => {
@@ -89,6 +92,15 @@ export function HistoryLog() {
     return { debtsWithHistory, transportHistory, allHistory };
   }, [history, debts]);
 
+  const defaultTab = debtsWithHistory.length > 0 ? debtsWithHistory[0].id : transportHistory.length > 0 ? 'transport' : 'all';
+  const activeTab = searchParams.get('tab') || defaultTab;
+
+  const handleTabChange = (val: string) => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set('tab', val);
+    router.push(`/stats?${params.toString()}`);
+  };
+
   if (!isClient) {
     return (
         <Card>
@@ -110,12 +122,10 @@ export function HistoryLog() {
     );
   }
 
-  const defaultTab = debtsWithHistory.length > 0 ? debtsWithHistory[0].id : transportHistory.length > 0 ? 'transport' : 'all';
-
   return (
     <Card>
       <CardContent className="p-2">
-        <Tabs defaultValue={defaultTab} className="w-full">
+        <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
           <TabsList className="h-auto flex-wrap justify-start p-1 mb-2">
             {debtsWithHistory.map((debt) => (
               <TabsTrigger key={debt.id} value={debt.id}>
@@ -143,7 +153,6 @@ export function HistoryLog() {
                     }
                     if (entry.type === 'creation') {
                         runningBalance = entry.amount;
-                        // For creation, we can calculate the balance after all payments
                         const totalPaid = getAmountPaid(debt, history);
                         balanceAfter = debt.total_owed - totalPaid;
                     }
