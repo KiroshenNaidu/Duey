@@ -36,9 +36,13 @@ export default function RootLayout({
           <AppDataProvider>
             <ThemeProvider>
               <div className="flex flex-col min-h-dvh bg-transparent relative z-0">
-                <main className="flex-1 overflow-y-auto pt-[65px] pb-[50vh] px-2">
-                  {children}
-                </main>
+                {/* 
+                  pt-[69px] is kept for the 3 working pages.
+                  pb-[65vh] allows you to scroll the last item into the middle of the screen.
+                */}
+                <main className="flex-1 overflow-y-auto pt-[69px] pb-[65vh] px-2">
+  {children}
+</main>
                 <EmptyBottomBar />
                 <BottomNav />
                 <FloatingTools />

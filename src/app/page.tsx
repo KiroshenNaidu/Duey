@@ -17,8 +17,19 @@ export default function Home() {
   }, []);
 
   return (
-    <div className="container mx-auto max-w-md">
-      <h1 className="text-xl font-bold mb-3 text-foreground text-center">Duey</h1>
+    /* Added pt-10 to push it down to match the other pages */
+    <div className="container mx-auto max-w-md pt-10">
+      
+      {/* 
+         Header section updated to match the height 
+         of the Transport/Stats headers 
+      */}
+      <div className="text-center mb-6">
+        <h1 className="text-2xl font-bold text-foreground">Duey</h1>
+        <p className="text-[10px] text-muted-foreground uppercase tracking-[0.2em] mt-1">
+          Debt Overview
+        </p>
+      </div>
 
       {!isClient ? (
         <div className="space-y-3">
@@ -27,9 +38,9 @@ export default function Home() {
           <Skeleton className="h-24 w-full" />
         </div>
       ) : debts.length === 0 ? (
-        <Card className="text-center">
+        <Card className="text-center border-accent/10">
           <CardHeader>
-            <CardTitle className='text-base'>Stop acting like you didnt forget</CardTitle>
+            <CardTitle className='text-base'>Stop acting like you didn't forget</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-xs text-muted-foreground">You haven't added any debts yet.</p>
@@ -37,7 +48,8 @@ export default function Home() {
           </CardContent>
         </Card>
       ) : (
-        <div className="space-y-3">
+        /* Added a gap at the bottom of the list */
+        <div className="flex flex-col gap-4">
           {debts.map((debt) => (
             <DebtCard key={debt.id} debt={debt} />
           ))}
@@ -47,7 +59,7 @@ export default function Home() {
       <AddDebtDialog>
         <button
           aria-label="Add new debt"
-          className="fixed bottom-20 left-1/2 -translate-x-1/2 h-12 w-12 bg-primary rounded-full flex items-center justify-center text-primary-foreground shadow-lg hover:bg-primary/90 focus:outline-none transition-all active:scale-95 z-[60]"
+          className="fixed bottom-[55px] left-1/2 -translate-x-1/2 h-12 w-12 bg-primary rounded-full flex items-center justify-center text-primary-foreground shadow-lg hover:bg-primary/90 focus:outline-none transition-all active:scale-95 z-[60]"
         >
           <Plus className="h-6 w-6" />
         </button>

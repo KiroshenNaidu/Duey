@@ -5,6 +5,7 @@ import type { AppState, Debt, HistoryEntry, AppData, ThemeSettings, TransportSet
 import { isSameDay, startOfDay } from 'date-fns';
 import { doc, onSnapshot, setDoc } from 'firebase/firestore';
 import { getFirestore } from '@/firebase';
+import { idbClear } from '@/lib/utils';
 
 const CURRENT_SCHEMA_VERSION = 3;
 
@@ -253,9 +254,15 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     updateStateAndSync(prev => ({ ...prev, ...data, schemaVersion: CURRENT_SCHEMA_VERSION }));
   };
 
-  const clearData = () => {
+  const clearData = async () => {
+    // Clear IndexedDB (Wallpaper)
+    await idbClear();
+    
+    // Clear Local Storage
     const keysToRemove = ['appState', 'duey_device_id'];
     keysToRemove.forEach(key => localStorage.removeItem(key));
+    
+    // Reset state and reload
     setAppState(defaultState);
     window.location.reload();
   };
