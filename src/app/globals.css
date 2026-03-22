@@ -71,41 +71,51 @@
     color: #FF000C !important;
 }
 
-/* Glass UI Mode Styles */
+/* Glass UI Mode Styles - High Quality Frosted Look */
 .ui-glass .bg-card,
 .ui-glass .bg-popover,
+.ui-glass [role="dialog"],
 .ui-glass .bg-background[style*="--background"] {
-  background-color: hsla(var(--card) / 0.7) !important;
-  backdrop-filter: blur(27px);
-  -webkit-backdrop-filter: blur(27px);
-  border: 1px solid hsla(var(--accent) / 0.1) !important;
+  background-color: hsla(var(--card) / 0.6) !important;
+  backdrop-filter: blur(27px) saturate(180%);
+  -webkit-backdrop-filter: blur(27px) saturate(180%);
+  border: 1px solid hsla(var(--accent) / 0.15) !important;
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37) !important;
 }
 
-/* Targets both Top Nav and the Empty Bottom Bar */
+/* Navigation Bars and Floating Island Bars */
 .ui-glass nav.fixed,
 .ui-glass .fixed-bottom-bar {
-  background-color: hsla(var(--card) / 0.7) !important;
-  backdrop-filter: blur(27px);
-  -webkit-backdrop-filter: blur(27px);
+  background-color: hsla(var(--card) / 0.6) !important;
+  backdrop-filter: blur(27px) saturate(180%);
+  -webkit-backdrop-filter: blur(27px) saturate(180%);
   border-color: hsla(var(--accent) / 0.2) !important;
 }
 
-.ui-glass .bg-primary {
+/* Semi-transparent Primary/Accent in Glass Mode */
+.ui-glass .bg-primary:not(.rounded-full) {
   background-color: hsla(var(--primary) / 0.7) !important;
-  backdrop-filter: blur(18px);
+  backdrop-filter: blur(12px);
 }
 
-.ui-glass .bg-accent {
+.ui-glass .bg-accent:not(.rounded-full) {
   background-color: hsla(var(--accent) / 0.7) !important;
-  backdrop-filter: blur(18px);
+  backdrop-filter: blur(12px);
 }
 
-/* Ensure white text is legible in Glass mode with a subtle shadow */
+/* Enhanced legibility for glass mode */
 .ui-glass h1, 
 .ui-glass h2, 
 .ui-glass .text-foreground,
-.ui-glass .text-card-foreground {
-    text-shadow: 0 1px 3px rgba(0,0,0,0.6);
+.ui-glass .text-card-foreground,
+.ui-glass .text-base,
+.ui-glass .text-lg {
+    text-shadow: 0 1px 2px rgba(0,0,0,0.4);
+}
+
+.ui-glass .text-muted-foreground {
+    color: hsla(var(--foreground) / 0.7) !important;
+    text-shadow: 0 1px 1px rgba(0,0,0,0.3);
 }
 
 /* Transport Page Styling */

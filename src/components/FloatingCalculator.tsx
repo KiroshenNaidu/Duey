@@ -84,7 +84,7 @@ const DraggableCard = ({ children, title, onClose, isOpen }: { children: React.R
         className="fixed z-[100] w-[85vw] max-w-[320px] shadow-2xl"
         style={{ left: `${position.x}px`, top: `${position.y}px`, touchAction: 'none' }}
       >
-        <Card className="bg-card/90 backdrop-blur-[18px] border border-accent/20 rounded-2xl overflow-hidden">
+        <Card className="rounded-2xl overflow-hidden border-accent/20">
            <CardHeader 
              onMouseDown={onDragStart} 
              onTouchStart={onDragStart}
@@ -189,7 +189,7 @@ export function FloatingCalculator({ isOpen, onClose }: { isOpen: boolean, onClo
   return (
      <DraggableCard title="Calculator" onClose={onClose} isOpen={isOpen}>
       <div className="space-y-3">
-        <div className="bg-background/40 rounded-xl p-3 text-right font-mono space-y-1 border border-accent/5 backdrop-blur-[18px]">
+        <div className="bg-background/40 rounded-xl p-3 text-right font-mono space-y-1 border border-accent/5">
             <div className="text-muted-foreground text-[10px] h-4 truncate tracking-wider">{expression}</div>
             <div className="text-3xl truncate font-bold text-foreground">{display}</div>
         </div>
