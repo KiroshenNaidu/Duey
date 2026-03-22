@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useContext, useState, useEffect } from 'react';
@@ -22,6 +21,14 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogClose,
+} from "@/components/ui/dialog"
 import { PaymentCalendarDialog } from './PaymentCalendarDialog';
 import { getPaymentCount, getTotalInstallments, getAmountPaid, getProgress, getRemainingBalance } from '@/lib/calculations';
 
@@ -31,7 +38,7 @@ interface DebtCardProps {
 
 export function DebtCard({ debt }: DebtCardProps) {
   const { history, updateDebt, deleteDebt, logPaymentForToday, logCustomPayment } = useContext(AppDataContext);
-  const [isEditing, setIsEditing] = useState(false);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
 
   const [editedTitle, setEditedTitle] = useState(debt.title);
   const [editedTotalOwed, setEditedTotalOwed] = useState(debt.total_owed.toString());
@@ -59,20 +66,12 @@ export function DebtCard({ debt }: DebtCardProps) {
       total_owed: totalOwedNum,
       installment_amount: installmentAmountNum,
     });
-    setIsEditing(false);
   };
   
   const handleDelete = () => {
     deleteDebt(debt.id);
+    setIsDialogOpen(false);
   };
-
-  const handleToggleEdit = () => {
-    if (isEditing) {
-      handleUpdate();
-    } else {
-      setIsEditing(true);
-    }
-  }
 
   const handleLogPaymentForToday = () => {
     logPaymentForToday(debt.id);
@@ -87,10 +86,7 @@ export function DebtCard({ debt }: DebtCardProps) {
   };
 
   return (
-    <Card className={cn(
-        "overflow-hidden transition-all duration-300",
-        isEditing ? "border-accent ring-2 ring-accent" : "border-border"
-      )}>
+    <Card className="overflow-hidden border-border transition-all duration-300">
       <CardHeader>
         <div className="flex justify-between items-center gap-2">
           <CardTitle className="text-base font-bold truncate pr-2">{debt.title}</CardTitle>
@@ -98,9 +94,95 @@ export function DebtCard({ debt }: DebtCardProps) {
             <span className="text-xs text-muted-foreground whitespace-nowrap">
               {paymentCount} of {totalInstallments} ({Math.round(progress)}%)
             </span>
-            <Button variant="ghost" size="icon" className="h-8 w-8 flex-shrink-0" onClick={handleToggleEdit}>
-              {isEditing ? <Check className="h-4 w-4" /> : <Pencil className="h-4 w-4" />}
-            </Button>
+            
+            <Dialog open={isDialogOpen} onOpenChange={(open) => {
+              if (!open) handleUpdate();
+              setIsDialogOpen(open);
+            }}>
+              <DialogTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-8 w-8 flex-shrink-0">
+                  <Pencil className="h-4 w-4" />
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-[425px]">
+                <DialogHeader>
+                  <DialogTitle>Debt Settings: {debt.title}</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4 pt-4 border-t">
+                  <div className="space-y-2">
+                    <Label htmlFor={`title-${debt.id}`} className="text-xs">Title</Label>
+                    <Input id={`title-${debt.id}`} value={editedTitle} onChange={(e) => setEditedTitle(e.target.value)} />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor={`total-${debt.id}`} className="text-xs">Total Owed</Label>
+                      <Input id={`total-${debt.id}`} type="number" value={editedTotalOwed} onChange={(e) => setEditedTotalOwed(e.target.value)} />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor={`installment-${debt.id}`} className="text-xs">Installment</Label>
+                      <Input id={`installment-${debt.id}`} type="number" value={editedInstallmentAmount} onChange={(e) => setEditedInstallmentAmount(e.target.value)} />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2 border-t pt-4 mt-2">
+                    <Label htmlFor={`custom-payment-${debt.id}`} className="text-xs">Custom Payment Amount</Label>
+                    <div className="flex items-center gap-2">
+                      <Input 
+                        id={`custom-payment-${debt.id}`} 
+                        type="number" 
+                        placeholder={`e.g., ${debt.installment_amount * 2}`} 
+                        value={customAmount}
+                        onChange={(e) => setCustomAmount(e.target.value)}
+                      />
+                      <Button 
+                        onClick={handleLogCustomPayment} 
+                        disabled={!customAmount || parseFloat(customAmount) <= 0}
+                        className="bg-accent text-accent-foreground hover:bg-accent/90 flex-shrink-0"
+                      >
+                        Log
+                      </Button>
+                    </div>
+                  </div>
+                  
+                  <div className="flex justify-between items-center pt-4 border-t">
+                    <div className='flex gap-2'>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="outline" size="icon" className="h-10 w-10">
+                            <Trash2 className="text-destructive" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              This will permanently delete the "{debt.title}" debt. This action cannot be undone.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction onClick={handleDelete} className={cn(buttonVariants({variant: 'destructive'}))}>Delete</AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                      <PaymentCalendarDialog debt={debt}>
+                        <Button variant="outline" size="icon" className="h-10 w-10">
+                          <CalendarDays />
+                        </Button>
+                      </PaymentCalendarDialog>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button onClick={handleLogPaymentForToday} variant="secondary">
+                        +1 Installment
+                      </Button>
+                      <DialogClose asChild>
+                        <Button className="bg-primary">Done</Button>
+                      </DialogClose>
+                    </div>
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
           </div>
         </div>
       </CardHeader>
@@ -112,80 +194,6 @@ export function DebtCard({ debt }: DebtCardProps) {
             <span className="text-xs text-muted-foreground">/ {formatCurrency(debt.total_owed)}</span>
         </div>
       </CardContent>
-
-      <div className={cn(
-        "transition-[max-height,padding] duration-500 ease-in-out overflow-hidden",
-        isEditing ? "max-h-[600px] p-3 pt-0" : "max-h-0 p-0"
-      )}>
-        <div className="space-y-4 pt-4 border-t">
-            <div className="space-y-2">
-                <Label htmlFor={`title-${debt.id}`} className="text-xs">Title</Label>
-                <Input id={`title-${debt.id}`} value={editedTitle} onChange={(e) => setEditedTitle(e.target.value)} />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                    <Label htmlFor={`total-${debt.id}`} className="text-xs">Total Owed</Label>
-                    <Input id={`total-${debt.id}`} type="number" value={editedTotalOwed} onChange={(e) => setEditedTotalOwed(e.target.value)} />
-                </div>
-                <div className="space-y-2">
-                    <Label htmlFor={`installment-${debt.id}`} className="text-xs">Installment</Label>
-                    <Input id={`installment-${debt.id}`} type="number" value={editedInstallmentAmount} onChange={(e) => setEditedInstallmentAmount(e.target.value)} />
-                </div>
-            </div>
-
-             <div className="space-y-2 border-t pt-4 mt-2">
-                <Label htmlFor={`custom-payment-${debt.id}`} className="text-xs">Custom Payment Amount</Label>
-                <div className="flex items-center gap-2">
-                    <Input 
-                        id={`custom-payment-${debt.id}`} 
-                        type="number" 
-                        placeholder={`e.g., ${debt.installment_amount * 2}`} 
-                        value={customAmount}
-                        onChange={(e) => setCustomAmount(e.target.value)}
-                    />
-                    <Button 
-                        onClick={handleLogCustomPayment} 
-                        disabled={!customAmount || parseFloat(customAmount) <= 0}
-                        className="bg-accent text-accent-foreground hover:bg-accent/90 flex-shrink-0"
-                    >
-                        Log
-                    </Button>
-                </div>
-            </div>
-            
-            <div className="flex justify-between items-center pt-4 border-t">
-                <div className='flex gap-2'>
-                    <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                            <Button variant="outline" size="icon" className="h-10 w-10">
-                                <Trash2 className="text-destructive" />
-                            </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                            <AlertDialogHeader>
-                            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                            <AlertDialogDescription>
-                                This will permanently delete the "{debt.title}" debt. This action cannot be undone.
-                            </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                            <AlertDialogAction onClick={handleDelete} className={cn(buttonVariants({variant: 'destructive'}))}>Delete</AlertDialogAction>
-                            </AlertDialogFooter>
-                        </AlertDialogContent>
-                    </AlertDialog>
-                    <PaymentCalendarDialog debt={debt}>
-                       <Button variant="outline" size="icon" className="h-10 w-10">
-                            <CalendarDays />
-                        </Button>
-                    </PaymentCalendarDialog>
-                </div>
-                 <Button onClick={handleLogPaymentForToday}>
-                    +1 Installment
-                 </Button>
-            </div>
-        </div>
-      </div>
     </Card>
   );
 }
