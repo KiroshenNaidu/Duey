@@ -1,10 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { Palette, Database, Bell, ChevronLeft } from 'lucide-react';
 import { ThemeSettingsMenu } from '@/components/settings/ThemeSettingsMenu';
 import { DataManagementMenu } from '@/components/settings/DataManagementMenu';
 import { NotificationsMenu } from '@/components/settings/NotificationsMenu';
+import { Suspense } from 'react';
 
 type MenuItem = {
   id: 'theme' | 'data' | 'notifications';
@@ -30,7 +31,7 @@ const SettingsHeader = ({ title, onBack }: { title: string; onBack?: () => void 
   </div>
 );
 
-const MainMenu = ({ onNavigate }: { onNavigate: (menu: 'theme' | 'data' | 'notifications') => void }) => (
+const MainMenu = ({ onNavigate }: { onNavigate: (menu: string) => void }) => (
   <div className="space-y-3">
     {menuItems.map((item) => (
       <button
@@ -48,10 +49,18 @@ const MainMenu = ({ onNavigate }: { onNavigate: (menu: 'theme' | 'data' | 'notif
   </div>
 );
 
-export default function SettingsPage() {
-  const [activeMenu, setActiveMenu] = useState<'main' | 'theme' | 'data' | 'notifications'>('main');
+function SettingsContent() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const activeMenu = searchParams.get('menu') || 'main';
 
-  const handleBack = () => setActiveMenu('main');
+  const handleNavigate = (menu: string) => {
+    router.push(`/settings?menu=${menu}`);
+  };
+
+  const handleBack = () => {
+    router.push('/settings');
+  };
 
   if (activeMenu === 'theme') {
     return (
@@ -83,7 +92,15 @@ export default function SettingsPage() {
   return (
     <div className="container mx-auto max-w-md pt-11">
       <SettingsHeader title="Settings" />
-      <MainMenu onNavigate={setActiveMenu} />
+      <MainMenu onNavigate={handleNavigate} />
     </div>
+  );
+}
+
+export default function SettingsPage() {
+  return (
+    <Suspense fallback={<div className="container mx-auto max-w-md pt-24 text-center">Loading settings...</div>}>
+      <SettingsContent />
+    </Suspense>
   );
 }
