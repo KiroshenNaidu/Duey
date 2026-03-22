@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from 'next';
+import { Inter } from 'next/font/google';
 import './globals.css';
 import { AppDataProvider } from '@/context/AppDataContext';
 import { BottomNav } from '@/components/BottomNav';
@@ -6,6 +7,11 @@ import { EmptyBottomBar } from '@/components/EmptyBottomBar';
 import { ThemeProvider } from '@/components/ThemeProvider';
 import { FloatingTools } from '@/components/FloatingTools';
 import { FirebaseClientProvider } from '@/firebase/client-provider';
+
+const inter = Inter({
+  subsets: ['latin'],
+  variable: '--font-inter',
+});
 
 export const metadata: Metadata = {
   title: 'Duey',
@@ -25,12 +31,12 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark">
       <head />
-      <body className="font-body antialiased">
+      <body className={`${inter.variable} font-body antialiased`}>
         <FirebaseClientProvider>
           <AppDataProvider>
             <ThemeProvider>
               <div className="flex flex-col min-h-dvh bg-transparent relative z-0">
-                <main className="flex-1 overflow-y-auto pt-[92px] pb-[50vh] px-2">
+                <main className="flex-1 overflow-y-auto pt-[128px] pb-[50vh] px-2">
                   {children}
                 </main>
                 <EmptyBottomBar />

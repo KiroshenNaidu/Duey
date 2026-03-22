@@ -2,13 +2,7 @@
 
 import { ReactNode, useEffect, useState, useContext } from 'react';
 import { idbGet } from '@/lib/utils';
-import { Inter } from 'next/font/google';
 import { AppDataContext } from '@/context/AppDataContext';
-
-const inter = Inter({
-  subsets: ['latin'],
-  variable: '--font-inter',
-});
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const { themeSettings } = useContext(AppDataContext);
@@ -51,7 +45,10 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       root.style.setProperty('--font-family', 'monospace');
     }
     
-    document.body.style.zoom = `${themeSettings.uiScale || 1.0}`;
+    // Safety check for zoom to avoid hydration/render issues on some platforms
+    if (typeof window !== 'undefined') {
+      document.body.style.zoom = `${themeSettings.uiScale || 1.0}`;
+    }
     
     const body = document.body;
     if (backgroundImage) {
@@ -69,20 +66,18 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   }, [themeSettings, backgroundImage, isImageReady]);
 
   return (
-    <div className={`${inter.variable}`}>
-        <>
-          <div
-            id="global-bg-image"
-            className="fixed inset-0 z-[-10] bg-cover bg-center transition-all duration-500"
-            style={{ backgroundImage: backgroundImage ? `url(${backgroundImage})` : 'none' }}
-          />
-          <div
-            id="global-bg-overlay"
-            className="fixed inset-0 z-[-9] bg-black transition-opacity duration-500"
-            style={{ opacity: backgroundImage ? themeSettings.backgroundOpacity : 0 }}
-          />
-        </>
+    <>
+      <div
+        id="global-bg-image"
+        className="fixed inset-0 z-[-10] bg-cover bg-center transition-all duration-500"
+        style={{ backgroundImage: backgroundImage ? `url(${backgroundImage})` : 'none' }}
+      />
+      <div
+        id="global-bg-overlay"
+        className="fixed inset-0 z-[-9] bg-black transition-opacity duration-500"
+        style={{ opacity: backgroundImage ? themeSettings.backgroundOpacity : 0 }}
+      />
       {children}
-    </div>
+    </>
   );
 }
