@@ -32,7 +32,16 @@
 @layer base {
   * {
     @apply border-border;
+    /* Hide scrollbar for IE, Edge and Firefox */
+    scrollbar-width: none;
+    -ms-overflow-style: none;
   }
+
+  /* Hide scrollbar for Chrome, Safari and Opera */
+  *::-webkit-scrollbar {
+    display: none;
+  }
+
   body {
     @apply bg-background text-foreground;
     font-family: var(--font-family);
@@ -67,25 +76,25 @@
 .ui-glass .bg-popover,
 .ui-glass .bg-background[style*="--background"] {
   background-color: hsla(var(--card) / 0.7) !important;
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
+  backdrop-filter: blur(27px);
+  -webkit-backdrop-filter: blur(27px);
   border: 1px solid hsla(var(--accent) / 0.1) !important;
 }
 
 .ui-glass .bg-primary {
   background-color: hsla(var(--primary) / 0.7) !important;
-  backdrop-filter: blur(12px);
+  backdrop-filter: blur(18px);
 }
 
 .ui-glass .bg-accent {
   background-color: hsla(var(--accent) / 0.7) !important;
-  backdrop-filter: blur(12px);
+  backdrop-filter: blur(18px);
 }
 
 .ui-glass nav.fixed {
   background-color: hsla(var(--card) / 0.7) !important;
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
+  backdrop-filter: blur(27px);
+  -webkit-backdrop-filter: blur(27px);
   border-bottom: 1px solid hsla(var(--accent) / 0.2) !important;
 }
 
