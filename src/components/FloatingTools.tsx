@@ -28,7 +28,7 @@ export function FloatingTools() {
   return (
     <>
       <QuickNotepad />
-      <div className="fixed bottom-20 left-4 z-[60]">
+      <div className="fixed bottom-[50px] left-4 z-[60]">
          <Button
           variant="outline"
           size="icon"
