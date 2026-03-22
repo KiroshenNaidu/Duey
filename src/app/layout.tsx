@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import { AppDataProvider } from '@/context/AppDataContext';
 import { BottomNav } from '@/components/BottomNav';
+import { EmptyBottomBar } from '@/components/EmptyBottomBar';
 import { ThemeProvider } from '@/components/ThemeProvider';
 import { FloatingTools } from '@/components/FloatingTools';
 import { FirebaseClientProvider } from '@/firebase/client-provider';
@@ -32,6 +33,7 @@ export default function RootLayout({
                 <main className="flex-1 overflow-y-auto pt-12 pb-24 px-2">
                   {children}
                 </main>
+                <EmptyBottomBar />
                 <BottomNav />
                 <FloatingTools />
               </div>
