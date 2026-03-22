@@ -83,42 +83,49 @@ const DraggableNotepadBox = ({
   if (!isOpen) return null;
 
   return (
-    <div
-      ref={boxRef}
-      className="fixed z-[110] w-[85vw] max-w-[320px] h-[40vh]"
-      style={{ left: `${position.x}px`, top: `${position.y}px`, touchAction: 'none' }}
-    >
-      <Card className="h-full shadow-2xl bg-card/90 backdrop-blur-[18px] border border-accent/20 flex flex-col overflow-hidden rounded-2xl">
-         <CardHeader 
-           onMouseDown={onDragStart} 
-           onTouchStart={onDragStart}
-           className="cursor-move p-3 flex flex-row items-center justify-between border-b border-accent/10 flex-shrink-0"
-         >
-          <span className="font-bold text-xs uppercase tracking-wider opacity-90">Quick Notepad</span>
-          <div className="flex items-center gap-1">
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              className="h-8 w-8 text-muted-foreground hover:text-destructive transition-colors" 
-              onClick={onClear}
-            >
-              <Trash2 size={16} />
-            </Button>
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              className="h-8 w-8 text-primary hover:bg-primary/10 transition-colors" 
-              onClick={onClose}
-            >
-              <X size={24} strokeWidth={2.5} />
-            </Button>
-          </div>
-         </CardHeader>
-         <CardContent className="p-4 flex-1 overflow-hidden">
-          {children}
-         </CardContent>
-      </Card>
-    </div>
+    <>
+      {/* Backdrop to close when clicking outside */}
+      <div 
+        className="fixed inset-0 z-[105] bg-black/5 backdrop-blur-[1px]" 
+        onClick={onClose}
+      />
+      <div
+        ref={boxRef}
+        className="fixed z-[110] w-[85vw] max-w-[320px] h-[40vh]"
+        style={{ left: `${position.x}px`, top: `${position.y}px`, touchAction: 'none' }}
+      >
+        <Card className="h-full shadow-2xl bg-card/90 backdrop-blur-[18px] border border-accent/20 flex flex-col overflow-hidden rounded-2xl">
+           <CardHeader 
+             onMouseDown={onDragStart} 
+             onTouchStart={onDragStart}
+             className="cursor-move p-3 flex flex-row items-center justify-between border-b border-accent/10 flex-shrink-0"
+           >
+            <span className="font-bold text-xs uppercase tracking-wider opacity-90">Quick Notepad</span>
+            <div className="flex items-center gap-1">
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="h-8 w-8 text-muted-foreground hover:text-destructive transition-colors" 
+                onClick={onClear}
+              >
+                <Trash2 size={16} />
+              </Button>
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="h-8 w-8 text-primary hover:bg-primary/10 transition-colors" 
+                onClick={onClose}
+              >
+                <X size={24} strokeWidth={2.5} />
+              </Button>
+            </div>
+           </CardHeader>
+           <CardContent className="p-4 flex-1 overflow-hidden">
+            {children}
+           </CardContent>
+        </Card>
+      </div>
+    </>
   );
 };
 
