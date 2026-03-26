@@ -49,4 +49,4 @@ Security is handled by keeping everything off the grid.
 4.  Launch **Duey** and start tracking!
 
 ---
-*Built with ❤️ to solve my own forgetfulness.*
+*Built with <3 to solve my own forgetfulness.*
