@@ -1,4 +1,4 @@
-# Duey 💰
+# Duey 
 **A personal, offline-first debt and transit tracker.**
 
 [![Download APK](https://img.shields.io/badge/Download-APK-green?style=for-the-badge&logo=android)](https://github.com/KiroshenNaidu/Duey/releases/download/v.1.1/Deuy_V1.1.apk)
@@ -8,7 +8,7 @@
 
 ---
 
-## 🔒 Privacy First (100% Offline)
+## Privacy First (100% Offline)
 Security is handled by keeping everything off the grid.
 *   **No Internet Required:** The app has zero online connectivity.
 *   **Local Storage:** All your data is saved in a simple **JSON file** directly on your phone.
@@ -16,25 +16,25 @@ Security is handled by keeping everything off the grid.
 
 ---
 
-## 🚀 Key Features
+##  Key Features
 
-### 💵 Debt Management
+### Debt Management
 *   **Track Balances:** Add entries for money owed and manually update them as you pay them off.
 *   **Progress Tracking:** See exactly how much is left on any specific debt at a glance.
 *   **Notes:** Each entry has a small notes button to jot down specific details or reminders.
 
-### 🚌 Transportation Calculator
+### Transportation Calculator
 *   **Calendar Integration:** A custom calendar where you can tap the days you traveled to work.
 *   **Auto-Calc:** It automatically calculates the total amount you owe for transportation based on the days you've selected.
 
-### 📊 Stats & Utilities
+### Stats & Utilities
 *   **Payment History:** A dedicated stats page showing when you paid, how much you paid, and your historical trends.
 *   **Built-in Calculator:** A convenient calculator is baked into the app so you don't have to switch between apps to do math.
 *   **Custom Themes:** Fully customizable UI—change the colors and look to match your personal style.
 
 ---
 
-## 🛠 Tech Stack
+## Tech Stack
 *   **Frontend:** Next.js & TypeScript
 *   **Mobile Bridge:** Capacitor (Cross-platform)
 *   **Build Tool:** Android Studio
@@ -42,7 +42,7 @@ Security is handled by keeping everything off the grid.
 
 ---
 
-## 📲 Installation
+## Installation
 1.  Download the latest APK from the [Releases Page](https://github.com/KiroshenNaidu/Duey/releases/latest).
 2.  Open the `.apk` file on your Android device.
 3.  You may need to "Allow installation from unknown sources" in your settings.
