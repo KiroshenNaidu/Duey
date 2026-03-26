@@ -1,32 +1,52 @@
-Debt & Transit Tracker
-Note: I built this app purely for myself. I have a pretty bad memory, and I needed a simple, reliable way to keep track of what I owe and when I traveled without relying on scattered notes or mental math.
-A lightweight, offline-first tracking application built with Next.js, TypeScript, and Capacitor. This app is designed to help you manage personal debts and calculate transportation costs with absolute privacy.
-📱 Download & Install
-Since this is a personal project, it is not on the Play Store. You can download the latest version directly from the GitHub Releases page:
-[![Download APK](https://img.shields.io/badge/Download-APK-green?style=for-the-badge&logo=android)](https://github.com/KiroshenNaidu/Duey/releases/latest)
-Note: You may need to "Allow installation from unknown sources" in your Android settings to install the APK.
-🚀 Key Features
-1. Debt Tracking
-Manual Entry: Quickly add who you owe and the total amount.
-Progress Tracking: Manually update your balance as you make payments.
-Visual Stats: A dedicated stats page to see your payment history, when you paid, and your overall progress.
-2. Transportation & Calendar
-Work Log: Use the built-in calendar to select the days you traveled to work.
-Automated Calculation: The app calculates exactly how much you owe for transportation based on your custom daily rate.
-3. Utility Tools
-Built-in Calculator: Quickly crunch numbers without leaving the app.
-Quick Notes: A small notes button on each entry for reminders or specific details about a debt.
-4. Custom Themes
-Personalized UI: Full control over the app's look and feel with custom theme settings.
-🔒 Security & Privacy (100% Offline)
-This app is built for maximum privacy:
-No Internet Required: The app runs purely locally. There are no servers, no cloud sync, and no tracking.
-Local Storage: All data is saved in a JSON file directly on your phone’s internal storage via Capacitor.
-Data Ownership: Your data never leaves your device. If you delete the app or its data, the information is gone.
-🛠 Tech Stack
-Framework: Next.js (React)[1]
-Language: TypeScript
-Mobile Bridge: Capacitor (to convert the web app into a native Android app)[2]
-Native Build: Compiled using Android Studio
-Storage: Local JSON filesystem
-Created to help a forgetful mind keep things organized.
+# Duey 💰
+**A personal, offline-first debt and transit tracker.**
+
+[![Download APK](https://img.shields.io/badge/Download-APK-green?style=for-the-badge&logo=android)](https://github.com/KiroshenNaidu/Duey/releases/download/v.1.1/Deuy_V1.1.apk)
+
+> **Why I built this:** 
+> I have a pretty bad memory. I needed a simple, reliable way to keep track of what I owe and when I traveled to work without relying on scattered notes or mental math. I built Duey purely for myself to stay organized, but feel free to use it if you find it helpful!
+
+---
+
+## 🔒 Privacy First (100% Offline)
+Security is handled by keeping everything off the grid.
+*   **No Internet Required:** The app has zero online connectivity.
+*   **Local Storage:** All your data is saved in a simple **JSON file** directly on your phone.
+*   **Zero Tracking:** No analytics, no cloud, no databases. Your data never leaves your device.
+
+---
+
+## 🚀 Key Features
+
+### 💵 Debt Management
+*   **Track Balances:** Add entries for money owed and manually update them as you pay them off.
+*   **Progress Tracking:** See exactly how much is left on any specific debt at a glance.
+*   **Notes:** Each entry has a small notes button to jot down specific details or reminders.
+
+### 🚌 Transportation Calculator
+*   **Calendar Integration:** A custom calendar where you can tap the days you traveled to work.
+*   **Auto-Calc:** It automatically calculates the total amount you owe for transportation based on the days you've selected.
+
+### 📊 Stats & Utilities
+*   **Payment History:** A dedicated stats page showing when you paid, how much you paid, and your historical trends.
+*   **Built-in Calculator:** A convenient calculator is baked into the app so you don't have to switch between apps to do math.
+*   **Custom Themes:** Fully customizable UI—change the colors and look to match your personal style.
+
+---
+
+## 🛠 Tech Stack
+*   **Frontend:** Next.js & TypeScript
+*   **Mobile Bridge:** Capacitor (Cross-platform)
+*   **Build Tool:** Android Studio
+*   **Data:** Local JSON File System
+
+---
+
+## 📲 Installation
+1.  Download the latest APK from the [Releases Page](https://github.com/KiroshenNaidu/Duey/releases/latest).
+2.  Open the `.apk` file on your Android device.
+3.  You may need to "Allow installation from unknown sources" in your settings.
+4.  Launch **Duey** and start tracking!
+
+---
+*Built with ❤️ to solve my own forgetfulness.*
