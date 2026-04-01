@@ -1,5 +1,5 @@
 # Duey 
-**A personal, offline-first debt and transit tracker.**
+**A personal, debt and transit tracker.**
 
 [![Download APK](https://img.shields.io/badge/Download-APK-green?style=for-the-badge&logo=android)](https://github.com/KiroshenNaidu/Duey/releases/download/v.1.1/Deuy_V1.1.apk)
 
@@ -46,8 +46,8 @@ Security is handled by keeping everything off the grid.
 ## Installation
 1.  Download the latest APK from the [Releases Page](https://github.com/KiroshenNaidu/Duey/releases/latest).
 2.  Open the `.apk` file on your Android device.
-3.  You may need to "Allow installation from unknown sources" in your settings.
-4.  Launch **Duey** and start tracking!
+3.  You may need to "Allow installation from unknown sources" in your settings as well as tellin Google this file is safe to install, Google will warn against it since its just a raw APK and typically is dangerous(in the context of downloading files from the internet...) so act with caution, me saying "trust me bro, just download my app is safe" is naturally, not something people would believe, so install if you trust the file, dont install if you dont, I wouldnt blame you lmao.
+4.  Launch **Duey** and look you debts in shame.
 
 ---
 *Built with <3 to solve my own forgetfulness.*
