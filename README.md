@@ -13,7 +13,6 @@
 Security is handled by keeping everything off the grid.
 *   **No Internet Required:** The app has zero online connectivity.
 *   **Local Storage:** All your data is saved in a simple **JSON file** directly on your phone.
-*   **Zero Tracking:** No analytics, no cloud, no databases. Your data never leaves your device.
 
 ---
 
@@ -29,9 +28,13 @@ Security is handled by keeping everything off the grid.
 *   **Auto-Calc:** It automatically calculates the total amount you owe for transportation based on the days you've selected.
 
 ### Stats & Utilities
-*   **Payment History:** A dedicated stats page showing when you paid, how much you paid, and your historical trends.
-*   **Built-in Calculator:** A convenient calculator is baked into the app so you don't have to switch between apps to do math.
-*   **Custom Themes:** Fully customizable UI—change the colors and look to match your personal style.
+*   **Payment History:** A dedicated stats page showing when you paid, how much you paid, and when you paid. (not as reputable as a bank statement obviously)
+*   **Built-in Calculator:** A calculator is baked into the app so you don't have to switch between apps to do math.
+*   **Custom Themes:** Fully customizable UI—change the colors and look to match your personal style and upload whatever image you wish for your background
+
+---
+  
+*   **BUG:** So small warning, i couldnt fix this but since its a small bug its not something I personally would want to lose (more) hair over, basically when you update the theme, an incomplete Debts page renders instead of the settings page, so just close the app and re-open it, it fixes itself pretty well and your theme will still be saved.
 
 ---
 
