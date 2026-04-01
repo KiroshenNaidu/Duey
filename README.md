@@ -46,7 +46,7 @@ Security is handled by keeping everything off the grid.
 ## Installation
 1.  Download the latest APK from the [Releases Page](https://github.com/KiroshenNaidu/Duey/releases/latest).
 2.  Open the `.apk` file on your Android device.
-3.  You may need to "Allow installation from unknown sources" in your settings as well as tellin Google this file is safe to install, Google will warn against it since its just a raw APK and typically is dangerous(in the context of downloading files from the internet...) so act with caution, me saying "trust me bro, just download my app is safe" is naturally, not something people would believe, so install if you trust the file, dont install if you dont, I wouldnt blame you lmao.
+3.  You may need to "Allow installation from unknown sources" in your settings as well as telling Google this file is safe to install, Google will warn against it since its just a raw APK and typically is dangerous(in the context of downloading files from the internet from strangers...) so act with caution, me saying "trust me bro, just download my app its safe" is naturally, not something people would believe, so install if you trust the file, dont install if you dont, I wouldnt blame you lmao.
 4.  Launch **Duey** and look you debts in shame.
 
 ---
