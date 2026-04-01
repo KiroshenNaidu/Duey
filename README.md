@@ -4,7 +4,8 @@
 [![Download APK](https://img.shields.io/badge/Download-APK-green?style=for-the-badge&logo=android)](https://github.com/KiroshenNaidu/Duey/releases/download/v.1.1/Deuy_V1.1.apk)
 
 > **Why I built this:** 
-> I have a pretty bad memory. I needed a simple, reliable way to keep track of what I owe and when I traveled to work without relying on scattered notes or mental math. I built Duey purely for myself to stay organized, but feel free to use it if you find it helpful!
+> I have a pretty bad memory. I needed a simple way to keep track of what I owe and when I traveled to work without relying on scattered notes or mental math. I built Duey purely for myself to stay organized, but feel free to use it if you find it helpful!
+> Heads up, the lower navigation bars **might** look a little larger for you if your device is utilsing the **Swipe Gestures**, I pretty much just added padding to the top and bottom so it sits well on devices that use the **Home Button Navigation** (as thats what I use).
 
 ---
 
