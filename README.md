@@ -5,7 +5,7 @@
 
 > **Why I built this:** 
 > I have a pretty bad memory. I needed a simple way to keep track of what I owe and when I traveled to work without relying on scattered notes or mental math. I built Duey purely for myself to stay organized, but feel free to use it if you find it helpful!
-> Heads up, the lower navigation bars **might** look a little larger for you if your device is utilsing the **Swipe Gestures**, I pretty much just added padding to the top and bottom so it sits well on devices that use the **Home Button Navigation** (as thats what I use).
+> Heads up, the lower navigation bars **might** look a little larger for you if your device is utilsing the **Swipe Gestures**, I pretty much just added padding to the top and bottom so it sits well on devices that use the **Home Button Navigation** (as thats what I use), also since im based in SA I didnt think of adding support for different countries currency, itll be stuck at ZAR (R) by default, youu can edit this yourself if you wish, but it doesnt really change much since the numbers will still be calculated the same regardless of currency.
 
 ---
 
@@ -21,7 +21,7 @@ Security is handled by keeping everything off the grid.
 ### Debt Management
 *   **Track Balances:** Add entries for money owed and manually update them as you pay them off.
 *   **Progress Tracking:** See exactly how much is left on any specific debt at a glance.
-*   **Notes:** Each entry has a small notes button to jot down specific details or reminders.
+*   **Notes:** There's small notes button to jot down specific details or reminders.
 
 ### Transportation Calculator
 *   **Calendar Integration:** A custom calendar where you can tap the days you traveled to work.
