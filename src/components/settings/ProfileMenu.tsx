@@ -5,12 +5,14 @@ import { AppDataContext } from '@/context/AppDataContext';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 
 export function ProfileMenu() {
   const { userProfile, setUserProfile } = useContext(AppDataContext);
 
   const [name, setName] = useState(userProfile.name);
   const [paydayDay, setPaydayDay] = useState(userProfile.paydayDay.toString());
+  const [bio, setBio] = useState(userProfile.bio ?? '');
 
   const saveName = () => {
     if (name.trim() !== userProfile.name) {
@@ -24,6 +26,12 @@ export function ProfileMenu() {
       setUserProfile({ ...userProfile, paydayDay: day });
     } else {
       setPaydayDay(userProfile.paydayDay.toString());
+    }
+  };
+
+  const saveBio = () => {
+    if (bio.trim() !== (userProfile.bio ?? '')) {
+      setUserProfile({ ...userProfile, bio: bio.trim() });
     }
   };
 
@@ -67,6 +75,18 @@ export function ProfileMenu() {
                 You get paid on the {ordinal(parseInt(paydayDay, 10))} of each month
               </p>
             )}
+          </div>
+
+          <div className="space-y-1.5">
+            <Label className="text-xs">About me</Label>
+            <Textarea
+              placeholder="e.g., Saving towards a debt-free life..."
+              value={bio}
+              onChange={e => setBio(e.target.value)}
+              onBlur={saveBio}
+              rows={3}
+              className="resize-none text-sm"
+            />
           </div>
         </CardContent>
       </Card>

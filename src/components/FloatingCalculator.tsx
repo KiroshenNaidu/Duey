@@ -144,7 +144,6 @@ export function FloatingCalculator({ isOpen, onClose }: { isOpen: boolean; onClo
   const [expression, setExpression] = useState('');
   const [isResult, setIsResult] = useState(false);
   const [history, setHistory] = useState<string[]>([]);
-  const historyRef = useRef<HTMLDivElement>(null);
 
   const endsWithOp = (expr: string) => isOp(expr.slice(-1));
 
@@ -155,20 +154,40 @@ export function FloatingCalculator({ isOpen, onClose }: { isOpen: boolean; onClo
       setIsResult(false);
       return;
     }
+    // If display currently holds an operator, start a fresh number (don't concatenate onto the symbol)
+    if (isOp(display)) {
+      setDisplay(value === '.' ? '0.' : value);
+      return;
+    }
     if (value === '.' && display.includes('.')) return;
     setDisplay(prev => (prev === '0' && value !== '.') ? value : prev + value);
   }, [display, isResult]);
 
   const handleOperator = useCallback((op: string) => {
-    const base = isResult ? display : expression + display;
-    setExpression(endsWithOp(base) ? base.slice(0, -1) + op : base + op);
+    if (isResult) {
+      setExpression(display + op);
+      setDisplay(op);
+      setIsResult(false);
+      return;
+    }
+    if (isOp(display)) {
+      // Swap the pending operator — don't double-append
+      setExpression(prev => (endsWithOp(prev) ? prev.slice(0, -1) : prev) + op);
+      setDisplay(op);
+      return;
+    }
+    // Commit current number to expression, then append operator
+    const newExpr = expression + display;
+    setExpression(newExpr + op);
     setDisplay(op);
     setIsResult(false);
   }, [display, expression, isResult]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleEquals = useCallback(() => {
-    if (isResult || endsWithOp(expression)) return;
+    // Can't evaluate if display is an operator or we just got a result
+    if (isResult || isOp(display)) return;
     const fullExpr = expression + display;
+    if (endsWithOp(fullExpr) || fullExpr === '' || fullExpr === '0') return;
     try {
       const raw = fullExpr.replace(/×/g, '*').replace(/÷/g, '/').replace(/−/g, '-');
       const result = safeCalculate(raw);
@@ -192,8 +211,14 @@ export function FloatingCalculator({ isOpen, onClose }: { isOpen: boolean; onClo
 
   const handleBackspace = useCallback(() => {
     if (isResult) { handleClear(); return; }
+    if (isOp(display)) {
+      // Remove the pending operator from expression and reset display
+      setExpression(prev => endsWithOp(prev) ? prev.slice(0, -1) : prev);
+      setDisplay('0');
+      return;
+    }
     setDisplay(prev => (prev === 'Error' || prev.length <= 1) ? '0' : prev.slice(0, -1));
-  }, [isResult, handleClear]);
+  }, [isResult, display, handleClear]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handlePlusMinus = useCallback(() => {
     if (display === '0' || isOp(display)) return;
@@ -206,10 +231,6 @@ export function FloatingCalculator({ isOpen, onClose }: { isOpen: boolean; onClo
     setDisplay(String(parseFloat((num / 100).toPrecision(12))));
   }, [display]);
 
-  useEffect(() => {
-    if (historyRef.current) historyRef.current.scrollTop = 0;
-  }, [history]);
-
   const displaySize = display.length > 11 ? 'text-xl' : display.length > 8 ? 'text-2xl' : 'text-[2.4rem]';
 
   const num = "h-12 text-[15px] font-semibold rounded-2xl bg-card hover:bg-accent/5 border border-accent/10 shadow-sm transition-transform active:scale-95 duration-75 select-none";
@@ -217,48 +238,47 @@ export function FloatingCalculator({ isOpen, onClose }: { isOpen: boolean; onClo
   const fn  = "h-12 text-[13px] font-semibold rounded-2xl bg-foreground/8 text-foreground/60 hover:bg-foreground/12 border border-accent/10 shadow-sm transition-transform active:scale-95 duration-75 select-none";
   const eq  = "h-12 text-[15px] font-bold rounded-2xl bg-accent text-accent-foreground hover:bg-accent/85 shadow-sm transition-transform active:scale-95 duration-75 select-none";
 
-  // Highlight active operator
-  const activeOp = !isResult && expression.length > 0 ? expression.slice(-1) : '';
+  // Highlight the active operator button only while waiting for the next number
+  const activeOp = !isResult && isOp(display) ? display : '';
 
   return (
     <DraggableCard onClose={onClose} isOpen={isOpen}>
       <div className="space-y-2">
 
-        {/* History */}
+        {/* History — latest entry only, with clear button */}
         {history.length > 0 && (
-          <div ref={historyRef} className="max-h-12 overflow-y-auto space-y-0.5">
-            {history.map((entry, idx) => (
-              <button
-                key={idx}
-                onClick={() => {
-                  const result = entry.split('=').pop()?.trim() ?? '';
-                  setDisplay(result);
-                  setExpression('');
-                  setIsResult(true);
-                }}
-                className="w-full text-right text-[10px] font-mono text-muted-foreground/40 hover:text-muted-foreground/70 truncate px-1 py-px transition-colors leading-4"
-              >
-                {entry}
-              </button>
-            ))}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setHistory([])}
+              className="text-muted-foreground/25 hover:text-muted-foreground/60 transition-colors p-1 rounded-lg active:scale-90 text-xs leading-none shrink-0"
+              aria-label="Clear history"
+            >
+              ✕
+            </button>
+            <p className="flex-1 text-right text-[10px] font-mono text-muted-foreground/40 truncate leading-4 select-none">
+              {history[0]}
+            </p>
           </div>
         )}
 
         {/* Display */}
-        <div className="relative bg-background/50 rounded-2xl px-4 pt-2 pb-3 border border-accent/5">
-          <div className="text-[10px] text-muted-foreground/35 font-mono h-4 text-right truncate tracking-wider mt-1 select-none">
+        <div className="bg-background/50 rounded-2xl px-4 pt-3 pb-4 border border-accent/5">
+          {/* ⌫ in its own row — never overlaps expression or result text */}
+          <div className="flex justify-end mb-1">
+            <button
+              onPointerDown={(e) => { e.stopPropagation(); handleBackspace(); }}
+              className="text-muted-foreground/30 hover:text-muted-foreground/60 transition-colors px-2 py-0.5 rounded-lg active:scale-90 text-base leading-none"
+              aria-label="Backspace"
+            >
+              ⌫
+            </button>
+          </div>
+          <div className="text-[11px] text-muted-foreground/40 font-mono min-h-[16px] text-right truncate tracking-wider select-none">
             {expression || ' '}
           </div>
-          <div className={cn('font-bold text-right font-mono tracking-tight transition-all leading-none mt-1', displaySize)}>
+          <div className={cn('font-bold text-right font-mono tracking-tight transition-all leading-tight mt-1', displaySize)}>
             {display}
           </div>
-          <button
-            onPointerDown={(e) => { e.stopPropagation(); handleBackspace(); }}
-            className="absolute top-2 right-2 text-muted-foreground/30 hover:text-muted-foreground/60 transition-colors p-1.5 rounded-lg active:scale-90"
-            aria-label="Backspace"
-          >
-            ⌫
-          </button>
         </div>
 
         {/* Button grid */}

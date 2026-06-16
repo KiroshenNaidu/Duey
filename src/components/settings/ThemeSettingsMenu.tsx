@@ -1,6 +1,7 @@
 'use client';
-import { useState, useEffect, useRef, useContext, useMemo } from 'react';
-import type { ThemeSettings, UserTheme } from '@/lib/types';
+import { useState, useEffect, useRef, useContext, useMemo, useCallback } from 'react';
+import type { ThemeSettings, UserTheme, FontFamily } from '@/lib/types';
+import { FONT_VAR_MAP } from '@/components/ThemeProvider';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -115,10 +116,7 @@ export function ThemeSettingsMenu({ onBack }: { onBack?: () => void }) {
     root.style.setProperty('--accent', previewTheme.accent);
     root.style.setProperty('--foreground', previewTheme.foreground);
     root.style.setProperty('--accent-foreground', previewTheme.accentForeground);
-    root.style.setProperty('--font-family',
-      previewTheme.font === 'Inter' ? 'var(--font-inter)' :
-      previewTheme.font === 'Serif' ? 'serif' : 'monospace'
-    );
+    root.style.setProperty('--font-family', FONT_VAR_MAP[previewTheme.font] ?? 'var(--font-inter)');
     const bgDiv = document.getElementById('global-bg-image');
     const overlayDiv = document.getElementById('global-bg-overlay');
     if (bgDiv) bgDiv.style.backgroundImage = previewTheme.backgroundImage ? `url(${previewTheme.backgroundImage})` : 'none';
@@ -196,6 +194,23 @@ export function ThemeSettingsMenu({ onBack }: { onBack?: () => void }) {
     userThemes.some(p => areThemeSettingsEqual(p.settings, currentActiveSettings)),
   [currentActiveSettings, userThemes]);
 
+  // ── Color editor state ──
+  type ColorField = keyof Pick<ThemeSettings, 'background' | 'surface' | 'primary' | 'accent' | 'foreground' | 'accentForeground'>;
+  const [colorEditor, setColorEditor] = useState<{ field: ColorField; h: number; s: number; l: number } | null>(null);
+
+  const openColorEditor = (field: ColorField) => {
+    const [h, s, l] = parseHsl(previewTheme[field] as string);
+    setColorEditor({ field, h, s, l });
+  };
+
+  const updateEditorHsl = useCallback((h: number, s: number, l: number) => {
+    setColorEditor(prev => {
+      if (!prev) return null;
+      setPreviewTheme(pt => ({ ...pt, [prev.field]: `${Math.round(h)} ${Math.round(s)}% ${Math.round(l)}%` }));
+      return { ...prev, h, s, l };
+    });
+  }, []);
+
   if (!isClient) return null;
 
   const ColorSwatch = ({
@@ -203,26 +218,20 @@ export function ThemeSettingsMenu({ onBack }: { onBack?: () => void }) {
     field,
   }: {
     label: string;
-    field: keyof Pick<ThemeSettings, 'background' | 'surface' | 'primary' | 'accent' | 'foreground' | 'accentForeground'>;
+    field: ColorField;
   }) => {
     const hex = hslToHex(...parseHsl(previewTheme[field] as string));
-    const inputId = `color-${field}`;
     return (
-      <label htmlFor={inputId} className="flex flex-col items-center gap-2 cursor-pointer group">
+      <button
+        onClick={() => openColorEditor(field)}
+        className="flex flex-col items-center gap-2 group"
+      >
         <div
-          className="w-full h-14 rounded-2xl border-2 border-accent/10 shadow-sm relative overflow-hidden transition-transform active:scale-95 group-hover:border-accent/30"
+          className="w-full h-14 rounded-2xl border-2 border-accent/10 shadow-sm transition-transform active:scale-95 group-hover:border-accent/30"
           style={{ backgroundColor: hex }}
-        >
-          <input
-            id={inputId}
-            type="color"
-            value={hex}
-            onChange={e => handleColorChange(field, e.target.value)}
-            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-          />
-        </div>
+        />
         <span className="text-[11px] text-muted-foreground/70 font-medium">{label}</span>
-      </label>
+      </button>
     );
   };
 
@@ -415,13 +424,18 @@ export function ThemeSettingsMenu({ onBack }: { onBack?: () => void }) {
             <CardContent>
               <Select
                 value={previewTheme.font}
-                onValueChange={(v: 'Inter' | 'Serif' | 'Mono') => setPreviewTheme(p => ({ ...p, font: v }))}
+                onValueChange={(v: FontFamily) => setPreviewTheme(p => ({ ...p, font: v }))}
               >
                 <SelectTrigger className="w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="Inter">Modern (Inter)</SelectItem>
+                  <SelectItem value="Nunito">Rounded (Nunito)</SelectItem>
+                  <SelectItem value="Lexend">Clear (Lexend)</SelectItem>
+                  <SelectItem value="DM Sans">Clean (DM Sans)</SelectItem>
+                  <SelectItem value="Space Grotesk">Sharp (Space Grotesk)</SelectItem>
+                  <SelectItem value="Playfair">Elegant (Playfair)</SelectItem>
                   <SelectItem value="Serif">Classic (Serif)</SelectItem>
                   <SelectItem value="Mono">Technical (Mono)</SelectItem>
                 </SelectContent>
@@ -535,6 +549,56 @@ export function ThemeSettingsMenu({ onBack }: { onBack?: () => void }) {
           </Button>
         </TabsContent>
       </Tabs>
+
+      {/* Color editor dialog */}
+      <Dialog open={!!colorEditor} onOpenChange={(open) => !open && setColorEditor(null)}>
+        <DialogContent className="sm:max-w-[320px]">
+          <DialogHeader>
+            <DialogTitle>Edit Color</DialogTitle>
+          </DialogHeader>
+          {colorEditor && (
+            <div className="space-y-5 py-1">
+              {/* Preview */}
+              <div
+                className="h-14 rounded-2xl border border-accent/10 shadow-inner"
+                style={{ backgroundColor: hslToHex(colorEditor.h, colorEditor.s, colorEditor.l) }}
+              />
+              <p className="text-center text-xs font-mono text-muted-foreground -mt-3">
+                {hslToHex(colorEditor.h, colorEditor.s, colorEditor.l).toUpperCase()}
+              </p>
+              {/* Sliders */}
+              {([
+                { label: 'Hue', key: 'h' as const, min: 0, max: 359, unit: '°' },
+                { label: 'Saturation', key: 's' as const, min: 0, max: 100, unit: '%' },
+                { label: 'Lightness', key: 'l' as const, min: 0, max: 100, unit: '%' },
+              ] as const).map(({ label, key, min, max, unit }) => (
+                <div key={key} className="space-y-1.5">
+                  <div className="flex justify-between items-center">
+                    <Label className="text-xs">{label}</Label>
+                    <span className="text-xs tabular-nums font-mono text-muted-foreground">
+                      {Math.round(colorEditor[key])}{unit}
+                    </span>
+                  </div>
+                  <Slider
+                    min={min} max={max} step={1}
+                    value={[colorEditor[key]]}
+                    onValueChange={([v]) => updateEditorHsl(
+                      key === 'h' ? v : colorEditor.h,
+                      key === 's' ? v : colorEditor.s,
+                      key === 'l' ? v : colorEditor.l,
+                    )}
+                  />
+                </div>
+              ))}
+            </div>
+          )}
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button className="w-full">Done</Button>
+            </DialogClose>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Save preset dialog */}
       <Dialog open={isSaveDialogOpen} onOpenChange={setIsSaveDialogOpen}>

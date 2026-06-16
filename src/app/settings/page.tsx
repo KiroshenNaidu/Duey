@@ -57,9 +57,13 @@ const ProfileHeroCard = ({ onEdit }: { onEdit: () => void }) => {
         <p className="text-lg font-bold text-foreground truncate leading-tight">
           {userProfile.name.trim() || 'Set your name'}
         </p>
-        <p className="text-xs text-muted-foreground mt-0.5">
-          Payday: {ordinal(userProfile.paydayDay)} of each month
-        </p>
+        {userProfile.bio?.trim() ? (
+          <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{userProfile.bio}</p>
+        ) : (
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Payday: {ordinal(userProfile.paydayDay)} of each month
+          </p>
+        )}
       </div>
       <button
         onClick={onEdit}

@@ -26,7 +26,9 @@ function migrateState(raw: AppState): AppState {
     uberRides: raw.uberRides ?? [],
     budgetPlans: raw.budgetPlans ?? [],
     monthlyIncome: raw.monthlyIncome ?? 0,
-    userProfile: raw.userProfile ?? { name: '', paydayDay: 26 },
+    userProfile: raw.userProfile
+      ? { name: raw.userProfile.name ?? '', paydayDay: raw.userProfile.paydayDay ?? 26, bio: raw.userProfile.bio ?? '' }
+      : { name: '', paydayDay: 26, bio: '' },
     notificationSettings: raw.notificationSettings ?? { enabled: false, paydayDay: 26, hour: 18, minute: 0 },
     schemaVersion: CURRENT_SCHEMA_VERSION,
   };
@@ -41,7 +43,7 @@ const defaultState: AppState = {
   uberRides: [],
   budgetPlans: [],
   monthlyIncome: 0,
-  userProfile: { name: '', paydayDay: 26 },
+  userProfile: { name: '', paydayDay: 26, bio: '' },
   notificationSettings: { enabled: false, paydayDay: 26, hour: 18, minute: 0 },
   themeSettings: {
     background: '223 13% 10%',

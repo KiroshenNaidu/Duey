@@ -2,14 +2,26 @@
 
 import { ReactNode, useEffect, useState, useContext } from 'react';
 import { idbGet } from '@/lib/utils';
-import { Inter } from 'next/font/google';
+import { Inter, Nunito, Lexend, DM_Sans, Space_Grotesk, Playfair_Display } from 'next/font/google';
 import { AppDataContext } from '@/context/AppDataContext';
 
-const inter = Inter({
-  subsets: ['latin'],
-  variable: '--font-inter',
-  display: 'swap',
-});
+const inter         = Inter          ({ subsets: ['latin'], variable: '--font-inter',         display: 'swap' });
+const nunito        = Nunito         ({ subsets: ['latin'], variable: '--font-nunito',        display: 'swap' });
+const lexend        = Lexend         ({ subsets: ['latin'], variable: '--font-lexend',        display: 'swap' });
+const dmSans        = DM_Sans        ({ subsets: ['latin'], variable: '--font-dm-sans',       display: 'swap' });
+const spaceGrotesk  = Space_Grotesk  ({ subsets: ['latin'], variable: '--font-space-grotesk', display: 'swap' });
+const playfair      = Playfair_Display({ subsets: ['latin'], variable: '--font-playfair',     display: 'swap' });
+
+export const FONT_VAR_MAP: Record<string, string> = {
+  Inter:           'var(--font-inter)',
+  Serif:           'serif',
+  Mono:            'monospace',
+  Nunito:          'var(--font-nunito)',
+  Lexend:          'var(--font-lexend)',
+  'DM Sans':       'var(--font-dm-sans)',
+  'Space Grotesk': 'var(--font-space-grotesk)',
+  Playfair:        'var(--font-playfair)',
+};
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const { themeSettings } = useContext(AppDataContext);
@@ -20,9 +32,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     async function loadInitialImage() {
       try {
         const storedImage = await idbGet<string>('backgroundImage');
-        if (storedImage) {
-          setBackgroundImage(storedImage);
-        }
+        if (storedImage) setBackgroundImage(storedImage);
       } catch (error) {
         console.error("Failed to load background image", error);
       } finally {
@@ -33,8 +43,8 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    if (!themeSettings) return; 
-    
+    if (!themeSettings) return;
+
     const root = document.documentElement;
     root.style.setProperty('--background', themeSettings.background);
     root.style.setProperty('--card', themeSettings.surface);
@@ -43,46 +53,32 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     root.style.setProperty('--ring', themeSettings.accent);
     root.style.setProperty('--foreground', themeSettings.foreground);
     root.style.setProperty('--accent-foreground', themeSettings.accentForeground);
-    
-    if (themeSettings.font === 'Inter') {
-      root.style.setProperty('--font-family', `var(--font-inter)`);
-    } else if (themeSettings.font === 'Serif') {
-      root.style.setProperty('--font-family', 'serif');
-    } else {
-      root.style.setProperty('--font-family', 'monospace');
-    }
-    
-    document.body.style.zoom = `${themeSettings.uiScale || 1.0}`;
-    
-    const body = document.body;
-    if (backgroundImage) {
-      body.classList.add('has-bg-image');
-    } else {
-      body.classList.remove('has-bg-image');
-    }
+    root.style.setProperty('--font-family', FONT_VAR_MAP[themeSettings.font] ?? 'var(--font-inter)');
 
-    if (themeSettings.uiStyle === 'glass') {
-      body.classList.add('ui-glass');
-    } else {
-      body.classList.remove('ui-glass');
-    }
-    
+    document.body.style.zoom = `${themeSettings.uiScale || 1.0}`;
+
+    const body = document.body;
+    body.classList.toggle('has-bg-image', !!backgroundImage);
+    body.classList.toggle('ui-glass', themeSettings.uiStyle === 'glass');
   }, [themeSettings, backgroundImage, isImageReady]);
 
+  const fontClasses = [
+    inter.variable, nunito.variable, lexend.variable,
+    dmSans.variable, spaceGrotesk.variable, playfair.variable,
+  ].join(' ');
+
   return (
-    <div className={`${inter.variable}`}>
-        <>
-          <div
-            id="global-bg-image"
-            className="fixed inset-0 z-[-10] bg-cover bg-center transition-all duration-500"
-            style={{ backgroundImage: backgroundImage ? `url(${backgroundImage})` : 'none' }}
-          />
-          <div
-            id="global-bg-overlay"
-            className="fixed inset-0 z-[-9] bg-black transition-opacity duration-500"
-            style={{ opacity: backgroundImage ? themeSettings.backgroundOpacity : 0 }}
-          />
-        </>
+    <div className={fontClasses}>
+      <div
+        id="global-bg-image"
+        className="fixed inset-0 z-[-10] bg-cover bg-center transition-all duration-500"
+        style={{ backgroundImage: backgroundImage ? `url(${backgroundImage})` : 'none' }}
+      />
+      <div
+        id="global-bg-overlay"
+        className="fixed inset-0 z-[-9] bg-black transition-opacity duration-500"
+        style={{ opacity: backgroundImage ? themeSettings.backgroundOpacity : 0 }}
+      />
       {children}
     </div>
   );

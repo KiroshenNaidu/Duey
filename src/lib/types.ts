@@ -55,12 +55,14 @@ export interface BudgetPlan {
   createdAt: string;
 }
 
+export type FontFamily = 'Inter' | 'Serif' | 'Mono' | 'Nunito' | 'Lexend' | 'DM Sans' | 'Space Grotesk' | 'Playfair';
+
 export interface ThemeSettings {
   background: string;
   surface: string;
   primary: string;
   accent: string;
-  font: 'Inter' | 'Serif' | 'Mono';
+  font: FontFamily;
   backgroundImage: string;
   backgroundOpacity: number;
   foreground: string;
@@ -78,6 +80,7 @@ export interface UserTheme {
 export interface UserProfile {
   name: string;
   paydayDay: number; // 1–31
+  bio: string;
 }
 
 export interface NotificationSettings {
