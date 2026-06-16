@@ -2,6 +2,10 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Safe area inset variable — ThemeProvider toggles body.use-safe-area to switch modes */
+:root { --sab: 0px; }
+body.use-safe-area { --sab: env(safe-area-inset-bottom, 0px); }
+
 @layer base {
   :root {
     --background: 220 14% 10%;

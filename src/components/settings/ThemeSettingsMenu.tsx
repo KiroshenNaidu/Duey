@@ -11,6 +11,7 @@ import { Button, buttonVariants } from '@/components/ui/button';
 import { hexToHsl, hslToHex, idbGet, idbSet, cn } from '@/lib/utils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Upload, Loader2, Trash2, Check, Plus, Minus } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
 import { AppDataContext } from '@/context/AppDataContext';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
@@ -344,6 +345,22 @@ export function ThemeSettingsMenu({ onBack }: { onBack?: () => void }) {
                 <Button variant="outline" size="icon" className="h-10 w-10 rounded-full" onClick={() => handleScale('up')}>
                   <Plus className="h-4 w-4" />
                 </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-2"><CardTitle className="text-sm">Display</CardTitle></CardHeader>
+            <CardContent>
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label className="text-sm font-semibold">Smart Bottom Padding</Label>
+                  <p className="text-xs text-muted-foreground">Auto-adjusts for Android nav bar. Turn off for fixed padding.</p>
+                </div>
+                <Switch
+                  checked={!!previewTheme.useSafeAreaInsets}
+                  onCheckedChange={v => setPreviewTheme(pt => ({ ...pt, useSafeAreaInsets: v }))}
+                />
               </div>
             </CardContent>
           </Card>

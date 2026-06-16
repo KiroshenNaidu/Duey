@@ -60,6 +60,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     const body = document.body;
     body.classList.toggle('has-bg-image', !!backgroundImage);
     body.classList.toggle('ui-glass', themeSettings.uiStyle === 'glass');
+    body.classList.toggle('use-safe-area', !!themeSettings.useSafeAreaInsets);
   }, [themeSettings, backgroundImage, isImageReady]);
 
   const fontClasses = [

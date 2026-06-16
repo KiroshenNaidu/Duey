@@ -160,7 +160,8 @@ export function QuickNotepad() {
       <Button
         variant="outline"
         size="icon"
-        className="fixed bottom-[50px] right-4 z-[60] h-12 w-12 rounded-full shadow-lg bg-card border-2 border-accent/30"
+        className="fixed right-4 z-[60] h-12 w-12 rounded-full shadow-lg bg-card border-2 border-accent/30"
+        style={{ bottom: 'calc(50px + var(--sab))' }}
         onClick={() => setIsOpen(prev => !prev)}
       >
         <StickyNote className="h-5 w-5" />

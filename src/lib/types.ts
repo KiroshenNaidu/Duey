@@ -69,6 +69,7 @@ export interface ThemeSettings {
   accentForeground: string;
   uiScale: number;
   uiStyle: 'solid' | 'glass';
+  useSafeAreaInsets?: boolean;
 }
 
 export interface UserTheme {
