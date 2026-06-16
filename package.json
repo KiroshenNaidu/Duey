@@ -8,7 +8,8 @@
     "start": "npx serve out",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
-    "android": "npx cap open android"
+    "android": "npx cap open android",
+    "sync:android": "next build && npx cap sync android"
   },
   "dependencies": {
     "@capacitor/android": "^7.0.0",
@@ -50,7 +51,6 @@
     "jspdf": "^4.2.1",
     "lucide-react": "^0.475.0",
     "next": "15.5.9",
-    "patch-package": "^8.0.0",
     "react": "^19.2.1",
     "react-day-picker": "^9.11.3",
     "react-dom": "^19.2.1",
@@ -63,6 +63,7 @@
   },
   "devDependencies": {
     "@types/node": "^20",
+    "patch-package": "^8.0.0",
     "@types/react": "^19.2.1",
     "@types/react-dom": "^19.2.1",
     "postcss": "^8",

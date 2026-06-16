@@ -135,10 +135,12 @@ export function QuickNotepad() {
   const [localContent, setLocalContent] = useState(notepadContent);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
-  // Sync local content when the notepad opens so it reflects persisted state
+  // Sync local content when the notepad opens so it reflects persisted state.
+  // notepadContent intentionally omitted from deps — including it would reset mid-edit content on every keystroke.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (isOpen) setLocalContent(notepadContent);
-  }, [isOpen]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [isOpen]);
 
   // Cleanup pending debounce on unmount
   useEffect(() => () => clearTimeout(debounceRef.current), []);

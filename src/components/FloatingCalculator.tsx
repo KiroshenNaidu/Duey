@@ -181,7 +181,8 @@ export function FloatingCalculator({ isOpen, onClose }: { isOpen: boolean; onClo
     setExpression(newExpr + op);
     setDisplay(op);
     setIsResult(false);
-  }, [display, expression, isResult]); // eslint-disable-line react-hooks/exhaustive-deps
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- endsWithOp/isOp are module-level pure fns, not deps; adding them causes infinite re-renders
+  }, [display, expression, isResult]);
 
   const handleEquals = useCallback(() => {
     // Can't evaluate if display is an operator or we just got a result
@@ -201,7 +202,8 @@ export function FloatingCalculator({ isOpen, onClose }: { isOpen: boolean; onClo
       setExpression('');
       setIsResult(false);
     }
-  }, [display, expression, isResult]); // eslint-disable-line react-hooks/exhaustive-deps
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- same as handleOperator; endsWithOp/safeCalculate are pure module fns
+  }, [display, expression, isResult]);
 
   const handleClear = useCallback(() => {
     setDisplay('0');
@@ -218,7 +220,8 @@ export function FloatingCalculator({ isOpen, onClose }: { isOpen: boolean; onClo
       return;
     }
     setDisplay(prev => (prev === 'Error' || prev.length <= 1) ? '0' : prev.slice(0, -1));
-  }, [isResult, display, handleClear]); // eslint-disable-line react-hooks/exhaustive-deps
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- endsWithOp is a pure module fn; handleClear is stable (empty deps); lint false-positive
+  }, [isResult, display, handleClear]);
 
   const handlePlusMinus = useCallback(() => {
     if (display === '0' || isOp(display)) return;
