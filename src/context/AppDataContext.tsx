@@ -34,7 +34,7 @@ function migrateState(raw: AppState): AppState {
       ? { enabled: raw.notificationSettings.enabled ?? false, paydayDay: raw.notificationSettings.paydayDay ?? 26, hour: raw.notificationSettings.hour ?? 18, minute: raw.notificationSettings.minute ?? 0, message: raw.notificationSettings.message ?? 'Time to log your monthly payments.' }
       : { enabled: false, paydayDay: 26, hour: 18, minute: 0, message: 'Time to log your monthly payments.' },
     themeSettings: raw.themeSettings
-      ? { ...raw.themeSettings, useSafeAreaInsets: raw.themeSettings.useSafeAreaInsets ?? false }
+      ? { ...raw.themeSettings, useSafeAreaInsets: raw.themeSettings.useSafeAreaInsets ?? false, bgX: raw.themeSettings.bgX ?? 50, bgY: raw.themeSettings.bgY ?? 50 }
       : defaultState.themeSettings,
     schemaVersion: CURRENT_SCHEMA_VERSION,
   };
@@ -63,6 +63,8 @@ const defaultState: AppState = {
     uiScale: 1.0,
     uiStyle: 'solid',
     useSafeAreaInsets: false,
+    bgX: 50,
+    bgY: 50,
   },
   userThemes: [],
   notepadContent: '',

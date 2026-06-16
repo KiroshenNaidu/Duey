@@ -54,6 +54,8 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     root.style.setProperty('--foreground', themeSettings.foreground);
     root.style.setProperty('--accent-foreground', themeSettings.accentForeground);
     root.style.setProperty('--font-family', FONT_VAR_MAP[themeSettings.font] ?? 'var(--font-inter)');
+    root.style.setProperty('--bg-x', `${themeSettings.bgX ?? 50}%`);
+    root.style.setProperty('--bg-y', `${themeSettings.bgY ?? 50}%`);
 
     document.body.style.zoom = `${themeSettings.uiScale || 1.0}`;
 
@@ -72,13 +74,18 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     <div className={fontClasses}>
       <div
         id="global-bg-image"
-        className="fixed inset-0 z-[-10] bg-cover bg-center transition-all duration-500"
-        style={{ backgroundImage: backgroundImage ? `url(${backgroundImage})` : 'none' }}
+        className="fixed inset-0 z-[-10] bg-cover"
+        style={{
+          backgroundImage: backgroundImage ? `url(${backgroundImage})` : 'none',
+          backgroundPosition: 'var(--bg-x, 50%) var(--bg-y, 50%)',
+          willChange: 'opacity',
+          transform: 'translateZ(0)',
+        }}
       />
       <div
         id="global-bg-overlay"
         className="fixed inset-0 z-[-9] bg-black transition-opacity duration-500"
-        style={{ opacity: backgroundImage ? themeSettings.backgroundOpacity : 0 }}
+        style={{ opacity: backgroundImage ? themeSettings.backgroundOpacity : 0, willChange: 'opacity', transform: 'translateZ(0)' }}
       />
       {children}
     </div>

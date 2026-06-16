@@ -98,6 +98,9 @@ export function ThemeSettingsMenu({ onBack }: { onBack?: () => void }) {
   const [isClient, setIsClient] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const previewRef = useRef<HTMLDivElement>(null);
+  const isBgDraggingRef = useRef(false);
+  const lastBgPosRef = useRef({ x: 0, y: 0 });
   const [isSaveDialogOpen, setIsSaveDialogOpen] = useState(false);
   const [newThemeName, setNewThemeName] = useState('');
 
@@ -122,6 +125,8 @@ export function ThemeSettingsMenu({ onBack }: { onBack?: () => void }) {
     const overlayDiv = document.getElementById('global-bg-overlay');
     if (bgDiv) bgDiv.style.backgroundImage = previewTheme.backgroundImage ? `url(${previewTheme.backgroundImage})` : 'none';
     if (overlayDiv) overlayDiv.style.opacity = String(previewTheme.backgroundImage ? previewTheme.backgroundOpacity : 0);
+    root.style.setProperty('--bg-x', `${previewTheme.bgX ?? 50}%`);
+    root.style.setProperty('--bg-y', `${previewTheme.bgY ?? 50}%`);
     document.body.classList.toggle('has-bg-image', !!previewTheme.backgroundImage);
     document.body.classList.toggle('ui-glass', previewTheme.uiStyle === 'glass');
     document.body.style.zoom = `${previewTheme.uiScale}`;
@@ -160,7 +165,29 @@ export function ThemeSettingsMenu({ onBack }: { onBack?: () => void }) {
     event.target.value = '';
   };
 
-  const handleRemoveImage = () => setPreviewTheme(p => ({ ...p, backgroundImage: '' }));
+  const handleRemoveImage = () => setPreviewTheme(p => ({ ...p, backgroundImage: '', bgX: 50, bgY: 50 }));
+
+  const onBgPointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    if (!previewTheme.backgroundImage) return;
+    e.currentTarget.setPointerCapture(e.pointerId);
+    isBgDraggingRef.current = true;
+    lastBgPosRef.current = { x: e.clientX, y: e.clientY };
+  }, [previewTheme.backgroundImage]);
+
+  const onBgPointerMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    if (!isBgDraggingRef.current || !previewRef.current) return;
+    const rect = previewRef.current.getBoundingClientRect();
+    const dx = e.clientX - lastBgPosRef.current.x;
+    const dy = e.clientY - lastBgPosRef.current.y;
+    lastBgPosRef.current = { x: e.clientX, y: e.clientY };
+    setPreviewTheme(prev => ({
+      ...prev,
+      bgX: Math.min(100, Math.max(0, (prev.bgX ?? 50) + (dx / rect.width) * 100)),
+      bgY: Math.min(100, Math.max(0, (prev.bgY ?? 50) + (dy / rect.height) * 100)),
+    }));
+  }, []);
+
+  const onBgPointerUp = useCallback(() => { isBgDraggingRef.current = false; }, []);
 
   const handleSave = () => {
     const { backgroundImage, ...settingsToSave } = previewTheme;
@@ -475,15 +502,33 @@ export function ThemeSettingsMenu({ onBack }: { onBack?: () => void }) {
           <Card>
             <CardHeader className="pb-2"><CardTitle className="text-sm">Background Image</CardTitle></CardHeader>
             <CardContent className="space-y-4">
-              {/* Preview */}
+              {/* Preview — drag to reposition */}
               <div
-                className="w-full aspect-video rounded-xl bg-secondary relative overflow-hidden border border-accent/10"
-                style={{ backgroundImage: previewTheme.backgroundImage ? `url(${previewTheme.backgroundImage})` : undefined, backgroundSize: 'cover', backgroundPosition: 'center' }}
+                ref={previewRef}
+                className={cn(
+                  "w-full aspect-video rounded-xl bg-secondary relative overflow-hidden border border-accent/10",
+                  previewTheme.backgroundImage && "cursor-grab active:cursor-grabbing touch-none select-none"
+                )}
+                style={{
+                  backgroundImage: previewTheme.backgroundImage ? `url(${previewTheme.backgroundImage})` : undefined,
+                  backgroundSize: 'cover',
+                  backgroundPosition: `${previewTheme.bgX ?? 50}% ${previewTheme.bgY ?? 50}%`,
+                }}
+                onPointerDown={onBgPointerDown}
+                onPointerMove={onBgPointerMove}
+                onPointerUp={onBgPointerUp}
+                onPointerCancel={onBgPointerUp}
               >
                 {!previewTheme.backgroundImage && (
                   <div className="flex items-center justify-center h-full">
                     <p className="text-muted-foreground text-xs">No image selected</p>
                   </div>
+                )}
+                {previewTheme.backgroundImage && (
+                  <div
+                    className="absolute w-3 h-3 rounded-full border-2 border-white/80 pointer-events-none -translate-x-1/2 -translate-y-1/2"
+                    style={{ left: `${previewTheme.bgX ?? 50}%`, top: `${previewTheme.bgY ?? 50}%`, boxShadow: '0 0 0 1px rgba(0,0,0,0.5)' }}
+                  />
                 )}
                 <div className="absolute inset-0 bg-black rounded-xl" style={{ opacity: previewTheme.backgroundImage ? previewTheme.backgroundOpacity : 0, transition: 'opacity 0.2s' }} />
               </div>
@@ -505,9 +550,19 @@ export function ThemeSettingsMenu({ onBack }: { onBack?: () => void }) {
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <Label className="text-xs">Overlay Opacity</Label>
-                  <span className="text-xs text-muted-foreground tabular-nums">
-                    {(previewTheme.backgroundOpacity * 100).toFixed(0)}%
-                  </span>
+                  <div className="flex items-center gap-3">
+                    {previewTheme.backgroundImage && (previewTheme.bgX !== 50 || previewTheme.bgY !== 50) && (
+                      <button
+                        className="text-[10px] text-muted-foreground/50 hover:text-muted-foreground transition-colors"
+                        onClick={() => setPreviewTheme(p => ({ ...p, bgX: 50, bgY: 50 }))}
+                      >
+                        Reset position
+                      </button>
+                    )}
+                    <span className="text-xs text-muted-foreground tabular-nums">
+                      {(previewTheme.backgroundOpacity * 100).toFixed(0)}%
+                    </span>
+                  </div>
                 </div>
                 <Slider
                   value={[previewTheme.backgroundOpacity]}

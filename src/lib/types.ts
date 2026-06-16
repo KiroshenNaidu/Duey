@@ -70,6 +70,8 @@ export interface ThemeSettings {
   uiScale: number;
   uiStyle: 'solid' | 'glass';
   useSafeAreaInsets?: boolean;
+  bgX?: number; // 0–100, default 50 (background-position-x %)
+  bgY?: number; // 0–100, default 50 (background-position-y %)
 }
 
 export interface UserTheme {

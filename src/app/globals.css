@@ -6,6 +6,13 @@
 :root { --sab: 0px; }
 body.use-safe-area { --sab: env(safe-area-inset-bottom, 0px); }
 
+/* GPU layer promotion — compositor handles these independently of JS thread */
+nav.fixed,
+.fixed-bottom-bar {
+  will-change: transform, opacity;
+  transform: translateZ(0);
+}
+
 @layer base {
   :root {
     --background: 220 14% 10%;
