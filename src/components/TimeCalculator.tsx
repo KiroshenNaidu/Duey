@@ -5,19 +5,20 @@ import { formatCurrency, cn } from '@/lib/utils';
 import { ChevronDown } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { TimePicker } from '@/components/TimePicker';
 
 function Section({ title, children, defaultOpen = false }: { title: string; children: React.ReactNode; defaultOpen?: boolean }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
-    <div className="border border-border rounded-lg overflow-hidden">
+    <div className="border border-border/60 rounded-2xl overflow-hidden">
       <button
         onClick={() => setOpen(o => !o)}
-        className="w-full flex items-center justify-between px-3 py-2.5 bg-muted/30 hover:bg-muted/50 transition-colors"
+        className="w-full flex items-center justify-between px-4 py-3 bg-card hover:bg-muted/30 transition-colors"
       >
-        <span className="text-xs font-semibold text-foreground uppercase tracking-widest">{title}</span>
-        <ChevronDown className={cn('h-4 w-4 text-muted-foreground transition-transform', open && 'rotate-180')} />
+        <span className="text-xs font-bold text-foreground uppercase tracking-widest">{title}</span>
+        <ChevronDown className={cn('h-4 w-4 text-muted-foreground transition-transform duration-200', open && 'rotate-180')} />
       </button>
-      {open && <div className="p-3 space-y-3 bg-card">{children}</div>}
+      {open && <div className="p-4 space-y-3 bg-card border-t border-border/40">{children}</div>}
     </div>
   );
 }
@@ -54,7 +55,7 @@ function ResultBox({ label, value, exactValue }: { label: string; value: string;
   return (
     <div
       className={cn(
-        'bg-muted/40 rounded-md px-3 py-2 flex justify-between items-center',
+        'bg-muted/30 rounded-xl px-3 py-2.5 flex justify-between items-center border border-border/30',
         fraction && 'cursor-pointer active:bg-muted/60 transition-colors'
       )}
       onClick={() => fraction && setShowFraction(f => !f)}
@@ -97,11 +98,11 @@ function DurationCalculator() {
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1">
           <Label className="text-xs">Start Time</Label>
-          <Input type="time" value={start} onChange={e => setStart(e.target.value)} />
+          <TimePicker value={start} onChange={setStart} />
         </div>
         <div className="space-y-1">
           <Label className="text-xs">End Time</Label>
-          <Input type="time" value={end} onChange={e => setEnd(e.target.value)} />
+          <TimePicker value={end} onChange={setEnd} />
         </div>
       </div>
       {totalSeconds > 0 && (
@@ -177,7 +178,7 @@ function UnitConverter() {
         <div className="space-y-1">
           <Label className="text-xs">Unit</Label>
           <select
-            className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm"
+            className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm text-foreground appearance-none"
             value={unit}
             onChange={e => setUnit(e.target.value as TimeUnit)}
           >
