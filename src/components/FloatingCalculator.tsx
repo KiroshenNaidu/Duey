@@ -5,6 +5,57 @@ import { Card, CardContent, CardHeader } from './ui/card';
 import { X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
+type CalcButton = { display: string; value: string; type?: string; op?: boolean };
+
+function safeCalculate(raw: string): number {
+  const expr = raw.replace(/\s+/g, '');
+  let i = 0;
+
+  function parseExpr(): number {
+    let val = parseTerm();
+    while (i < expr.length && (expr[i] === '+' || expr[i] === '-')) {
+      const op = expr[i++];
+      val = op === '+' ? val + parseTerm() : val - parseTerm();
+    }
+    return val;
+  }
+
+  function parseTerm(): number {
+    let val = parseUnary();
+    while (i < expr.length && (expr[i] === '*' || expr[i] === '/')) {
+      const op = expr[i++];
+      const right = parseUnary();
+      if (op === '/' && right === 0) throw new Error('Division by zero');
+      val = op === '*' ? val * right : val / right;
+    }
+    return val;
+  }
+
+  function parseUnary(): number {
+    if (expr[i] === '-') { i++; return -parseUnary(); }
+    if (expr[i] === '+') { i++; return parseUnary(); }
+    return parsePrimary();
+  }
+
+  function parsePrimary(): number {
+    if (expr[i] === '(') {
+      i++;
+      const val = parseExpr();
+      if (expr[i] !== ')') throw new Error('Mismatched parentheses');
+      i++;
+      return val;
+    }
+    const start = i;
+    while (i < expr.length && /[\d.]/.test(expr[i])) i++;
+    if (i === start) throw new Error(`Unexpected character at position ${i}`);
+    return parseFloat(expr.slice(start, i));
+  }
+
+  const result = parseExpr();
+  if (i !== expr.length) throw new Error(`Unexpected character: ${expr[i]}`);
+  return result;
+}
+
 const DraggableCard = ({ children, title, onClose, isOpen }: { children: React.ReactNode, title: string, onClose: () => void, isOpen: boolean }) => {
   const cardRef = useRef<HTMLDivElement>(null);
   const [position, setPosition] = useState({ x: 0, y: 0 });
@@ -149,7 +200,7 @@ export function FloatingCalculator({ isOpen, onClose }: { isOpen: boolean, onClo
 
     let finalExpression = expression + display;
     try {
-      const result = eval(finalExpression.replace(/×/g, '*').replace(/÷/g, '/').replace(/−/g, '-'));
+      const result = safeCalculate(finalExpression.replace(/×/g, '*').replace(/÷/g, '/').replace(/−/g, '-'));
       const resultString = String(parseFloat(result.toPrecision(15)));
       
       setExpression(finalExpression + '=' + resultString);
@@ -169,14 +220,14 @@ export function FloatingCalculator({ isOpen, onClose }: { isOpen: boolean, onClo
 
   const isOperator = (char: string) => ['+', '−', '×', '÷'].includes(char);
   
-  const buttons = [
+  const buttons: CalcButton[] = [
     { display: '7', value: '7', type: 'num' }, { display: '8', value: '8', type: 'num' }, { display: '9', value: '9', type: 'num' }, { display: '÷', value: '÷', op: true },
     { display: '4', value: '4', type: 'num' }, { display: '5', value: '5', type: 'num' }, { display: '6', value: '6', type: 'num' }, { display: '×', value: '×', op: true },
     { display: '1', value: '1', type: 'num' }, { display: '2', value: '2', type: 'num' }, { display: '3', value: '3', type: 'num' }, { display: '−', value: '−', op: true },
     { display: '0', value: '0', type: 'num' }, { display: '.', value: '.', type: 'num' }, { display: '=', value: '=', op: true }, { display: '+', value: '+', op: true },
   ];
 
-  const handleButtonClick = (btn: any) => {
+  const handleButtonClick = (btn: CalcButton) => {
     if (btn.value === '=') {
         calculate();
     } else if (btn.op) {

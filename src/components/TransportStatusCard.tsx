@@ -11,7 +11,7 @@ import { calculateTransportMonth } from '@/lib/calculations';
 export function TransportStatusCard() {
   const { transportSettings, transportOverrides, history } = useContext(AppDataContext);
   const [isClient, setIsClient] = useState(false);
-  const [currentDate] = useState(new Date());
+  const currentDate = new Date();
 
   useEffect(() => {
     setIsClient(true);
@@ -20,7 +20,7 @@ export function TransportStatusCard() {
   const currentMonthStats = useMemo(() => {
     if (!isClient) return { totalDue: 0, isPaid: false };
     
-    const { totalDue } = calculateTransportMonth(currentDate, transportOverrides, transportSettings.dailyFee);
+    const { totalDue } = calculateTransportMonth(currentDate, transportOverrides, transportSettings);
 
     const currentMonthStr = format(currentDate, 'MMMM yyyy');
     const paymentForThisMonth = history.find(entry => 

@@ -1,25 +1,29 @@
 'use client';
 
 import { useState } from 'react';
-import { Palette, Database, Bell, ChevronLeft } from 'lucide-react';
+import { Palette, Database, Bell, ChevronLeft, User } from 'lucide-react';
 import { ThemeSettingsMenu } from '@/components/settings/ThemeSettingsMenu';
 import { DataManagementMenu } from '@/components/settings/DataManagementMenu';
 import { NotificationsMenu } from '@/components/settings/NotificationsMenu';
+import { ProfileMenu } from '@/components/settings/ProfileMenu';
+
+type ActiveMenu = 'main' | 'profile' | 'theme' | 'data' | 'notifications';
 
 type MenuItem = {
-  id: 'theme' | 'data' | 'notifications';
+  id: Exclude<ActiveMenu, 'main'>;
   title: string;
   description: string;
   icon: React.ElementType;
 };
 
 const menuItems: MenuItem[] = [
+  { id: 'profile', title: 'Profile', description: 'Your name and payday settings', icon: User },
   { id: 'theme', title: 'Theme', description: 'Customize colors, fonts, and background', icon: Palette },
   { id: 'data', title: 'Data Management', description: 'Backup, restore, or reset your data', icon: Database },
-  { id: 'notifications', title: 'Notifications', description: 'Manage monthly payment reminders', icon: Bell },
+  { id: 'notifications', title: 'Notifications', description: 'Payment reminders on Android', icon: Bell },
 ];
 
-const SettingsHeader = ({ title, onBack }: { title: string; onBack?: () => void }) => (
+const ProfileHeader = ({ title, onBack }: { title: string; onBack?: () => void }) => (
   <div className="relative flex items-center justify-center pt-0 pb-4">
     {onBack && (
       <button onClick={onBack} className="absolute left-0 top-1/2 -translate-y-1/2 p-2 rounded-full hover:bg-secondary">
@@ -30,7 +34,7 @@ const SettingsHeader = ({ title, onBack }: { title: string; onBack?: () => void 
   </div>
 );
 
-const MainMenu = ({ onNavigate }: { onNavigate: (menu: 'theme' | 'data' | 'notifications') => void }) => (
+const MainMenu = ({ onNavigate }: { onNavigate: (menu: Exclude<ActiveMenu, 'main'>) => void }) => (
   <div className="space-y-3">
     {menuItems.map((item) => (
       <button
@@ -49,32 +53,40 @@ const MainMenu = ({ onNavigate }: { onNavigate: (menu: 'theme' | 'data' | 'notif
 );
 
 export default function SettingsPage() {
-  const [activeMenu, setActiveMenu] = useState<'main' | 'theme' | 'data' | 'notifications'>('main');
-
+  const [activeMenu, setActiveMenu] = useState<ActiveMenu>('main');
   const handleBack = () => setActiveMenu('main');
+
+  if (activeMenu === 'profile') {
+    return (
+      <div className="container mx-auto max-w-md pt-11">
+        <ProfileHeader title="Profile" onBack={handleBack} />
+        <ProfileMenu />
+      </div>
+    );
+  }
 
   if (activeMenu === 'theme') {
     return (
       <div className="container mx-auto max-w-md pt-11">
-        <SettingsHeader title="Theme" onBack={handleBack} />
+        <ProfileHeader title="Theme" onBack={handleBack} />
         <ThemeSettingsMenu onBack={handleBack} />
       </div>
     );
   }
-  
+
   if (activeMenu === 'data') {
     return (
       <div className="container mx-auto max-w-md pt-11">
-        <SettingsHeader title="Data Management" onBack={handleBack} />
+        <ProfileHeader title="Data Management" onBack={handleBack} />
         <DataManagementMenu />
       </div>
     );
   }
-  
+
   if (activeMenu === 'notifications') {
     return (
       <div className="container mx-auto max-w-md pt-11">
-        <SettingsHeader title="Notifications" onBack={handleBack} />
+        <ProfileHeader title="Notifications" onBack={handleBack} />
         <NotificationsMenu />
       </div>
     );
@@ -82,7 +94,7 @@ export default function SettingsPage() {
 
   return (
     <div className="container mx-auto max-w-md pt-11">
-      <SettingsHeader title="Settings" />
+      <ProfileHeader title="Profile" />
       <MainMenu onNavigate={setActiveMenu} />
     </div>
   );

@@ -9,8 +9,7 @@ import { format } from 'date-fns';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { HistoryEntry } from '@/lib/types';
 import { Skeleton } from './ui/skeleton';
-import { Check } from 'lucide-react';
-import { getAmountPaid } from '@/lib/calculations';
+import { Check, Trophy } from 'lucide-react';
 
 type ProcessedHistoryEntry = HistoryEntry & { balanceAfter?: number };
 
@@ -18,22 +17,24 @@ function HistoryItem({ entry }: { entry: ProcessedHistoryEntry }) {
     const isCreation = entry.type === 'creation';
     const isTransport = entry.type === 'transport';
     const isPayment = entry.type === 'payment';
+    const isCompletion = entry.type === 'completion';
+    const isBudget = entry.type === 'budget';
 
     const title = isCreation ? 'Initial Debt'
-                : isTransport ? entry.debtTitle
-                : isPayment ? entry.debtTitle
-                : 'Installment Logged';
+                : isCompletion ? `Paid Off: ${entry.debtTitle}`
+                : isBudget ? entry.debtTitle
+                : entry.debtTitle;
 
     return (
         <div className="flex justify-between items-start p-2">
-            <div>
-                <p className="font-semibold text-sm text-foreground">{title}</p>
+            <div className="flex-1 min-w-0 pr-2">
+                <p className={cn("font-semibold text-sm text-foreground truncate", isCompletion && "text-accent")}>{title}</p>
                 <p className="text-xs text-muted-foreground">
                     {format(new Date(entry.date), "PPP")}
                 </p>
             </div>
 
-            <div className="text-right">
+            <div className="text-right shrink-0">
                 {isCreation && (
                     <p className="font-mono font-semibold text-sm text-foreground">
                         {formatCurrency(entry.amount)}
@@ -47,6 +48,17 @@ function HistoryItem({ entry }: { entry: ProcessedHistoryEntry }) {
                 {isPayment && (
                     <p className="font-mono font-semibold text-sm text-green-500 flex items-center justify-end gap-1">
                         <Check className="h-4 w-4" />
+                        {formatCurrency(entry.amount)}
+                    </p>
+                )}
+                {isCompletion && (
+                    <p className="font-mono font-semibold text-sm text-accent flex items-center justify-end gap-1">
+                        <Trophy className="h-3.5 w-3.5" />
+                        {formatCurrency(entry.amount)}
+                    </p>
+                )}
+                {isBudget && (
+                    <p className="font-mono font-semibold text-sm text-muted-foreground">
                         {formatCurrency(entry.amount)}
                     </p>
                 )}
@@ -70,23 +82,40 @@ export function HistoryLog() {
     setIsClient(true);
   }, []);
 
-  const { debtsWithHistory, transportHistory, allHistory } = useMemo(() => {
-    const allHistory = [...history].sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-    const debtHistoryItems = allHistory.filter(h => h.debtId);
+  const { debtProfiles, transportHistory, allHistory } = useMemo(() => {
+    const allHistory = [...history].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+    // Group history entries that have a debtId
+    const byDebtId = allHistory
+      .filter(h => h.debtId)
+      .reduce((acc, h) => {
+        if (h.debtId) (acc[h.debtId] = acc[h.debtId] || []).push(h);
+        return acc;
+      }, {} as Record<string, HistoryEntry[]>);
+
     const transportHistory = allHistory.filter(h => h.type === 'transport');
 
-    const historyByDebtId = debtHistoryItems.reduce((acc, entry) => {
-        if(entry.debtId) {
-            (acc[entry.debtId] = acc[entry.debtId] || []).push(entry);
-        }
-        return acc;
-    }, {} as Record<string, HistoryEntry[]>);
-    
-    const debtsWithHistory = debts
-        .filter(debt => historyByDebtId[debt.id] && historyByDebtId[debt.id].length > 0)
-        .sort((a,b) => a.title.localeCompare(b.title));
+    const activeDebtIds = new Set(debts.map(d => d.id));
 
-    return { debtsWithHistory, transportHistory, allHistory };
+    // Build unified list: active debts first, then archived (completed/deleted)
+    const debtProfiles = Object.entries(byDebtId).map(([debtId, entries]) => {
+      const activeDept = debts.find(d => d.id === debtId);
+      const creationEntry = entries.find(e => e.type === 'creation');
+      const totalOwed = activeDept?.total_owed ?? creationEntry?.amount ?? 0;
+      const isArchived = !activeDebtIds.has(debtId);
+      return {
+        id: debtId,
+        title: activeDept?.title ?? entries[0].debtTitle,
+        totalOwed,
+        archived: isArchived,
+      };
+    }).sort((a, b) => {
+      // Active debts before archived
+      if (a.archived !== b.archived) return a.archived ? 1 : -1;
+      return a.title.localeCompare(b.title);
+    });
+
+    return { debtProfiles, transportHistory, allHistory };
   }, [history, debts]);
 
   if (!isClient) {
@@ -99,7 +128,7 @@ export function HistoryLog() {
         </Card>
     );
   }
-  
+
   if (history.length === 0) {
     return (
         <Card>
@@ -110,52 +139,50 @@ export function HistoryLog() {
     );
   }
 
-  const defaultTab = debtsWithHistory.length > 0 ? debtsWithHistory[0].id : transportHistory.length > 0 ? 'transport' : 'all';
+  const defaultTab = debtProfiles.length > 0
+    ? debtProfiles[0].id
+    : transportHistory.length > 0 ? 'transport' : 'all';
 
   return (
     <Card>
       <CardContent className="p-2">
         <Tabs defaultValue={defaultTab} className="w-full">
           <TabsList className="h-auto flex-wrap justify-start p-1 mb-2">
-            {debtsWithHistory.map((debt) => (
-              <TabsTrigger key={debt.id} value={debt.id}>
-                {debt.title}
+            {debtProfiles.map((profile) => (
+              <TabsTrigger key={profile.id} value={profile.id} className={cn(profile.archived && "opacity-60")}>
+                {profile.title}
+                {profile.archived && <span className="ml-1 text-[8px] text-accent">✓</span>}
               </TabsTrigger>
             ))}
             {transportHistory.length > 0 && <TabsTrigger value="transport">Transport</TabsTrigger>}
-             <TabsTrigger value="all">All</TabsTrigger>
+            <TabsTrigger value="all">All</TabsTrigger>
           </TabsList>
-            
-          {debtsWithHistory.map((debt) => {
-             const debtChronologicalHistory = history
-                .filter(h => h.debtId === debt.id)
-                .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
-            let runningBalance = debt.total_owed;
-            
+          {debtProfiles.map((profile) => {
+            const debtChronologicalHistory = history
+              .filter(h => h.debtId === profile.id)
+              .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+            let runningBalance = profile.totalOwed;
+
             const processedHistory: ProcessedHistoryEntry[] = debtChronologicalHistory
-                .map(entry => {
-                    let balanceAfter: number | undefined = undefined;
-                    if (entry.type === 'payment') {
-                        balanceAfter = runningBalance - entry.amount;
-                        runningBalance = balanceAfter;
-                        return { ...entry, balanceAfter: Math.max(0, balanceAfter) };
-                    }
-                    if (entry.type === 'creation') {
-                        runningBalance = entry.amount;
-                        // For creation, we can calculate the balance after all payments
-                        const totalPaid = getAmountPaid(debt, history);
-                        balanceAfter = debt.total_owed - totalPaid;
-                    }
-                    return entry;
-                })
-                .reverse();
+              .map(entry => {
+                if (entry.type === 'payment') {
+                  runningBalance = runningBalance - entry.amount;
+                  return { ...entry, balanceAfter: Math.max(0, runningBalance) };
+                }
+                if (entry.type === 'creation') {
+                  runningBalance = entry.amount;
+                }
+                return entry;
+              })
+              .reverse();
 
             return (
-              <TabsContent key={debt.id} value={debt.id} className="m-0">
+              <TabsContent key={profile.id} value={profile.id} className="m-0">
                 <ScrollArea className="h-64 border rounded-md">
-                   <div className="p-1 space-y-1 divide-y divide-border">
-                     {processedHistory.map((entry) => <HistoryItem key={entry.id} entry={entry} />)}
+                  <div className="p-1 space-y-1 divide-y divide-border">
+                    {processedHistory.map((entry) => <HistoryItem key={entry.id} entry={entry} />)}
                   </div>
                 </ScrollArea>
               </TabsContent>
@@ -163,23 +190,22 @@ export function HistoryLog() {
           })}
 
           {transportHistory.length > 0 && (
-             <TabsContent value="transport" className="m-0">
-                <ScrollArea className="h-64 border rounded-md">
-                   <div className="p-1 space-y-1 divide-y divide-border">
-                    {transportHistory.map((entry) => <HistoryItem key={entry.id} entry={entry} />)}
-                  </div>
-                </ScrollArea>
-              </TabsContent>
+            <TabsContent value="transport" className="m-0">
+              <ScrollArea className="h-64 border rounded-md">
+                <div className="p-1 space-y-1 divide-y divide-border">
+                  {transportHistory.map((entry) => <HistoryItem key={entry.id} entry={entry} />)}
+                </div>
+              </ScrollArea>
+            </TabsContent>
           )}
 
-           <TabsContent value="all" className="m-0">
-                <ScrollArea className="h-64 border rounded-md">
-                   <div className="p-1 space-y-1 divide-y divide-border">
-                    {allHistory.map((entry) => <HistoryItem key={entry.id} entry={entry} />)}
-                  </div>
-                </ScrollArea>
-            </TabsContent>
-
+          <TabsContent value="all" className="m-0">
+            <ScrollArea className="h-64 border rounded-md">
+              <div className="p-1 space-y-1 divide-y divide-border">
+                {allHistory.map((entry) => <HistoryItem key={entry.id} entry={entry} />)}
+              </div>
+            </ScrollArea>
+          </TabsContent>
         </Tabs>
       </CardContent>
     </Card>

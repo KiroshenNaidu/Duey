@@ -8,6 +8,7 @@ import { AppDataContext } from '@/context/AppDataContext';
 const inter = Inter({
   subsets: ['latin'],
   variable: '--font-inter',
+  display: 'swap',
 });
 
 export function ThemeProvider({ children }: { children: ReactNode }) {

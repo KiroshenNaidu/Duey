@@ -35,11 +35,22 @@
     /* Hide scrollbar for IE, Edge and Firefox */
     scrollbar-width: none;
     -ms-overflow-style: none;
+    -webkit-tap-highlight-color: transparent;
   }
 
   /* Hide scrollbar for Chrome, Safari and Opera */
   *::-webkit-scrollbar {
     display: none;
+  }
+
+  /* Prevent rubber-band/bounce at page edges */
+  html, body {
+    overscroll-behavior: none;
+  }
+
+  /* Remove 300ms tap delay on interactive elements only — keeps scroll unaffected */
+  button, a, input, label, select, [role="button"] {
+    touch-action: manipulation;
   }
 
   body {

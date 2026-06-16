@@ -5,7 +5,6 @@ import { BottomNav } from '@/components/BottomNav';
 import { EmptyBottomBar } from '@/components/EmptyBottomBar';
 import { ThemeProvider } from '@/components/ThemeProvider';
 import { FloatingTools } from '@/components/FloatingTools';
-import { FirebaseClientProvider } from '@/firebase/client-provider';
 
 export const metadata: Metadata = {
   title: 'Duey',
@@ -15,6 +14,10 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   themeColor: '#4062BF',
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  viewportFit: 'cover',
 }
 
 export default function RootLayout({
@@ -26,7 +29,6 @@ export default function RootLayout({
     <html lang="en" className="dark">
       <head />
       <body className="font-body antialiased">
-        <FirebaseClientProvider>
           <AppDataProvider>
             <ThemeProvider>
               <div className="flex flex-col min-h-dvh bg-transparent relative z-0">
@@ -39,7 +41,6 @@ export default function RootLayout({
               </div>
             </ThemeProvider>
           </AppDataProvider>
-        </FirebaseClientProvider>
       </body>
     </html>
   );

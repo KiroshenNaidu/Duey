@@ -6,22 +6,54 @@ export interface Debt {
 }
 
 export interface HistoryEntry {
-  id:string;
+  id: string;
   debtId?: string;
   debtTitle: string;
   date: string; // ISO 8601 format
   amount: number;
-  type: 'payment' | 'creation' | 'transport';
+  type: 'payment' | 'creation' | 'transport' | 'completion' | 'budget';
+  note?: string;
 }
 
 export interface TransportSettings {
   driverName: string;
+  employed: boolean;
+  pricingMode: 'daily' | 'monthly';
   dailyFee: number;
+  monthlyFee: number;
 }
 
+export type DayState = 0 | 1 | 1.5; // 0=home, 1=full travel, 1.5=half day
+
 export type TransportOverrides = {
-  [key: string]: boolean; // ISODateString: isTravelDay
+  [key: string]: DayState;
 };
+
+export interface UberRide {
+  id: string;
+  date: string;      // ISO YYYY-MM-DD
+  price: number;
+  distance?: number; // km
+  from?: string;
+  to?: string;
+  createdAt: string;
+}
+
+export interface BudgetItem {
+  id: string;
+  name: string;
+  price: number;
+  link?: string;
+  createdAt: string;
+}
+
+export interface BudgetPlan {
+  id: string;
+  name: string;
+  budget: number;
+  items: BudgetItem[];
+  createdAt: string;
+}
 
 export interface ThemeSettings {
   background: string;
@@ -43,6 +75,18 @@ export interface UserTheme {
     settings: Omit<ThemeSettings, 'backgroundImage' | 'backgroundOpacity'>;
 }
 
+export interface UserProfile {
+  name: string;
+  paydayDay: number; // 1–31
+}
+
+export interface NotificationSettings {
+  enabled: boolean;
+  paydayDay: number;
+  hour: number;
+  minute: number;
+}
+
 // Unified App State
 export interface AppState {
   schemaVersion: number;
@@ -50,6 +94,11 @@ export interface AppState {
   history: HistoryEntry[];
   transportSettings: TransportSettings;
   transportOverrides: TransportOverrides;
+  uberRides: UberRide[];
+  budgetPlans: BudgetPlan[];
+  monthlyIncome: number;
+  userProfile: UserProfile;
+  notificationSettings: NotificationSettings;
   themeSettings: Omit<ThemeSettings, 'backgroundImage'>;
   userThemes: UserTheme[];
   notepadContent: string;

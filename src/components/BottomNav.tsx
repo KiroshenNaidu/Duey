@@ -2,14 +2,14 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { ListChecks, BarChart3, Settings, Car } from 'lucide-react';
+import { Wallet, BarChart3, User, Car } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const navItems = [
   { href: '/transport', label: 'Transport', icon: Car },
-  { href: '/', label: 'Debts', icon: ListChecks },
+  { href: '/', label: 'Money', icon: Wallet },
   { href: '/stats', label: 'Stats', icon: BarChart3 },
-  { href: '/settings', label: 'Settings', icon: Settings },
+  { href: '/settings', label: 'Profile', icon: User },
 ];
 
 export function BottomNav() {

@@ -1,6 +1,6 @@
 'use client';
 
-import { useContext, useState, useEffect } from 'react';
+import { useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
@@ -30,21 +30,24 @@ import {
   DialogClose,
 } from "@/components/ui/dialog"
 import { PaymentCalendarDialog } from './PaymentCalendarDialog';
-import { getPaymentCount, getTotalInstallments, getAmountPaid, getProgress, getRemainingBalance } from '@/lib/calculations';
+import { DebtCompletionDialog } from './DebtCompletionDialog';
+import { getPaymentCount, getTotalInstallments, getAmountPaid, getProgress } from '@/lib/calculations';
 
 interface DebtCardProps {
   debt: Debt;
 }
 
 export function DebtCard({ debt }: DebtCardProps) {
-  const { history, updateDebt, deleteDebt, logPaymentForToday, logCustomPayment } = useContext(AppDataContext);
+  const { history, updateDebt, deleteDebt, completeDebt, logPaymentForToday, logCustomPayment } = useContext(AppDataContext);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [showCelebration, setShowCelebration] = useState(false);
 
   const [editedTitle, setEditedTitle] = useState(debt.title);
   const [editedTotalOwed, setEditedTotalOwed] = useState(debt.total_owed.toString());
   const [editedInstallmentAmount, setEditedInstallmentAmount] = useState(debt.installment_amount.toString());
   const [customAmount, setCustomAmount] = useState('');
-  
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   useEffect(() => {
     setEditedTitle(debt.title);
     setEditedTotalOwed(debt.total_owed.toString());
@@ -56,8 +59,18 @@ export function DebtCard({ debt }: DebtCardProps) {
   const amountPaid = getAmountPaid(debt, history);
   const progress = getProgress(debt, history);
   const isPaidOff = progress >= 100;
-  const remainingBalance = getRemainingBalance(debt, history);
-  const installmentsLeft = Math.max(0, totalInstallments - paymentCount);
+
+  // Initialize ref with current isPaidOff so we don't fire on mount for already-paid debts
+  const prevIsPaidOff = useRef(isPaidOff);
+  useEffect(() => {
+    if (isPaidOff && !prevIsPaidOff.current) {
+      setShowCelebration(true);
+      import('canvas-confetti').then(m =>
+        m.default({ particleCount: 120, spread: 80, origin: { y: 0.55 } })
+      );
+    }
+    prevIsPaidOff.current = isPaidOff;
+  }, [isPaidOff]);
 
   const handleUpdate = () => {
     const totalOwedNum = parseFloat(editedTotalOwed) || 0;
@@ -75,19 +88,40 @@ export function DebtCard({ debt }: DebtCardProps) {
     setIsDialogOpen(false);
   };
 
-  const handleLogPaymentForToday = () => {
-    logPaymentForToday(debt.id);
-  };
-  
-  const handleLogCustomPayment = () => {
-    const amount = parseFloat(customAmount);
-    if (!isNaN(amount) && amount > 0) {
-      logCustomPayment(debt.id, amount);
-      setCustomAmount('');
+  const handleLogPaymentForToday = useCallback(() => {
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+    try {
+      logPaymentForToday(debt.id);
+    } finally {
+      setIsSubmitting(false);
     }
-  };
+  }, [isSubmitting, debt.id, logPaymentForToday]);
+
+  const handleLogCustomPayment = useCallback(() => {
+    const amount = parseFloat(customAmount);
+    if (!isNaN(amount) && amount > 0 && !isSubmitting) {
+      setIsSubmitting(true);
+      try {
+        logCustomPayment(debt.id, amount);
+        setCustomAmount('');
+      } finally {
+        setIsSubmitting(false);
+      }
+    }
+  }, [isSubmitting, customAmount, debt.id, logCustomPayment]);
 
   return (
+    <>
+    <DebtCompletionDialog
+      open={showCelebration}
+      onOpenChange={setShowCelebration}
+      debtTitle={debt.title}
+      totalOwed={debt.total_owed}
+      paymentCount={paymentCount}
+      onComplete={() => { setShowCelebration(false); completeDebt(debt.id); }}
+      onKeepTracking={() => setShowCelebration(false)}
+    />
     <Card className="overflow-hidden border-border transition-all duration-300">
       <CardHeader>
         <div className="flex justify-between items-center gap-2">
@@ -141,9 +175,9 @@ export function DebtCard({ debt }: DebtCardProps) {
                         value={customAmount}
                         onChange={(e) => setCustomAmount(e.target.value)}
                       />
-                      <Button 
-                        onClick={handleLogCustomPayment} 
-                        disabled={!customAmount || parseFloat(customAmount) <= 0}
+                      <Button
+                        onClick={handleLogCustomPayment}
+                        disabled={!customAmount || parseFloat(customAmount) <= 0 || isSubmitting}
                         className="bg-accent text-accent-foreground hover:bg-accent/90 flex-shrink-0"
                       >
                         Log
@@ -179,7 +213,7 @@ export function DebtCard({ debt }: DebtCardProps) {
                       </PaymentCalendarDialog>
                     </div>
                     <div className="flex gap-2">
-                      <Button onClick={handleLogPaymentForToday} variant="secondary">
+                      <Button onClick={handleLogPaymentForToday} variant="secondary" disabled={isSubmitting}>
                         +1 Installment
                       </Button>
                       <DialogClose asChild>
@@ -202,5 +236,6 @@ export function DebtCard({ debt }: DebtCardProps) {
         </div>
       </CardContent>
     </Card>
+    </>
   );
 }
