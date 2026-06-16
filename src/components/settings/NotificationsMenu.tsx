@@ -55,6 +55,7 @@ export function NotificationsMenu({ onDirtyChange, onSaved, onCancel }: Notifica
   const [statusMsg, setStatusMsg] = useState('');
 
   const [draft, setDraft] = useState({ ...notificationSettings });
+  const [draftDayStr, setDraftDayStr] = useState(String(notificationSettings.paydayDay));
 
   const isDirty = JSON.stringify(draft) !== JSON.stringify(notificationSettings);
 
@@ -71,9 +72,11 @@ export function NotificationsMenu({ onDirtyChange, onSaved, onCancel }: Notifica
   const draftTimeString = `${String(draft.hour).padStart(2, '0')}:${String(draft.minute).padStart(2, '0')}`;
 
   const handleSave = async () => {
+    const effectiveDay = draft.paydayDay || userProfile.paydayDay;
+    const draftToSave = { ...draft, paydayDay: effectiveDay };
     const native = await checkNative();
     if (native) {
-      if (draft.enabled) {
+      if (draftToSave.enabled) {
         try {
           const { LocalNotifications } = await import('@capacitor/local-notifications');
           const perm = await LocalNotifications.requestPermissions();
@@ -82,12 +85,12 @@ export function NotificationsMenu({ onDirtyChange, onSaved, onCancel }: Notifica
             return;
           }
           await scheduleNotification(
-            draft.paydayDay || userProfile.paydayDay,
-            draft.hour,
-            draft.minute,
-            draft.message,
+            effectiveDay,
+            draftToSave.hour,
+            draftToSave.minute,
+            draftToSave.message,
           );
-          setNotificationSettings(draft);
+          setNotificationSettings(draftToSave);
           setStatusMsg('Notification scheduled!');
         } catch {
           setStatusMsg('Failed to schedule notification.');
@@ -96,7 +99,7 @@ export function NotificationsMenu({ onDirtyChange, onSaved, onCancel }: Notifica
       } else {
         try {
           await cancelNotification();
-          setNotificationSettings(draft);
+          setNotificationSettings(draftToSave);
           setStatusMsg('');
         } catch {
           setStatusMsg('Failed to cancel notification.');
@@ -104,7 +107,7 @@ export function NotificationsMenu({ onDirtyChange, onSaved, onCancel }: Notifica
         }
       }
     } else {
-      setNotificationSettings(draft);
+      setNotificationSettings(draftToSave);
     }
 
     onDirtyChange?.(false);
@@ -118,8 +121,13 @@ export function NotificationsMenu({ onDirtyChange, onSaved, onCancel }: Notifica
   };
 
   const handleDayChange = (val: string) => {
+    setDraftDayStr(val);
+    if (val === '') {
+      setDraft(prev => ({ ...prev, paydayDay: 0 }));
+      return;
+    }
     const day = parseInt(val, 10);
-    if (!isNaN(day) && day >= 1 && day <= 31) {
+    if (!isNaN(day) && day >= 0 && day <= 31) {
       setDraft(prev => ({ ...prev, paydayDay: day }));
     }
   };
@@ -176,9 +184,9 @@ export function NotificationsMenu({ onDirtyChange, onSaved, onCancel }: Notifica
             <Label className="text-xs">Reminder Day (1–31)</Label>
             <Input
               type="number"
-              min={1}
+              min={0}
               max={31}
-              value={draft.paydayDay}
+              value={draftDayStr}
               onChange={e => handleDayChange(e.target.value)}
               disabled={!draft.enabled}
             />

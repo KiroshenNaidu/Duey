@@ -24,6 +24,18 @@ function triggerDownload(blob: Blob, filename: string) {
   URL.revokeObjectURL(url);
 }
 
+function blobToBase64(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const result = reader.result as string;
+      resolve(result.split(',')[1]);
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+}
+
 function formatDate(iso: string) {
   try { return new Date(iso).toLocaleDateString('en-ZA'); } catch { return iso; }
 }
@@ -47,68 +59,130 @@ export function DataManagementMenu() {
   const [statsPeriod, setStatsPeriod] = useState<StatsPeriod>('all');
 
   // ──────────────────────────────────────────────────────────────
-  // History exports (existing)
+  // Cross-platform download: native uses Filesystem + Share + notification,
+  // web uses blob URL download.
   // ──────────────────────────────────────────────────────────────
 
-  const exportAsTxt = () => {
-    const s = getAppState();
-    const lines: string[] = [
-      'DUEY — History Export',
-      `Generated: ${new Date().toLocaleDateString('en-ZA')}`,
-      '',
-      '=== DEBTS ===',
-    ];
-    const debtHistory = s.history.filter(h => h.type === 'creation' || h.type === 'payment' || h.type === 'completion');
-    const byDebt = debtHistory.reduce<Record<string, typeof debtHistory>>((acc, h) => {
-      const key = h.debtTitle;
-      if (!acc[key]) acc[key] = [];
-      acc[key].push(h);
-      return acc;
-    }, {});
-    for (const [name, entries] of Object.entries(byDebt)) {
-      lines.push(`\n${name}`);
-      for (const e of entries) {
-        if (e.type === 'creation')   lines.push(`  Created R${e.amount} on ${formatDate(e.date)}`);
-        else if (e.type === 'payment')    lines.push(`  Paid R${e.amount} on ${formatDate(e.date)}`);
-        else if (e.type === 'completion') lines.push(`  COMPLETED R${e.amount} on ${formatDate(e.date)}`);
+  const downloadFile = async (blob: Blob, filename: string) => {
+    const { Capacitor } = await import('@capacitor/core');
+    if (Capacitor.isNativePlatform()) {
+      try {
+        const base64 = await blobToBase64(blob);
+        const { Filesystem, Directory } = await import('@capacitor/filesystem');
+        const result = await Filesystem.writeFile({
+          path: filename,
+          data: base64,
+          directory: Directory.Cache,
+          recursive: true,
+        });
+        // Fire an immediate "Download Complete" notification
+        try {
+          const { LocalNotifications } = await import('@capacitor/local-notifications');
+          await LocalNotifications.createChannel({
+            id: 'downloads',
+            name: 'Downloads',
+            description: 'File download notifications',
+            importance: 3,
+            visibility: 1,
+          });
+          await LocalNotifications.schedule({
+            notifications: [{
+              title: 'Download Complete',
+              body: `${filename} is ready`,
+              id: (Date.now() % 100000) + 1000,
+              channelId: 'downloads',
+            }],
+          });
+        } catch {
+          // Notification failure should not block the export
+        }
+        const { Share } = await import('@capacitor/share');
+        await Share.share({ title: filename, url: result.uri, dialogTitle: `Save ${filename}` });
+      } catch (err) {
+        setAppError({
+          friendly: `Could not export ${filename} — storage may be unavailable.`,
+          operation: 'downloadFile (native) in DataManagementMenu',
+          error: err,
+          ts: Date.now(),
+        });
       }
+    } else {
+      triggerDownload(blob, filename);
     }
-    lines.push('', '=== TRANSPORT ===');
-    s.history.filter(h => h.type === 'transport').forEach(h => {
-      lines.push(`  ${h.debtTitle} — R${h.amount} on ${formatDate(h.date)}`);
-    });
-    lines.push('', '=== UBER RIDES ===');
-    s.uberRides.forEach(r => {
-      lines.push(`  ${formatDate(r.date)} — R${r.price}${r.from ? ` from ${r.from}` : ''}${r.to ? ` to ${r.to}` : ''}${r.distance ? ` (${r.distance}km)` : ''}`);
-    });
-    lines.push('', '=== BUDGET PLANS ===');
-    s.budgetPlans.forEach(p => {
-      const spent = p.items.reduce((s, i) => s + i.price, 0);
-      lines.push(`\n  ${p.name} — Budget R${p.budget}, Spent R${spent}`);
-      p.items.forEach(i => lines.push(`    - ${i.name}: R${i.price}${i.link ? ` (${i.link})` : ''}`));
-    });
-    triggerDownload(new Blob([lines.join('\n')], { type: 'text/plain' }), 'duey-history.txt');
   };
 
-  const exportAsCsv = () => {
-    const s = getAppState();
-    const rows: string[][] = [['Date', 'Type', 'Name', 'Amount (R)', 'Notes']];
-    s.history.forEach(h => rows.push([formatDate(h.date), h.type, h.debtTitle, String(h.amount), '']));
-    s.uberRides.forEach(r => rows.push([formatDate(r.date), 'uber', `${r.from ?? ''} → ${r.to ?? ''}`, String(r.price), r.distance ? `${r.distance}km` : '']));
-    s.budgetPlans.forEach(p => p.items.forEach(i => rows.push([formatDate(i.createdAt), 'budget-item', `${p.name}: ${i.name}`, String(i.price), i.link ?? ''])));
-    const csv = rows.map(r => r.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(',')).join('\n');
-    triggerDownload(new Blob([csv], { type: 'text/csv' }), 'duey-history.csv');
+  // ──────────────────────────────────────────────────────────────
+  // History exports
+  // ──────────────────────────────────────────────────────────────
+
+  const exportAsTxt = async () => {
+    try {
+      const s = getAppState();
+      const lines: string[] = [
+        'DUEY — History Export',
+        `Generated: ${new Date().toLocaleDateString('en-ZA')}`,
+        '',
+        '=== DEBTS ===',
+      ];
+      const debtHistory = s.history.filter(h => h.type === 'creation' || h.type === 'payment' || h.type === 'completion');
+      const byDebt = debtHistory.reduce<Record<string, typeof debtHistory>>((acc, h) => {
+        const key = h.debtTitle;
+        if (!acc[key]) acc[key] = [];
+        acc[key].push(h);
+        return acc;
+      }, {});
+      for (const [name, entries] of Object.entries(byDebt)) {
+        lines.push(`\n${name}`);
+        for (const e of entries) {
+          if (e.type === 'creation')   lines.push(`  Created R${e.amount} on ${formatDate(e.date)}`);
+          else if (e.type === 'payment')    lines.push(`  Paid R${e.amount} on ${formatDate(e.date)}`);
+          else if (e.type === 'completion') lines.push(`  COMPLETED R${e.amount} on ${formatDate(e.date)}`);
+        }
+      }
+      lines.push('', '=== TRANSPORT ===');
+      s.history.filter(h => h.type === 'transport').forEach(h => {
+        lines.push(`  ${h.debtTitle} — R${h.amount} on ${formatDate(h.date)}`);
+      });
+      lines.push('', '=== UBER RIDES ===');
+      s.uberRides.forEach(r => {
+        lines.push(`  ${formatDate(r.date)} — R${r.price}${r.from ? ` from ${r.from}` : ''}${r.to ? ` to ${r.to}` : ''}${r.distance ? ` (${r.distance}km)` : ''}`);
+      });
+      lines.push('', '=== BUDGET PLANS ===');
+      s.budgetPlans.forEach(p => {
+        const spent = p.items.reduce((s, i) => s + i.price, 0);
+        lines.push(`\n  ${p.name} — Budget R${p.budget}, Spent R${spent}`);
+        p.items.forEach(i => lines.push(`    - ${i.name}: R${i.price}${i.link ? ` (${i.link})` : ''}`));
+      });
+      await downloadFile(new Blob([lines.join('\n')], { type: 'text/plain' }), 'duey-history.txt');
+    } catch (err) {
+      setAppError({ friendly: 'Could not export text file.', operation: 'exportAsTxt in DataManagementMenu', error: err, ts: Date.now() });
+    }
+  };
+
+  const exportAsCsv = async () => {
+    try {
+      const s = getAppState();
+      const rows: string[][] = [['Date', 'Type', 'Name', 'Amount (R)', 'Notes']];
+      s.history.forEach(h => rows.push([formatDate(h.date), h.type, h.debtTitle, String(h.amount), '']));
+      s.uberRides.forEach(r => rows.push([formatDate(r.date), 'uber', `${r.from ?? ''} → ${r.to ?? ''}`, String(r.price), r.distance ? `${r.distance}km` : '']));
+      s.budgetPlans.forEach(p => p.items.forEach(i => rows.push([formatDate(i.createdAt), 'budget-item', `${p.name}: ${i.name}`, String(i.price), i.link ?? ''])));
+      const csv = rows.map(r => r.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(',')).join('\n');
+      await downloadFile(new Blob([csv], { type: 'text/csv' }), 'duey-history.csv');
+    } catch (err) {
+      setAppError({ friendly: 'Could not export CSV file.', operation: 'exportAsCsv in DataManagementMenu', error: err, ts: Date.now() });
+    }
   };
 
   const exportAsExcel = async () => {
     try {
       const s = getAppState();
-      const { utils, writeFile } = await import('xlsx');
+      const { utils, write } = await import('xlsx');
       const wb = utils.book_new();
       utils.book_append_sheet(wb, utils.json_to_sheet(s.history.map(h => ({ Date: formatDate(h.date), Type: h.type, Name: h.debtTitle, Amount: h.amount }))), 'History');
       utils.book_append_sheet(wb, utils.json_to_sheet(s.uberRides.map(r => ({ Date: formatDate(r.date), From: r.from ?? '', To: r.to ?? '', Price: r.price, Distance_km: r.distance ?? '' }))), 'Uber Rides');
       utils.book_append_sheet(wb, utils.json_to_sheet(s.budgetPlans.flatMap(p => p.items.map(i => ({ Plan: p.name, Budget: p.budget, Item: i.name, Price: i.price, Link: i.link ?? '' })))), 'Budget Plans');
-      writeFile(wb, 'duey-history.xlsx');
+      const data = write(wb, { bookType: 'xlsx', type: 'array' });
+      await downloadFile(new Blob([data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), 'duey-history.xlsx');
     } catch (err) {
       setAppError({ friendly: 'Could not export Excel file.', operation: 'exportAsExcel in DataManagementMenu', error: err, ts: Date.now() });
     }
@@ -140,7 +214,7 @@ export function DataManagementMenu() {
         children.push(new Paragraph({ text: p.name, heading: HeadingLevel.HEADING_2 }));
         p.items.forEach(i => children.push(new Paragraph({ children: [new TextRun(`${i.name}: R${i.price}`)] })));
       });
-      triggerDownload(await Packer.toBlob(new Document({ sections: [{ children }] })), 'duey-history.docx');
+      await downloadFile(await Packer.toBlob(new Document({ sections: [{ children }] })), 'duey-history.docx');
     } catch (err) {
       setAppError({ friendly: 'Could not export Word document.', operation: 'exportAsWord in DataManagementMenu', error: err, ts: Date.now() });
     }
@@ -173,14 +247,14 @@ export function DataManagementMenu() {
         line(`${p.name} — Budget R${p.budget}`, 2);
         p.items.forEach(i => line(`- ${i.name}: R${i.price}`, 6));
       });
-      doc.save('duey-history.pdf');
+      await downloadFile(doc.output('blob'), 'duey-history.pdf');
     } catch (err) {
       setAppError({ friendly: 'Could not export PDF.', operation: 'exportAsPdf in DataManagementMenu', error: err, ts: Date.now() });
     }
   };
 
   // ──────────────────────────────────────────────────────────────
-  // Financial Statement export (new)
+  // Financial Statement export
   // ──────────────────────────────────────────────────────────────
 
   const exportStatsPdf = async () => {
@@ -249,7 +323,7 @@ export function DataManagementMenu() {
     doc.setFontSize(10);
     line(`Grand Total   : R${(totalPaid + totalTrans + totalUber).toFixed(2)}`, 4, 10);
 
-    doc.save(`duey-statement-${statsPeriod}.pdf`);
+    await downloadFile(doc.output('blob'), `duey-statement-${statsPeriod}.pdf`);
     } catch (err) {
       setAppError({ friendly: 'Could not export PDF statement.', operation: 'exportStatsPdf in DataManagementMenu', error: err, ts: Date.now() });
     }
@@ -264,7 +338,7 @@ export function DataManagementMenu() {
       const fHist  = s.history.filter(h => isAfter(new Date(h.date), cutoff));
       const fRides = s.uberRides.filter(r => isAfter(new Date(r.date), cutoff));
 
-      const { utils, writeFile } = await import('xlsx');
+      const { utils, write } = await import('xlsx');
       const wb = utils.book_new();
 
       utils.book_append_sheet(wb, utils.json_to_sheet(
@@ -287,14 +361,15 @@ export function DataManagementMenu() {
         { Category: 'Grand Total',   Total: totalPaid + totalTrans + totalUber },
       ]), 'Summary');
 
-      writeFile(wb, `duey-statement-${statsPeriod}.xlsx`);
+      const data = write(wb, { bookType: 'xlsx', type: 'array' });
+      await downloadFile(new Blob([data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), `duey-statement-${statsPeriod}.xlsx`);
     } catch (err) {
       setAppError({ friendly: 'Could not export Excel statement.', operation: 'exportStatsExcel in DataManagementMenu', error: err, ts: Date.now() });
     }
   };
 
   // ──────────────────────────────────────────────────────────────
-  // User Config export / import (new)
+  // User Config export / import
   // ──────────────────────────────────────────────────────────────
 
   const exportUserConfig = async () => {
@@ -313,7 +388,7 @@ export function DataManagementMenu() {
         backgroundImage,
         avatarImage,
       }, null, 2)], { type: 'application/json' });
-      triggerDownload(configBlob, 'duey-config.json');
+      await downloadFile(configBlob, 'duey-config.json');
     } catch (err) {
       setAppError({ friendly: 'Could not export config — storage may be unavailable.', operation: 'exportUserConfig in DataManagementMenu', error: err, ts: Date.now() });
     }
@@ -354,12 +429,16 @@ export function DataManagementMenu() {
   };
 
   // ──────────────────────────────────────────────────────────────
-  // Full backup (existing)
+  // Full backup
   // ──────────────────────────────────────────────────────────────
 
-  const handleExport = () => {
-    const dataStr = JSON.stringify(getAppState(), null, 2);
-    triggerDownload(new Blob([dataStr], { type: 'application/json' }), 'duey-backup.json');
+  const handleExport = async () => {
+    try {
+      const dataStr = JSON.stringify(getAppState(), null, 2);
+      await downloadFile(new Blob([dataStr], { type: 'application/json' }), 'duey-backup.json');
+    } catch (err) {
+      setAppError({ friendly: 'Could not export backup.', operation: 'handleExport in DataManagementMenu', error: err, ts: Date.now() });
+    }
   };
 
   const handleImportClick = () => fullFileInputRef.current?.click();

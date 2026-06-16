@@ -56,6 +56,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     root.style.setProperty('--font-family', FONT_VAR_MAP[themeSettings.font] ?? 'var(--font-inter)');
     root.style.setProperty('--bg-x', `${themeSettings.bgX ?? 50}%`);
     root.style.setProperty('--bg-y', `${themeSettings.bgY ?? 50}%`);
+    root.style.setProperty('--glass-opacity', String(themeSettings.glassOpacity ?? 0.55));
 
     document.body.style.zoom = `${themeSettings.uiScale || 1.0}`;
 

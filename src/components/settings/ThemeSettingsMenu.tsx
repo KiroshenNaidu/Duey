@@ -19,12 +19,12 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import Link from 'next/link';
 
 const defaultThemeSettings: Omit<ThemeSettings, 'backgroundImage'> = {
-  background: '223 13% 10%',
-  surface: '222 15% 12%',
-  primary: '227 50% 50%',
-  accent: '191 79% 57%',
-  foreground: '0 0% 98%',
-  accentForeground: '0 0% 98%',
+  background: '222 14% 9%',
+  surface: '222 13% 12%',
+  primary: '142 65% 42%',
+  accent: '162 55% 46%',
+  foreground: '0 0% 97%',
+  accentForeground: '0 0% 5%',
   font: 'Inter',
   backgroundOpacity: 0.1,
   uiScale: 1.0,
@@ -32,9 +32,19 @@ const defaultThemeSettings: Omit<ThemeSettings, 'backgroundImage'> = {
   useSafeAreaInsets: false,
   bgX: 50,
   bgY: 50,
+  glassOpacity: 0.55,
 };
 
 const systemPresets: Omit<UserTheme, 'id'>[] = [
+  {
+    name: 'Duey',
+    settings: {
+      background: '222 14% 9%', surface: '222 13% 12%',
+      primary: '142 65% 42%', accent: '162 55% 46%',
+      foreground: '0 0% 97%', accentForeground: '0 0% 5%',
+      font: 'Inter', uiScale: 1.0, uiStyle: 'solid',
+    },
+  },
   {
     name: 'Default',
     settings: {
@@ -177,6 +187,7 @@ export function ThemeSettingsMenu({ onCancel, onDirtyChange, onSaved }: { onCanc
       root.style.setProperty('--font-family', FONT_VAR_MAP[saved.font] ?? 'var(--font-inter)');
       root.style.setProperty('--bg-x', `${saved.bgX ?? 50}%`);
       root.style.setProperty('--bg-y', `${saved.bgY ?? 50}%`);
+      root.style.setProperty('--glass-opacity', String(saved.glassOpacity ?? 0.55));
       document.body.classList.remove('ui-glass', 'ui-minimal', 'ui-elevated');
       if (saved.uiStyle !== 'solid') document.body.classList.add(`ui-${saved.uiStyle}`);
       document.body.classList.toggle('use-safe-area', !!saved.useSafeAreaInsets);
@@ -207,6 +218,7 @@ export function ThemeSettingsMenu({ onCancel, onDirtyChange, onSaved }: { onCanc
     document.body.classList.remove('ui-glass', 'ui-minimal', 'ui-elevated');
     if (previewTheme.uiStyle !== 'solid') document.body.classList.add(`ui-${previewTheme.uiStyle}`);
     document.body.style.zoom = `${previewTheme.uiScale}`;
+    document.documentElement.style.setProperty('--glass-opacity', String(previewTheme.glassOpacity ?? 0.55));
   }, [previewTheme, isClient]);
 
   const handleColorChange = (name: keyof Pick<ThemeSettings, 'background' | 'primary' | 'accent' | 'surface' | 'foreground' | 'accentForeground'>, value: string) => {
@@ -282,7 +294,7 @@ export function ThemeSettingsMenu({ onCancel, onDirtyChange, onSaved }: { onCanc
       setThemeSettings(settingsToSave);
       onDirtyChange?.(false);
       onSaved?.('Theme saved!');
-      setTimeout(() => window.location.reload(), 300);
+      setTimeout(() => { window.location.href = '/'; }, 300);
     } catch (err) {
       setAppError({
         friendly: 'Could not save theme — storage may be full.',
@@ -604,6 +616,25 @@ export function ThemeSettingsMenu({ onCancel, onDirtyChange, onSaved }: { onCanc
                   )}
                 </button>
               </div>
+
+              {previewTheme.uiStyle === 'glass' && (
+                <div className="mt-4 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs">Glass Transparency</Label>
+                    <span className="text-xs tabular-nums text-muted-foreground">
+                      {Math.round((1 - (previewTheme.glassOpacity ?? 0.55)) * 100)}%
+                    </span>
+                  </div>
+                  <Slider
+                    value={[1 - (previewTheme.glassOpacity ?? 0.55)]}
+                    onValueChange={([v]) => setPreviewTheme(p => ({ ...p, glassOpacity: parseFloat((1 - v).toFixed(2)) }))}
+                    min={0.05}
+                    max={0.9}
+                    step={0.05}
+                  />
+                  <p className="text-[10px] text-muted-foreground">Higher = more see-through</p>
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -748,7 +779,7 @@ export function ThemeSettingsMenu({ onCancel, onDirtyChange, onSaved }: { onCanc
                   name={preset.name}
                   settings={preset.settings}
                   isActive={areThemeSettingsEqual(currentActiveSettings, preset.settings)}
-                  isDefault={preset.name === 'Default'}
+                  isDefault={preset.name === 'Duey'}
                 />
               ))}
             </div>
