@@ -217,8 +217,8 @@ nav.fixed,
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%) rotate(-15deg);
-    border: 6px solid hsla(var(--accent) / 0.4);
-    color: hsla(var(--accent) / 0.4);
+    border: 6px solid hsla(var(--accent) / 0.75);
+    color: hsla(var(--accent) / 0.75);
     font-size: clamp(3rem, 15vw, 5rem);
     font-weight: 900;
     letter-spacing: 5px;

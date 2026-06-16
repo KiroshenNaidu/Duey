@@ -303,68 +303,71 @@ export default function TransportPage() {
           )}
         </CardHeader>
 
-        <CardContent className="calendar-container p-3 pt-0">
-          {calendarMode === 'driver' && isPaidForMonth && <div className="paid-stamp">PAID</div>}
+        <CardContent className="p-3 pt-0 pb-0">
+          <div className="calendar-container py-6">
+            {calendarMode === 'driver' && isPaidForMonth && <div className="paid-stamp">PAID</div>}
 
-          <div className="grid grid-cols-7 gap-1 text-center text-[10px] font-semibold text-muted-foreground">
-            {WEEK_DAYS.map((d, i) => <div key={i}>{d}</div>)}
+            <div className="grid grid-cols-7 gap-1 text-center text-[10px] font-semibold text-muted-foreground">
+              {WEEK_DAYS.map((d, i) => <div key={i}>{d}</div>)}
+            </div>
+
+            <div className="grid grid-cols-7 gap-1 mt-1">
+              {Array.from({ length: firstDayOfMonth }).map((_, i) => <div key={`e-${i}`} />)}
+
+              {calendarMode === 'driver' && daysInMonth.map(day => {
+                const isoDate = day.toISOString().split('T')[0];
+                const state = getEffectiveDayState(day, transportOverrides, transportSettings.employed, isFutureMonth);
+                const isToday = isSameMonth(day, new Date()) && day.getDate() === new Date().getDate();
+                return (
+                  <button
+                    key={isoDate}
+                    disabled={!isEditingCalendar || isLocked || isPaidForMonth}
+                    onClick={() => handleDayToggle(day)}
+                    className={cn(
+                      "h-7 w-7 rounded-full flex flex-col items-center justify-center transition-all duration-200 text-[10px]",
+                      (isEditingCalendar && !isLocked && !isPaidForMonth) ? 'cursor-pointer hover:scale-105' : 'cursor-default',
+                      state === 1 && 'bg-primary/90 text-primary-foreground',
+                      state === 1.5 && 'bg-primary/40 text-primary-foreground',
+                      state === 0 && 'bg-muted text-muted-foreground opacity-60',
+                      isToday && "ring-1 ring-accent ring-offset-1 ring-offset-background",
+                    )}
+                  >
+                    <span className="leading-none">{format(day, 'd')}</span>
+                    {state === 1.5 && <span className="leading-none text-[7px] opacity-80">½</span>}
+                  </button>
+                );
+              })}
+
+              {calendarMode === 'uber' && daysInMonth.map(day => {
+                const isoDate = day.toISOString().split('T')[0];
+                const dayRides = uberRides.filter(r => r.date === isoDate);
+                const dayTotal = dayRides.reduce((sum, r) => sum + r.price, 0);
+                const hasRides = dayRides.length > 0;
+                const isToday = isSameMonth(day, new Date()) && day.getDate() === new Date().getDate();
+                return (
+                  <button
+                    key={isoDate}
+                    onClick={() => setUberDialogDate(isoDate)}
+                    className={cn(
+                      "h-7 w-7 rounded-full flex flex-col items-center justify-center transition-all duration-200 text-[10px] cursor-pointer hover:scale-105",
+                      hasRides ? 'bg-accent/30 text-foreground' : 'bg-muted/20 text-muted-foreground opacity-50',
+                      isToday && "ring-1 ring-accent ring-offset-1 ring-offset-background"
+                    )}
+                  >
+                    <span className="leading-none">{format(day, 'd')}</span>
+                    {hasRides && (
+                      <span className="leading-none text-[7px] text-accent font-semibold">
+                        {dayTotal >= 1000 ? `${Math.round(dayTotal / 1000)}k` : Math.round(dayTotal)}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
           </div>
-
-          <div className="grid grid-cols-7 gap-1 mt-1">
-            {Array.from({ length: firstDayOfMonth }).map((_, i) => <div key={`e-${i}`} />)}
-
-            {calendarMode === 'driver' && daysInMonth.map(day => {
-              const isoDate = day.toISOString().split('T')[0];
-              const state = getEffectiveDayState(day, transportOverrides, transportSettings.employed, isFutureMonth);
-              const isToday = isSameMonth(day, new Date()) && day.getDate() === new Date().getDate();
-              return (
-                <button
-                  key={isoDate}
-                  disabled={!isEditingCalendar || isLocked || isPaidForMonth}
-                  onClick={() => handleDayToggle(day)}
-                  className={cn(
-                    "h-7 w-7 rounded-full flex flex-col items-center justify-center transition-all duration-200 text-[10px]",
-                    (isEditingCalendar && !isLocked && !isPaidForMonth) ? 'cursor-pointer hover:scale-105' : 'cursor-default',
-                    state === 1 && 'bg-primary/90 text-primary-foreground',
-                    state === 1.5 && 'bg-primary/40 text-primary-foreground',
-                    state === 0 && 'bg-muted text-muted-foreground opacity-60',
-                    isToday && "ring-1 ring-accent ring-offset-1 ring-offset-background",
-                  )}
-                >
-                  <span className="leading-none">{format(day, 'd')}</span>
-                  {state === 1.5 && <span className="leading-none text-[7px] opacity-80">½</span>}
-                </button>
-              );
-            })}
-
-            {calendarMode === 'uber' && daysInMonth.map(day => {
-              const isoDate = day.toISOString().split('T')[0];
-              const dayRides = uberRides.filter(r => r.date === isoDate);
-              const dayTotal = dayRides.reduce((sum, r) => sum + r.price, 0);
-              const hasRides = dayRides.length > 0;
-              const isToday = isSameMonth(day, new Date()) && day.getDate() === new Date().getDate();
-              return (
-                <button
-                  key={isoDate}
-                  onClick={() => setUberDialogDate(isoDate)}
-                  className={cn(
-                    "h-7 w-7 rounded-full flex flex-col items-center justify-center transition-all duration-200 text-[10px] cursor-pointer hover:scale-105",
-                    hasRides ? 'bg-accent/30 text-foreground' : 'bg-muted/20 text-muted-foreground opacity-50',
-                    isToday && "ring-1 ring-accent ring-offset-1 ring-offset-background"
-                  )}
-                >
-                  <span className="leading-none">{format(day, 'd')}</span>
-                  {hasRides && (
-                    <span className="leading-none text-[7px] text-accent font-semibold">
-                      {dayTotal >= 1000 ? `${Math.round(dayTotal / 1000)}k` : Math.round(dayTotal)}
-                    </span>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-
-          <div className="flex gap-1 justify-center pt-3">
+        </CardContent>
+        <CardFooter className="px-3 pb-3 pt-2 border-t border-border/30">
+          <div className="flex gap-1 justify-center w-full">
             <Button
               size="sm"
               variant={calendarMode === 'driver' ? 'default' : 'ghost'}
@@ -382,7 +385,7 @@ export default function TransportPage() {
               Uber
             </Button>
           </div>
-        </CardContent>
+        </CardFooter>
       </Card>
 
       {/* ── Monthly summary ── */}

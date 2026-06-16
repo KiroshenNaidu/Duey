@@ -91,7 +91,6 @@ function DurationCalculator() {
 
   const h = Math.floor(totalSeconds / 3600);
   const m = Math.floor((totalSeconds % 3600) / 60);
-  const s = totalSeconds % 60;
 
   return (
     <div className="space-y-3">
@@ -106,10 +105,10 @@ function DurationCalculator() {
         </div>
       </div>
       {totalSeconds > 0 && (
-        <div className="space-y-1.5">
-          <ResultBox label="Duration" value={`${h}h ${m}m ${s}s`} />
-          <ResultBox label="Total Hours" value={`${(totalSeconds / 3600).toFixed(2)} hrs`} exactValue={totalSeconds / 3600} />
-          <ResultBox label="Total Minutes" value={`${Math.round(totalSeconds / 60)} min`} />
+        <div className="bg-muted/30 rounded-xl px-4 py-5 text-center border border-border/30">
+          <span className="text-2xl font-bold font-mono text-foreground tracking-wider">
+            {String(h).padStart(2, '0')} hrs {String(m).padStart(2, '0')} mins
+          </span>
         </div>
       )}
     </div>
@@ -140,11 +139,17 @@ function EarningsCalculator() {
         </div>
       </div>
       {h > 0 && r > 0 && (
-        <div className="space-y-1.5">
-          <ResultBox label={`${h} hrs earned`} value={formatCurrency(earned)} />
-          <ResultBox label="Day estimate (8h)" value={formatCurrency(perDay)} />
-          <ResultBox label="Week estimate (40h)" value={formatCurrency(perWeek)} />
-          <ResultBox label="Month estimate (160h)" value={formatCurrency(perMonth)} />
+        <div className="space-y-2">
+          <div className="bg-primary/10 rounded-xl px-4 py-4 text-center border border-primary/20">
+            <p className="text-[10px] text-muted-foreground uppercase tracking-widest mb-1">{h} hrs × R{r}/hr</p>
+            <p className="text-2xl font-bold font-mono text-foreground">{formatCurrency(earned)}</p>
+          </div>
+          <p className="text-[10px] text-muted-foreground uppercase tracking-widest px-1">At R{r}/hr you would earn…</p>
+          <div className="space-y-1.5">
+            <ResultBox label="Full 8-hour day" value={formatCurrency(perDay)} />
+            <ResultBox label="Full 40-hour week" value={formatCurrency(perWeek)} />
+            <ResultBox label="Full 160-hour month" value={formatCurrency(perMonth)} />
+          </div>
         </div>
       )}
     </div>
@@ -161,12 +166,13 @@ function UnitConverter() {
   const toSeconds: Record<TimeUnit, number> = { seconds: 1, minutes: 60, hours: 3600, days: 86400 };
   const totalSeconds = n * toSeconds[unit];
 
-  const conversions: { label: string; value: string; exact: number }[] = [
-    { label: 'Seconds', value: totalSeconds.toFixed(0), exact: totalSeconds },
-    { label: 'Minutes', value: (totalSeconds / 60).toFixed(2), exact: totalSeconds / 60 },
-    { label: 'Hours', value: (totalSeconds / 3600).toFixed(4), exact: totalSeconds / 3600 },
-    { label: 'Days', value: (totalSeconds / 86400).toFixed(4), exact: totalSeconds / 86400 },
+  const allConversions: { key: TimeUnit; label: string; value: string; exact: number }[] = [
+    { key: 'seconds', label: 'Seconds', value: totalSeconds.toFixed(0), exact: totalSeconds },
+    { key: 'minutes', label: 'Minutes', value: (totalSeconds / 60).toFixed(2), exact: totalSeconds / 60 },
+    { key: 'hours', label: 'Hours', value: (totalSeconds / 3600).toFixed(4), exact: totalSeconds / 3600 },
+    { key: 'days', label: 'Days', value: (totalSeconds / 86400).toFixed(4), exact: totalSeconds / 86400 },
   ];
+  const conversions = allConversions.filter(c => c.key !== unit);
 
   return (
     <div className="space-y-3">
@@ -176,7 +182,7 @@ function UnitConverter() {
           <Input type="number" placeholder="e.g., 90" value={value} onChange={e => setValue(e.target.value)} />
         </div>
         <div className="space-y-1">
-          <Label className="text-xs">Unit</Label>
+          <Label className="text-xs">Convert from</Label>
           <select
             className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm text-foreground appearance-none"
             value={unit}
@@ -192,7 +198,7 @@ function UnitConverter() {
       {n > 0 && (
         <div className="space-y-1.5">
           {conversions.map(c => (
-            <ResultBox key={`${c.label}-${c.exact}`} label={c.label} value={c.value} exactValue={c.exact} />
+            <ResultBox key={c.key} label={`in ${c.label}`} value={c.value} exactValue={c.exact} />
           ))}
         </div>
       )}
