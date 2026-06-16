@@ -220,7 +220,7 @@ export default function SettingsPage() {
         {discardDialog}
         {toastUI}
         <PageHeader title="Theme" onBack={handleBack} />
-        <ThemeSettingsMenu onBack={handleBack} onDirtyChange={setMenuIsDirty} onSaved={handleThemeSaved} />
+        <ThemeSettingsMenu onCancel={handleBack} onDirtyChange={setMenuIsDirty} onSaved={handleThemeSaved} />
       </div>
     );
   }

@@ -108,38 +108,21 @@ function getDb(): Promise<IDBPDatabase<MyDB>> {
 }
 
 export async function idbGet<T>(key: string): Promise<T | undefined> {
-  try {
-    const db = await getDb();
-    return db.get(STORE_NAME, key);
-  } catch (error) {
-    console.error('Failed to get from IndexedDB', error);
-    return undefined;
-  }
+  const db = await getDb();
+  return db.get(STORE_NAME, key);
 }
 
-export async function idbSet(key: string, value: any): Promise<void> {
-   try {
-    const db = await getDb();
-    await db.put(STORE_NAME, value, key);
-  } catch (error) {
-    console.error('Failed to set in IndexedDB', error);
-  }
+export async function idbSet(key: string, value: unknown): Promise<void> {
+  const db = await getDb();
+  await db.put(STORE_NAME, value, key);
 }
 
 export async function idbDel(key: string): Promise<void> {
-  try {
-    const db = await getDb();
-    await db.delete(STORE_NAME, key);
-  } catch (error) {
-    console.error('Failed to delete from IndexedDB', error);
-  }
+  const db = await getDb();
+  await db.delete(STORE_NAME, key);
 }
 
 export async function idbClear(): Promise<void> {
-  try {
-    const db = await getDb();
-    await db.clear(STORE_NAME);
-  } catch (error) {
-    console.error('Failed to clear IndexedDB', error);
-  }
+  const db = await getDb();
+  await db.clear(STORE_NAME);
 }

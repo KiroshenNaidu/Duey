@@ -120,3 +120,10 @@ export interface AppState {
 
 // For Import/Export, which might not have all fields.
 export type AppData = Partial<AppState>;
+
+export interface AppError {
+  friendly: string;    // User-facing message: "Could not save background image"
+  operation: string;   // Technical context: "idbSet('backgroundImage') in ThemeSettingsMenu"
+  error: unknown;      // Original Error object
+  ts: number;          // Date.now()
+}

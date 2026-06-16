@@ -71,8 +71,6 @@ export function NotificationsMenu({ onDirtyChange, onSaved, onCancel }: Notifica
   const draftTimeString = `${String(draft.hour).padStart(2, '0')}:${String(draft.minute).padStart(2, '0')}`;
 
   const handleSave = async () => {
-    setNotificationSettings(draft);
-
     const native = await checkNative();
     if (native) {
       if (draft.enabled) {
@@ -89,15 +87,24 @@ export function NotificationsMenu({ onDirtyChange, onSaved, onCancel }: Notifica
             draft.minute,
             draft.message,
           );
+          setNotificationSettings(draft);
           setStatusMsg('Notification scheduled!');
         } catch {
           setStatusMsg('Failed to schedule notification.');
           return;
         }
       } else {
-        await cancelNotification();
-        setStatusMsg('');
+        try {
+          await cancelNotification();
+          setNotificationSettings(draft);
+          setStatusMsg('');
+        } catch {
+          setStatusMsg('Failed to cancel notification.');
+          return;
+        }
       }
+    } else {
+      setNotificationSettings(draft);
     }
 
     onDirtyChange?.(false);

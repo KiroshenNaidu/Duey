@@ -1,7 +1,7 @@
 'use client';
 
 import { createContext, ReactNode, useEffect, useState, useMemo, useCallback } from 'react';
-import type { AppState, Debt, HistoryEntry, AppData, ThemeSettings, TransportSettings, TransportOverrides, DayState, UberRide, UserTheme, BudgetPlan, BudgetItem, UserProfile, NotificationSettings } from '@/lib/types';
+import type { AppState, Debt, HistoryEntry, AppData, ThemeSettings, TransportSettings, TransportOverrides, DayState, UberRide, UserTheme, BudgetPlan, BudgetItem, UserProfile, NotificationSettings, AppError } from '@/lib/types';
 import { isSameDay, startOfDay } from 'date-fns';
 import { idbGet, idbSet, idbDel } from '@/lib/utils';
 
@@ -75,6 +75,8 @@ type NavGuard = { onAttempt: (href: string) => void } | null;
 interface AppContextType extends AppState {
   navGuard: NavGuard;
   setNavGuard: (guard: NavGuard) => void;
+  appError: AppError | null;
+  setAppError: (error: AppError | null) => void;
   addDebt: (debt: Omit<Debt, 'id'>) => void;
   updateDebt: (debtId: string, updatedData: Partial<Omit<Debt, 'id'>>) => void;
   deleteDebt: (debtId: string) => void;
@@ -102,7 +104,7 @@ interface AppContextType extends AppState {
   deleteUserTheme: (themeId: string) => void;
   importData: (data: AppData) => void;
   deleteHistoryEntry: (entryId: string) => void;
-  clearData: () => void;
+  clearData: () => void; // fire-and-forget async
   getAppState: () => AppState;
   avatarDataUrl: string;
   setProfileAvatar: (url: string) => Promise<void>;
@@ -143,6 +145,8 @@ export const AppDataContext = createContext<AppContextType>({
   setProfileAvatar: async () => {},
   navGuard: null,
   setNavGuard: () => {},
+  appError: null,
+  setAppError: () => {},
 });
 
 export function AppDataProvider({ children }: { children: ReactNode }) {
@@ -150,6 +154,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
   const [isLoaded, setIsLoaded] = useState(false);
   const [avatarDataUrl, setAvatarDataUrl] = useState('');
   const [navGuard, setNavGuard] = useState<NavGuard>(null);
+  const [appError, setAppError] = useState<AppError | null>(null);
 
   useEffect(() => {
     const storedStateRaw = localStorage.getItem('appState');
@@ -161,25 +166,45 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       }
     }
     setIsLoaded(true);
-    idbGet<string>('profileAvatar').then(v => { if (v) setAvatarDataUrl(v); });
+    idbGet<string>('profileAvatar')
+      .then(v => { if (v) setAvatarDataUrl(v); })
+      .catch((err) => { console.error('Failed to load profile avatar', err); });
   }, []);
 
   const setProfileAvatar = useCallback(async (url: string) => {
-    if (url) {
-      await idbSet('profileAvatar', url);
-    } else {
-      await idbDel('profileAvatar');
+    try {
+      if (url) {
+        await idbSet('profileAvatar', url);
+      } else {
+        await idbDel('profileAvatar');
+      }
+      setAvatarDataUrl(url);
+    } catch (err) {
+      setAppError({
+        friendly: 'Could not save profile photo — storage may be full.',
+        operation: `${url ? "idbSet('profileAvatar')" : "idbDel('profileAvatar')"} in setProfileAvatar`,
+        error: err,
+        ts: Date.now(),
+      });
     }
-    setAvatarDataUrl(url);
-  }, []);
+  }, [setAppError]);
 
   const updateStateAndSync = useCallback((updater: (prev: AppState) => AppState) => {
     setAppState(prev => {
       const next = updater(prev);
-      localStorage.setItem('appState', JSON.stringify(next));
+      try {
+        localStorage.setItem('appState', JSON.stringify(next));
+      } catch (err) {
+        queueMicrotask(() => setAppError({
+          friendly: 'Could not save — your device storage may be full. Some changes may be lost after refresh.',
+          operation: "localStorage.setItem('appState') in updateStateAndSync",
+          error: err,
+          ts: Date.now(),
+        }));
+      }
       return next;
     });
-  }, []);
+  }, [setAppError]);
 
   const addDebt = useCallback((debtData: Omit<Debt, 'id'>) => {
     updateStateAndSync(prev => {
@@ -402,7 +427,10 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
   const clearData = () => {
     const keysToRemove = ['appState', 'duey_device_id'];
     keysToRemove.forEach(key => localStorage.removeItem(key));
+    idbDel('backgroundImage').catch(() => {});
+    idbDel('profileAvatar').catch(() => {});
     setAppState(defaultState);
+    setAvatarDataUrl('');
     window.location.reload();
   };
 
@@ -441,7 +469,9 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     setProfileAvatar,
     navGuard,
     setNavGuard,
-  }), [appState, avatarDataUrl, setProfileAvatar, navGuard, setNavGuard]);
+    appError,
+    setAppError,
+  }), [appState, avatarDataUrl, setProfileAvatar, navGuard, setNavGuard, appError, setAppError]);
 
   if (!isLoaded) return null;
 

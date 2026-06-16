@@ -156,6 +156,7 @@ export function ProfileMenu({ onDirtyChange, onSaved, onCancel }: ProfileMenuPro
   // Avatar draft: null = no change, '' = remove, 'data:...' = new photo
   const [draftAvatarUrl, setDraftAvatarUrl] = useState<string | null>(null);
   const [draftAvatarSettings, setDraftAvatarSettings] = useState<AvatarSettings | undefined>(userProfile.avatarSettings);
+  const [uploadError, setUploadError] = useState<string | null>(null);
 
   const displayAvatarUrl = draftAvatarUrl !== null ? draftAvatarUrl : avatarDataUrl;
   const initial = (name.trim() || userProfile.name.trim()).charAt(0).toUpperCase();
@@ -201,6 +202,7 @@ export function ProfileMenu({ onDirtyChange, onSaved, onCancel }: ProfileMenuPro
   const handleAvatarUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    setUploadError(null);
     const reader = new FileReader();
     reader.onload = (ev) => {
       const src = ev.target?.result as string;
@@ -211,11 +213,15 @@ export function ProfileMenu({ onDirtyChange, onSaved, onCancel }: ProfileMenuPro
         const canvas = document.createElement('canvas');
         canvas.width  = Math.round(img.width  * ratio);
         canvas.height = Math.round(img.height * ratio);
-        const ctx = canvas.getContext('2d')!;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) { setUploadError('Canvas context unavailable — try a different browser.'); return; }
         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
         setDraftAvatarUrl(canvas.toDataURL('image/jpeg', 0.9));
         setDraftAvatarSettings(undefined);
         setEditorOpen(true);
+      };
+      img.onerror = () => {
+        setUploadError('Could not read image — file may be corrupted or unsupported.');
       };
       img.src = src;
     };
@@ -292,6 +298,9 @@ export function ProfileMenu({ onDirtyChange, onSaved, onCancel }: ProfileMenuPro
             <p className="text-[10px] text-muted-foreground/60">
               {displayAvatarUrl ? 'Tap to adjust' : 'Tap to add photo'}
             </p>
+            {uploadError && (
+              <p className="text-xs text-destructive text-center">{uploadError}</p>
+            )}
           </div>
 
           <div className="space-y-1.5">

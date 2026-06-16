@@ -29,6 +29,9 @@ const defaultThemeSettings: Omit<ThemeSettings, 'backgroundImage'> = {
   backgroundOpacity: 0.1,
   uiScale: 1.0,
   uiStyle: 'solid',
+  useSafeAreaInsets: false,
+  bgX: 50,
+  bgY: 50,
 };
 
 const systemPresets: Omit<UserTheme, 'id'>[] = [
@@ -121,10 +124,13 @@ const areThemeSettingsEqual = (
   s1.background === s2.background && s1.surface === s2.surface &&
   s1.primary === s2.primary && s1.accent === s2.accent &&
   s1.foreground === s2.foreground && s1.accentForeground === s2.accentForeground &&
-  s1.font === s2.font && s1.uiScale === s2.uiScale && s1.uiStyle === s2.uiStyle;
+  s1.font === s2.font && s1.uiScale === s2.uiScale && s1.uiStyle === s2.uiStyle &&
+  !!s1.useSafeAreaInsets === !!s2.useSafeAreaInsets &&
+  (s1.bgX ?? 50) === (s2.bgX ?? 50) &&
+  (s1.bgY ?? 50) === (s2.bgY ?? 50);
 
-export function ThemeSettingsMenu({ onBack, onDirtyChange, onSaved }: { onBack?: () => void; onDirtyChange?: (dirty: boolean) => void; onSaved?: (msg: string) => void }) {
-  const { themeSettings, setThemeSettings, userThemes, addUserTheme, deleteUserTheme } = useContext(AppDataContext);
+export function ThemeSettingsMenu({ onCancel, onDirtyChange, onSaved }: { onCancel?: () => void; onDirtyChange?: (dirty: boolean) => void; onSaved?: (msg: string) => void }) {
+  const { themeSettings, setThemeSettings, userThemes, addUserTheme, deleteUserTheme, setAppError } = useContext(AppDataContext);
 
   const [previewTheme, setPreviewTheme] = useState<ThemeSettings>(() => ({
     ...defaultThemeSettings,
@@ -146,12 +152,13 @@ export function ThemeSettingsMenu({ onBack, onDirtyChange, onSaved }: { onBack?:
   const savedThemeRef = useRef(themeSettings);
 
   useEffect(() => {
+    const capturedSettings = themeSettings;
     setIsClient(true);
     idbGet<string>('backgroundImage').then(img => {
       const loaded = img || '';
       initialBgRef.current = loaded;
       if (loaded) setPreviewTheme(p => ({ ...p, backgroundImage: loaded }));
-      initialThemeRef.current = { ...themeSettings, backgroundImage: loaded };
+      initialThemeRef.current = { ...capturedSettings, backgroundImage: loaded };
     });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -229,6 +236,15 @@ export function ThemeSettingsMenu({ onBack, onDirtyChange, onSaved }: { onBack?:
         setPreviewTheme(p => ({ ...p, backgroundImage: dataUrl }));
         setIsProcessing(false);
       };
+      img.onerror = () => {
+        setIsProcessing(false);
+        setAppError({
+          friendly: 'Could not read image — file may be corrupted or unsupported.',
+          operation: 'img.onerror in handleFileChange in ThemeSettingsMenu',
+          error: new Error('Image failed to load'),
+          ts: Date.now(),
+        });
+      };
       img.src = e.target?.result as string;
     };
     reader.readAsDataURL(file);
@@ -259,14 +275,22 @@ export function ThemeSettingsMenu({ onBack, onDirtyChange, onSaved }: { onBack?:
 
   const onBgPointerUp = useCallback(() => { isBgDraggingRef.current = false; }, []);
 
-  const handleSave = () => {
+  const handleSave = async () => {
     const { backgroundImage, ...settingsToSave } = previewTheme;
-    idbSet('backgroundImage', backgroundImage).then(() => {
+    try {
+      await idbSet('backgroundImage', backgroundImage);
       setThemeSettings(settingsToSave);
       onDirtyChange?.(false);
       onSaved?.('Theme saved!');
       setTimeout(() => window.location.reload(), 300);
-    });
+    } catch (err) {
+      setAppError({
+        friendly: 'Could not save theme — storage may be full.',
+        operation: "idbSet('backgroundImage') in ThemeSettingsMenu.handleSave",
+        error: err,
+        ts: Date.now(),
+      });
+    }
   };
 
   const handleSavePreset = () => {
@@ -428,7 +452,7 @@ export function ThemeSettingsMenu({ onBack, onDirtyChange, onSaved }: { onBack?:
         <Link
           href="/settings"
           className={cn(buttonVariants({ variant: 'ghost' }), 'flex-1')}
-          onClick={(e) => { if (onBack) { e.preventDefault(); onBack(); } }}
+          onClick={(e) => { if (onCancel) { e.preventDefault(); onCancel(); } }}
         >
           Cancel
         </Link>

@@ -37,7 +37,7 @@ const PERIOD_LABELS: Record<StatsPeriod, string> = {
 };
 
 export function DataManagementMenu() {
-  const { getAppState, importData, clearData } = useContext(AppDataContext);
+  const { getAppState, importData, clearData, setAppError } = useContext(AppDataContext);
   const fullFileInputRef   = useRef<HTMLInputElement>(null);
   const configFileInputRef = useRef<HTMLInputElement>(null);
 
@@ -101,70 +101,82 @@ export function DataManagementMenu() {
   };
 
   const exportAsExcel = async () => {
-    const s = getAppState();
-    const { utils, writeFile } = await import('xlsx');
-    const wb = utils.book_new();
-    utils.book_append_sheet(wb, utils.json_to_sheet(s.history.map(h => ({ Date: formatDate(h.date), Type: h.type, Name: h.debtTitle, Amount: h.amount }))), 'History');
-    utils.book_append_sheet(wb, utils.json_to_sheet(s.uberRides.map(r => ({ Date: formatDate(r.date), From: r.from ?? '', To: r.to ?? '', Price: r.price, Distance_km: r.distance ?? '' }))), 'Uber Rides');
-    utils.book_append_sheet(wb, utils.json_to_sheet(s.budgetPlans.flatMap(p => p.items.map(i => ({ Plan: p.name, Budget: p.budget, Item: i.name, Price: i.price, Link: i.link ?? '' })))), 'Budget Plans');
-    writeFile(wb, 'duey-history.xlsx');
+    try {
+      const s = getAppState();
+      const { utils, writeFile } = await import('xlsx');
+      const wb = utils.book_new();
+      utils.book_append_sheet(wb, utils.json_to_sheet(s.history.map(h => ({ Date: formatDate(h.date), Type: h.type, Name: h.debtTitle, Amount: h.amount }))), 'History');
+      utils.book_append_sheet(wb, utils.json_to_sheet(s.uberRides.map(r => ({ Date: formatDate(r.date), From: r.from ?? '', To: r.to ?? '', Price: r.price, Distance_km: r.distance ?? '' }))), 'Uber Rides');
+      utils.book_append_sheet(wb, utils.json_to_sheet(s.budgetPlans.flatMap(p => p.items.map(i => ({ Plan: p.name, Budget: p.budget, Item: i.name, Price: i.price, Link: i.link ?? '' })))), 'Budget Plans');
+      writeFile(wb, 'duey-history.xlsx');
+    } catch (err) {
+      setAppError({ friendly: 'Could not export Excel file.', operation: 'exportAsExcel in DataManagementMenu', error: err, ts: Date.now() });
+    }
   };
 
   const exportAsWord = async () => {
-    const s = getAppState();
-    const { Document, Paragraph, TextRun, HeadingLevel, Packer } = await import('docx');
-    const children: InstanceType<typeof Paragraph>[] = [
-      new Paragraph({ text: 'DUEY — History Export', heading: HeadingLevel.TITLE }),
-      new Paragraph({ text: `Generated: ${new Date().toLocaleDateString('en-ZA')}` }),
-      new Paragraph({ text: '' }),
-      new Paragraph({ text: 'Debts', heading: HeadingLevel.HEADING_1 }),
-    ];
-    s.history.filter(h => ['creation','payment','completion'].includes(h.type)).forEach(h => {
-      children.push(new Paragraph({ children: [new TextRun(`${formatDate(h.date)} · ${h.type} · ${h.debtTitle} · R${h.amount}`)] }));
-    });
-    children.push(new Paragraph({ text: 'Transport', heading: HeadingLevel.HEADING_1 }));
-    s.history.filter(h => h.type === 'transport').forEach(h => {
-      children.push(new Paragraph({ children: [new TextRun(`${formatDate(h.date)} · ${h.debtTitle} · R${h.amount}`)] }));
-    });
-    children.push(new Paragraph({ text: 'Uber Rides', heading: HeadingLevel.HEADING_1 }));
-    s.uberRides.forEach(r => {
-      children.push(new Paragraph({ children: [new TextRun(`${formatDate(r.date)} · R${r.price}${r.from ? ' from ' + r.from : ''}${r.to ? ' to ' + r.to : ''}`)] }));
-    });
-    children.push(new Paragraph({ text: 'Budget Plans', heading: HeadingLevel.HEADING_1 }));
-    s.budgetPlans.forEach(p => {
-      children.push(new Paragraph({ text: p.name, heading: HeadingLevel.HEADING_2 }));
-      p.items.forEach(i => children.push(new Paragraph({ children: [new TextRun(`${i.name}: R${i.price}`)] })));
-    });
-    triggerDownload(await Packer.toBlob(new Document({ sections: [{ children }] })), 'duey-history.docx');
+    try {
+      const s = getAppState();
+      const { Document, Paragraph, TextRun, HeadingLevel, Packer } = await import('docx');
+      const children: InstanceType<typeof Paragraph>[] = [
+        new Paragraph({ text: 'DUEY — History Export', heading: HeadingLevel.TITLE }),
+        new Paragraph({ text: `Generated: ${new Date().toLocaleDateString('en-ZA')}` }),
+        new Paragraph({ text: '' }),
+        new Paragraph({ text: 'Debts', heading: HeadingLevel.HEADING_1 }),
+      ];
+      s.history.filter(h => ['creation','payment','completion'].includes(h.type)).forEach(h => {
+        children.push(new Paragraph({ children: [new TextRun(`${formatDate(h.date)} · ${h.type} · ${h.debtTitle} · R${h.amount}`)] }));
+      });
+      children.push(new Paragraph({ text: 'Transport', heading: HeadingLevel.HEADING_1 }));
+      s.history.filter(h => h.type === 'transport').forEach(h => {
+        children.push(new Paragraph({ children: [new TextRun(`${formatDate(h.date)} · ${h.debtTitle} · R${h.amount}`)] }));
+      });
+      children.push(new Paragraph({ text: 'Uber Rides', heading: HeadingLevel.HEADING_1 }));
+      s.uberRides.forEach(r => {
+        children.push(new Paragraph({ children: [new TextRun(`${formatDate(r.date)} · R${r.price}${r.from ? ' from ' + r.from : ''}${r.to ? ' to ' + r.to : ''}`)] }));
+      });
+      children.push(new Paragraph({ text: 'Budget Plans', heading: HeadingLevel.HEADING_1 }));
+      s.budgetPlans.forEach(p => {
+        children.push(new Paragraph({ text: p.name, heading: HeadingLevel.HEADING_2 }));
+        p.items.forEach(i => children.push(new Paragraph({ children: [new TextRun(`${i.name}: R${i.price}`)] })));
+      });
+      triggerDownload(await Packer.toBlob(new Document({ sections: [{ children }] })), 'duey-history.docx');
+    } catch (err) {
+      setAppError({ friendly: 'Could not export Word document.', operation: 'exportAsWord in DataManagementMenu', error: err, ts: Date.now() });
+    }
   };
 
   const exportAsPdf = async () => {
-    const s = getAppState();
-    const { jsPDF } = await import('jspdf');
-    const doc = new jsPDF();
-    let y = 15;
-    const line = (text: string, indent = 0) => {
-      if (y > 275) { doc.addPage(); y = 15; }
-      doc.text(text, 10 + indent, y);
-      y += 6;
-    };
-    doc.setFontSize(14); line('DUEY — History Export');
-    doc.setFontSize(10); line(`Generated: ${new Date().toLocaleDateString('en-ZA')}`);
-    y += 4;
-    doc.setFontSize(12); line('DEBTS'); doc.setFontSize(9);
-    s.history.filter(h => ['creation','payment','completion'].includes(h.type)).forEach(h => {
-      line(`${formatDate(h.date)}  ${h.type.toUpperCase().padEnd(12)} ${h.debtTitle}  R${h.amount}`, 2);
-    });
-    y += 4; doc.setFontSize(12); line('TRANSPORT'); doc.setFontSize(9);
-    s.history.filter(h => h.type === 'transport').forEach(h => { line(`${formatDate(h.date)}  ${h.debtTitle}  R${h.amount}`, 2); });
-    y += 4; doc.setFontSize(12); line('UBER RIDES'); doc.setFontSize(9);
-    s.uberRides.forEach(r => { line(`${formatDate(r.date)}  R${r.price}${r.from ? '  from: ' + r.from : ''}${r.to ? '  to: ' + r.to : ''}`, 2); });
-    y += 4; doc.setFontSize(12); line('BUDGET PLANS'); doc.setFontSize(9);
-    s.budgetPlans.forEach(p => {
-      line(`${p.name} — Budget R${p.budget}`, 2);
-      p.items.forEach(i => line(`- ${i.name}: R${i.price}`, 6));
-    });
-    doc.save('duey-history.pdf');
+    try {
+      const s = getAppState();
+      const { jsPDF } = await import('jspdf');
+      const doc = new jsPDF();
+      let y = 15;
+      const line = (text: string, indent = 0) => {
+        if (y > 275) { doc.addPage(); y = 15; }
+        doc.text(text, 10 + indent, y);
+        y += 6;
+      };
+      doc.setFontSize(14); line('DUEY — History Export');
+      doc.setFontSize(10); line(`Generated: ${new Date().toLocaleDateString('en-ZA')}`);
+      y += 4;
+      doc.setFontSize(12); line('DEBTS'); doc.setFontSize(9);
+      s.history.filter(h => ['creation','payment','completion'].includes(h.type)).forEach(h => {
+        line(`${formatDate(h.date)}  ${h.type.toUpperCase().padEnd(12)} ${h.debtTitle}  R${h.amount}`, 2);
+      });
+      y += 4; doc.setFontSize(12); line('TRANSPORT'); doc.setFontSize(9);
+      s.history.filter(h => h.type === 'transport').forEach(h => { line(`${formatDate(h.date)}  ${h.debtTitle}  R${h.amount}`, 2); });
+      y += 4; doc.setFontSize(12); line('UBER RIDES'); doc.setFontSize(9);
+      s.uberRides.forEach(r => { line(`${formatDate(r.date)}  R${r.price}${r.from ? '  from: ' + r.from : ''}${r.to ? '  to: ' + r.to : ''}`, 2); });
+      y += 4; doc.setFontSize(12); line('BUDGET PLANS'); doc.setFontSize(9);
+      s.budgetPlans.forEach(p => {
+        line(`${p.name} — Budget R${p.budget}`, 2);
+        p.items.forEach(i => line(`- ${i.name}: R${i.price}`, 6));
+      });
+      doc.save('duey-history.pdf');
+    } catch (err) {
+      setAppError({ friendly: 'Could not export PDF.', operation: 'exportAsPdf in DataManagementMenu', error: err, ts: Date.now() });
+    }
   };
 
   // ──────────────────────────────────────────────────────────────
@@ -172,6 +184,7 @@ export function DataManagementMenu() {
   // ──────────────────────────────────────────────────────────────
 
   const exportStatsPdf = async () => {
+    try {
     const s = getAppState();
     const cutoff = statsPeriod === '3m' ? subMonths(new Date(), 3)
                  : statsPeriod === '6m' ? subMonths(new Date(), 6)
@@ -237,40 +250,47 @@ export function DataManagementMenu() {
     line(`Grand Total   : R${(totalPaid + totalTrans + totalUber).toFixed(2)}`, 4, 10);
 
     doc.save(`duey-statement-${statsPeriod}.pdf`);
+    } catch (err) {
+      setAppError({ friendly: 'Could not export PDF statement.', operation: 'exportStatsPdf in DataManagementMenu', error: err, ts: Date.now() });
+    }
   };
 
   const exportStatsExcel = async () => {
-    const s = getAppState();
-    const cutoff = statsPeriod === '3m' ? subMonths(new Date(), 3)
-                 : statsPeriod === '6m' ? subMonths(new Date(), 6)
-                 : new Date(0);
-    const fHist  = s.history.filter(h => isAfter(new Date(h.date), cutoff));
-    const fRides = s.uberRides.filter(r => isAfter(new Date(r.date), cutoff));
+    try {
+      const s = getAppState();
+      const cutoff = statsPeriod === '3m' ? subMonths(new Date(), 3)
+                   : statsPeriod === '6m' ? subMonths(new Date(), 6)
+                   : new Date(0);
+      const fHist  = s.history.filter(h => isAfter(new Date(h.date), cutoff));
+      const fRides = s.uberRides.filter(r => isAfter(new Date(r.date), cutoff));
 
-    const { utils, writeFile } = await import('xlsx');
-    const wb = utils.book_new();
+      const { utils, writeFile } = await import('xlsx');
+      const wb = utils.book_new();
 
-    utils.book_append_sheet(wb, utils.json_to_sheet(
-      fHist.filter(h => h.type === 'payment').map(h => ({ Date: formatDate(h.date), Debt: h.debtTitle, Amount: h.amount }))
-    ), 'Debt Payments');
-    utils.book_append_sheet(wb, utils.json_to_sheet(
-      fHist.filter(h => h.type === 'transport').map(h => ({ Date: formatDate(h.date), Description: h.debtTitle, Amount: h.amount }))
-    ), 'Transport');
-    utils.book_append_sheet(wb, utils.json_to_sheet(
-      fRides.map(r => ({ Date: formatDate(r.date), From: r.from ?? '', To: r.to ?? '', Price: r.price, 'Distance (km)': r.distance ?? '' }))
-    ), 'Uber Rides');
+      utils.book_append_sheet(wb, utils.json_to_sheet(
+        fHist.filter(h => h.type === 'payment').map(h => ({ Date: formatDate(h.date), Debt: h.debtTitle, Amount: h.amount }))
+      ), 'Debt Payments');
+      utils.book_append_sheet(wb, utils.json_to_sheet(
+        fHist.filter(h => h.type === 'transport').map(h => ({ Date: formatDate(h.date), Description: h.debtTitle, Amount: h.amount }))
+      ), 'Transport');
+      utils.book_append_sheet(wb, utils.json_to_sheet(
+        fRides.map(r => ({ Date: formatDate(r.date), From: r.from ?? '', To: r.to ?? '', Price: r.price, 'Distance (km)': r.distance ?? '' }))
+      ), 'Uber Rides');
 
-    const totalPaid  = fHist.filter(h => h.type === 'payment').reduce((a, h) => a + h.amount, 0);
-    const totalTrans = fHist.filter(h => h.type === 'transport').reduce((a, h) => a + h.amount, 0);
-    const totalUber  = fRides.reduce((a, r) => a + r.price, 0);
-    utils.book_append_sheet(wb, utils.json_to_sheet([
-      { Category: 'Debt Payments', Total: totalPaid },
-      { Category: 'Transport',     Total: totalTrans },
-      { Category: 'Uber Rides',    Total: totalUber },
-      { Category: 'Grand Total',   Total: totalPaid + totalTrans + totalUber },
-    ]), 'Summary');
+      const totalPaid  = fHist.filter(h => h.type === 'payment').reduce((a, h) => a + h.amount, 0);
+      const totalTrans = fHist.filter(h => h.type === 'transport').reduce((a, h) => a + h.amount, 0);
+      const totalUber  = fRides.reduce((a, r) => a + r.price, 0);
+      utils.book_append_sheet(wb, utils.json_to_sheet([
+        { Category: 'Debt Payments', Total: totalPaid },
+        { Category: 'Transport',     Total: totalTrans },
+        { Category: 'Uber Rides',    Total: totalUber },
+        { Category: 'Grand Total',   Total: totalPaid + totalTrans + totalUber },
+      ]), 'Summary');
 
-    writeFile(wb, `duey-statement-${statsPeriod}.xlsx`);
+      writeFile(wb, `duey-statement-${statsPeriod}.xlsx`);
+    } catch (err) {
+      setAppError({ friendly: 'Could not export Excel statement.', operation: 'exportStatsExcel in DataManagementMenu', error: err, ts: Date.now() });
+    }
   };
 
   // ──────────────────────────────────────────────────────────────
@@ -278,21 +298,25 @@ export function DataManagementMenu() {
   // ──────────────────────────────────────────────────────────────
 
   const exportUserConfig = async () => {
-    const s = getAppState();
-    const backgroundImage = await idbGet<string>('backgroundImage') ?? '';
-    const avatarImage = await idbGet<string>('profileAvatar') ?? '';
-    const configBlob = new Blob([JSON.stringify({
-      type: 'duey-config',
-      v: 1,
-      exportedAt: new Date().toISOString(),
-      themeSettings: s.themeSettings,
-      userProfile: s.userProfile,
-      notificationSettings: s.notificationSettings,
-      userThemes: s.userThemes,
-      backgroundImage,
-      avatarImage,
-    }, null, 2)], { type: 'application/json' });
-    triggerDownload(configBlob, 'duey-config.json');
+    try {
+      const s = getAppState();
+      const backgroundImage = await idbGet<string>('backgroundImage') ?? '';
+      const avatarImage = await idbGet<string>('profileAvatar') ?? '';
+      const configBlob = new Blob([JSON.stringify({
+        type: 'duey-config',
+        v: 1,
+        exportedAt: new Date().toISOString(),
+        themeSettings: s.themeSettings,
+        userProfile: s.userProfile,
+        notificationSettings: s.notificationSettings,
+        userThemes: s.userThemes,
+        backgroundImage,
+        avatarImage,
+      }, null, 2)], { type: 'application/json' });
+      triggerDownload(configBlob, 'duey-config.json');
+    } catch (err) {
+      setAppError({ friendly: 'Could not export config — storage may be unavailable.', operation: 'exportUserConfig in DataManagementMenu', error: err, ts: Date.now() });
+    }
   };
 
   const handleConfigImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -301,19 +325,25 @@ export function DataManagementMenu() {
     const reader = new FileReader();
     reader.onload = async (e) => {
       try {
-        const data = JSON.parse(e.target?.result as string);
+        const raw = e.target?.result;
+        if (typeof raw !== 'string') { setError('Could not read config file.'); return; }
+        const data = JSON.parse(raw);
         if (data.type !== 'duey-config') {
           setError('Not a valid Duey config file.');
           return;
         }
         const partial: AppData = {};
-        if (data.themeSettings)       partial.themeSettings       = data.themeSettings;
-        if (data.userProfile)         partial.userProfile         = data.userProfile;
+        if (data.themeSettings)        partial.themeSettings        = data.themeSettings;
+        if (data.userProfile)          partial.userProfile          = data.userProfile;
         if (data.notificationSettings) partial.notificationSettings = data.notificationSettings;
-        if (data.userThemes)          partial.userThemes          = data.userThemes;
+        if (data.userThemes)           partial.userThemes           = data.userThemes;
         importData(partial);
-        if (data.backgroundImage) await idbSet('backgroundImage', data.backgroundImage);
-        if (data.avatarImage) await idbSet('profileAvatar', data.avatarImage);
+        try {
+          if (data.backgroundImage) await idbSet('backgroundImage', data.backgroundImage);
+          if (data.avatarImage)     await idbSet('profileAvatar', data.avatarImage);
+        } catch (idbErr) {
+          setAppError({ friendly: 'Config imported but images could not be saved — storage may be full.', operation: 'idbSet in handleConfigImport in DataManagementMenu', error: idbErr, ts: Date.now() });
+        }
         setTimeout(() => window.location.reload(), 600);
       } catch {
         setError('Failed to read config file.');
@@ -340,7 +370,9 @@ export function DataManagementMenu() {
       const reader = new FileReader();
       reader.onload = (e) => {
         try {
-          importData(JSON.parse(e.target?.result as string));
+          const raw = e.target?.result;
+          if (typeof raw !== 'string') { setError('Could not read file.'); return; }
+          importData(JSON.parse(raw));
         } catch {
           setError('Invalid backup file format.');
         }

@@ -2,9 +2,20 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Safe area inset variable — ThemeProvider toggles body.use-safe-area to switch modes */
-:root { --sab: 0px; }
-body.use-safe-area { --sab: env(safe-area-inset-bottom, 0px); }
+/* Safe area insets — ThemeProvider toggles body.use-safe-area via the Smart Padding setting */
+:root {
+  --sab: 0px;
+  --top-nav-h:  6rem;   /* default nav height (96px) */
+  --top-nav-pt: 45px;   /* default top padding inside nav */
+  --top-main-pt: 66px;  /* default main content top padding */
+}
+body.use-safe-area {
+  --sab: env(safe-area-inset-bottom, 0px);
+  /* Replace fixed offsets with real status-bar height */
+  --top-nav-h:  calc(51px + env(safe-area-inset-top, 0px));
+  --top-nav-pt: env(safe-area-inset-top, 0px);
+  --top-main-pt: calc(21px + env(safe-area-inset-top, 0px));
+}
 
 /* GPU layer promotion — compositor handles these independently of JS thread */
 nav.fixed,
@@ -170,6 +181,11 @@ nav.fixed,
 .ui-minimal .fixed-bottom-bar {
   background-color: hsla(var(--background) / 0.95) !important;
   border-color: hsla(var(--border) / 0.3) !important;
+}
+/* Keep tab list faintly visible in minimal mode (otherwise bg-card makes it transparent) */
+.ui-minimal [role="tablist"] {
+  background-color: hsla(var(--card) / 0.4) !important;
+  border-color: hsla(var(--border) / 0.2) !important;
 }
 
 /* Elevated Mode — deep card shadows, no borders, material-style depth */

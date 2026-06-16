@@ -5,6 +5,8 @@ import { BottomNav } from '@/components/BottomNav';
 import { EmptyBottomBar } from '@/components/EmptyBottomBar';
 import { ThemeProvider } from '@/components/ThemeProvider';
 import { FloatingTools } from '@/components/FloatingTools';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
+import { ErrorModal } from '@/components/ErrorModal';
 
 export const metadata: Metadata = {
   title: 'Duey',
@@ -31,14 +33,17 @@ export default function RootLayout({
       <body className="font-body antialiased">
           <AppDataProvider>
             <ThemeProvider>
-              <div className="flex flex-col min-h-dvh bg-transparent relative z-0">
-                <main className="flex-1 overflow-y-auto pt-[66px] px-2" style={{ paddingBottom: 'calc(110px + var(--sab) + 24px)' }}>
-                  {children}
-                </main>
-                <EmptyBottomBar />
-                <BottomNav />
-                <FloatingTools />
-              </div>
+              <ErrorBoundary>
+                <div className="flex flex-col min-h-dvh bg-transparent relative z-0">
+                  <main className="flex-1 overflow-y-auto px-2" style={{ paddingTop: 'var(--top-main-pt)', paddingBottom: 'calc(110px + var(--sab) + 24px)' }}>
+                    {children}
+                  </main>
+                  <EmptyBottomBar />
+                  <BottomNav />
+                  <FloatingTools />
+                </div>
+                <ErrorModal />
+              </ErrorBoundary>
             </ThemeProvider>
           </AppDataProvider>
       </body>
