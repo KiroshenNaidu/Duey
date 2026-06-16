@@ -29,7 +29,9 @@ function migrateState(raw: AppState): AppState {
     userProfile: raw.userProfile
       ? { name: raw.userProfile.name ?? '', paydayDay: raw.userProfile.paydayDay ?? 26, bio: raw.userProfile.bio ?? '' }
       : { name: '', paydayDay: 26, bio: '' },
-    notificationSettings: raw.notificationSettings ?? { enabled: false, paydayDay: 26, hour: 18, minute: 0 },
+    notificationSettings: raw.notificationSettings
+      ? { enabled: raw.notificationSettings.enabled ?? false, paydayDay: raw.notificationSettings.paydayDay ?? 26, hour: raw.notificationSettings.hour ?? 18, minute: raw.notificationSettings.minute ?? 0, message: raw.notificationSettings.message ?? 'Time to log your monthly payments.' }
+      : { enabled: false, paydayDay: 26, hour: 18, minute: 0, message: 'Time to log your monthly payments.' },
     schemaVersion: CURRENT_SCHEMA_VERSION,
   };
 }
@@ -44,7 +46,7 @@ const defaultState: AppState = {
   budgetPlans: [],
   monthlyIncome: 0,
   userProfile: { name: '', paydayDay: 26, bio: '' },
-  notificationSettings: { enabled: false, paydayDay: 26, hour: 18, minute: 0 },
+  notificationSettings: { enabled: false, paydayDay: 26, hour: 18, minute: 0, message: 'Time to log your monthly payments.' },
   themeSettings: {
     background: '223 13% 10%',
     surface: '222 15% 12%',

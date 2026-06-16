@@ -88,6 +88,7 @@ export interface NotificationSettings {
   paydayDay: number;
   hour: number;
   minute: number;
+  message: string;
 }
 
 // Unified App State

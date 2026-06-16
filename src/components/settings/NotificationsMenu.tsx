@@ -6,9 +6,10 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Smartphone } from 'lucide-react';
 
-async function scheduleNotification(paydayDay: number, hour: number, minute: number) {
+async function scheduleNotification(paydayDay: number, hour: number, minute: number, message: string) {
   const { LocalNotifications } = await import('@capacitor/local-notifications');
   await LocalNotifications.createChannel({
     id: 'payment-reminders',
@@ -22,7 +23,7 @@ async function scheduleNotification(paydayDay: number, hour: number, minute: num
     notifications: [
       {
         title: 'Duey — Payment Reminder',
-        body: 'Time to log your monthly payments.',
+        body: message || 'Time to log your monthly payments.',
         id: 1,
         schedule: {
           on: { day: paydayDay, hour, minute },
@@ -44,6 +45,7 @@ export function NotificationsMenu() {
   const { notificationSettings, setNotificationSettings, userProfile } = useContext(AppDataContext);
   const [isNative, setIsNative] = useState<boolean | null>(null);
   const [statusMsg, setStatusMsg] = useState('');
+  const [messageInput, setMessageInput] = useState(notificationSettings.message ?? 'Time to log your monthly payments.');
 
   const checkNative = async () => {
     if (isNative !== null) return isNative;
@@ -69,7 +71,8 @@ export function NotificationsMenu() {
         await scheduleNotification(
           notificationSettings.paydayDay || userProfile.paydayDay,
           notificationSettings.hour,
-          notificationSettings.minute
+          notificationSettings.minute,
+          notificationSettings.message,
         );
         setStatusMsg('Notification scheduled!');
       } catch {
@@ -90,7 +93,7 @@ export function NotificationsMenu() {
     const updated = { ...notificationSettings, paydayDay: day };
     setNotificationSettings(updated);
     if (updated.enabled && (await checkNative())) {
-      await scheduleNotification(day, updated.hour, updated.minute);
+      await scheduleNotification(day, updated.hour, updated.minute, updated.message);
     }
   };
 
@@ -100,7 +103,16 @@ export function NotificationsMenu() {
     const updated = { ...notificationSettings, hour: h, minute: m };
     setNotificationSettings(updated);
     if (updated.enabled && (await checkNative())) {
-      await scheduleNotification(updated.paydayDay, h, m);
+      await scheduleNotification(updated.paydayDay, h, m, updated.message);
+    }
+  };
+
+  const saveMessage = async () => {
+    const trimmed = messageInput.trim() || 'Time to log your monthly payments.';
+    const updated = { ...notificationSettings, message: trimmed };
+    setNotificationSettings(updated);
+    if (updated.enabled && (await checkNative())) {
+      await scheduleNotification(updated.paydayDay, updated.hour, updated.minute, trimmed);
     }
   };
 
@@ -111,7 +123,8 @@ export function NotificationsMenu() {
           <CardContent className="p-3 flex items-start gap-2.5">
             <Smartphone className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
             <p className="text-xs text-muted-foreground">
-              Notifications only work on the Android app. Settings are saved and will take effect on device.
+              Notifications only work on the Android app. Settings are saved and will apply after{' '}
+              <span className="font-medium text-foreground">npm run build → npx cap sync → Android Studio build</span>.
             </p>
           </CardContent>
         </Card>
@@ -156,6 +169,22 @@ export function NotificationsMenu() {
               onChange={e => handleTimeChange(e.target.value)}
               disabled={!notificationSettings.enabled}
             />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label className="text-xs">Notification Message</Label>
+            <Textarea
+              placeholder="Time to log your monthly payments."
+              value={messageInput}
+              onChange={e => setMessageInput(e.target.value)}
+              onBlur={saveMessage}
+              rows={2}
+              className="resize-none text-sm"
+              disabled={!notificationSettings.enabled}
+            />
+            <p className="text-[10px] text-muted-foreground">
+              This appears as the notification body on your Android device.
+            </p>
           </div>
 
           {statusMsg && (

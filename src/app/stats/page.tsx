@@ -9,66 +9,108 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { HistoryLog } from '@/components/HistoryLog';
 import { TransportStatusCard } from '@/components/TransportStatusCard';
 import { calculateGlobalStats } from '@/lib/calculations';
+import { TrendingUp, Car, CreditCard } from 'lucide-react';
 
-function StatsOverview() {
+const DONUT_RADIUS = 38;
+const DONUT_CIRC = 2 * Math.PI * DONUT_RADIUS;
+
+function DebtHeroCard() {
   const { debts, history } = useContext(AppDataContext);
   const [isClient, setIsClient] = useState(false);
-
-  useEffect(() => {
-    setIsClient(true);
-  }, []);
+  useEffect(() => setIsClient(true), []);
 
   const stats = useMemo(() => calculateGlobalStats(debts, history), [debts, history]);
 
-  const overviewItems = [
-    { 
-      title: 'Total Debt', 
-      value: stats.globalTotalDebt,
-      colorClass: 'text-foreground'
-    },
-    { 
-      title: 'Amount Paid', 
-      value: stats.globalAmountPaid,
-      colorClass: 'text-green-500'
-    },
-    { 
-      title: 'Transport Paid', 
-      value: stats.totalTransportPaid,
-      colorClass: 'text-foreground'
-    },
-    { 
-      title: 'Remaining', 
-      value: stats.globalRemainingBalance,
-      colorClass: 'text-red-500'
-    },
-  ];
+  const progress = stats.globalTotalDebt > 0 ? stats.globalAmountPaid / stats.globalTotalDebt : 0;
+  const pct = Math.min(100, Math.round(progress * 100));
+  const offset = DONUT_CIRC * (1 - Math.min(progress, 1));
 
   if (!isClient) {
     return (
-      <div className="grid grid-cols-2 gap-2">
-        {Array.from({ length: 4 }).map((_, i) => (
-          <Card key={i}>
-            <CardContent className="p-2">
-              <Skeleton className="h-3 w-3/4 mb-1" />
-              <Skeleton className="h-5 w-1/2" />
-            </CardContent>
-          </Card>
-        ))}
+      <div className="bg-card rounded-3xl p-5 flex items-center gap-5">
+        <Skeleton className="h-24 w-24 rounded-full shrink-0" />
+        <div className="flex-1 space-y-2">
+          <Skeleton className="h-3 w-20" />
+          <Skeleton className="h-8 w-32" />
+          <Skeleton className="h-3 w-24" />
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="grid grid-cols-2 gap-2">
-      {overviewItems.map(item => (
-        <Card key={item.title}>
-          <CardContent className="p-2 flex flex-col justify-center">
-            <p className="text-[10px] font-semibold text-foreground uppercase tracking-wider">{item.title}</p>
-            <p className={cn("text-sm font-bold truncate", item.colorClass)}>
-              {formatCurrency(item.value)}
-            </p>
-          </CardContent>
-        </Card>
+    <div className="bg-card rounded-3xl p-5 flex items-center gap-5">
+      {/* Donut ring */}
+      <div className="relative shrink-0 w-24 h-24">
+        <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100">
+          <circle
+            cx="50" cy="50" r={DONUT_RADIUS}
+            fill="none" strokeWidth="9"
+            className="stroke-muted-foreground/10"
+          />
+          <circle
+            cx="50" cy="50" r={DONUT_RADIUS}
+            fill="none" strokeWidth="9"
+            strokeDasharray={DONUT_CIRC}
+            strokeDashoffset={offset}
+            strokeLinecap="round"
+            className="stroke-accent transition-all duration-700"
+          />
+        </svg>
+        <div className="absolute inset-0 flex flex-col items-center justify-center">
+          <span className="text-[17px] font-bold text-foreground leading-none">{pct}%</span>
+          <span className="text-[9px] text-muted-foreground mt-0.5">paid off</span>
+        </div>
+      </div>
+
+      {/* Right side */}
+      <div className="min-w-0">
+        <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">Remaining</p>
+        <p className="text-2xl font-bold text-foreground leading-tight truncate mt-0.5">
+          {formatCurrency(stats.globalRemainingBalance)}
+        </p>
+        <p className="text-xs text-muted-foreground mt-1 truncate">
+          of {formatCurrency(stats.globalTotalDebt)} total
+        </p>
+        {stats.globalAmountPaid > 0 && (
+          <p className="text-xs text-green-500 font-medium mt-0.5 truncate">
+            {formatCurrency(stats.globalAmountPaid)} paid
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function StatPills() {
+  const { debts, history } = useContext(AppDataContext);
+  const [isClient, setIsClient] = useState(false);
+  useEffect(() => setIsClient(true), []);
+
+  const stats = useMemo(() => calculateGlobalStats(debts, history), [debts, history]);
+
+  if (!isClient) {
+    return (
+      <div className="grid grid-cols-3 gap-2">
+        {[0,1,2].map(i => <Skeleton key={i} className="h-20 rounded-2xl" />)}
+      </div>
+    );
+  }
+
+  const pills = [
+    { label: 'Paid',      value: formatCurrency(stats.globalAmountPaid),   icon: TrendingUp, color: 'text-green-500' },
+    { label: 'Transport', value: formatCurrency(stats.totalTransportPaid),  icon: Car,        color: 'text-accent' },
+    { label: 'Debts',     value: String(debts.length),                      icon: CreditCard, color: 'text-primary' },
+  ];
+
+  return (
+    <div className="grid grid-cols-3 gap-2">
+      {pills.map(({ label, value, icon: Icon, color }) => (
+        <div key={label} className="bg-card rounded-2xl p-3 flex flex-col gap-1.5">
+          <Icon className={cn('h-3.5 w-3.5', color)} />
+          <p className={cn('text-sm font-bold leading-tight truncate', color)}>{value}</p>
+          <p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wide">{label}</p>
+        </div>
       ))}
     </div>
   );
@@ -77,45 +119,40 @@ function StatsOverview() {
 export default function StatsPage() {
   const { debts, history } = useContext(AppDataContext);
   const [isClient, setIsClient] = useState(false);
-
-  useEffect(() => {
-    setIsClient(true);
-  }, []);
+  useEffect(() => setIsClient(true), []);
 
   return (
-    <div className="container mx-auto max-w-md space-y-4 pt-11">
-      <h1 className="text-xl font-bold text-foreground mb-1 text-center">Statistics</h1>
-      
-      <section>
-        <h2 className="text-xs font-semibold mb-2 text-foreground uppercase tracking-widest">Overview</h2>
-        <StatsOverview />
-      </section>
-      
+    <div className="container mx-auto max-w-md space-y-3 pt-11 pb-4">
+
+      {/* Hero donut + remaining */}
+      <DebtHeroCard />
+
+      {/* Quick stat pills */}
+      <StatPills />
+
+      {/* Monthly Transport */}
       {isClient && (
-        <section>
-            <h2 className="text-xs font-semibold mb-2 text-foreground uppercase tracking-widest">Monthly Transport</h2>
-            <TransportStatusCard />
-        </section>
+        <TransportStatusCard />
       )}
 
-
+      {/* Per-debt progress bars */}
       {isClient && debts.length > 0 && (
-        <section>
-          <h2 className="text-xs font-semibold mb-2 text-foreground uppercase tracking-widest">Debt Progress</h2>
-          <Card>
-            <CardContent className="p-3">
-              <DebtProgressCharts />
-            </CardContent>
-          </Card>
-        </section>
+        <Card>
+          <CardContent className="p-3">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3">Debt Progress</p>
+            <DebtProgressCharts />
+          </CardContent>
+        </Card>
       )}
 
+      {/* Payment history */}
       {isClient && history.length > 0 && (
         <section>
-          <h2 className="text-xs font-semibold mb-2 text-foreground uppercase tracking-widest">Payment History</h2>
+          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2 px-1">Payment History</p>
           <HistoryLog />
         </section>
       )}
+
     </div>
   );
 }
