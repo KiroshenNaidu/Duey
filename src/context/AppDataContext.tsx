@@ -70,7 +70,11 @@ const defaultState: AppState = {
   notepadContent: '',
 };
 
+type NavGuard = { onAttempt: (href: string) => void } | null;
+
 interface AppContextType extends AppState {
+  navGuard: NavGuard;
+  setNavGuard: (guard: NavGuard) => void;
   addDebt: (debt: Omit<Debt, 'id'>) => void;
   updateDebt: (debtId: string, updatedData: Partial<Omit<Debt, 'id'>>) => void;
   deleteDebt: (debtId: string) => void;
@@ -137,12 +141,15 @@ export const AppDataContext = createContext<AppContextType>({
   getAppState: () => defaultState,
   avatarDataUrl: '',
   setProfileAvatar: async () => {},
+  navGuard: null,
+  setNavGuard: () => {},
 });
 
 export function AppDataProvider({ children }: { children: ReactNode }) {
   const [appState, setAppState] = useState<AppState>(defaultState);
   const [isLoaded, setIsLoaded] = useState(false);
   const [avatarDataUrl, setAvatarDataUrl] = useState('');
+  const [navGuard, setNavGuard] = useState<NavGuard>(null);
 
   useEffect(() => {
     const storedStateRaw = localStorage.getItem('appState');
@@ -432,7 +439,9 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     getAppState: () => appState,
     avatarDataUrl,
     setProfileAvatar,
-  }), [appState, avatarDataUrl, setProfileAvatar]);
+    navGuard,
+    setNavGuard,
+  }), [appState, avatarDataUrl, setProfileAvatar, navGuard, setNavGuard]);
 
   if (!isLoaded) return null;
 

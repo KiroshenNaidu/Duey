@@ -1,9 +1,10 @@
 'use client';
 
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { Wallet, BarChart3, User, Car } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useContext } from 'react';
+import { AppDataContext } from '@/context/AppDataContext';
 
 const navItems = [
   { href: '/transport', label: 'Transport', icon: Car },
@@ -14,6 +15,8 @@ const navItems = [
 
 export function BottomNav() {
   const pathname = usePathname();
+  const router = useRouter();
+  const { navGuard } = useContext(AppDataContext);
 
   return (
     <nav className="fixed top-0 left-0 right-0 h-[6rem] bg-card border-b border-border z-50 transition-colors duration-300">
@@ -21,9 +24,17 @@ export function BottomNav() {
         {navItems.map((item) => {
           const isActive = pathname === item.href;
           return (
-            <Link
+            <button
               key={item.href}
-              href={item.href}
+              role="link"
+              aria-current={isActive ? 'page' : undefined}
+              onClick={() => {
+                if (navGuard && !isActive) {
+                  navGuard.onAttempt(item.href);
+                } else {
+                  router.push(item.href);
+                }
+              }}
               className={cn(
                 'flex flex-col items-center justify-center w-full h-full gap-1 transition-colors duration-200',
                 isActive ? 'text-accent' : 'text-muted-foreground hover:text-foreground'
@@ -31,7 +42,7 @@ export function BottomNav() {
             >
               <item.icon className={cn("h-5 w-5", isActive ? "text-accent" : "text-muted-foreground")} />
               <span className={cn("text-[10px] font-medium", isActive ? "text-accent" : "text-muted-foreground")}>{item.label}</span>
-            </Link>
+            </button>
           );
         })}
       </div>

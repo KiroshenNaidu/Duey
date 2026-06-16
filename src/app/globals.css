@@ -158,6 +158,44 @@ nav.fixed,
     overflow: hidden;
 }
 
+/* Minimal Mode — flat, no card chrome, typography-first */
+.ui-minimal .bg-card,
+.ui-minimal .bg-popover,
+.ui-minimal [role="dialog"] {
+  background-color: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+.ui-minimal nav.fixed,
+.ui-minimal .fixed-bottom-bar {
+  background-color: hsla(var(--background) / 0.95) !important;
+  border-color: hsla(var(--border) / 0.3) !important;
+}
+
+/* Elevated Mode — deep card shadows, no borders, material-style depth */
+.ui-elevated .bg-card,
+.ui-elevated .bg-popover,
+.ui-elevated [role="dialog"] {
+  background-color: hsl(var(--card)) !important;
+  border: none !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5), 0 1px 4px rgba(0, 0, 0, 0.3) !important;
+}
+.ui-elevated nav.fixed,
+.ui-elevated .fixed-bottom-bar {
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.4) !important;
+  border: none !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ui-minimal .bg-card,
+  .ui-minimal nav.fixed,
+  .ui-elevated .bg-card,
+  .ui-elevated nav.fixed {
+    transition: none !important;
+  }
+}
+
+/* Transport Page Styling */
 .paid-stamp {
     position: absolute;
     top: 50%;

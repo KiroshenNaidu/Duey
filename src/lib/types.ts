@@ -68,7 +68,7 @@ export interface ThemeSettings {
   foreground: string;
   accentForeground: string;
   uiScale: number;
-  uiStyle: 'solid' | 'glass';
+  uiStyle: 'solid' | 'glass' | 'minimal' | 'elevated';
   useSafeAreaInsets?: boolean;
   bgX?: number; // 0–100, default 50 (background-position-x %)
   bgY?: number; // 0–100, default 50 (background-position-y %)

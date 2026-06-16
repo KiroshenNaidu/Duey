@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useContext, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { Palette, Database, Bell, ChevronLeft, User, Pencil } from 'lucide-react';
 import { ThemeSettingsMenu } from '@/components/settings/ThemeSettingsMenu';
 import { DataManagementMenu } from '@/components/settings/DataManagementMenu';
@@ -96,11 +97,29 @@ const ProfileHeroCard = ({ onEdit }: { onEdit: () => void }) => {
 };
 
 export default function SettingsPage() {
+  const router = useRouter();
+  const { setNavGuard } = useContext(AppDataContext);
   const [activeMenu, setActiveMenu] = useState<ActiveMenu>('main');
   const [menuIsDirty, setMenuIsDirty] = useState(false);
   const [pendingNav, setPendingNav] = useState<ActiveMenu | null>(null);
+  const [pendingHref, setPendingHref] = useState<string | null>(null);
   const [showDiscardDialog, setShowDiscardDialog] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+
+  // Register/clear nav guard when dirty state changes
+  useEffect(() => {
+    if (menuIsDirty) {
+      setNavGuard({
+        onAttempt: (href) => {
+          setPendingHref(href);
+          setShowDiscardDialog(true);
+        },
+      });
+    } else {
+      setNavGuard(null);
+    }
+    return () => setNavGuard(null);
+  }, [menuIsDirty, setNavGuard]);
 
   // Check for post-reload toast (e.g. after theme save + page reload)
   useEffect(() => {
@@ -133,7 +152,12 @@ export default function SettingsPage() {
   const confirmDiscard = () => {
     setMenuIsDirty(false);
     setShowDiscardDialog(false);
-    if (pendingNav !== null) {
+    if (pendingHref !== null) {
+      const href = pendingHref;
+      setPendingHref(null);
+      setPendingNav(null);
+      router.push(href);
+    } else if (pendingNav !== null) {
       setActiveMenu(pendingNav);
       setPendingNav(null);
     }
@@ -153,7 +177,7 @@ export default function SettingsPage() {
   };
 
   const discardDialog = (
-    <AlertDialog open={showDiscardDialog} onOpenChange={(open) => { if (!open) { setPendingNav(null); setShowDiscardDialog(false); } }}>
+    <AlertDialog open={showDiscardDialog} onOpenChange={(open) => { if (!open) { setPendingNav(null); setPendingHref(null); setShowDiscardDialog(false); } }}>
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>Unsaved changes</AlertDialogTitle>
@@ -162,7 +186,7 @@ export default function SettingsPage() {
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel onClick={() => { setPendingNav(null); setShowDiscardDialog(false); }}>
+          <AlertDialogCancel onClick={() => { setPendingNav(null); setPendingHref(null); setShowDiscardDialog(false); }}>
             Keep editing
           </AlertDialogCancel>
           <AlertDialogAction onClick={confirmDiscard}>

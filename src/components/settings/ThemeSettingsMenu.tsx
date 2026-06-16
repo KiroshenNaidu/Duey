@@ -10,7 +10,7 @@ import { Slider } from '@/components/ui/slider';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { hexToHsl, hslToHex, idbGet, idbSet, cn } from '@/lib/utils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Upload, Loader2, Trash2, Check, Plus, Minus } from 'lucide-react';
+import { Upload, Loader2, Trash2, Check, Plus, Minus, ShieldCheck } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { AppDataContext } from '@/context/AppDataContext';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
@@ -64,6 +64,42 @@ const systemPresets: Omit<UserTheme, 'id'>[] = [
     settings: {
       background: '20 15% 7%', surface: '18 14% 11%',
       primary: '16 90% 55%', accent: '38 95% 55%',
+      foreground: '0 0% 95%', accentForeground: '0 0% 5%',
+      font: 'Inter', uiScale: 1.0, uiStyle: 'solid',
+    },
+  },
+  {
+    name: 'Ocean',
+    settings: {
+      background: '210 30% 7%', surface: '210 28% 10%',
+      primary: '210 70% 55%', accent: '185 80% 55%',
+      foreground: '0 0% 95%', accentForeground: '0 0% 5%',
+      font: 'Inter', uiScale: 1.0, uiStyle: 'solid',
+    },
+  },
+  {
+    name: 'Rose',
+    settings: {
+      background: '335 15% 8%', surface: '335 12% 11%',
+      primary: '340 55% 60%', accent: '15 80% 65%',
+      foreground: '0 0% 95%', accentForeground: '0 0% 5%',
+      font: 'Inter', uiScale: 1.0, uiStyle: 'solid',
+    },
+  },
+  {
+    name: 'Neon',
+    settings: {
+      background: '260 15% 5%', surface: '260 12% 8%',
+      primary: '270 80% 65%', accent: '150 100% 50%',
+      foreground: '0 0% 95%', accentForeground: '260 15% 5%',
+      font: 'Inter', uiScale: 1.0, uiStyle: 'glass',
+    },
+  },
+  {
+    name: 'Nordic',
+    settings: {
+      background: '215 20% 9%', surface: '215 18% 12%',
+      primary: '215 45% 60%', accent: '200 60% 65%',
       foreground: '0 0% 95%', accentForeground: '0 0% 5%',
       font: 'Inter', uiScale: 1.0, uiStyle: 'solid',
     },
@@ -134,7 +170,8 @@ export function ThemeSettingsMenu({ onBack, onDirtyChange, onSaved }: { onBack?:
       root.style.setProperty('--font-family', FONT_VAR_MAP[saved.font] ?? 'var(--font-inter)');
       root.style.setProperty('--bg-x', `${saved.bgX ?? 50}%`);
       root.style.setProperty('--bg-y', `${saved.bgY ?? 50}%`);
-      document.body.classList.toggle('ui-glass', saved.uiStyle === 'glass');
+      document.body.classList.remove('ui-glass', 'ui-minimal', 'ui-elevated');
+      if (saved.uiStyle !== 'solid') document.body.classList.add(`ui-${saved.uiStyle}`);
       document.body.classList.toggle('use-safe-area', !!saved.useSafeAreaInsets);
       document.body.style.zoom = `${saved.uiScale}`;
       const bgDiv = document.getElementById('global-bg-image');
@@ -160,7 +197,8 @@ export function ThemeSettingsMenu({ onBack, onDirtyChange, onSaved }: { onBack?:
     root.style.setProperty('--bg-x', `${previewTheme.bgX ?? 50}%`);
     root.style.setProperty('--bg-y', `${previewTheme.bgY ?? 50}%`);
     document.body.classList.toggle('has-bg-image', !!previewTheme.backgroundImage);
-    document.body.classList.toggle('ui-glass', previewTheme.uiStyle === 'glass');
+    document.body.classList.remove('ui-glass', 'ui-minimal', 'ui-elevated');
+    if (previewTheme.uiStyle !== 'solid') document.body.classList.add(`ui-${previewTheme.uiStyle}`);
     document.body.style.zoom = `${previewTheme.uiScale}`;
   }, [previewTheme, isClient]);
 
@@ -309,11 +347,13 @@ export function ThemeSettingsMenu({ onBack, onDirtyChange, onSaved }: { onBack?:
     settings,
     onDelete,
     isActive,
+    isDefault,
   }: {
     name: string;
     settings: Omit<ThemeSettings, 'backgroundImage' | 'backgroundOpacity'>;
     onDelete?: () => void;
     isActive: boolean;
+    isDefault?: boolean;
   }) => (
     <div className="space-y-2">
       <button
@@ -339,6 +379,14 @@ export function ThemeSettingsMenu({ onBack, onDirtyChange, onSaved }: { onBack?:
         {isActive && (
           <div className="absolute top-2 right-2 h-5 w-5 rounded-full bg-primary flex items-center justify-center">
             <Check className="h-3 w-3 text-primary-foreground" />
+          </div>
+        )}
+        {isDefault && (
+          <div
+            className="absolute top-2 left-2 h-5 w-5 rounded-full bg-black/30 flex items-center justify-center"
+            title="Safe mode — always restores to app defaults"
+          >
+            <ShieldCheck className="h-3 w-3 text-white/70" />
           </div>
         )}
         {settings.uiStyle === 'glass' && (
@@ -474,7 +522,6 @@ export function ThemeSettingsMenu({ onBack, onDirtyChange, onSaved }: { onBack?:
                       : 'border-border hover:border-muted-foreground/30'
                   )}
                 >
-                  {/* Mini glass preview */}
                   <div className="w-full h-16 rounded-xl border border-accent/10 flex items-center justify-center overflow-hidden relative"
                     style={{ background: 'linear-gradient(135deg, rgba(255,255,255,0.07) 0%, rgba(255,255,255,0.02) 100%)' }}>
                     <div className="absolute inset-0" style={{ backdropFilter: 'blur(4px)' }} />
@@ -483,6 +530,50 @@ export function ThemeSettingsMenu({ onBack, onDirtyChange, onSaved }: { onBack?:
                   </div>
                   <span className="text-sm font-medium">Glass</span>
                   {previewTheme.uiStyle === 'glass' && (
+                    <div className="absolute top-2.5 right-2.5 h-5 w-5 rounded-full bg-primary flex items-center justify-center">
+                      <Check className="h-3 w-3 text-primary-foreground" />
+                    </div>
+                  )}
+                </button>
+
+                {/* Minimal */}
+                <button
+                  onClick={() => setPreviewTheme(p => ({ ...p, uiStyle: 'minimal' }))}
+                  className={cn(
+                    'relative flex flex-col items-center gap-3 p-4 rounded-2xl border-2 transition-all',
+                    previewTheme.uiStyle === 'minimal'
+                      ? 'border-primary bg-primary/5'
+                      : 'border-border hover:border-muted-foreground/30'
+                  )}
+                >
+                  <div className="w-full h-16 rounded-xl flex items-center justify-center">
+                    <div className="w-10 h-7 rounded-lg bg-primary/15" />
+                  </div>
+                  <span className="text-sm font-medium">Minimal</span>
+                  {previewTheme.uiStyle === 'minimal' && (
+                    <div className="absolute top-2.5 right-2.5 h-5 w-5 rounded-full bg-primary flex items-center justify-center">
+                      <Check className="h-3 w-3 text-primary-foreground" />
+                    </div>
+                  )}
+                </button>
+
+                {/* Elevated */}
+                <button
+                  onClick={() => setPreviewTheme(p => ({ ...p, uiStyle: 'elevated' }))}
+                  className={cn(
+                    'relative flex flex-col items-center gap-3 p-4 rounded-2xl border-2 transition-all',
+                    previewTheme.uiStyle === 'elevated'
+                      ? 'border-primary bg-primary/5'
+                      : 'border-border hover:border-muted-foreground/30'
+                  )}
+                >
+                  <div className="w-full h-16 rounded-xl bg-card flex items-center justify-center"
+                    style={{ boxShadow: '0 4px 12px rgba(0,0,0,0.5)' }}>
+                    <div className="w-10 h-7 rounded-lg bg-primary/20"
+                      style={{ boxShadow: '0 2px 6px rgba(0,0,0,0.3)' }} />
+                  </div>
+                  <span className="text-sm font-medium">Elevated</span>
+                  {previewTheme.uiStyle === 'elevated' && (
                     <div className="absolute top-2.5 right-2.5 h-5 w-5 rounded-full bg-primary flex items-center justify-center">
                       <Check className="h-3 w-3 text-primary-foreground" />
                     </div>
@@ -633,6 +724,7 @@ export function ThemeSettingsMenu({ onBack, onDirtyChange, onSaved }: { onBack?:
                   name={preset.name}
                   settings={preset.settings}
                   isActive={areThemeSettingsEqual(currentActiveSettings, preset.settings)}
+                  isDefault={preset.name === 'Default'}
                 />
               ))}
             </div>
