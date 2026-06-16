@@ -87,7 +87,7 @@ const areThemeSettingsEqual = (
   s1.foreground === s2.foreground && s1.accentForeground === s2.accentForeground &&
   s1.font === s2.font && s1.uiScale === s2.uiScale && s1.uiStyle === s2.uiStyle;
 
-export function ThemeSettingsMenu({ onBack }: { onBack?: () => void }) {
+export function ThemeSettingsMenu({ onBack, onDirtyChange, onSaved }: { onBack?: () => void; onDirtyChange?: (dirty: boolean) => void; onSaved?: (msg: string) => void }) {
   const { themeSettings, setThemeSettings, userThemes, addUserTheme, deleteUserTheme } = useContext(AppDataContext);
 
   const [previewTheme, setPreviewTheme] = useState<ThemeSettings>(() => ({
@@ -104,12 +104,44 @@ export function ThemeSettingsMenu({ onBack }: { onBack?: () => void }) {
   const [isSaveDialogOpen, setIsSaveDialogOpen] = useState(false);
   const [newThemeName, setNewThemeName] = useState('');
 
+  // Refs for dirty detection and unmount-cleanup
+  const initialThemeRef = useRef<ThemeSettings | null>(null);
+  const initialBgRef = useRef('');
+  const savedThemeRef = useRef(themeSettings);
+
   useEffect(() => {
     setIsClient(true);
     idbGet<string>('backgroundImage').then(img => {
-      if (img) setPreviewTheme(p => ({ ...p, backgroundImage: img }));
+      const loaded = img || '';
+      initialBgRef.current = loaded;
+      if (loaded) setPreviewTheme(p => ({ ...p, backgroundImage: loaded }));
+      initialThemeRef.current = { ...themeSettings, backgroundImage: loaded };
     });
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Revert CSS vars to saved values when this component unmounts (discard)
+  useEffect(() => {
+    return () => {
+      const saved = savedThemeRef.current;
+      const root = document.documentElement;
+      root.style.setProperty('--background', saved.background);
+      root.style.setProperty('--card', saved.surface);
+      root.style.setProperty('--primary', saved.primary);
+      root.style.setProperty('--accent', saved.accent);
+      root.style.setProperty('--ring', saved.accent);
+      root.style.setProperty('--foreground', saved.foreground);
+      root.style.setProperty('--accent-foreground', saved.accentForeground);
+      root.style.setProperty('--font-family', FONT_VAR_MAP[saved.font] ?? 'var(--font-inter)');
+      root.style.setProperty('--bg-x', `${saved.bgX ?? 50}%`);
+      root.style.setProperty('--bg-y', `${saved.bgY ?? 50}%`);
+      document.body.classList.toggle('ui-glass', saved.uiStyle === 'glass');
+      document.body.classList.toggle('use-safe-area', !!saved.useSafeAreaInsets);
+      document.body.style.zoom = `${saved.uiScale}`;
+      const bgDiv = document.getElementById('global-bg-image');
+      if (bgDiv) bgDiv.style.backgroundImage = initialBgRef.current ? `url(${initialBgRef.current})` : 'none';
+      document.body.classList.toggle('has-bg-image', !!initialBgRef.current);
+    };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!isClient) return;
@@ -193,7 +225,9 @@ export function ThemeSettingsMenu({ onBack }: { onBack?: () => void }) {
     const { backgroundImage, ...settingsToSave } = previewTheme;
     idbSet('backgroundImage', backgroundImage).then(() => {
       setThemeSettings(settingsToSave);
-      setTimeout(() => window.location.reload(), 500);
+      onDirtyChange?.(false);
+      onSaved?.('Theme saved!');
+      setTimeout(() => window.location.reload(), 300);
     });
   };
 
@@ -211,6 +245,13 @@ export function ThemeSettingsMenu({ onBack }: { onBack?: () => void }) {
       return { ...prev, uiScale: parseFloat(Math.max(0.8, Math.min(1.2, next)).toFixed(2)) };
     });
   };
+
+  const isDirty = useMemo(() => {
+    if (!initialThemeRef.current) return false;
+    return JSON.stringify(previewTheme) !== JSON.stringify(initialThemeRef.current);
+  }, [previewTheme]);
+
+  useEffect(() => { onDirtyChange?.(isDirty); }, [isDirty, onDirtyChange]);
 
   const currentActiveSettings = useMemo(() => {
     const { backgroundImage, backgroundOpacity, ...settings } = previewTheme;
@@ -343,7 +384,12 @@ export function ThemeSettingsMenu({ onBack }: { onBack?: () => void }) {
         >
           Cancel
         </Link>
-        <Button className="flex-1" onClick={handleSave}>Save</Button>
+        <Button
+          className={cn('flex-1', isDirty && 'ring-2 ring-accent/50 ring-offset-1 ring-offset-background')}
+          onClick={handleSave}
+        >
+          Save
+        </Button>
       </div>
 
       <Tabs defaultValue="style" className="w-full">

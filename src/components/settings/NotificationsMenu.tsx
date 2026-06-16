@@ -1,13 +1,15 @@
 'use client';
 
-import { useContext, useState } from 'react';
+import { useContext, useState, useEffect } from 'react';
 import { AppDataContext } from '@/context/AppDataContext';
 import { Card, CardContent } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { Button } from '@/components/ui/button';
 import { Smartphone } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 async function scheduleNotification(paydayDay: number, hour: number, minute: number, message: string) {
   const { LocalNotifications } = await import('@capacitor/local-notifications');
@@ -41,11 +43,22 @@ async function cancelNotification() {
   await LocalNotifications.cancel({ notifications: [{ id: 1 }] });
 }
 
-export function NotificationsMenu() {
+interface NotificationsMenuProps {
+  onDirtyChange?: (dirty: boolean) => void;
+  onSaved?: (msg: string) => void;
+  onCancel?: () => void;
+}
+
+export function NotificationsMenu({ onDirtyChange, onSaved, onCancel }: NotificationsMenuProps) {
   const { notificationSettings, setNotificationSettings, userProfile } = useContext(AppDataContext);
   const [isNative, setIsNative] = useState<boolean | null>(null);
   const [statusMsg, setStatusMsg] = useState('');
-  const [messageInput, setMessageInput] = useState(notificationSettings.message ?? 'Time to log your monthly payments.');
+
+  const [draft, setDraft] = useState({ ...notificationSettings });
+
+  const isDirty = JSON.stringify(draft) !== JSON.stringify(notificationSettings);
+
+  useEffect(() => { onDirtyChange?.(isDirty); }, [isDirty, onDirtyChange]);
 
   const checkNative = async () => {
     if (isNative !== null) return isNative;
@@ -55,64 +68,59 @@ export function NotificationsMenu() {
     return native;
   };
 
-  const timeString = `${String(notificationSettings.hour).padStart(2, '0')}:${String(notificationSettings.minute).padStart(2, '0')}`;
+  const draftTimeString = `${String(draft.hour).padStart(2, '0')}:${String(draft.minute).padStart(2, '0')}`;
 
-  const handleToggle = async (enabled: boolean) => {
+  const handleSave = async () => {
+    setNotificationSettings(draft);
+
     const native = await checkNative();
-
-    if (enabled && native) {
-      try {
-        const { LocalNotifications } = await import('@capacitor/local-notifications');
-        const perm = await LocalNotifications.requestPermissions();
-        if (perm.display !== 'granted') {
-          setStatusMsg('Permission denied. Enable notifications in Android settings.');
+    if (native) {
+      if (draft.enabled) {
+        try {
+          const { LocalNotifications } = await import('@capacitor/local-notifications');
+          const perm = await LocalNotifications.requestPermissions();
+          if (perm.display !== 'granted') {
+            setStatusMsg('Permission denied. Enable notifications in Android settings.');
+            return;
+          }
+          await scheduleNotification(
+            draft.paydayDay || userProfile.paydayDay,
+            draft.hour,
+            draft.minute,
+            draft.message,
+          );
+          setStatusMsg('Notification scheduled!');
+        } catch {
+          setStatusMsg('Failed to schedule notification.');
           return;
         }
-        await scheduleNotification(
-          notificationSettings.paydayDay || userProfile.paydayDay,
-          notificationSettings.hour,
-          notificationSettings.minute,
-          notificationSettings.message,
-        );
-        setStatusMsg('Notification scheduled!');
-      } catch {
-        setStatusMsg('Failed to schedule notification.');
-        return;
+      } else {
+        await cancelNotification();
+        setStatusMsg('');
       }
-    } else if (!enabled && native) {
-      await cancelNotification();
-      setStatusMsg('');
     }
 
-    setNotificationSettings({ ...notificationSettings, enabled });
+    onDirtyChange?.(false);
+    onSaved?.('Notification settings saved');
   };
 
-  const handleDayChange = async (val: string) => {
+  const handleCancel = () => {
+    setDraft({ ...notificationSettings });
+    onDirtyChange?.(false);
+    onCancel?.();
+  };
+
+  const handleDayChange = (val: string) => {
     const day = parseInt(val, 10);
-    if (isNaN(day) || day < 1 || day > 31) return;
-    const updated = { ...notificationSettings, paydayDay: day };
-    setNotificationSettings(updated);
-    if (updated.enabled && (await checkNative())) {
-      await scheduleNotification(day, updated.hour, updated.minute, updated.message);
+    if (!isNaN(day) && day >= 1 && day <= 31) {
+      setDraft(prev => ({ ...prev, paydayDay: day }));
     }
   };
 
-  const handleTimeChange = async (val: string) => {
+  const handleTimeChange = (val: string) => {
     const [h, m] = val.split(':').map(Number);
-    if (isNaN(h) || isNaN(m)) return;
-    const updated = { ...notificationSettings, hour: h, minute: m };
-    setNotificationSettings(updated);
-    if (updated.enabled && (await checkNative())) {
-      await scheduleNotification(updated.paydayDay, h, m, updated.message);
-    }
-  };
-
-  const saveMessage = async () => {
-    const trimmed = messageInput.trim() || 'Time to log your monthly payments.';
-    const updated = { ...notificationSettings, message: trimmed };
-    setNotificationSettings(updated);
-    if (updated.enabled && (await checkNative())) {
-      await scheduleNotification(updated.paydayDay, updated.hour, updated.minute, trimmed);
+    if (!isNaN(h) && !isNaN(m)) {
+      setDraft(prev => ({ ...prev, hour: h, minute: m }));
     }
   };
 
@@ -130,6 +138,17 @@ export function NotificationsMenu() {
         </Card>
       )}
 
+      {/* Save / Cancel */}
+      <div className="flex gap-2">
+        <Button variant="ghost" className="flex-1" onClick={handleCancel}>Cancel</Button>
+        <Button
+          className={cn('flex-1', isDirty && 'ring-2 ring-accent/50 ring-offset-1 ring-offset-background')}
+          onClick={handleSave}
+        >
+          Save
+        </Button>
+      </div>
+
       <Card>
         <CardContent className="p-3 space-y-4">
           <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Payment Reminders</p>
@@ -141,8 +160,8 @@ export function NotificationsMenu() {
             </div>
             <Switch
               id="notif-toggle"
-              checked={notificationSettings.enabled}
-              onCheckedChange={handleToggle}
+              checked={draft.enabled}
+              onCheckedChange={(v) => setDraft(prev => ({ ...prev, enabled: v }))}
             />
           </div>
 
@@ -152,9 +171,9 @@ export function NotificationsMenu() {
               type="number"
               min={1}
               max={31}
-              value={notificationSettings.paydayDay}
+              value={draft.paydayDay}
               onChange={e => handleDayChange(e.target.value)}
-              disabled={!notificationSettings.enabled}
+              disabled={!draft.enabled}
             />
             <p className="text-[10px] text-muted-foreground">
               Defaults to your payday ({userProfile.paydayDay}th). Change in Profile if needed.
@@ -165,9 +184,9 @@ export function NotificationsMenu() {
             <Label className="text-xs">Reminder Time</Label>
             <Input
               type="time"
-              value={timeString}
+              value={draftTimeString}
               onChange={e => handleTimeChange(e.target.value)}
-              disabled={!notificationSettings.enabled}
+              disabled={!draft.enabled}
             />
           </div>
 
@@ -175,12 +194,11 @@ export function NotificationsMenu() {
             <Label className="text-xs">Notification Message</Label>
             <Textarea
               placeholder="Time to log your monthly payments."
-              value={messageInput}
-              onChange={e => setMessageInput(e.target.value)}
-              onBlur={saveMessage}
+              value={draft.message}
+              onChange={e => setDraft(prev => ({ ...prev, message: e.target.value }))}
               rows={2}
               className="resize-none text-sm"
-              disabled={!notificationSettings.enabled}
+              disabled={!draft.enabled}
             />
             <p className="text-[10px] text-muted-foreground">
               This appears as the notification body on your Android device.

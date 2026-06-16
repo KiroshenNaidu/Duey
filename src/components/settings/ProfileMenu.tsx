@@ -1,6 +1,6 @@
 'use client';
 
-import { useContext, useState, useRef, useCallback } from 'react';
+import { useContext, useState, useRef, useCallback, useEffect } from 'react';
 import { AppDataContext } from '@/context/AppDataContext';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Slider } from '@/components/ui/slider';
 import { Camera, User } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import type { AvatarSettings } from '@/lib/types';
 
 const DEFAULT_SETTINGS: AvatarSettings = { offsetX: 0, offsetY: 0, scale: 1 };
@@ -51,9 +52,10 @@ function AvatarEditor({
   const isDraggingRef = useRef(false);
   const lastPosRef = useRef({ x: 0, y: 0 });
 
-  const onOpenChange = (o: boolean) => {
-    if (!o) { onClose(); }
-  };
+  // Reset draft when editor opens with new settings
+  useEffect(() => {
+    if (open) setDraft(initialSettings ?? DEFAULT_SETTINGS);
+  }, [open, initialSettings]);
 
   const onPointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     e.currentTarget.setPointerCapture(e.pointerId);
@@ -78,14 +80,13 @@ function AvatarEditor({
   const onPointerUp = useCallback(() => { isDraggingRef.current = false; }, []);
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
       <DialogContent className="max-w-xs rounded-3xl p-0 overflow-hidden">
         <DialogHeader className="px-5 pt-5 pb-0">
           <DialogTitle className="text-base font-semibold">Adjust Photo</DialogTitle>
         </DialogHeader>
 
         <div className="px-5 py-4 space-y-4">
-          {/* Draggable circle preview */}
           <div className="flex flex-col items-center gap-2">
             <div
               className="rounded-full overflow-hidden relative bg-primary/15 border-2 border-primary/25 cursor-grab active:cursor-grabbing touch-none select-none"
@@ -96,49 +97,30 @@ function AvatarEditor({
               onPointerCancel={onPointerUp}
             >
               {avatarDataUrl && (
-                <img
-                  src={avatarDataUrl}
-                  alt="avatar preview"
-                  draggable={false}
-                  style={avatarImgStyle(draft)}
-                />
+                <img src={avatarDataUrl} alt="avatar preview" draggable={false} style={avatarImgStyle(draft)} />
               )}
             </div>
             <p className="text-[10px] text-muted-foreground">Drag to reposition</p>
           </div>
 
-          {/* Zoom slider */}
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
               <Label className="text-xs">Zoom</Label>
               <span className="text-[10px] text-muted-foreground font-mono">{draft.scale.toFixed(1)}×</span>
             </div>
             <Slider
-              min={1}
-              max={3}
-              step={0.05}
+              min={1} max={3} step={0.05}
               value={[draft.scale]}
               onValueChange={([v]) => setDraft(prev => ({ ...prev, scale: v }))}
             />
           </div>
 
-          {/* Actions */}
           <div className="flex gap-2 pt-1">
-            <Button
-              variant="outline"
-              size="sm"
-              className="flex-1 text-xs"
-              onClick={onChangePhoto}
-            >
-              <Camera className="h-3.5 w-3.5 mr-1.5" />
-              Change photo
+            <Button variant="outline" size="sm" className="flex-1 text-xs" onClick={onChangePhoto}>
+              <Camera className="h-3.5 w-3.5 mr-1.5" />Change photo
             </Button>
-            <Button
-              size="sm"
-              className="flex-1 text-xs"
-              onClick={() => onSave(draft)}
-            >
-              Save
+            <Button size="sm" className="flex-1 text-xs" onClick={() => onSave(draft)}>
+              Apply
             </Button>
           </div>
 
@@ -155,37 +137,65 @@ function AvatarEditor({
   );
 }
 
-export function ProfileMenu() {
+interface ProfileMenuProps {
+  onDirtyChange?: (dirty: boolean) => void;
+  onSaved?: (msg: string) => void;
+  onCancel?: () => void;
+}
+
+export function ProfileMenu({ onDirtyChange, onSaved, onCancel }: ProfileMenuProps) {
   const { userProfile, setUserProfile, avatarDataUrl, setProfileAvatar } = useContext(AppDataContext);
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const [editorOpen, setEditorOpen] = useState(false);
 
+  // Text field drafts
   const [name, setName] = useState(userProfile.name);
   const [paydayDay, setPaydayDay] = useState(userProfile.paydayDay.toString());
   const [bio, setBio] = useState(userProfile.bio ?? '');
 
-  const initial = userProfile.name.trim().charAt(0).toUpperCase();
-  const s = userProfile.avatarSettings;
+  // Avatar draft: null = no change, '' = remove, 'data:...' = new photo
+  const [draftAvatarUrl, setDraftAvatarUrl] = useState<string | null>(null);
+  const [draftAvatarSettings, setDraftAvatarSettings] = useState<AvatarSettings | undefined>(userProfile.avatarSettings);
 
-  const saveName = () => {
-    if (name.trim() !== userProfile.name) {
-      setUserProfile({ ...userProfile, name: name.trim() });
-    }
-  };
+  const displayAvatarUrl = draftAvatarUrl !== null ? draftAvatarUrl : avatarDataUrl;
+  const initial = (name.trim() || userProfile.name.trim()).charAt(0).toUpperCase();
 
-  const savePayday = () => {
+  const isDirty =
+    name !== userProfile.name ||
+    paydayDay !== userProfile.paydayDay.toString() ||
+    bio !== (userProfile.bio ?? '') ||
+    draftAvatarUrl !== null ||
+    JSON.stringify(draftAvatarSettings) !== JSON.stringify(userProfile.avatarSettings);
+
+  useEffect(() => { onDirtyChange?.(isDirty); }, [isDirty, onDirtyChange]);
+
+  const handleSave = async () => {
     const day = parseInt(paydayDay, 10);
-    if (!isNaN(day) && day >= 1 && day <= 31 && day !== userProfile.paydayDay) {
-      setUserProfile({ ...userProfile, paydayDay: day });
-    } else {
-      setPaydayDay(userProfile.paydayDay.toString());
+    const validDay = !isNaN(day) && day >= 1 && day <= 31 ? day : userProfile.paydayDay;
+
+    if (draftAvatarUrl !== null) {
+      await setProfileAvatar(draftAvatarUrl);
     }
+    setUserProfile({
+      ...userProfile,
+      name: name.trim() || userProfile.name,
+      paydayDay: validDay,
+      bio: bio.trim(),
+      avatarSettings: draftAvatarSettings,
+    });
+    setDraftAvatarUrl(null);
+    onDirtyChange?.(false);
+    onSaved?.('Profile saved');
   };
 
-  const saveBio = () => {
-    if (bio.trim() !== (userProfile.bio ?? '')) {
-      setUserProfile({ ...userProfile, bio: bio.trim() });
-    }
+  const handleCancel = () => {
+    setName(userProfile.name);
+    setPaydayDay(userProfile.paydayDay.toString());
+    setBio(userProfile.bio ?? '');
+    setDraftAvatarUrl(null);
+    setDraftAvatarSettings(userProfile.avatarSettings);
+    onDirtyChange?.(false);
+    onCancel?.();
   };
 
   const handleAvatarUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -203,9 +213,8 @@ export function ProfileMenu() {
         canvas.height = Math.round(img.height * ratio);
         const ctx = canvas.getContext('2d')!;
         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-        setProfileAvatar(canvas.toDataURL('image/jpeg', 0.9));
-        // Reset position when new photo uploaded
-        setUserProfile({ ...userProfile, avatarSettings: undefined });
+        setDraftAvatarUrl(canvas.toDataURL('image/jpeg', 0.9));
+        setDraftAvatarSettings(undefined);
         setEditorOpen(true);
       };
       img.src = src;
@@ -214,14 +223,14 @@ export function ProfileMenu() {
     e.target.value = '';
   };
 
-  const handleSave = (settings: AvatarSettings) => {
-    setUserProfile({ ...userProfile, avatarSettings: settings });
+  const handleAvatarEditorSave = (settings: AvatarSettings) => {
+    setDraftAvatarSettings(settings);
     setEditorOpen(false);
   };
 
   const handleRemove = () => {
-    setProfileAvatar('');
-    setUserProfile({ ...userProfile, avatarSettings: undefined });
+    setDraftAvatarUrl('');
+    setDraftAvatarSettings(undefined);
     setEditorOpen(false);
   };
 
@@ -231,17 +240,30 @@ export function ProfileMenu() {
     return n + (s[(v - 20) % 10] || s[v] || s[0]);
   };
 
+  const parsedDay = parseInt(paydayDay, 10);
+
   return (
     <div className="space-y-3">
       <AvatarEditor
-        avatarDataUrl={avatarDataUrl}
-        initialSettings={userProfile.avatarSettings}
+        avatarDataUrl={displayAvatarUrl}
+        initialSettings={draftAvatarSettings}
         open={editorOpen}
         onClose={() => setEditorOpen(false)}
-        onSave={handleSave}
+        onSave={handleAvatarEditorSave}
         onChangePhoto={() => { setEditorOpen(false); setTimeout(() => avatarInputRef.current?.click(), 100); }}
         onRemove={handleRemove}
       />
+
+      {/* Save / Cancel */}
+      <div className="flex gap-2">
+        <Button variant="ghost" className="flex-1" onClick={handleCancel}>Cancel</Button>
+        <Button
+          className={cn('flex-1', isDirty && 'ring-2 ring-accent/50 ring-offset-1 ring-offset-background')}
+          onClick={handleSave}
+        >
+          Save
+        </Button>
+      </div>
 
       <Card>
         <CardContent className="p-3 space-y-4">
@@ -251,12 +273,12 @@ export function ProfileMenu() {
           <div className="flex flex-col items-center gap-2">
             <button
               type="button"
-              onClick={() => avatarDataUrl ? setEditorOpen(true) : avatarInputRef.current?.click()}
+              onClick={() => displayAvatarUrl ? setEditorOpen(true) : avatarInputRef.current?.click()}
               className="relative h-20 w-20 rounded-full overflow-hidden bg-primary/15 border-2 border-primary/25 flex items-center justify-center group"
-              aria-label={avatarDataUrl ? 'Edit profile photo' : 'Add profile photo'}
+              aria-label={displayAvatarUrl ? 'Edit profile photo' : 'Add profile photo'}
             >
-              {avatarDataUrl ? (
-                <img src={avatarDataUrl} alt="avatar" draggable={false} style={avatarImgStyle(s)} />
+              {displayAvatarUrl ? (
+                <img src={displayAvatarUrl} alt="avatar" draggable={false} style={avatarImgStyle(draftAvatarSettings)} />
               ) : initial ? (
                 <span className="text-3xl font-bold text-primary">{initial}</span>
               ) : (
@@ -266,15 +288,9 @@ export function ProfileMenu() {
                 <Camera className="h-5 w-5 text-white" />
               </div>
             </button>
-            <input
-              ref={avatarInputRef}
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={handleAvatarUpload}
-            />
+            <input ref={avatarInputRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarUpload} />
             <p className="text-[10px] text-muted-foreground/60">
-              {avatarDataUrl ? 'Tap to adjust' : 'Tap to add photo'}
+              {displayAvatarUrl ? 'Tap to adjust' : 'Tap to add photo'}
             </p>
           </div>
 
@@ -284,8 +300,6 @@ export function ProfileMenu() {
               placeholder="e.g., Jhon Skyrim"
               value={name}
               onChange={e => setName(e.target.value)}
-              onBlur={saveName}
-              onKeyDown={e => e.key === 'Enter' && saveName()}
             />
           </div>
 
@@ -298,12 +312,10 @@ export function ProfileMenu() {
               placeholder="e.g., 25"
               value={paydayDay}
               onChange={e => setPaydayDay(e.target.value)}
-              onBlur={savePayday}
-              onKeyDown={e => e.key === 'Enter' && savePayday()}
             />
-            {!isNaN(parseInt(paydayDay, 10)) && (
+            {!isNaN(parsedDay) && parsedDay >= 1 && parsedDay <= 31 && (
               <p className="text-[10px] text-muted-foreground">
-                You get paid on the {ordinal(parseInt(paydayDay, 10))} of each month
+                You get paid on the {ordinal(parsedDay)} of each month
               </p>
             )}
           </div>
@@ -314,7 +326,6 @@ export function ProfileMenu() {
               placeholder="e.g., Saving towards a debt-free life..."
               value={bio}
               onChange={e => setBio(e.target.value)}
-              onBlur={saveBio}
               rows={3}
               className="resize-none text-sm"
             />

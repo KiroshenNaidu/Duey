@@ -1,12 +1,13 @@
 'use client';
 
-import { useState, useContext } from 'react';
+import { useState, useContext, useEffect } from 'react';
 import { Palette, Database, Bell, ChevronLeft, User, Pencil } from 'lucide-react';
 import { ThemeSettingsMenu } from '@/components/settings/ThemeSettingsMenu';
 import { DataManagementMenu } from '@/components/settings/DataManagementMenu';
 import { NotificationsMenu } from '@/components/settings/NotificationsMenu';
 import { ProfileMenu } from '@/components/settings/ProfileMenu';
 import { AppDataContext } from '@/context/AppDataContext';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 
 type ActiveMenu = 'main' | 'profile' | 'theme' | 'data' | 'notifications';
 
@@ -96,13 +97,95 @@ const ProfileHeroCard = ({ onEdit }: { onEdit: () => void }) => {
 
 export default function SettingsPage() {
   const [activeMenu, setActiveMenu] = useState<ActiveMenu>('main');
-  const handleBack = () => setActiveMenu('main');
+  const [menuIsDirty, setMenuIsDirty] = useState(false);
+  const [pendingNav, setPendingNav] = useState<ActiveMenu | null>(null);
+  const [showDiscardDialog, setShowDiscardDialog] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
+
+  // Check for post-reload toast (e.g. after theme save + page reload)
+  useEffect(() => {
+    const msg = sessionStorage.getItem('duey_saved_toast');
+    if (msg) {
+      sessionStorage.removeItem('duey_saved_toast');
+      setToast(msg);
+      setTimeout(() => setToast(null), 2500);
+    }
+  }, []);
+
+  const showToast = (msg: string) => {
+    setToast(msg);
+    setTimeout(() => setToast(null), 2500);
+  };
+
+  // Navigate, showing a discard warning if there are unsaved changes
+  const tryNavigate = (target: ActiveMenu) => {
+    if (menuIsDirty) {
+      setPendingNav(target);
+      setShowDiscardDialog(true);
+    } else {
+      setActiveMenu(target);
+      setMenuIsDirty(false);
+    }
+  };
+
+  const handleBack = () => tryNavigate('main');
+
+  const confirmDiscard = () => {
+    setMenuIsDirty(false);
+    setShowDiscardDialog(false);
+    if (pendingNav !== null) {
+      setActiveMenu(pendingNav);
+      setPendingNav(null);
+    }
+  };
+
+  // Called by Profile / Notifications menus after a successful save
+  const handleSaved = (msg: string) => {
+    showToast(msg);
+    setMenuIsDirty(false);
+    setActiveMenu('main');
+  };
+
+  // Theme save triggers a page reload — persist toast via sessionStorage
+  const handleThemeSaved = (msg: string) => {
+    sessionStorage.setItem('duey_saved_toast', msg);
+    // ThemeSettingsMenu will reload after calling this
+  };
+
+  const discardDialog = (
+    <AlertDialog open={showDiscardDialog} onOpenChange={(open) => { if (!open) { setPendingNav(null); setShowDiscardDialog(false); } }}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Unsaved changes</AlertDialogTitle>
+          <AlertDialogDescription>
+            You have unsaved changes. Leave without saving?
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel onClick={() => { setPendingNav(null); setShowDiscardDialog(false); }}>
+            Keep editing
+          </AlertDialogCancel>
+          <AlertDialogAction onClick={confirmDiscard}>
+            Discard changes
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+
+  const toastUI = toast && (
+    <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[200] bg-card border border-accent/30 text-foreground text-sm font-semibold px-5 py-2.5 rounded-full shadow-lg animate-in fade-in slide-in-from-top-2 duration-200 pointer-events-none">
+      {toast}
+    </div>
+  );
 
   if (activeMenu === 'profile') {
     return (
       <div className="container mx-auto max-w-md pt-11">
+        {discardDialog}
+        {toastUI}
         <PageHeader title="Profile" onBack={handleBack} />
-        <ProfileMenu />
+        <ProfileMenu onDirtyChange={setMenuIsDirty} onSaved={handleSaved} onCancel={() => setActiveMenu('main')} />
       </div>
     );
   }
@@ -110,8 +193,10 @@ export default function SettingsPage() {
   if (activeMenu === 'theme') {
     return (
       <div className="container mx-auto max-w-md pt-11">
+        {discardDialog}
+        {toastUI}
         <PageHeader title="Theme" onBack={handleBack} />
-        <ThemeSettingsMenu onBack={handleBack} />
+        <ThemeSettingsMenu onBack={handleBack} onDirtyChange={setMenuIsDirty} onSaved={handleThemeSaved} />
       </div>
     );
   }
@@ -119,6 +204,7 @@ export default function SettingsPage() {
   if (activeMenu === 'data') {
     return (
       <div className="container mx-auto max-w-md pt-11">
+        {toastUI}
         <PageHeader title="Data Management" onBack={handleBack} />
         <DataManagementMenu />
       </div>
@@ -128,21 +214,24 @@ export default function SettingsPage() {
   if (activeMenu === 'notifications') {
     return (
       <div className="container mx-auto max-w-md pt-11">
+        {discardDialog}
+        {toastUI}
         <PageHeader title="Notifications" onBack={handleBack} />
-        <NotificationsMenu />
+        <NotificationsMenu onDirtyChange={setMenuIsDirty} onSaved={handleSaved} onCancel={() => setActiveMenu('main')} />
       </div>
     );
   }
 
   return (
     <div className="container mx-auto max-w-md pt-11">
-      <ProfileHeroCard onEdit={() => setActiveMenu('profile')} />
+      {toastUI}
+      <ProfileHeroCard onEdit={() => tryNavigate('profile')} />
 
       <div className="space-y-3">
         {menuItems.map((item) => (
           <button
             key={item.id}
-            onClick={() => setActiveMenu(item.id)}
+            onClick={() => tryNavigate(item.id)}
             className="w-full text-left p-3 bg-card rounded-2xl flex items-center gap-4 transition-transform active:scale-[0.98] hover:scale-[1.02] focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background"
           >
             <item.icon className="h-5 w-5 text-accent shrink-0" />
