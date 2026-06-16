@@ -134,21 +134,21 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       try {
         setAppState(migrateState(JSON.parse(storedStateRaw)));
       } catch (e) {
-        console.error("Failed to parse local optimistic state", e);
+        console.error("Failed to parse persisted app state", e);
       }
     }
     setIsLoaded(true);
   }, []);
 
-  const updateStateAndSync = (updater: (prev: AppState) => AppState) => {
+  const updateStateAndSync = useCallback((updater: (prev: AppState) => AppState) => {
     setAppState(prev => {
       const next = updater(prev);
       localStorage.setItem('appState', JSON.stringify(next));
       return next;
     });
-  };
+  }, []);
 
-  const addDebt = (debtData: Omit<Debt, 'id'>) => {
+  const addDebt = useCallback((debtData: Omit<Debt, 'id'>) => {
     updateStateAndSync(prev => {
       const newDebt: Debt = { ...debtData, id: crypto.randomUUID() };
       const newHistoryEntry: HistoryEntry = {
@@ -161,24 +161,24 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       };
       return { ...prev, debts: [...prev.debts, newDebt], history: [newHistoryEntry, ...prev.history] };
     });
-  };
+  }, [updateStateAndSync]);
 
   const updateDebt = useCallback((debtId: string, updatedData: Partial<Omit<Debt, 'id'>>) => {
     updateStateAndSync(prev => ({
       ...prev,
       debts: prev.debts.map(d => (d.id === debtId ? { ...d, ...updatedData } : d)),
     }));
-  }, []);
+  }, [updateStateAndSync]);
 
-  const deleteDebt = (debtId: string) => {
+  const deleteDebt = useCallback((debtId: string) => {
     updateStateAndSync(prev => ({
       ...prev,
       debts: prev.debts.filter(debt => debt.id !== debtId),
       history: prev.history.filter(h => h.debtId !== debtId),
     }));
-  };
+  }, [updateStateAndSync]);
 
-  const completeDebt = (debtId: string) => {
+  const completeDebt = useCallback((debtId: string) => {
     updateStateAndSync(prev => {
       const debt = prev.debts.find(d => d.id === debtId);
       if (!debt) return prev;
@@ -196,7 +196,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
         history: [completionEntry, ...prev.history],
       };
     });
-  };
+  }, [updateStateAndSync]);
   
   const togglePaymentDate = useCallback((debtId: string, date: Date) => {
     updateStateAndSync(prev => {
@@ -225,7 +225,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       }
       return { ...prev, history: updatedHistory };
     });
-  }, []);
+  }, [updateStateAndSync]);
 
   const logPaymentForToday = (debtId: string) => {
     updateStateAndSync(prev => {
@@ -275,19 +275,19 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     }));
   };
 
-  const addUberRide = (ride: Omit<UberRide, 'id' | 'createdAt'>) => {
+  const addUberRide = useCallback((ride: Omit<UberRide, 'id' | 'createdAt'>) => {
     updateStateAndSync(prev => ({
       ...prev,
       uberRides: [...prev.uberRides, { ...ride, id: crypto.randomUUID(), createdAt: new Date().toISOString() }],
     }));
-  };
+  }, [updateStateAndSync]);
 
-  const deleteUberRide = (rideId: string) => {
+  const deleteUberRide = useCallback((rideId: string) => {
     updateStateAndSync(prev => ({
       ...prev,
       uberRides: prev.uberRides.filter(r => r.id !== rideId),
     }));
-  };
+  }, [updateStateAndSync]);
 
   const updateUberRide = (rideId: string, data: Partial<Omit<UberRide, 'id' | 'createdAt'>>) => {
     updateStateAndSync(prev => ({
@@ -296,14 +296,14 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     }));
   };
 
-  const addBudgetPlan = (name: string, budget: number) => {
+  const addBudgetPlan = useCallback((name: string, budget: number) => {
     updateStateAndSync(prev => ({
       ...prev,
       budgetPlans: [...prev.budgetPlans, { id: crypto.randomUUID(), name, budget, items: [], createdAt: new Date().toISOString() }],
     }));
-  };
+  }, [updateStateAndSync]);
 
-  const deleteBudgetPlan = (planId: string) => {
+  const deleteBudgetPlan = useCallback((planId: string) => {
     updateStateAndSync(prev => {
       const plan = prev.budgetPlans.find(p => p.id === planId);
       const historyEntry: HistoryEntry | null = plan ? {
@@ -319,7 +319,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
         history: historyEntry ? [historyEntry, ...prev.history] : prev.history,
       };
     });
-  };
+  }, [updateStateAndSync]);
 
   const updateBudgetPlan = (planId: string, data: { name?: string; budget?: number }) => {
     updateStateAndSync(prev => ({
@@ -353,14 +353,14 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       ...prev,
       userThemes: [...prev.userThemes, { id: crypto.randomUUID(), name, settings }]
     }));
-  }, []);
+  }, [updateStateAndSync]);
 
   const deleteUserTheme = useCallback((themeId: string) => {
     updateStateAndSync(prev => ({
       ...prev,
       userThemes: prev.userThemes.filter(t => t.id !== themeId)
     }));
-  }, []);
+  }, [updateStateAndSync]);
 
   const importData = (data: AppData) => {
     updateStateAndSync(prev => ({ ...prev, ...data, schemaVersion: CURRENT_SCHEMA_VERSION }));

@@ -33,13 +33,18 @@ export const getProgress = (debt: Debt, history: HistoryEntry[]): number => {
 
 // Stats Page Calculations
 export const calculateGlobalStats = (debts: Debt[], history: HistoryEntry[]) => {
-    const globalTotalDebt = debts.reduce((acc, debt) => acc + debt.total_owed, 0);
-    const globalAmountPaid = debts.reduce((acc, debt) => acc + getAmountPaid(debt, history), 0);
+    const paidByDebtId = new Map<string, number>();
+    let totalTransportPaid = 0;
+    for (const h of history) {
+        if (h.type === 'payment' && h.debtId) {
+            paidByDebtId.set(h.debtId, (paidByDebtId.get(h.debtId) ?? 0) + h.amount);
+        } else if (h.type === 'transport') {
+            totalTransportPaid += h.amount;
+        }
+    }
+    const globalTotalDebt = debts.reduce((acc, d) => acc + d.total_owed, 0);
+    const globalAmountPaid = debts.reduce((acc, d) => acc + (paidByDebtId.get(d.id) ?? 0), 0);
     const globalRemainingBalance = globalTotalDebt - globalAmountPaid;
-    const totalTransportPaid = history
-      .filter((item) => item.type === 'transport')
-      .reduce((acc, item) => acc + item.amount, 0);
-    
     return { globalTotalDebt, globalAmountPaid, globalRemainingBalance, totalTransportPaid };
 };
 

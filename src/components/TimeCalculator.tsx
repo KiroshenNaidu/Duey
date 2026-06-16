@@ -28,18 +28,17 @@ function toFraction(n: number): string {
   const abs = Math.abs(n);
   if (Number.isInteger(abs)) return (neg ? '-' : '') + abs.toString();
 
-  let [h0, h1, k0, k1] = [0, 1, 1, 0];
+  let [h0, h1, _k0, k1] = [0, 1, 1, 0];
   let b = abs;
   for (let i = 0; i < 100 && k1 <= 200000; i++) {
     const a = Math.floor(b);
     [h0, h1] = [h1, a * h1 + h0];
-    [k0, k1] = [k1, a * k1 + k0];
+    [_k0, k1] = [k1, a * k1 + _k0];
     if (Math.abs(abs - h1 / k1) < 1e-9) break;
     const r = b - a;
     if (r < 1e-12) break;
     b = 1 / r;
   }
-  void k0;
   const prefix = neg ? '-' : '';
   const intPart = Math.floor(h1 / k1);
   const remN = h1 - intPart * k1;

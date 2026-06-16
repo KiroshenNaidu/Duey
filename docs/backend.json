@@ -72,13 +72,9 @@
       }
     }
   },
-  "auth": {
-    "providers": ["anonymous"]
-  },
-  "firestore": {
-    "/users/{userId}": {
-      "schema": "#/backend/entities/UserProfile",
-      "description": "Stores all persistent data for a specific user device."
-    }
+  "storage": {
+    "mechanism": "localStorage",
+    "key": "appState",
+    "description": "All persistent data is stored locally on the device under the 'appState' key."
   }
 }

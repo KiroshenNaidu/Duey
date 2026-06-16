@@ -1,6 +1,6 @@
 'use client';
 
-import { useContext, useState } from 'react';
+import { useContext, useState, useMemo } from 'react';
 import { AppDataContext } from '@/context/AppDataContext';
 import { formatCurrency, cn } from '@/lib/utils';
 import { calculateTransportMonth } from '@/lib/calculations';
@@ -22,18 +22,16 @@ export function MoneyOverview() {
   const [editingIncome, setEditingIncome] = useState(false);
   const [incomeInput, setIncomeInput] = useState('');
 
-  const now = new Date();
-
-  const transportCost = calculateTransportMonth(now, transportOverrides, transportSettings).totalDue;
-
-  const budgetSpent = budgetPlans.flatMap(p => p.items).reduce((s, i) => s + i.price, 0);
-
-  const debtPaymentsThisMonth = history
-    .filter(h => h.type === 'payment' && isSameMonth(new Date(h.date), now))
-    .reduce((s, h) => s + h.amount, 0);
-
-  const totalDeductions = transportCost + budgetSpent + debtPaymentsThisMonth;
-  const remaining = monthlyIncome - totalDeductions;
+  const { transportCost, budgetSpent, debtPaymentsThisMonth, totalDeductions, remaining } = useMemo(() => {
+    const now = new Date();
+    const transportCost = calculateTransportMonth(now, transportOverrides, transportSettings).totalDue;
+    const budgetSpent = budgetPlans.flatMap(p => p.items).reduce((s, i) => s + i.price, 0);
+    const debtPaymentsThisMonth = history
+      .filter(h => h.type === 'payment' && isSameMonth(new Date(h.date), now))
+      .reduce((s, h) => s + h.amount, 0);
+    const totalDeductions = transportCost + budgetSpent + debtPaymentsThisMonth;
+    return { transportCost, budgetSpent, debtPaymentsThisMonth, totalDeductions, remaining: monthlyIncome - totalDeductions };
+  }, [history, budgetPlans, transportSettings, transportOverrides, monthlyIncome]);
 
   const startEdit = () => {
     setIncomeInput(monthlyIncome > 0 ? monthlyIncome.toString() : '');

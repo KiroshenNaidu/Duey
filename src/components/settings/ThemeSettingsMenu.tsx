@@ -8,13 +8,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Slider } from '@/components/ui/slider';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { hexToHsl, hslToHex, idbGet, idbSet, cn } from '@/lib/utils';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Upload, Loader2, Trash2, Check, Plus, Minus, Layout, Box } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Upload, Loader2, Trash2, Check, Plus, Minus } from 'lucide-react';
 import { AppDataContext } from '@/context/AppDataContext';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { ScrollArea } from '../ui/scroll-area';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import Link from 'next/link';
 
 const defaultThemeSettings: Omit<ThemeSettings, 'backgroundImage'> = {
@@ -31,45 +30,64 @@ const defaultThemeSettings: Omit<ThemeSettings, 'backgroundImage'> = {
 };
 
 const systemPresets: Omit<UserTheme, 'id'>[] = [
-    { 
-        name: 'Default', 
-        settings: { 
-            background: '223 13% 10%',
-            surface: '222 15% 12%',
-            primary: '227 50% 50%',
-            accent: '191 79% 57%',
-            foreground: '0 0% 98%',
-            accentForeground: '0 0% 98%',
-            font: 'Inter',
-            uiScale: 1.0,
-            uiStyle: 'solid',
-        } 
+  {
+    name: 'Default',
+    settings: {
+      background: '223 13% 10%', surface: '222 15% 12%',
+      primary: '227 50% 50%', accent: '191 79% 57%',
+      foreground: '0 0% 98%', accentForeground: '0 0% 98%',
+      font: 'Inter', uiScale: 1.0, uiStyle: 'solid',
     },
+  },
+  {
+    name: 'Midnight',
+    settings: {
+      background: '240 10% 4%', surface: '240 10% 7%',
+      primary: '263 70% 60%', accent: '291 70% 68%',
+      foreground: '0 0% 95%', accentForeground: '0 0% 98%',
+      font: 'Inter', uiScale: 1.0, uiStyle: 'glass',
+    },
+  },
+  {
+    name: 'Forest',
+    settings: {
+      background: '150 20% 8%', surface: '148 18% 11%',
+      primary: '142 60% 45%', accent: '80 60% 55%',
+      foreground: '0 0% 95%', accentForeground: '0 0% 5%',
+      font: 'Inter', uiScale: 1.0, uiStyle: 'solid',
+    },
+  },
+  {
+    name: 'Ember',
+    settings: {
+      background: '20 15% 7%', surface: '18 14% 11%',
+      primary: '16 90% 55%', accent: '38 95% 55%',
+      foreground: '0 0% 95%', accentForeground: '0 0% 5%',
+      font: 'Inter', uiScale: 1.0, uiStyle: 'solid',
+    },
+  },
 ];
 
 const MAX_IMAGE_DIMENSION = 2500;
 
 function parseHsl(hslStr: string): [number, number, number] {
-  if (!hslStr) return [0,0,0];
+  if (!hslStr) return [0, 0, 0];
   const [h, s, l] = hslStr.replace(/%/g, '').split(' ').map(Number);
   return [h || 0, s || 0, l || 0];
 }
 
-const areThemeSettingsEqual = (s1: Omit<ThemeSettings, 'backgroundImage' | 'backgroundOpacity'>, s2: Omit<ThemeSettings, 'backgroundImage' | 'backgroundOpacity'>) => {
-    return s1.background === s2.background &&
-           s1.surface === s2.surface &&
-           s1.primary === s2.primary &&
-           s1.accent === s2.accent &&
-           s1.foreground === s2.foreground &&
-           s1.accentForeground === s2.accentForeground &&
-           s1.font === s2.font &&
-           s1.uiScale === s2.uiScale &&
-           s1.uiStyle === s2.uiStyle;
-};
+const areThemeSettingsEqual = (
+  s1: Omit<ThemeSettings, 'backgroundImage' | 'backgroundOpacity'>,
+  s2: Omit<ThemeSettings, 'backgroundImage' | 'backgroundOpacity'>
+) =>
+  s1.background === s2.background && s1.surface === s2.surface &&
+  s1.primary === s2.primary && s1.accent === s2.accent &&
+  s1.foreground === s2.foreground && s1.accentForeground === s2.accentForeground &&
+  s1.font === s2.font && s1.uiScale === s2.uiScale && s1.uiStyle === s2.uiStyle;
 
 export function ThemeSettingsMenu({ onBack }: { onBack?: () => void }) {
   const { themeSettings, setThemeSettings, userThemes, addUserTheme, deleteUserTheme } = useContext(AppDataContext);
-  
+
   const [previewTheme, setPreviewTheme] = useState<ThemeSettings>(() => ({
     ...defaultThemeSettings,
     ...themeSettings,
@@ -78,24 +96,18 @@ export function ThemeSettingsMenu({ onBack }: { onBack?: () => void }) {
   const [isClient, setIsClient] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-
   const [isSaveDialogOpen, setIsSaveDialogOpen] = useState(false);
   const [newThemeName, setNewThemeName] = useState('');
 
   useEffect(() => {
     setIsClient(true);
-    async function loadInitialImage() {
-      const storedImage = await idbGet<string>('backgroundImage');
-      if (storedImage) {
-        setPreviewTheme(p => ({ ...p, backgroundImage: storedImage }));
-      }
-    }
-    loadInitialImage();
+    idbGet<string>('backgroundImage').then(img => {
+      if (img) setPreviewTheme(p => ({ ...p, backgroundImage: img }));
+    });
   }, []);
-  
+
   useEffect(() => {
     if (!isClient) return;
-
     const root = document.documentElement;
     root.style.setProperty('--background', previewTheme.background);
     root.style.setProperty('--card', previewTheme.surface);
@@ -103,103 +115,59 @@ export function ThemeSettingsMenu({ onBack }: { onBack?: () => void }) {
     root.style.setProperty('--accent', previewTheme.accent);
     root.style.setProperty('--foreground', previewTheme.foreground);
     root.style.setProperty('--accent-foreground', previewTheme.accentForeground);
-
-    if (previewTheme.font === 'Inter') {
-      root.style.setProperty('--font-family', 'var(--font-inter)');
-    } else if (previewTheme.font === 'Serif') {
-        root.style.setProperty('--font-family', 'serif');
-    } else {
-        root.style.setProperty('--font-family', 'monospace');
-    }
-
-    const bgImageDiv = document.getElementById('global-bg-image');
-    const bgOverlayDiv = document.getElementById('global-bg-overlay');
-    
-    if (bgImageDiv) {
-        bgImageDiv.style.backgroundImage = previewTheme.backgroundImage ? `url(${previewTheme.backgroundImage})` : 'none';
-    }
-    if (bgOverlayDiv) {
-        bgOverlayDiv.style.opacity = String(previewTheme.backgroundImage ? previewTheme.backgroundOpacity : 0);
-    }
-    
-    const body = document.body;
-    if (previewTheme.backgroundImage) {
-        body.classList.add('has-bg-image');
-    } else {
-        body.classList.remove('has-bg-image');
-    }
-
-    if (previewTheme.uiStyle === 'glass') {
-        body.classList.add('ui-glass');
-    } else {
-        body.classList.remove('ui-glass');
-    }
-    
-    body.style.zoom = `${previewTheme.uiScale}`;
-
+    root.style.setProperty('--font-family',
+      previewTheme.font === 'Inter' ? 'var(--font-inter)' :
+      previewTheme.font === 'Serif' ? 'serif' : 'monospace'
+    );
+    const bgDiv = document.getElementById('global-bg-image');
+    const overlayDiv = document.getElementById('global-bg-overlay');
+    if (bgDiv) bgDiv.style.backgroundImage = previewTheme.backgroundImage ? `url(${previewTheme.backgroundImage})` : 'none';
+    if (overlayDiv) overlayDiv.style.opacity = String(previewTheme.backgroundImage ? previewTheme.backgroundOpacity : 0);
+    document.body.classList.toggle('has-bg-image', !!previewTheme.backgroundImage);
+    document.body.classList.toggle('ui-glass', previewTheme.uiStyle === 'glass');
+    document.body.style.zoom = `${previewTheme.uiScale}`;
   }, [previewTheme, isClient]);
 
-  const handleColorChange = (name: 'background' | 'primary' | 'accent' | 'surface' | 'foreground' | 'accentForeground', value: string) => {
-    const hslValue = hexToHsl(value);
-    if (hslValue) {
-      setPreviewTheme(prev => ({ ...prev, [name]: hslValue }));
-    }
+  const handleColorChange = (name: keyof Pick<ThemeSettings, 'background' | 'primary' | 'accent' | 'surface' | 'foreground' | 'accentForeground'>, value: string) => {
+    const hsl = hexToHsl(value);
+    if (hsl) setPreviewTheme(prev => ({ ...prev, [name]: hsl }));
   };
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
-
     setIsProcessing(true);
     const reader = new FileReader();
-    
     reader.onload = (e) => {
       const img = new Image();
       img.onload = () => {
         let { width, height } = img;
         if (width > MAX_IMAGE_DIMENSION || height > MAX_IMAGE_DIMENSION) {
-          if (width > height) {
-            height = Math.round((height * MAX_IMAGE_DIMENSION) / width);
-            width = MAX_IMAGE_DIMENSION;
-          } else {
-            width = Math.round((width * MAX_IMAGE_DIMENSION) / height);
-            height = MAX_IMAGE_DIMENSION;
-          }
+          if (width > height) { height = Math.round((height * MAX_IMAGE_DIMENSION) / width); width = MAX_IMAGE_DIMENSION; }
+          else { width = Math.round((width * MAX_IMAGE_DIMENSION) / height); height = MAX_IMAGE_DIMENSION; }
         }
-        
         const canvas = document.createElement('canvas');
-        canvas.width = width;
-        canvas.height = height;
+        canvas.width = width; canvas.height = height;
         const ctx = canvas.getContext('2d');
-        if (!ctx) {
-            setIsProcessing(false);
-            return;
-        }
+        if (!ctx) { setIsProcessing(false); return; }
         ctx.drawImage(img, 0, 0, width, height);
-
         const dataUrl = file.type === 'image/gif' ? (e.target?.result as string) : canvas.toDataURL(file.type, 0.9);
-        setPreviewTheme(p => ({...p, backgroundImage: dataUrl}));
+        setPreviewTheme(p => ({ ...p, backgroundImage: dataUrl }));
         setIsProcessing(false);
       };
       img.src = e.target?.result as string;
     };
-
     reader.readAsDataURL(file);
     event.target.value = '';
   };
-  
-  const handleRemoveImage = () => {
-    setPreviewTheme(p => ({ ...p, backgroundImage: '' }));
-  }
+
+  const handleRemoveImage = () => setPreviewTheme(p => ({ ...p, backgroundImage: '' }));
 
   const handleSave = () => {
     const { backgroundImage, ...settingsToSave } = previewTheme;
-    
     idbSet('backgroundImage', backgroundImage).then(() => {
-        setThemeSettings(settingsToSave);
-        setTimeout(() => {
-            window.location.reload();
-        }, 500);
+      setThemeSettings(settingsToSave);
+      setTimeout(() => window.location.reload(), 500);
     });
   };
 
@@ -210,241 +178,383 @@ export function ThemeSettingsMenu({ onBack }: { onBack?: () => void }) {
     setNewThemeName('');
     setIsSaveDialogOpen(false);
   };
-  
+
   const handleScale = (direction: 'up' | 'down') => {
     setPreviewTheme(prev => {
-      const currentScale = prev.uiScale || 1.0;
-      let newScale = direction === 'up' ? currentScale + 0.05 : currentScale - 0.05;
-      newScale = Math.max(0.8, Math.min(1.2, newScale));
-      return { ...prev, uiScale: parseFloat(newScale.toFixed(2)) };
+      const next = direction === 'up' ? prev.uiScale + 0.05 : prev.uiScale - 0.05;
+      return { ...prev, uiScale: parseFloat(Math.max(0.8, Math.min(1.2, next)).toFixed(2)) };
     });
   };
 
-  const isCurrentThemeSaved = useMemo(() => {
-    const { backgroundImage, backgroundOpacity, ...currentSettings } = previewTheme;
-    const isSystemPreset = systemPresets.some(p => areThemeSettingsEqual(p.settings, currentSettings));
-    const isUserPreset = userThemes.some(p => areThemeSettingsEqual(p.settings, currentSettings));
-    return isSystemPreset || isUserPreset;
-  }, [previewTheme, userThemes]);
-  
   const currentActiveSettings = useMemo(() => {
     const { backgroundImage, backgroundOpacity, ...settings } = previewTheme;
     return settings;
   }, [previewTheme]);
 
+  const isCurrentThemeSaved = useMemo(() =>
+    systemPresets.some(p => areThemeSettingsEqual(p.settings, currentActiveSettings)) ||
+    userThemes.some(p => areThemeSettingsEqual(p.settings, currentActiveSettings)),
+  [currentActiveSettings, userThemes]);
+
   if (!isClient) return null;
 
-  const PresetCard = ({ name, settings, onDelete, isActive }: { name: string, settings: Omit<ThemeSettings, 'backgroundImage' | 'backgroundOpacity'>, onDelete?: () => void, isActive: boolean }) => (
-    <div className="space-y-2">
-        <button
-            onClick={() => setPreviewTheme(p => ({...p, ...settings}))}
-            className={cn("w-full aspect-square rounded-2xl bg-card border-2 flex items-center justify-center relative",
-                isActive ? 'border-primary ring-2 ring-primary' : 'border-border'
-            )}
+  const ColorSwatch = ({
+    label,
+    field,
+  }: {
+    label: string;
+    field: keyof Pick<ThemeSettings, 'background' | 'surface' | 'primary' | 'accent' | 'foreground' | 'accentForeground'>;
+  }) => {
+    const hex = hslToHex(...parseHsl(previewTheme[field] as string));
+    const inputId = `color-${field}`;
+    return (
+      <label htmlFor={inputId} className="flex flex-col items-center gap-2 cursor-pointer group">
+        <div
+          className="w-full h-14 rounded-2xl border-2 border-accent/10 shadow-sm relative overflow-hidden transition-transform active:scale-95 group-hover:border-accent/30"
+          style={{ backgroundColor: hex }}
         >
-            <div className="flex flex-wrap gap-2 justify-center p-2">
-                {[settings.background, settings.surface, settings.primary, settings.accent].map((color, i) => (
-                    <div key={i} className="w-8 h-8 rounded-full border-2 border-background" style={{ backgroundColor: hslToHex(...parseHsl(color)) }}/>
-                ))}
-            </div>
-            {isActive && <Check className="absolute top-2 right-2 h-6 w-6 text-primary bg-background/50 rounded-full p-1"/>}
-        </button>
-        <div className="flex items-center justify-between">
-            <p className="text-sm font-medium text-center truncate px-1">{name}</p>
-            {onDelete && (
-                 <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-7 w-7"><Trash2 className="h-4 w-4 text-destructive"/></Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                        <AlertDialogHeader>
-                            <AlertDialogTitle>Delete "{name}"?</AlertDialogTitle>
-                            <AlertDialogDescription>This custom preset will be permanently removed.</AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                            <AlertDialogAction onClick={onDelete} className={cn(buttonVariants({variant: 'destructive'}))}>Delete</AlertDialogAction>
-                        </AlertDialogFooter>
-                    </AlertDialogContent>
-                </AlertDialog>
-            )}
+          <input
+            id={inputId}
+            type="color"
+            value={hex}
+            onChange={e => handleColorChange(field, e.target.value)}
+            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+          />
         </div>
+        <span className="text-[11px] text-muted-foreground/70 font-medium">{label}</span>
+      </label>
+    );
+  };
+
+  const PresetCard = ({
+    name,
+    settings,
+    onDelete,
+    isActive,
+  }: {
+    name: string;
+    settings: Omit<ThemeSettings, 'backgroundImage' | 'backgroundOpacity'>;
+    onDelete?: () => void;
+    isActive: boolean;
+  }) => (
+    <div className="space-y-2">
+      <button
+        onClick={() => setPreviewTheme(p => ({ ...p, ...settings }))}
+        className={cn(
+          'w-full aspect-square rounded-2xl border-2 flex flex-col items-center justify-center relative transition-all gap-2 p-3',
+          isActive ? 'border-primary ring-2 ring-primary/30' : 'border-border hover:border-border/60'
+        )}
+        style={{ backgroundColor: hslToHex(...parseHsl(settings.background)) }}
+      >
+        <div className="flex gap-1.5 flex-wrap justify-center">
+          {[settings.surface, settings.primary, settings.accent].map((color, i) => (
+            <div
+              key={i}
+              className="w-6 h-6 rounded-full border-2"
+              style={{
+                backgroundColor: hslToHex(...parseHsl(color)),
+                borderColor: hslToHex(...parseHsl(settings.background)),
+              }}
+            />
+          ))}
+        </div>
+        {isActive && (
+          <div className="absolute top-2 right-2 h-5 w-5 rounded-full bg-primary flex items-center justify-center">
+            <Check className="h-3 w-3 text-primary-foreground" />
+          </div>
+        )}
+        {settings.uiStyle === 'glass' && (
+          <span className="absolute bottom-2 left-2 text-[9px] font-semibold uppercase tracking-wider opacity-60"
+                style={{ color: hslToHex(...parseHsl(settings.foreground)) }}>
+            Glass
+          </span>
+        )}
+      </button>
+      <div className="flex items-center justify-between px-0.5">
+        <p className="text-xs font-medium truncate">{name}</p>
+        {onDelete && (
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0">
+                <Trash2 className="h-3 w-3 text-destructive" />
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Delete &quot;{name}&quot;?</AlertDialogTitle>
+                <AlertDialogDescription>This custom preset will be permanently removed.</AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={onDelete} className={cn(buttonVariants({ variant: 'destructive' }))}>Delete</AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        )}
+      </div>
     </div>
   );
 
   return (
-    <div className="space-y-6">
-        <Card>
-            <CardHeader><CardTitle className="text-base">UI Size</CardTitle></CardHeader>
-            <CardContent>
-                <div className="flex items-center justify-center gap-4">
-                    <Button variant="outline" size="icon" className="rounded-full" onClick={() => handleScale('down')}>
-                        <Minus className="h-4 w-4" />
-                    </Button>
-                    <span className="text-lg font-bold w-24 text-center tabular-nums">
-                        {((previewTheme.uiScale || 1.0) * 100).toFixed(0)}%
-                    </span>
-                    <Button variant="outline" size="icon" className="rounded-full" onClick={() => handleScale('up')}>
-                        <Plus className="h-4 w-4" />
-                    </Button>
-                </div>
-            </CardContent>
-        </Card>
-
-        <Card>
-            <CardHeader><CardTitle className="text-base">UI Style</CardTitle></CardHeader>
-            <CardContent>
-                <RadioGroup 
-                    value={previewTheme.uiStyle} 
-                    onValueChange={(val: 'solid' | 'glass') => setPreviewTheme(p => ({...p, uiStyle: val}))}
-                    className="grid grid-cols-2 gap-4"
-                >
-                    <div>
-                        <RadioGroupItem value="solid" id="style-solid" className="sr-only" />
-                        <Label
-                            htmlFor="style-solid"
-                            className={cn(
-                                "flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary",
-                                previewTheme.uiStyle === 'solid' && "border-primary"
-                            )}
-                        >
-                            <Box className="mb-3 h-6 w-6" />
-                            Solid
-                        </Label>
-                    </div>
-                    <div>
-                        <RadioGroupItem value="glass" id="style-glass" className="sr-only" />
-                        <Label
-                            htmlFor="style-glass"
-                            className={cn(
-                                "flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary",
-                                previewTheme.uiStyle === 'glass' && "border-primary"
-                            )}
-                        >
-                            <Layout className="mb-3 h-6 w-6" />
-                            Glass
-                        </Label>
-                    </div>
-                </RadioGroup>
-            </CardContent>
-        </Card>
-
-      <Card>
-        <CardHeader><CardTitle className="text-base">Background Image</CardTitle></CardHeader>
-        <CardContent className="space-y-4">
-          <div className="w-full aspect-video rounded-lg bg-cover bg-center relative bg-secondary" style={{ backgroundImage: `url(${previewTheme.backgroundImage})` }}>
-             {!previewTheme.backgroundImage && <div className="flex items-center justify-center h-full w-full rounded-lg"><p className="text-muted-foreground text-xs">No image selected</p></div>}
-             <div className="absolute inset-0 bg-black rounded-lg" style={{ opacity: previewTheme.backgroundOpacity, transition: 'opacity 0.2s' }}/>
-          </div>
-           <div className="grid grid-cols-2 gap-2">
-            <Button onClick={() => fileInputRef.current?.click()} className="w-full" disabled={isProcessing}>
-              {isProcessing ? <><Loader2 className="mr-2 h-4 w-4 animate-spin"/> Processing...</> : <><Upload className="mr-2 h-4 w-4" /> Upload</>}
-            </Button>
-            <Button onClick={handleRemoveImage} variant="destructive" className="w-full" disabled={!previewTheme.backgroundImage && !isProcessing}>
-              <Trash2 className="mr-2 h-4 w-4" /> Remove
-            </Button>
-           </div>
-          <input type="file" ref={fileInputRef} onChange={handleFileChange} accept="image/*" className="hidden" />
-          <div className="space-y-2">
-            <Label className='text-xs'>Overlay Opacity</Label>
-            <div className="flex items-center gap-4">
-              <Slider value={[previewTheme.backgroundOpacity]} onValueChange={([v]) => setPreviewTheme(p => ({...p, backgroundOpacity: v}))} max={1} step={0.05} disabled={!previewTheme.backgroundImage} />
-              <span className="text-sm text-muted-foreground w-12 text-right">{(previewTheme.backgroundOpacity * 100).toFixed(0)}%</span>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader><CardTitle className="text-base">Colors & Font</CardTitle></CardHeader>
-        <CardContent>
-          <Tabs defaultValue="presets" className='w-full'>
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="presets">Presets</TabsTrigger>
-              <TabsTrigger value="custom">Custom</TabsTrigger>
-            </TabsList>
-            <TabsContent value="presets" className="pt-4">
-                <ScrollArea className="h-[400px] -mx-4 px-4">
-                    <div className='space-y-8'>
-                        <div>
-                            <h3 className="text-sm font-semibold mb-4 text-foreground">System Preset</h3>
-                            <div className="grid grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-6">
-                                {systemPresets.map(preset => (
-                                    <PresetCard key={preset.name} name={preset.name} settings={preset.settings} isActive={areThemeSettingsEqual(currentActiveSettings, preset.settings)} />
-                                ))}
-                            </div>
-                        </div>
-                        {userThemes.length > 0 && (
-                            <div>
-                                <h3 className="text-sm font-semibold mb-4 text-foreground">My Themes</h3>
-                                <div className="grid grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-6">
-                                    {userThemes.map(theme => (
-                                        <PresetCard key={theme.id} name={theme.name} settings={theme.settings} onDelete={() => deleteUserTheme(theme.id)} isActive={areThemeSettingsEqual(currentActiveSettings, theme.settings)} />
-                                    ))}
-                                </div>
-                            </div>
-                        )}
-                    </div>
-                </ScrollArea>
-            </TabsContent>
-            <TabsContent value="custom" className="pt-6 space-y-6">
-               <div className="grid grid-cols-3 gap-4">
-                <div className="space-y-2"><Label className='text-xs'>Background</Label><Input type="color" value={hslToHex(...parseHsl(previewTheme.background))} onChange={e => handleColorChange('background', e.target.value)} className="h-12 w-full p-1"/></div>
-                <div className="space-y-2"><Label className='text-xs'>Surface</Label><Input type="color" value={hslToHex(...parseHsl(previewTheme.surface))} onChange={e => handleColorChange('surface', e.target.value)} className="h-12 w-full p-1"/></div>
-                <div className="space-y-2"><Label className='text-xs'>Primary</Label><Input type="color" value={hslToHex(...parseHsl(previewTheme.primary))} onChange={e => handleColorChange('primary', e.target.value)} className="h-12 w-full p-1"/></div>
-                <div className="space-y-2"><Label className='text-xs'>Accent</Label><Input type="color" value={hslToHex(...parseHsl(previewTheme.accent))} onChange={e => handleColorChange('accent', e.target.value)} className="h-12 w-full p-1"/></div>
-                <div className="space-y-2"><Label className='text-xs'>Text</Label><Input type="color" value={hslToHex(...parseHsl(previewTheme.foreground))} onChange={e => handleColorChange('foreground', e.target.value)} className="h-12 w-full p-1"/></div>
-                <div className="space-y-2"><Label className='text-xs'>Accent Text</Label><Input type="color" value={hslToHex(...parseHsl(previewTheme.accentForeground))} onChange={e => handleColorChange('accentForeground', e.target.value)} className="h-12 w-full p-1"/></div>
-              </div>
-              <div className="space-y-2">
-                <Label className='text-xs'>Font Family</Label>
-                <Select value={previewTheme.font} onValueChange={(value: 'Inter' | 'Serif' | 'Mono') => setPreviewTheme(p => ({...p, font: value}))}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Inter">Modern</SelectItem>
-                    <SelectItem value="Serif">Classic</SelectItem>
-                    <SelectItem value="Mono">Technical</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="pt-6 border-t">
-                 <Button onClick={() => setIsSaveDialogOpen(true)} disabled={isCurrentThemeSaved} className="w-full">
-                    {isCurrentThemeSaved ? 'Preset Already Saved' : 'Save Current Colors as Preset'}
-                 </Button>
-              </div>
-            </TabsContent>
-          </Tabs>
-        </CardContent>
-      </Card>
-      
-      <div className="flex justify-end gap-2 py-4">
-        <Link 
-          href="/settings" 
-          className={cn(buttonVariants({ variant: "ghost" }))}
-          onClick={(e) => {
-            if (onBack) {
-              e.preventDefault();
-              onBack();
-            }
-          }}
+    <div className="space-y-4 pb-8">
+      {/* Action buttons */}
+      <div className="flex gap-2">
+        <Link
+          href="/settings"
+          className={cn(buttonVariants({ variant: 'ghost' }), 'flex-1')}
+          onClick={(e) => { if (onBack) { e.preventDefault(); onBack(); } }}
         >
           Cancel
         </Link>
-        <Button onClick={handleSave}>Save Display Settings</Button>
+        <Button className="flex-1" onClick={handleSave}>Save</Button>
       </div>
 
-       <Dialog open={isSaveDialogOpen} onOpenChange={setIsSaveDialogOpen}>
+      <Tabs defaultValue="style" className="w-full">
+        <TabsList className="grid w-full grid-cols-4 h-9">
+          <TabsTrigger value="style" className="text-[11px]">Style</TabsTrigger>
+          <TabsTrigger value="colors" className="text-[11px]">Colors</TabsTrigger>
+          <TabsTrigger value="background" className="text-[11px]">Background</TabsTrigger>
+          <TabsTrigger value="presets" className="text-[11px]">Presets</TabsTrigger>
+        </TabsList>
+
+        {/* ── Tab 1: Style ── */}
+        <TabsContent value="style" className="mt-4 space-y-4">
+          <Card>
+            <CardHeader className="pb-2"><CardTitle className="text-sm">UI Size</CardTitle></CardHeader>
+            <CardContent>
+              <div className="flex items-center justify-between">
+                <Button variant="outline" size="icon" className="h-10 w-10 rounded-full" onClick={() => handleScale('down')}>
+                  <Minus className="h-4 w-4" />
+                </Button>
+                <div className="text-center">
+                  <div className="text-2xl font-bold tabular-nums">
+                    {((previewTheme.uiScale || 1.0) * 100).toFixed(0)}%
+                  </div>
+                  <div className="text-[10px] text-muted-foreground mt-0.5">UI Scale</div>
+                </div>
+                <Button variant="outline" size="icon" className="h-10 w-10 rounded-full" onClick={() => handleScale('up')}>
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-2"><CardTitle className="text-sm">UI Style</CardTitle></CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 gap-3">
+                {/* Solid */}
+                <button
+                  onClick={() => setPreviewTheme(p => ({ ...p, uiStyle: 'solid' }))}
+                  className={cn(
+                    'relative flex flex-col items-center gap-3 p-4 rounded-2xl border-2 transition-all',
+                    previewTheme.uiStyle === 'solid'
+                      ? 'border-primary bg-primary/5'
+                      : 'border-border hover:border-muted-foreground/30'
+                  )}
+                >
+                  {/* Mini preview */}
+                  <div className="w-full h-16 rounded-xl bg-card border border-accent/10 flex items-center justify-center shadow-sm">
+                    <div className="w-10 h-7 rounded-lg bg-primary/20 border border-primary/40" />
+                  </div>
+                  <span className="text-sm font-medium">Solid</span>
+                  {previewTheme.uiStyle === 'solid' && (
+                    <div className="absolute top-2.5 right-2.5 h-5 w-5 rounded-full bg-primary flex items-center justify-center">
+                      <Check className="h-3 w-3 text-primary-foreground" />
+                    </div>
+                  )}
+                </button>
+
+                {/* Glass */}
+                <button
+                  onClick={() => setPreviewTheme(p => ({ ...p, uiStyle: 'glass' }))}
+                  className={cn(
+                    'relative flex flex-col items-center gap-3 p-4 rounded-2xl border-2 transition-all',
+                    previewTheme.uiStyle === 'glass'
+                      ? 'border-primary bg-primary/5'
+                      : 'border-border hover:border-muted-foreground/30'
+                  )}
+                >
+                  {/* Mini glass preview */}
+                  <div className="w-full h-16 rounded-xl border border-accent/10 flex items-center justify-center overflow-hidden relative"
+                    style={{ background: 'linear-gradient(135deg, rgba(255,255,255,0.07) 0%, rgba(255,255,255,0.02) 100%)' }}>
+                    <div className="absolute inset-0" style={{ backdropFilter: 'blur(4px)' }} />
+                    <div className="w-10 h-7 rounded-lg border border-white/20 relative z-10"
+                      style={{ background: 'rgba(255,255,255,0.08)', backdropFilter: 'blur(8px)' }} />
+                  </div>
+                  <span className="text-sm font-medium">Glass</span>
+                  {previewTheme.uiStyle === 'glass' && (
+                    <div className="absolute top-2.5 right-2.5 h-5 w-5 rounded-full bg-primary flex items-center justify-center">
+                      <Check className="h-3 w-3 text-primary-foreground" />
+                    </div>
+                  )}
+                </button>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* ── Tab 2: Colors ── */}
+        <TabsContent value="colors" className="mt-4 space-y-4">
+          <Card>
+            <CardHeader className="pb-2"><CardTitle className="text-sm">Color Palette</CardTitle></CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-3 gap-3">
+                <ColorSwatch label="Background" field="background" />
+                <ColorSwatch label="Surface" field="surface" />
+                <ColorSwatch label="Primary" field="primary" />
+                <ColorSwatch label="Accent" field="accent" />
+                <ColorSwatch label="Text" field="foreground" />
+                <ColorSwatch label="Accent Text" field="accentForeground" />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-2"><CardTitle className="text-sm">Font Family</CardTitle></CardHeader>
+            <CardContent>
+              <Select
+                value={previewTheme.font}
+                onValueChange={(v: 'Inter' | 'Serif' | 'Mono') => setPreviewTheme(p => ({ ...p, font: v }))}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Inter">Modern (Inter)</SelectItem>
+                  <SelectItem value="Serif">Classic (Serif)</SelectItem>
+                  <SelectItem value="Mono">Technical (Mono)</SelectItem>
+                </SelectContent>
+              </Select>
+            </CardContent>
+          </Card>
+
+          <Button
+            variant="outline"
+            className="w-full"
+            disabled={isCurrentThemeSaved}
+            onClick={() => setIsSaveDialogOpen(true)}
+          >
+            {isCurrentThemeSaved ? 'Colors already saved as preset' : 'Save current colors as preset'}
+          </Button>
+        </TabsContent>
+
+        {/* ── Tab 3: Background ── */}
+        <TabsContent value="background" className="mt-4 space-y-4">
+          <Card>
+            <CardHeader className="pb-2"><CardTitle className="text-sm">Background Image</CardTitle></CardHeader>
+            <CardContent className="space-y-4">
+              {/* Preview */}
+              <div
+                className="w-full aspect-video rounded-xl bg-secondary relative overflow-hidden border border-accent/10"
+                style={{ backgroundImage: previewTheme.backgroundImage ? `url(${previewTheme.backgroundImage})` : undefined, backgroundSize: 'cover', backgroundPosition: 'center' }}
+              >
+                {!previewTheme.backgroundImage && (
+                  <div className="flex items-center justify-center h-full">
+                    <p className="text-muted-foreground text-xs">No image selected</p>
+                  </div>
+                )}
+                <div className="absolute inset-0 bg-black rounded-xl" style={{ opacity: previewTheme.backgroundImage ? previewTheme.backgroundOpacity : 0, transition: 'opacity 0.2s' }} />
+              </div>
+
+              {/* Upload / Remove */}
+              <div className="grid grid-cols-2 gap-2">
+                <Button onClick={() => fileInputRef.current?.click()} className="w-full" disabled={isProcessing}>
+                  {isProcessing
+                    ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Processing...</>
+                    : <><Upload className="mr-2 h-4 w-4" />Upload</>}
+                </Button>
+                <Button onClick={handleRemoveImage} variant="destructive" className="w-full" disabled={!previewTheme.backgroundImage}>
+                  <Trash2 className="mr-2 h-4 w-4" />Remove
+                </Button>
+              </div>
+              <input ref={fileInputRef} type="file" onChange={handleFileChange} accept="image/*" className="hidden" />
+
+              {/* Opacity */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs">Overlay Opacity</Label>
+                  <span className="text-xs text-muted-foreground tabular-nums">
+                    {(previewTheme.backgroundOpacity * 100).toFixed(0)}%
+                  </span>
+                </div>
+                <Slider
+                  value={[previewTheme.backgroundOpacity]}
+                  onValueChange={([v]) => setPreviewTheme(p => ({ ...p, backgroundOpacity: v }))}
+                  max={1}
+                  step={0.05}
+                  disabled={!previewTheme.backgroundImage}
+                />
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* ── Tab 4: Presets ── */}
+        <TabsContent value="presets" className="mt-4 space-y-5">
+          <div>
+            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">System</h3>
+            <div className="grid grid-cols-2 gap-x-3 gap-y-5">
+              {systemPresets.map(preset => (
+                <PresetCard
+                  key={preset.name}
+                  name={preset.name}
+                  settings={preset.settings}
+                  isActive={areThemeSettingsEqual(currentActiveSettings, preset.settings)}
+                />
+              ))}
+            </div>
+          </div>
+
+          {userThemes.length > 0 && (
+            <div>
+              <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">My Themes</h3>
+              <ScrollArea className="max-h-[400px]">
+                <div className="grid grid-cols-2 gap-x-3 gap-y-5 pr-2">
+                  {userThemes.map(theme => (
+                    <PresetCard
+                      key={theme.id}
+                      name={theme.name}
+                      settings={theme.settings}
+                      onDelete={() => deleteUserTheme(theme.id)}
+                      isActive={areThemeSettingsEqual(currentActiveSettings, theme.settings)}
+                    />
+                  ))}
+                </div>
+              </ScrollArea>
+            </div>
+          )}
+
+          <Button
+            variant="outline"
+            className="w-full"
+            disabled={isCurrentThemeSaved}
+            onClick={() => setIsSaveDialogOpen(true)}
+          >
+            {isCurrentThemeSaved ? 'Colors already saved' : 'Save current colors as preset'}
+          </Button>
+        </TabsContent>
+      </Tabs>
+
+      {/* Save preset dialog */}
+      <Dialog open={isSaveDialogOpen} onOpenChange={setIsSaveDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Save Preset</DialogTitle>
+            <DialogTitle>Save as Preset</DialogTitle>
           </DialogHeader>
           <div className="space-y-2 py-2">
             <Label htmlFor="theme-name">Preset Name</Label>
-            <Input id="theme-name" value={newThemeName} onChange={e => setNewThemeName(e.target.value)} placeholder="e.g., My Awesome Theme" />
+            <Input
+              id="theme-name"
+              value={newThemeName}
+              onChange={e => setNewThemeName(e.target.value)}
+              placeholder="e.g., My Awesome Theme"
+              onKeyDown={e => { if (e.key === 'Enter') handleSavePreset(); }}
+            />
           </div>
           <DialogFooter>
             <DialogClose asChild><Button type="button" variant="secondary">Cancel</Button></DialogClose>
-            <Button onClick={handleSavePreset}>Save</Button>
+            <Button onClick={handleSavePreset} disabled={!newThemeName.trim()}>Save</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

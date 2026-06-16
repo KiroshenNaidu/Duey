@@ -132,30 +132,48 @@ const DraggableNotepadBox = ({
 export function QuickNotepad() {
   const { notepadContent, setNotepadContent } = useContext(AppDataContext);
   const [isOpen, setIsOpen] = useState(false);
+  const [localContent, setLocalContent] = useState(notepadContent);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
-  const handleClear = () => {
+  // Sync local content when the notepad opens so it reflects persisted state
+  useEffect(() => {
+    if (isOpen) setLocalContent(notepadContent);
+  }, [isOpen]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Cleanup pending debounce on unmount
+  useEffect(() => () => clearTimeout(debounceRef.current), []);
+
+  const handleChange = useCallback((val: string) => {
+    setLocalContent(val);
+    clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => setNotepadContent(val), 300);
+  }, [setNotepadContent]);
+
+  const handleClear = useCallback(() => {
+    setLocalContent('');
+    clearTimeout(debounceRef.current);
     setNotepadContent('');
-  };
+  }, [setNotepadContent]);
 
   return (
     <>
-      <Button 
-        variant="outline" 
-        size="icon" 
+      <Button
+        variant="outline"
+        size="icon"
         className="fixed bottom-[50px] right-4 z-[60] h-12 w-12 rounded-full shadow-lg bg-card border-2 border-accent/30"
         onClick={() => setIsOpen(prev => !prev)}
       >
         <StickyNote className="h-5 w-5" />
       </Button>
 
-      <DraggableNotepadBox 
-        isOpen={isOpen} 
+      <DraggableNotepadBox
+        isOpen={isOpen}
         onClose={() => setIsOpen(false)}
         onClear={handleClear}
       >
         <Textarea
-          value={notepadContent}
-          onChange={(e) => setNotepadContent(e.target.value)}
+          value={localContent}
+          onChange={(e) => handleChange(e.target.value)}
           className={cn(
             "w-full h-full text-sm bg-transparent resize-none border-none p-0",
             "focus-visible:ring-0 focus-visible:ring-offset-0",

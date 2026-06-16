@@ -1,12 +1,17 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import dynamic from 'next/dynamic';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
 import { DebtsList } from '@/components/DebtsList';
 import { BudgetPlanner } from '@/components/BudgetPlanner';
 import { TimeCalculator } from '@/components/TimeCalculator';
-import { MoneyOverview } from '@/components/MoneyOverview';
+
+const MoneyOverview = dynamic(() => import('@/components/MoneyOverview').then(m => ({ default: m.MoneyOverview })), {
+  ssr: false,
+  loading: () => <Skeleton className="h-48 w-full" />,
+});
 
 export default function Home() {
   const [isClient, setIsClient] = useState(false);

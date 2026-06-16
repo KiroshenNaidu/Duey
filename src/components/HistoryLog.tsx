@@ -82,7 +82,7 @@ export function HistoryLog() {
     setIsClient(true);
   }, []);
 
-  const { debtProfiles, transportHistory, allHistory } = useMemo(() => {
+  const { debtProfiles, transportHistory, allHistory, chronologicalByDebtId } = useMemo(() => {
     const allHistory = [...history].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
     // Group history entries that have a debtId
@@ -115,7 +115,12 @@ export function HistoryLog() {
       return a.title.localeCompare(b.title);
     });
 
-    return { debtProfiles, transportHistory, allHistory };
+    const chronologicalByDebtId: Record<string, HistoryEntry[]> = {};
+    for (const [id, entries] of Object.entries(byDebtId)) {
+      chronologicalByDebtId[id] = [...entries].reverse();
+    }
+
+    return { debtProfiles, transportHistory, allHistory, chronologicalByDebtId };
   }, [history, debts]);
 
   if (!isClient) {
@@ -159,9 +164,7 @@ export function HistoryLog() {
           </TabsList>
 
           {debtProfiles.map((profile) => {
-            const debtChronologicalHistory = history
-              .filter(h => h.debtId === profile.id)
-              .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+            const debtChronologicalHistory = chronologicalByDebtId[profile.id] ?? [];
 
             let runningBalance = profile.totalOwed;
 

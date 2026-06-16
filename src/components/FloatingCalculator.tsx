@@ -5,8 +5,6 @@ import { Card, CardContent, CardHeader } from './ui/card';
 import { X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-type CalcButton = { display: string; value: string; type?: string; op?: boolean };
-
 function safeCalculate(raw: string): number {
   const expr = raw.replace(/\s+/g, '');
   let i = 0;
@@ -52,11 +50,11 @@ function safeCalculate(raw: string): number {
   }
 
   const result = parseExpr();
-  if (i !== expr.length) throw new Error(`Unexpected character: ${expr[i]}`);
+  if (i !== expr.length) throw new Error(`Unexpected token: ${expr[i]}`);
   return result;
 }
 
-const DraggableCard = ({ children, title, onClose, isOpen }: { children: React.ReactNode, title: string, onClose: () => void, isOpen: boolean }) => {
+const DraggableCard = ({ children, onClose, isOpen }: { children: React.ReactNode; onClose: () => void; isOpen: boolean }) => {
   const cardRef = useRef<HTMLDivElement>(null);
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const isDraggingRef = useRef(false);
@@ -66,10 +64,7 @@ const DraggableCard = ({ children, title, onClose, isOpen }: { children: React.R
     if (isOpen && cardRef.current) {
       const { innerWidth, innerHeight } = window;
       const { offsetWidth, offsetHeight } = cardRef.current;
-      setPosition({
-        x: (innerWidth - offsetWidth) / 2,
-        y: (innerHeight - offsetHeight) / 2,
-      });
+      setPosition({ x: (innerWidth - offsetWidth) / 2, y: (innerHeight - offsetHeight) / 2 });
     }
   }, [isOpen]);
 
@@ -77,47 +72,32 @@ const DraggableCard = ({ children, title, onClose, isOpen }: { children: React.R
     isDraggingRef.current = true;
     const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
     const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
-    
     if (cardRef.current) {
       const rect = cardRef.current.getBoundingClientRect();
-      offsetRef.current = {
-        x: clientX - rect.left,
-        y: clientY - rect.top,
-      };
+      offsetRef.current = { x: clientX - rect.left, y: clientY - rect.top };
     }
   }, []);
 
   const onDrag = useCallback((e: MouseEvent | TouchEvent) => {
     if (!isDraggingRef.current) return;
     if (e.type === 'touchmove') e.preventDefault();
-    
     const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
     const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
-    
-    setPosition({
-      x: clientX - offsetRef.current.x,
-      y: clientY - offsetRef.current.y,
-    });
+    setPosition({ x: clientX - offsetRef.current.x, y: clientY - offsetRef.current.y });
   }, []);
 
-  const onDragEnd = useCallback(() => {
-    isDraggingRef.current = false;
-  }, []);
+  const onDragEnd = useCallback(() => { isDraggingRef.current = false; }, []);
 
   useEffect(() => {
-    const currentOnDrag = (e: MouseEvent | TouchEvent) => onDrag(e);
-    const currentOnDragEnd = () => onDragEnd();
-    
-    window.addEventListener('mousemove', currentOnDrag);
-    window.addEventListener('touchmove', currentOnDrag, { passive: false });
-    window.addEventListener('mouseup', currentOnDragEnd);
-    window.addEventListener('touchend', currentOnDragEnd);
-
+    window.addEventListener('mousemove', onDrag);
+    window.addEventListener('touchmove', onDrag, { passive: false });
+    window.addEventListener('mouseup', onDragEnd);
+    window.addEventListener('touchend', onDragEnd);
     return () => {
-      window.removeEventListener('mousemove', currentOnDrag);
-      window.removeEventListener('touchmove', currentOnDrag);
-      window.removeEventListener('mouseup', currentOnDragEnd);
-      window.removeEventListener('touchend', currentOnDragEnd);
+      window.removeEventListener('mousemove', onDrag);
+      window.removeEventListener('touchmove', onDrag);
+      window.removeEventListener('mouseup', onDragEnd);
+      window.removeEventListener('touchend', onDragEnd);
     };
   }, [onDrag, onDragEnd]);
 
@@ -125,145 +105,189 @@ const DraggableCard = ({ children, title, onClose, isOpen }: { children: React.R
 
   return (
     <>
-      {/* Backdrop to close when clicking outside */}
-      <div 
-        className="fixed inset-0 z-[95] bg-black/5 backdrop-blur-[1.5px]" 
-        onClick={onClose}
-      />
+      <div className="fixed inset-0 z-[95] bg-black/5 backdrop-blur-[1.5px]" onClick={onClose} />
       <div
         ref={cardRef}
-        className="fixed z-[100] w-[85vw] max-w-[320px] shadow-2xl"
+        className="fixed z-[100] w-[85vw] min-w-[280px] max-w-[320px]"
         style={{ left: `${position.x}px`, top: `${position.y}px`, touchAction: 'none' }}
       >
-        <Card className="rounded-2xl overflow-hidden border-accent/20">
-           <CardHeader 
-             onMouseDown={onDragStart} 
-             onTouchStart={onDragStart}
-             className="cursor-move p-3 flex flex-row items-center justify-between border-b border-accent/10"
-           >
-            <span className="font-bold text-xs uppercase tracking-wider opacity-80">Calculator</span>
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              className="h-8 w-8 text-primary hover:bg-primary/10 transition-colors" 
-              onClick={(e) => {
-                e.stopPropagation();
-                onClose();
-              }}
+        <Card className="rounded-3xl overflow-hidden border-accent/20 shadow-2xl">
+          <CardHeader
+            onMouseDown={onDragStart}
+            onTouchStart={onDragStart}
+            className="cursor-move px-4 pt-3 pb-0 flex flex-row items-center justify-between"
+          >
+            <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground/60 select-none">Calculator</span>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 rounded-full text-muted-foreground hover:text-foreground hover:bg-accent/10 transition-colors"
+              onClick={(e) => { e.stopPropagation(); onClose(); }}
             >
-              <X size={24} strokeWidth={2.5} />
+              <X size={15} strokeWidth={2.5} />
             </Button>
-           </CardHeader>
-           <CardContent className="p-3">
+          </CardHeader>
+          <CardContent className="p-3 pt-2">
             {children}
-           </CardContent>
+          </CardContent>
         </Card>
       </div>
     </>
   );
 };
 
+const OPERATORS = ['+', '−', '×', '÷'];
+const isOp = (s: string) => OPERATORS.includes(s);
 
-export function FloatingCalculator({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) {
+export function FloatingCalculator({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
   const [display, setDisplay] = useState('0');
   const [expression, setExpression] = useState('');
-  const [isOperatorClicked, setIsOperatorClicked] = useState(false);
+  const [isResult, setIsResult] = useState(false);
+  const [history, setHistory] = useState<string[]>([]);
+  const historyRef = useRef<HTMLDivElement>(null);
 
-  const handleInput = (value: string) => {
-    if (expression.includes('=')) {
-        clear();
-        setDisplay(value);
-        return;
-    }
-    if (isOperatorClicked) {
-        setDisplay(value);
-        setIsOperatorClicked(false);
-    } else {
-        setDisplay(prev => (prev === '0' && value !== '.') ? value : prev + value);
-    }
-  };
+  const endsWithOp = (expr: string) => isOp(expr.slice(-1));
 
-  const handleOperator = (operator: string) => {
-    if (expression.includes('=')) {
-        setExpression(display + operator);
-    } else if (isOperator(display)) {
-        setExpression(prev => prev.slice(0, -1) + operator);
-    } else {
-        setExpression(prev => prev + display + operator);
+  const handleNumber = useCallback((value: string) => {
+    if (isResult) {
+      setExpression('');
+      setDisplay(value === '.' ? '0.' : value);
+      setIsResult(false);
+      return;
     }
-    setDisplay(operator);
-    setIsOperatorClicked(true);
-  };
-  
-  const calculate = () => {
-    if (isOperator(display)) return;
+    if (value === '.' && display.includes('.')) return;
+    setDisplay(prev => (prev === '0' && value !== '.') ? value : prev + value);
+  }, [display, isResult]);
 
-    let finalExpression = expression + display;
+  const handleOperator = useCallback((op: string) => {
+    const base = isResult ? display : expression + display;
+    setExpression(endsWithOp(base) ? base.slice(0, -1) + op : base + op);
+    setDisplay(op);
+    setIsResult(false);
+  }, [display, expression, isResult]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleEquals = useCallback(() => {
+    if (isResult || endsWithOp(expression)) return;
+    const fullExpr = expression + display;
     try {
-      const result = safeCalculate(finalExpression.replace(/×/g, '*').replace(/÷/g, '/').replace(/−/g, '-'));
-      const resultString = String(parseFloat(result.toPrecision(15)));
-      
-      setExpression(finalExpression + '=' + resultString);
-      setDisplay(resultString);
+      const raw = fullExpr.replace(/×/g, '*').replace(/÷/g, '/').replace(/−/g, '-');
+      const result = safeCalculate(raw);
+      const resultStr = String(parseFloat(result.toPrecision(12)));
+      setHistory(prev => [`${fullExpr} = ${resultStr}`, ...prev].slice(0, 5));
+      setExpression(fullExpr + ' =');
+      setDisplay(resultStr);
+      setIsResult(true);
     } catch {
       setDisplay('Error');
       setExpression('');
+      setIsResult(false);
     }
-    setIsOperatorClicked(false);
-  };
+  }, [display, expression, isResult]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const clear = () => {
+  const handleClear = useCallback(() => {
     setDisplay('0');
     setExpression('');
-    setIsOperatorClicked(false);
-  };
+    setIsResult(false);
+  }, []);
 
-  const isOperator = (char: string) => ['+', '−', '×', '÷'].includes(char);
-  
-  const buttons: CalcButton[] = [
-    { display: '7', value: '7', type: 'num' }, { display: '8', value: '8', type: 'num' }, { display: '9', value: '9', type: 'num' }, { display: '÷', value: '÷', op: true },
-    { display: '4', value: '4', type: 'num' }, { display: '5', value: '5', type: 'num' }, { display: '6', value: '6', type: 'num' }, { display: '×', value: '×', op: true },
-    { display: '1', value: '1', type: 'num' }, { display: '2', value: '2', type: 'num' }, { display: '3', value: '3', type: 'num' }, { display: '−', value: '−', op: true },
-    { display: '0', value: '0', type: 'num' }, { display: '.', value: '.', type: 'num' }, { display: '=', value: '=', op: true }, { display: '+', value: '+', op: true },
-  ];
+  const handleBackspace = useCallback(() => {
+    if (isResult) { handleClear(); return; }
+    setDisplay(prev => (prev === 'Error' || prev.length <= 1) ? '0' : prev.slice(0, -1));
+  }, [isResult, handleClear]);
 
-  const handleButtonClick = (btn: CalcButton) => {
-    if (btn.value === '=') {
-        calculate();
-    } else if (btn.op) {
-        handleOperator(btn.value);
-    } else {
-        handleInput(btn.value);
-    }
-  };
+  const handlePlusMinus = useCallback(() => {
+    if (display === '0' || isOp(display)) return;
+    setDisplay(prev => prev.startsWith('-') ? prev.slice(1) : '-' + prev);
+  }, [display]);
+
+  const handlePercent = useCallback(() => {
+    const num = parseFloat(display);
+    if (isNaN(num)) return;
+    setDisplay(String(parseFloat((num / 100).toPrecision(12))));
+  }, [display]);
+
+  useEffect(() => {
+    if (historyRef.current) historyRef.current.scrollTop = 0;
+  }, [history]);
+
+  const displaySize = display.length > 11 ? 'text-xl' : display.length > 8 ? 'text-2xl' : 'text-[2.4rem]';
+
+  const num = "h-12 text-[15px] font-semibold rounded-2xl bg-card hover:bg-accent/5 border border-accent/10 shadow-sm transition-transform active:scale-95 duration-75 select-none";
+  const op  = "h-12 text-[15px] font-semibold rounded-2xl bg-primary text-primary-foreground hover:bg-primary/85 shadow-sm transition-transform active:scale-95 duration-75 select-none";
+  const fn  = "h-12 text-[13px] font-semibold rounded-2xl bg-foreground/8 text-foreground/60 hover:bg-foreground/12 border border-accent/10 shadow-sm transition-transform active:scale-95 duration-75 select-none";
+  const eq  = "h-12 text-[15px] font-bold rounded-2xl bg-accent text-accent-foreground hover:bg-accent/85 shadow-sm transition-transform active:scale-95 duration-75 select-none";
+
+  // Highlight active operator
+  const activeOp = !isResult && expression.length > 0 ? expression.slice(-1) : '';
 
   return (
-     <DraggableCard title="Calculator" onClose={onClose} isOpen={isOpen}>
-      <div className="space-y-3">
-        <div className="bg-background/40 rounded-xl p-3 text-right font-mono space-y-1 border border-accent/5">
-            <div className="text-muted-foreground text-[10px] h-4 truncate tracking-wider">{expression}</div>
-            <div className="text-3xl truncate font-bold text-foreground">{display}</div>
+    <DraggableCard onClose={onClose} isOpen={isOpen}>
+      <div className="space-y-2">
+
+        {/* History */}
+        {history.length > 0 && (
+          <div ref={historyRef} className="max-h-12 overflow-y-auto space-y-0.5">
+            {history.map((entry, idx) => (
+              <button
+                key={idx}
+                onClick={() => {
+                  const result = entry.split('=').pop()?.trim() ?? '';
+                  setDisplay(result);
+                  setExpression('');
+                  setIsResult(true);
+                }}
+                className="w-full text-right text-[10px] font-mono text-muted-foreground/40 hover:text-muted-foreground/70 truncate px-1 py-px transition-colors leading-4"
+              >
+                {entry}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Display */}
+        <div className="relative bg-background/50 rounded-2xl px-4 pt-2 pb-3 border border-accent/5">
+          <div className="text-[10px] text-muted-foreground/35 font-mono h-4 text-right truncate tracking-wider mt-1 select-none">
+            {expression || ' '}
+          </div>
+          <div className={cn('font-bold text-right font-mono tracking-tight transition-all leading-none mt-1', displaySize)}>
+            {display}
+          </div>
+          <button
+            onPointerDown={(e) => { e.stopPropagation(); handleBackspace(); }}
+            className="absolute top-2 right-2 text-muted-foreground/30 hover:text-muted-foreground/60 transition-colors p-1.5 rounded-lg active:scale-90"
+            aria-label="Backspace"
+          >
+            ⌫
+          </button>
         </div>
-        <div className="grid grid-cols-4 gap-2">
-            <Button onClick={clear} variant="destructive" className="col-span-4 h-10 text-xs font-bold uppercase tracking-widest rounded-lg shadow-sm">Clear</Button>
-            {buttons.map(btn => {
-                const isNumeric = btn.type === 'num';
-                return (
-                    <Button 
-                        key={btn.value} 
-                        onClick={() => handleButtonClick(btn)} 
-                        className={cn(
-                            "h-12 text-lg font-bold shadow-sm transition-all active:scale-95 rounded-lg",
-                            isNumeric && "bg-primary text-primary-foreground hover:bg-primary/90",
-                            !isNumeric && btn.value === '=' && "bg-primary text-primary-foreground hover:bg-primary/90",
-                            !isNumeric && btn.value !== '=' && "bg-secondary/50 text-secondary-foreground hover:bg-secondary/80 border border-accent/10"
-                        )}
-                    >
-                        {btn.display}
-                    </Button>
-                );
-            })}
+
+        {/* Button grid */}
+        <div className="grid grid-cols-4 gap-1.5">
+          <button className={fn} onClick={handleClear}>AC</button>
+          <button className={fn} onClick={handlePlusMinus}>+/-</button>
+          <button className={fn} onClick={handlePercent}>%</button>
+          <button className={cn(op, activeOp === '÷' && 'ring-2 ring-primary/40')} onClick={() => handleOperator('÷')}>÷</button>
+
+          <button className={num} onClick={() => handleNumber('7')}>7</button>
+          <button className={num} onClick={() => handleNumber('8')}>8</button>
+          <button className={num} onClick={() => handleNumber('9')}>9</button>
+          <button className={cn(op, activeOp === '×' && 'ring-2 ring-primary/40')} onClick={() => handleOperator('×')}>×</button>
+
+          <button className={num} onClick={() => handleNumber('4')}>4</button>
+          <button className={num} onClick={() => handleNumber('5')}>5</button>
+          <button className={num} onClick={() => handleNumber('6')}>6</button>
+          <button className={cn(op, activeOp === '−' && 'ring-2 ring-primary/40')} onClick={() => handleOperator('−')}>−</button>
+
+          <button className={num} onClick={() => handleNumber('1')}>1</button>
+          <button className={num} onClick={() => handleNumber('2')}>2</button>
+          <button className={num} onClick={() => handleNumber('3')}>3</button>
+          <button className={cn(op, activeOp === '+' && 'ring-2 ring-primary/40')} onClick={() => handleOperator('+')}>+</button>
+
+          <button className={cn(num, 'col-span-2 flex items-center justify-start pl-[22px]')} onClick={() => handleNumber('0')}>0</button>
+          <button className={num} onClick={() => handleNumber('.')}>.</button>
+          <button className={eq} onClick={handleEquals}>=</button>
         </div>
+
       </div>
     </DraggableCard>
   );

@@ -1,6 +1,6 @@
 'use client';
 
-import { useContext, useState, useEffect, useCallback, useRef } from 'react';
+import { useContext, useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
@@ -31,7 +31,7 @@ import {
 } from "@/components/ui/dialog"
 import { PaymentCalendarDialog } from './PaymentCalendarDialog';
 import { DebtCompletionDialog } from './DebtCompletionDialog';
-import { getPaymentCount, getTotalInstallments, getAmountPaid, getProgress } from '@/lib/calculations';
+import { getPaymentCount, getTotalInstallments, getAmountPaid } from '@/lib/calculations';
 
 interface DebtCardProps {
   debt: Debt;
@@ -54,11 +54,15 @@ export function DebtCard({ debt }: DebtCardProps) {
     setEditedInstallmentAmount(debt.installment_amount.toString());
   }, [debt]);
 
-  const paymentCount = getPaymentCount(debt, history);
-  const totalInstallments = getTotalInstallments(debt);
-  const amountPaid = getAmountPaid(debt, history);
-  const progress = getProgress(debt, history);
-  const isPaidOff = progress >= 100;
+  const { paymentCount, totalInstallments, amountPaid, progress, isPaidOff } = useMemo(() => {
+    const amountPaid = getAmountPaid(debt, history);
+    const paymentCount = getPaymentCount(debt, history);
+    const totalInstallments = getTotalInstallments(debt);
+    const progress = debt.total_owed <= 0
+      ? (amountPaid > 0 ? 100 : 0)
+      : Math.min(100, (amountPaid / debt.total_owed) * 100);
+    return { paymentCount, totalInstallments, amountPaid, progress, isPaidOff: progress >= 100 };
+  }, [debt, history]);
 
   // Initialize ref with current isPaidOff so we don't fire on mount for already-paid debts
   const prevIsPaidOff = useRef(isPaidOff);
