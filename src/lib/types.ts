@@ -77,10 +77,17 @@ export interface UserTheme {
     settings: Omit<ThemeSettings, 'backgroundImage' | 'backgroundOpacity'>;
 }
 
+export interface AvatarSettings {
+  offsetX: number; // -0.5 to 0.5 (fraction of container width)
+  offsetY: number; // -0.5 to 0.5 (fraction of container height)
+  scale: number;   // 1.0 to 3.0
+}
+
 export interface UserProfile {
   name: string;
   paydayDay: number; // 1–31
   bio: string;
+  avatarSettings?: AvatarSettings;
 }
 
 export interface NotificationSettings {

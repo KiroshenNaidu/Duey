@@ -280,6 +280,7 @@ export function DataManagementMenu() {
   const exportUserConfig = async () => {
     const s = getAppState();
     const backgroundImage = await idbGet<string>('backgroundImage') ?? '';
+    const avatarImage = await idbGet<string>('profileAvatar') ?? '';
     const configBlob = new Blob([JSON.stringify({
       type: 'duey-config',
       v: 1,
@@ -289,6 +290,7 @@ export function DataManagementMenu() {
       notificationSettings: s.notificationSettings,
       userThemes: s.userThemes,
       backgroundImage,
+      avatarImage,
     }, null, 2)], { type: 'application/json' });
     triggerDownload(configBlob, 'duey-config.json');
   };
@@ -311,6 +313,7 @@ export function DataManagementMenu() {
         if (data.userThemes)          partial.userThemes          = data.userThemes;
         importData(partial);
         if (data.backgroundImage) await idbSet('backgroundImage', data.backgroundImage);
+        if (data.avatarImage) await idbSet('profileAvatar', data.avatarImage);
         setTimeout(() => window.location.reload(), 600);
       } catch {
         setError('Failed to read config file.');

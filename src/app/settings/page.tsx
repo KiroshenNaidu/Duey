@@ -41,13 +41,31 @@ const PageHeader = ({ title, onBack }: { title: string; onBack?: () => void }) =
 );
 
 const ProfileHeroCard = ({ onEdit }: { onEdit: () => void }) => {
-  const { userProfile } = useContext(AppDataContext);
+  const { userProfile, avatarDataUrl } = useContext(AppDataContext);
   const initial = userProfile.name.trim().charAt(0).toUpperCase();
+  const s = userProfile.avatarSettings;
 
   return (
     <div className="relative bg-card rounded-2xl p-4 flex items-center gap-4 mb-4">
-      <div className="h-14 w-14 rounded-full bg-primary/15 flex items-center justify-center shrink-0 border border-primary/25">
-        {initial ? (
+      <div className="h-14 w-14 rounded-full bg-primary/15 flex items-center justify-center shrink-0 border border-primary/25 overflow-hidden relative">
+        {avatarDataUrl ? (
+          <img
+            src={avatarDataUrl}
+            alt="avatar"
+            draggable={false}
+            style={{
+              position: 'absolute',
+              objectFit: 'cover',
+              maxWidth: 'none',
+              userSelect: 'none',
+              width:  `${(s?.scale ?? 1) * 100}%`,
+              height: `${(s?.scale ?? 1) * 100}%`,
+              left: '50%',
+              top: '50%',
+              transform: `translate(calc(-50% + ${(s?.offsetX ?? 0) * 100}%), calc(-50% + ${(s?.offsetY ?? 0) * 100}%))`,
+            }}
+          />
+        ) : initial ? (
           <span className="text-2xl font-bold text-primary">{initial}</span>
         ) : (
           <User className="h-6 w-6 text-primary/50" />

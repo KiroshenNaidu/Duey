@@ -126,6 +126,15 @@ export async function idbSet(key: string, value: any): Promise<void> {
   }
 }
 
+export async function idbDel(key: string): Promise<void> {
+  try {
+    const db = await getDb();
+    await db.delete(STORE_NAME, key);
+  } catch (error) {
+    console.error('Failed to delete from IndexedDB', error);
+  }
+}
+
 export async function idbClear(): Promise<void> {
   try {
     const db = await getDb();

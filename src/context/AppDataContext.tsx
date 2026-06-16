@@ -3,6 +3,7 @@
 import { createContext, ReactNode, useEffect, useState, useMemo, useCallback } from 'react';
 import type { AppState, Debt, HistoryEntry, AppData, ThemeSettings, TransportSettings, TransportOverrides, DayState, UberRide, UserTheme, BudgetPlan, BudgetItem, UserProfile, NotificationSettings } from '@/lib/types';
 import { isSameDay, startOfDay } from 'date-fns';
+import { idbGet, idbSet, idbDel } from '@/lib/utils';
 
 const CURRENT_SCHEMA_VERSION = 6;
 
@@ -93,6 +94,8 @@ interface AppContextType extends AppState {
   deleteHistoryEntry: (entryId: string) => void;
   clearData: () => void;
   getAppState: () => AppState;
+  avatarDataUrl: string;
+  setProfileAvatar: (url: string) => Promise<void>;
 }
 
 export const AppDataContext = createContext<AppContextType>({
@@ -126,11 +129,14 @@ export const AppDataContext = createContext<AppContextType>({
   deleteHistoryEntry: () => {},
   clearData: () => {},
   getAppState: () => defaultState,
+  avatarDataUrl: '',
+  setProfileAvatar: async () => {},
 });
 
 export function AppDataProvider({ children }: { children: ReactNode }) {
   const [appState, setAppState] = useState<AppState>(defaultState);
   const [isLoaded, setIsLoaded] = useState(false);
+  const [avatarDataUrl, setAvatarDataUrl] = useState('');
 
   useEffect(() => {
     const storedStateRaw = localStorage.getItem('appState');
@@ -142,6 +148,16 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       }
     }
     setIsLoaded(true);
+    idbGet<string>('profileAvatar').then(v => { if (v) setAvatarDataUrl(v); });
+  }, []);
+
+  const setProfileAvatar = useCallback(async (url: string) => {
+    if (url) {
+      await idbSet('profileAvatar', url);
+    } else {
+      await idbDel('profileAvatar');
+    }
+    setAvatarDataUrl(url);
   }, []);
 
   const updateStateAndSync = useCallback((updater: (prev: AppState) => AppState) => {
@@ -408,7 +424,9 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     importData,
     clearData,
     getAppState: () => appState,
-  }), [appState]);
+    avatarDataUrl,
+    setProfileAvatar,
+  }), [appState, avatarDataUrl, setProfileAvatar]);
 
   if (!isLoaded) return null;
 
