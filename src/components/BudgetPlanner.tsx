@@ -13,6 +13,7 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -33,12 +34,12 @@ import {
 import { buttonVariants } from '@/components/ui/button';
 
 const ITEM_COLORS = [
-  'bg-primary/20 border-primary/30',
-  'bg-accent/20 border-accent/30',
-  'bg-muted border-border',
-  'bg-green-500/15 border-green-500/30',
-  'bg-orange-500/15 border-orange-500/30',
-  'bg-purple-500/15 border-purple-500/30',
+  'bg-primary/30 border-primary/50 shadow-sm',
+  'bg-accent/25 border-accent/50 shadow-sm',
+  'bg-secondary border-border shadow-sm',
+  'bg-green-500/25 border-green-500/50 shadow-sm',
+  'bg-orange-500/25 border-orange-500/50 shadow-sm',
+  'bg-purple-500/25 border-purple-500/50 shadow-sm',
 ];
 
 function ItemBox({ item, planBudget, colorIndex, onDelete }: {
@@ -62,13 +63,14 @@ function ItemBox({ item, planBudget, colorIndex, onDelete }: {
             colSpan, minH, color
           )}
         >
-          <span className="text-[11px] font-semibold text-foreground leading-tight line-clamp-2">{item.name}</span>
-          <span className="text-[10px] font-bold text-foreground/80 mt-1">{formatCurrency(item.price)}</span>
+          <span className="text-[11px] font-bold text-foreground leading-tight line-clamp-2">{item.name}</span>
+          <span className="text-[10px] font-bold text-foreground mt-1">{formatCurrency(item.price)}</span>
         </button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[320px]">
         <DialogHeader>
           <DialogTitle className="text-base">{item.name}</DialogTitle>
+          <DialogDescription className="sr-only">Item details and budget breakdown</DialogDescription>
         </DialogHeader>
         <div className="space-y-1 text-sm text-muted-foreground">
           <p className="text-foreground font-bold">{formatCurrency(item.price)}</p>
@@ -169,6 +171,7 @@ function AddItemDialog({ plan, onAdd }: { plan: BudgetPlan; onAdd: (item: Omit<B
       <DialogContent className="sm:max-w-[380px]">
         <DialogHeader>
           <DialogTitle>{overBudget ? 'Over Budget!' : 'Add Budget Item'}</DialogTitle>
+          <DialogDescription className="sr-only">Add a new item to your budget plan</DialogDescription>
         </DialogHeader>
 
         {overBudget ? (
@@ -286,7 +289,10 @@ function PlanView({ plan }: { plan: BudgetPlan }) {
                   </Button>
                 </DialogTrigger>
                 <DialogContent className="sm:max-w-[320px]">
-                  <DialogHeader><DialogTitle>Edit Plan</DialogTitle></DialogHeader>
+                  <DialogHeader>
+                    <DialogTitle>Edit Plan</DialogTitle>
+                    <DialogDescription className="sr-only">Edit the plan name and total budget</DialogDescription>
+                  </DialogHeader>
                   <div className="space-y-3">
                     <div className="space-y-1">
                       <Label className="text-xs">Plan Name</Label>
@@ -431,7 +437,10 @@ export function BudgetPlanner() {
           </button>
         </DialogTrigger>
         <DialogContent className="sm:max-w-[360px]">
-          <DialogHeader><DialogTitle>New Budget Plan</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle>New Budget Plan</DialogTitle>
+            <DialogDescription className="sr-only">Create a new budget plan with a name and total budget amount</DialogDescription>
+          </DialogHeader>
           <div className="space-y-3">
             <div className="space-y-1">
               <Label className="text-xs">Plan Name</Label>

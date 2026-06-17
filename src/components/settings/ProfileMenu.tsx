@@ -2,14 +2,16 @@
 
 import { useContext, useState, useRef, useCallback, useEffect } from 'react';
 import { AppDataContext } from '@/context/AppDataContext';
+import { CURRENCIES } from '@/components/CurrencyPickerDialog';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Slider } from '@/components/ui/slider';
-import { Camera, User } from 'lucide-react';
+import { Camera, User, ChevronDown, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { AvatarSettings } from '@/lib/types';
 
@@ -29,6 +31,52 @@ function avatarImgStyle(s?: AvatarSettings): React.CSSProperties {
     top: '50%',
     transform: `translate(calc(-50% + ${(s?.offsetX ?? 0) * 100}%), calc(-50% + ${(s?.offsetY ?? 0) * 100}%))`,
   };
+}
+
+function CurrencySelector({ value, onChange }: { value: string; onChange: (code: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const current = CURRENCIES.find(c => c.code === value) ?? CURRENCIES[0];
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button className="w-full flex items-center gap-3 h-10 px-3 rounded-xl border border-input bg-background hover:bg-muted/40 transition-colors">
+          <span className="text-base font-bold w-6 text-center text-foreground shrink-0">{current.symbol}</span>
+          <span className="flex-1 text-sm text-left text-foreground font-medium">{current.name}</span>
+          <span className="text-[11px] text-muted-foreground font-mono">{current.code}</span>
+          <ChevronDown className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent className="p-0 overflow-hidden rounded-2xl border-border/60 w-[var(--radix-popover-trigger-width)]" align="start" sideOffset={6}>
+        <div className="bg-card max-h-[55vh] overflow-y-auto">
+          {(['Africa', 'Americas', 'Asia'] as const).map(region => (
+            <div key={region}>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground px-3 pt-3 pb-1">{region}</p>
+              {CURRENCIES.filter(c => c.region === region).map(c => (
+                <button
+                  key={c.code}
+                  onClick={() => { onChange(c.code); setOpen(false); }}
+                  className={cn(
+                    'w-full flex items-center gap-3 px-3 py-2.5 text-left transition-colors',
+                    c.code === value
+                      ? 'bg-primary/10 text-primary'
+                      : 'hover:bg-muted/40'
+                  )}
+                >
+                  <span className="text-base font-bold w-6 text-center shrink-0">{c.symbol}</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-foreground leading-tight">{c.name}</p>
+                    <p className="text-[10px] text-muted-foreground">{c.code}</p>
+                  </div>
+                  {c.code === value && <Check className="h-3.5 w-3.5 shrink-0" />}
+                </button>
+              ))}
+            </div>
+          ))}
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
 }
 
 function AvatarEditor({
@@ -145,7 +193,7 @@ interface ProfileMenuProps {
 }
 
 export function ProfileMenu({ onDirtyChange, onSaved, onCancel }: ProfileMenuProps) {
-  const { userProfile, setUserProfile, avatarDataUrl, setProfileAvatar } = useContext(AppDataContext);
+  const { userProfile, setUserProfile, avatarDataUrl, setProfileAvatar, currency, setCurrency } = useContext(AppDataContext);
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const [editorOpen, setEditorOpen] = useState(false);
 
@@ -344,11 +392,19 @@ export function ProfileMenu({ onDirtyChange, onSaved, onCancel }: ProfileMenuPro
       </Card>
 
       <Card>
+        <CardContent className="p-3 space-y-2">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Currency</p>
+          <CurrencySelector value={currency || 'ZAR'} onChange={setCurrency} />
+          <p className="text-[10px] text-muted-foreground">Used for all money displays across the app.</p>
+        </CardContent>
+      </Card>
+
+      <Card>
         <CardContent className="p-3">
           <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1.5">About</p>
           <p className="text-sm text-foreground font-medium">Duey</p>
-          <p className="text-xs text-muted-foreground">Personal finance tracker</p>
-          <p className="text-xs text-muted-foreground mt-1">Built by Kiroshen-For my laziness tehe~ · v1.2</p>
+          <p className="text-xs text-muted-foreground">Your personal finance companion</p>
+          <p className="text-xs text-muted-foreground mt-1">Made by Kiro · v1.3</p>
         </CardContent>
       </Card>
     </div>

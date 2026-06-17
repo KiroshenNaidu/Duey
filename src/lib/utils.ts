@@ -6,17 +6,33 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
-export function formatCurrency(amount: number) {
-  const formatted = new Intl.NumberFormat('en-ZA', {
-    style: 'currency',
-    currency: 'ZAR',
-  }).format(amount);
-  
-  // Add a space if it's missing after 'R'
-  if (formatted.startsWith('R') && !formatted.startsWith('R ')) {
-      return `R ${formatted.substring(1)}`;
+// Module-level currency — set once by AppDataContext on load; all formatCurrency calls pick it up automatically.
+let _currency = 'ZAR';
+export function setCurrencyCode(code: string) { _currency = code || 'ZAR'; }
+export function getCurrencyCode() { return _currency; }
+
+export function getCurrencySymbol(code = _currency): string {
+  try {
+    const parts = new Intl.NumberFormat(undefined, { style: 'currency', currency: code, currencyDisplay: 'narrowSymbol' })
+      .formatToParts(0);
+    return parts.find(p => p.type === 'currency')?.value ?? code;
+  } catch {
+    return code;
   }
-  return formatted;
+}
+
+export function formatCurrency(amount: number, currencyOverride?: string): string {
+  const code = currencyOverride ?? _currency;
+  try {
+    const formatted = new Intl.NumberFormat(undefined, {
+      style: 'currency',
+      currency: code,
+      currencyDisplay: 'narrowSymbol',
+    }).format(amount);
+    return formatted;
+  } catch {
+    return `${code} ${amount.toFixed(2)}`;
+  }
 }
 
 export function hexToHsl(hex: string): string | null {

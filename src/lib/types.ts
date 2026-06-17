@@ -106,6 +106,7 @@ export interface NotificationSettings {
 // Unified App State
 export interface AppState {
   schemaVersion: number;
+  currency: string; // ISO 4217 code, e.g. 'ZAR', 'USD'
   debts: Debt[];
   history: HistoryEntry[];
   transportSettings: TransportSettings;

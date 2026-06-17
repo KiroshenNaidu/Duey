@@ -3,7 +3,7 @@
 import { createContext, ReactNode, useEffect, useState, useMemo, useCallback } from 'react';
 import type { AppState, Debt, HistoryEntry, AppData, ThemeSettings, TransportSettings, TransportOverrides, DayState, UberRide, UserTheme, BudgetPlan, BudgetItem, UserProfile, NotificationSettings, AppError } from '@/lib/types';
 import { isSameDay, startOfDay } from 'date-fns';
-import { idbGet, idbSet, idbDel } from '@/lib/utils';
+import { idbGet, idbSet, idbDel, setCurrencyCode } from '@/lib/utils';
 
 const CURRENT_SCHEMA_VERSION = 6;
 
@@ -22,6 +22,8 @@ function migrateState(raw: AppState): AppState {
   };
   return {
     ...raw,
+    // Existing users who already have data default to ZAR so they don't see the picker.
+    currency: raw.currency ?? ((raw.debts?.length ?? 0) > 0 || (raw.history?.length ?? 0) > 0 ? 'ZAR' : ''),
     transportSettings,
     transportOverrides: overrides,
     uberRides: raw.uberRides ?? [],
@@ -42,6 +44,7 @@ function migrateState(raw: AppState): AppState {
 
 const defaultState: AppState = {
   schemaVersion: CURRENT_SCHEMA_VERSION,
+  currency: '',
   debts: [],
   history: [],
   transportSettings: { driverName: '', employed: true, pricingMode: 'daily', dailyFee: 0, monthlyFee: 0 },
@@ -106,6 +109,7 @@ interface AppContextType extends AppState {
   importData: (data: AppData) => void;
   deleteHistoryEntry: (entryId: string) => void;
   updateHistoryEntry: (entryId: string, data: Partial<Pick<HistoryEntry, 'label' | 'note'>>) => void;
+  setCurrency: (code: string) => void;
   clearData: () => void; // fire-and-forget async
   getAppState: () => AppState;
   avatarDataUrl: string;
@@ -142,6 +146,7 @@ export const AppDataContext = createContext<AppContextType>({
   importData: () => {},
   deleteHistoryEntry: () => {},
   updateHistoryEntry: () => {},
+  setCurrency: () => {},
   clearData: () => {},
   getAppState: () => defaultState,
   avatarDataUrl: '',
@@ -158,6 +163,9 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
   const [avatarDataUrl, setAvatarDataUrl] = useState('');
   const [navGuard, setNavGuard] = useState<NavGuard>(null);
   const [appError, setAppError] = useState<AppError | null>(null);
+
+  // Keep module-level currency in sync with state so formatCurrency() picks it up everywhere.
+  useEffect(() => { setCurrencyCode(appState.currency); }, [appState.currency]);
 
   useEffect(() => {
     const storedStateRaw = localStorage.getItem('appState');
@@ -469,6 +477,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     setNotificationSettings: (settings: NotificationSettings) => updateStateAndSync(p => ({ ...p, notificationSettings: settings })),
     setThemeSettings: (settings: Omit<ThemeSettings, 'backgroundImage'>) => updateStateAndSync(p => ({ ...p, themeSettings: settings })),
     setNotepadContent: (content: string) => updateStateAndSync(p => ({ ...p, notepadContent: content })),
+    setCurrency: (code: string) => updateStateAndSync(p => ({ ...p, currency: code })),
     addUserTheme,
     deleteUserTheme,
     deleteHistoryEntry,

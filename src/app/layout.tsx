@@ -8,6 +8,7 @@ import { FloatingTools } from '@/components/FloatingTools';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { ErrorModal } from '@/components/ErrorModal';
 import { PageTransitionWrapper } from '@/components/PageTransitionWrapper';
+import { CurrencyPickerDialog } from '@/components/CurrencyPickerDialog';
 
 export const metadata: Metadata = {
   title: 'Duey',
@@ -46,6 +47,7 @@ export default function RootLayout({
                   <FloatingTools />
                 </div>
                 <ErrorModal />
+                <CurrencyPickerDialog />
               </ErrorBoundary>
             </ThemeProvider>
           </AppDataProvider>

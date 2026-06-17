@@ -1,11 +1,12 @@
 'use client';
 
 import { useState } from 'react';
-import { formatCurrency, cn } from '@/lib/utils';
+import { formatCurrency, getCurrencySymbol, cn } from '@/lib/utils';
 import { ChevronDown } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { TimePicker } from '@/components/TimePicker';
+import { DatePicker } from '@/components/DatePicker';
 
 function Section({ title, children, defaultOpen = false }: { title: string; children: React.ReactNode; defaultOpen?: boolean }) {
   const [open, setOpen] = useState(defaultOpen);
@@ -75,6 +76,66 @@ function ResultBox({ label, value, exactValue }: { label: string; value: string;
   );
 }
 
+function DateDurationCalculator() {
+  const [start, setStart] = useState('');
+  const [end, setEnd] = useState('');
+
+  let result: { years: number; months: number; days: number; totalDays: number; totalWeeks: number } | null = null;
+
+  if (start && end) {
+    const s = new Date(start);
+    const e = new Date(end);
+    const from = s <= e ? s : e;
+    const to   = s <= e ? e : s;
+
+    let years  = to.getFullYear() - from.getFullYear();
+    let months = to.getMonth()    - from.getMonth();
+    let days   = to.getDate()     - from.getDate();
+
+    if (days < 0) {
+      months--;
+      const prevMonth = new Date(to.getFullYear(), to.getMonth(), 0);
+      days += prevMonth.getDate();
+    }
+    if (months < 0) { years--; months += 12; }
+
+    const totalDays  = Math.round((to.getTime() - from.getTime()) / 86_400_000);
+    const totalWeeks = Math.floor(totalDays / 7);
+    result = { years, months, days, totalDays, totalWeeks };
+  }
+
+  const fmt = (n: number, unit: string) => n === 0 ? null : `${n} ${unit}${n !== 1 ? 's' : ''}`;
+
+  return (
+    <div className="space-y-3">
+      <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-1">
+          <Label className="text-xs">Start Date</Label>
+          <DatePicker value={start} onChange={setStart} />
+        </div>
+        <div className="space-y-1">
+          <Label className="text-xs">End Date</Label>
+          <DatePicker value={end} onChange={setEnd} />
+        </div>
+      </div>
+      {result && (
+        <div className="space-y-2">
+          <div className="bg-primary/10 rounded-xl px-4 py-4 text-center border border-primary/20">
+            <p className="text-xl font-bold font-mono text-foreground leading-snug">
+              {[fmt(result.years, 'year'), fmt(result.months, 'month'), fmt(result.days, 'day')]
+                .filter(Boolean).join(', ') || '0 days'}
+            </p>
+          </div>
+          <div className="space-y-1.5">
+            <ResultBox label="Total days"  value={result.totalDays.toLocaleString()}  />
+            <ResultBox label="Total weeks" value={result.totalWeeks.toLocaleString()} />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function DurationCalculator() {
   const [start, setStart] = useState('');
   const [end, setEnd] = useState('');
@@ -134,17 +195,17 @@ function EarningsCalculator() {
           <Input type="number" placeholder="e.g., 8.5" value={hours} onChange={e => setHours(e.target.value)} />
         </div>
         <div className="space-y-1">
-          <Label className="text-xs">Hourly Rate (R)</Label>
+          <Label className="text-xs">Hourly Rate ({getCurrencySymbol()})</Label>
           <Input type="number" placeholder="e.g., 120" value={rate} onChange={e => setRate(e.target.value)} />
         </div>
       </div>
       {h > 0 && r > 0 && (
         <div className="space-y-2">
           <div className="bg-primary/10 rounded-xl px-4 py-4 text-center border border-primary/20">
-            <p className="text-[10px] text-muted-foreground uppercase tracking-widest mb-1">{h} hrs × R{r}/hr</p>
+            <p className="text-[10px] text-muted-foreground uppercase tracking-widest mb-1">{h} hrs × {getCurrencySymbol()}{r}/hr</p>
             <p className="text-2xl font-bold font-mono text-foreground">{formatCurrency(earned)}</p>
           </div>
-          <p className="text-[10px] text-muted-foreground uppercase tracking-widest px-1">At R{r}/hr you would earn…</p>
+          <p className="text-[10px] text-muted-foreground uppercase tracking-widest px-1">At {getCurrencySymbol()}{r}/hr you would earn…</p>
           <div className="space-y-1.5">
             <ResultBox label="Full 8-hour day" value={formatCurrency(perDay)} />
             <ResultBox label="Full 40-hour week" value={formatCurrency(perWeek)} />
@@ -211,6 +272,9 @@ export function TimeCalculator() {
     <div className="space-y-2">
       <Section title="Duration Calculator" defaultOpen={true}>
         <DurationCalculator />
+      </Section>
+      <Section title="Date Calculator">
+        <DateDurationCalculator />
       </Section>
       <Section title="Earnings Calculator">
         <EarningsCalculator />
