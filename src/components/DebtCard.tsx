@@ -21,11 +21,11 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -43,6 +43,7 @@ export function DebtCard({ debt }: DebtCardProps) {
   const router = useRouter();
   const { history, updateDebt, deleteDebt, completeDebt, logPaymentForToday, logCustomPayment } = useContext(AppDataContext);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showCelebration, setShowCelebration] = useState(false);
 
   const [editedTitle, setEditedTitle] = useState(debt.title);
@@ -127,6 +128,35 @@ export function DebtCard({ debt }: DebtCardProps) {
       onComplete={() => { setShowCelebration(false); completeDebt(debt.id); }}
       onKeepTracking={() => setShowCelebration(false)}
     />
+
+    {/* Delete confirmation — rendered OUTSIDE the edit Dialog to avoid aria-hidden conflicts */}
+    <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Delete &quot;{debt.title}&quot;?</AlertDialogTitle>
+          <AlertDialogDescription asChild>
+            <div className="space-y-3 text-sm text-muted-foreground">
+              <p>This removes the debt from your active list. All payment records remain in your history.</p>
+              <div className="bg-muted/50 rounded-xl p-3 border border-border/50 text-xs space-y-1">
+                <p className="font-semibold text-foreground">About overpayments</p>
+                <p>Any amount paid beyond the debt total is labelled <span className="font-semibold text-accent">Interest</span> by default. You can rename these entries in your payment history.</p>
+              </div>
+              <button
+                onClick={() => { setShowDeleteConfirm(false); router.push('/history'); }}
+                className="text-accent underline underline-offset-2 text-xs font-medium hover:text-accent/80 transition-colors"
+              >
+                View &amp; edit payment history →
+              </button>
+            </div>
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction onClick={handleDelete} className={cn(buttonVariants({ variant: 'destructive' }))}>Delete Debt</AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+
     <Card className="overflow-hidden border-border transition-all duration-300">
       <CardHeader>
         <div className="flex justify-between items-center gap-2">
@@ -135,7 +165,7 @@ export function DebtCard({ debt }: DebtCardProps) {
             <span className="text-xs text-muted-foreground whitespace-nowrap">
               {paymentCount} of {totalInstallments} ({Math.round(progress)}%)
             </span>
-            
+
             <Dialog open={isDialogOpen} onOpenChange={(open) => {
               if (!open) handleUpdate();
               setIsDialogOpen(open);
@@ -146,9 +176,11 @@ export function DebtCard({ debt }: DebtCardProps) {
                 </Button>
               </DialogTrigger>
               <DialogContent className="sm:max-w-[425px] p-0 gap-0 overflow-hidden">
-                {/* Hidden accessible title */}
                 <DialogHeader className="sr-only">
                   <DialogTitle>{debt.title}</DialogTitle>
+                  <DialogDescription>
+                    Edit debt details, log a payment, or delete this debt.
+                  </DialogDescription>
                 </DialogHeader>
 
                 {/* Hero progress header */}
@@ -168,13 +200,10 @@ export function DebtCard({ debt }: DebtCardProps) {
                     </div>
                   </div>
 
-                  {/* Progress bar */}
                   <Progress
                     value={progress}
                     className={cn('h-3 rounded-full', isPaidOff ? '[&>*]:bg-green-500' : '[&>*]:bg-primary')}
                   />
-
-                  {/* Amount labels under bar */}
                   <div className="flex justify-between mt-2 text-xs">
                     <span className="font-semibold text-foreground">{formatCurrency(amountPaid)} paid</span>
                     <span className="text-muted-foreground">of {formatCurrency(debt.total_owed)}</span>
@@ -220,37 +249,14 @@ export function DebtCard({ debt }: DebtCardProps) {
 
                   <div className="flex justify-between items-center pt-3 border-t">
                     <div className="flex gap-2">
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button variant="outline" size="icon" className="h-10 w-10">
-                            <Trash2 className="text-destructive" />
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Delete &quot;{debt.title}&quot;?</AlertDialogTitle>
-                            <AlertDialogDescription asChild>
-                              <div className="space-y-3 text-sm text-muted-foreground">
-                                <p>This removes the debt from your active list. All payment records remain in your history.</p>
-                                <div className="bg-muted/50 rounded-xl p-3 border border-border/50 text-xs space-y-1">
-                                  <p className="font-semibold text-foreground">About overpayments</p>
-                                  <p>Any amount paid beyond the debt total is labelled <span className="font-semibold text-accent">Interest</span> by default. You can rename these entries in your payment history.</p>
-                                </div>
-                                <button
-                                  onClick={() => router.push('/history')}
-                                  className="text-accent underline underline-offset-2 text-xs font-medium hover:text-accent/80 transition-colors"
-                                >
-                                  View &amp; edit payment history →
-                                </button>
-                              </div>
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                            <AlertDialogAction onClick={handleDelete} className={cn(buttonVariants({ variant: 'destructive' }))}>Delete Debt</AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        className="h-10 w-10"
+                        onClick={() => { setIsDialogOpen(false); setTimeout(() => setShowDeleteConfirm(true), 150); }}
+                      >
+                        <Trash2 className="text-destructive" />
+                      </Button>
                       <PaymentCalendarDialog debt={debt}>
                         <Button variant="outline" size="icon" className="h-10 w-10">
                           <CalendarDays />
