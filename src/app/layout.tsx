@@ -7,6 +7,7 @@ import { ThemeProvider } from '@/components/ThemeProvider';
 import { FloatingTools } from '@/components/FloatingTools';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { ErrorModal } from '@/components/ErrorModal';
+import { PageTransitionWrapper } from '@/components/PageTransitionWrapper';
 
 export const metadata: Metadata = {
   title: 'Duey',
@@ -36,7 +37,9 @@ export default function RootLayout({
               <ErrorBoundary>
                 <div className="flex flex-col min-h-dvh bg-transparent relative z-0">
                   <main className="flex-1 overflow-y-auto px-2" style={{ paddingTop: 'var(--top-main-pt)', paddingBottom: 'calc(110px + var(--sab) + 24px)' }}>
-                    {children}
+                    <PageTransitionWrapper>
+                      {children}
+                    </PageTransitionWrapper>
                   </main>
                   <EmptyBottomBar />
                   <BottomNav />

@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useContext, useEffect } from 'react';
+import { useState, useContext, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import { AnimatePresence, motion } from 'framer-motion';
 import { Palette, Database, Bell, ChevronLeft, User, Pencil } from 'lucide-react';
 import { ThemeSettingsMenu } from '@/components/settings/ThemeSettingsMenu';
 import { DataManagementMenu } from '@/components/settings/DataManagementMenu';
@@ -96,10 +97,19 @@ const ProfileHeroCard = ({ onEdit }: { onEdit: () => void }) => {
   );
 };
 
+const menuVariants = {
+  enter: (d: number) => ({ x: d >= 0 ? '60%' : '-60%', opacity: 0 }),
+  center: { x: 0, opacity: 1 },
+  exit: (d: number) => ({ x: d >= 0 ? '-60%' : '60%', opacity: 0 }),
+};
+
+const menuTransition = { type: 'tween' as const, ease: [0.25, 0.46, 0.45, 0.94] as [number, number, number, number], duration: 0.22 };
+
 export default function SettingsPage() {
   const router = useRouter();
   const { setNavGuard } = useContext(AppDataContext);
   const [activeMenu, setActiveMenu] = useState<ActiveMenu>('main');
+  const menuDirectionRef = useRef(1);
   const [menuIsDirty, setMenuIsDirty] = useState(false);
   const [pendingNav, setPendingNav] = useState<ActiveMenu | null>(null);
   const [pendingHref, setPendingHref] = useState<string | null>(null);
@@ -142,6 +152,7 @@ export default function SettingsPage() {
       setPendingNav(target);
       setShowDiscardDialog(true);
     } else {
+      menuDirectionRef.current = target === 'main' ? -1 : 1;
       setActiveMenu(target);
       setMenuIsDirty(false);
     }
@@ -158,6 +169,7 @@ export default function SettingsPage() {
       setPendingNav(null);
       router.push(href);
     } else if (pendingNav !== null) {
+      menuDirectionRef.current = pendingNav === 'main' ? -1 : 1;
       setActiveMenu(pendingNav);
       setPendingNav(null);
     }
@@ -167,6 +179,7 @@ export default function SettingsPage() {
   const handleSaved = (msg: string) => {
     showToast(msg);
     setMenuIsDirty(false);
+    menuDirectionRef.current = -1;
     setActiveMenu('main');
   };
 
@@ -203,74 +216,70 @@ export default function SettingsPage() {
     </div>
   );
 
-  if (activeMenu === 'profile') {
-    return (
-      <div className="container mx-auto max-w-md pt-11">
-        {discardDialog}
-        {toastUI}
-        <PageHeader title="Profile" onBack={handleBack} />
-        <ProfileMenu onDirtyChange={setMenuIsDirty} onSaved={handleSaved} onCancel={() => setActiveMenu('main')} />
-      </div>
-    );
-  }
-
-  if (activeMenu === 'theme') {
-    return (
-      <div className="container mx-auto max-w-md pt-11">
-        {discardDialog}
-        {toastUI}
-        <PageHeader title="Theme" onBack={handleBack} />
-        <ThemeSettingsMenu onCancel={handleBack} onDirtyChange={setMenuIsDirty} onSaved={handleThemeSaved} />
-      </div>
-    );
-  }
-
-  if (activeMenu === 'data') {
-    return (
-      <div className="container mx-auto max-w-md pt-11">
-        {toastUI}
-        <PageHeader title="Data Management" onBack={handleBack} />
-        <DataManagementMenu />
-      </div>
-    );
-  }
-
-  if (activeMenu === 'notifications') {
-    return (
-      <div className="container mx-auto max-w-md pt-11">
-        {discardDialog}
-        {toastUI}
-        <PageHeader title="Notifications" onBack={handleBack} />
-        <NotificationsMenu onDirtyChange={setMenuIsDirty} onSaved={handleSaved} onCancel={() => setActiveMenu('main')} />
-      </div>
-    );
-  }
-
   return (
-    <div className="container mx-auto max-w-md pt-11">
+    <div className="container mx-auto max-w-md pt-11" style={{ overflow: 'hidden' }}>
+      {discardDialog}
       {toastUI}
-      <ProfileHeroCard onEdit={() => tryNavigate('profile')} />
-
-      <div className="space-y-3">
-        {menuItems.map((item) => (
-          <button
-            key={item.id}
-            onClick={() => tryNavigate(item.id)}
-            className="w-full text-left p-3 bg-card rounded-2xl flex items-center gap-4 transition-transform active:scale-[0.98] hover:scale-[1.02] focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background"
-          >
-            <item.icon className="h-5 w-5 text-accent shrink-0" />
-            <div>
-              <p className="text-base font-semibold text-card-foreground">{item.title}</p>
-              <p className="text-xs text-muted-foreground">{item.description}</p>
-            </div>
-          </button>
-        ))}
-      </div>
-
-      <div className="mt-4 p-3 rounded-2xl text-center">
-        <p className="text-[10px] text-muted-foreground/60">Duey · Personal finance tracker</p>
-        <p className="text-[10px] text-muted-foreground/60">Built by Kiroshen · v1.0</p>
-      </div>
+      <AnimatePresence mode="popLayout" custom={menuDirectionRef.current}>
+        <motion.div
+          key={activeMenu}
+          custom={menuDirectionRef.current}
+          variants={menuVariants}
+          initial="enter"
+          animate="center"
+          exit="exit"
+          transition={menuTransition}
+        >
+          {activeMenu === 'profile' && (
+            <>
+              <PageHeader title="Profile" onBack={handleBack} />
+              <ProfileMenu onDirtyChange={setMenuIsDirty} onSaved={handleSaved} onCancel={() => { menuDirectionRef.current = -1; setActiveMenu('main'); }} />
+            </>
+          )}
+          {activeMenu === 'theme' && (
+            <>
+              <PageHeader title="Theme" onBack={handleBack} />
+              <ThemeSettingsMenu onCancel={handleBack} onDirtyChange={setMenuIsDirty} onSaved={handleThemeSaved} />
+            </>
+          )}
+          {activeMenu === 'data' && (
+            <>
+              <PageHeader title="Data Management" onBack={handleBack} />
+              <DataManagementMenu />
+            </>
+          )}
+          {activeMenu === 'notifications' && (
+            <>
+              <PageHeader title="Notifications" onBack={handleBack} />
+              <NotificationsMenu onDirtyChange={setMenuIsDirty} onSaved={handleSaved} onCancel={() => { menuDirectionRef.current = -1; setActiveMenu('main'); }} />
+            </>
+          )}
+          {activeMenu === 'main' && (
+            <>
+              <ProfileHeroCard onEdit={() => tryNavigate('profile')} />
+              <div className="space-y-3">
+                {menuItems.map((item) => (
+                  <button
+                    key={item.id}
+                    onClick={() => tryNavigate(item.id)}
+                    className="w-full text-left p-3 bg-card rounded-2xl flex items-center gap-4 transition-transform active:scale-[0.98] hover:scale-[1.02] focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background"
+                  >
+                    <item.icon className="h-5 w-5 text-accent shrink-0" />
+                    <div>
+                      <p className="text-base font-semibold text-card-foreground">{item.title}</p>
+                      <p className="text-xs text-muted-foreground">{item.description}</p>
+                    </div>
+                  </button>
+                ))}
+              </div>
+              <div className="mt-4 p-3 rounded-2xl text-center">
+                <p className="text-[10px] text-muted-foreground/60">Duey · Personal finance tracker</p>
+                <p className="text-[10px] text-muted-foreground/60">Built by Kiroshen · v1.0</p>
+              </div>
+            </>
+          )}
+        </motion.div>
+      </AnimatePresence>
     </div>
   );
 }

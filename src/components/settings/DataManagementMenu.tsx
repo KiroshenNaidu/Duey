@@ -17,11 +17,11 @@ import { cn } from '@/lib/utils';
 interface PDFDoc {
   internal: { pageSize: { getWidth: () => number; getHeight: () => number } };
   addPage: () => PDFDoc;
-  setFillColor: (r: number, g: number, b: number) => PDFDoc;
-  setDrawColor: (r: number, g: number, b: number) => PDFDoc;
+  setFillColor: (r: string | number, g?: number, b?: number) => PDFDoc;
+  setDrawColor: (r: string | number, g?: number, b?: number) => PDFDoc;
   setLineWidth: (w: number) => PDFDoc;
   rect: (x: number, y: number, w: number, h: number, style: string) => PDFDoc;
-  setTextColor: (r: number, g: number, b: number) => PDFDoc;
+  setTextColor: (r: string | number, g?: number, b?: number) => PDFDoc;
   setFont: (font: string, style: string) => PDFDoc;
   setFontSize: (size: number) => PDFDoc;
   text: (text: string, x: number, y: number, opts?: { align?: string }) => PDFDoc;
@@ -72,7 +72,8 @@ type ColDef = { header: string; width: number; align?: 'left' | 'right' };
 type RowData = (string | number)[];
 
 function drawTable(
-  doc: PDFDoc,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  doc: any,
   startY: number,
   cols: ColDef[],
   rows: RowData[],
@@ -162,7 +163,8 @@ function drawTable(
   return y;
 }
 
-function drawPageFooter(doc: PDFDoc, pageNum: number, totalPages: number): void {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function drawPageFooter(doc: any, pageNum: number, totalPages: number): void {
   const W = doc.internal.pageSize.getWidth();
   const footerY = doc.internal.pageSize.getHeight() - 8;
   doc.setDrawColor(180, 185, 192);

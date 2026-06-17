@@ -211,6 +211,15 @@ nav.fixed,
   }
 }
 
+/* Theme save → navigate fade-out */
+@keyframes page-fade-out {
+  to { opacity: 0; }
+}
+.page-fading-out {
+  animation: page-fade-out 0.2s ease-out forwards;
+  pointer-events: none;
+}
+
 /* Transport Page Styling */
 .paid-stamp {
     position: absolute;

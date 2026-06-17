@@ -1,5 +1,6 @@
 'use client';
 import { useContext, useState, useRef, useEffect, useCallback } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
 import { Button } from './ui/button';
 import { Textarea } from './ui/textarea';
 import { StickyNote, X, Trash2 } from 'lucide-react';
@@ -24,16 +25,15 @@ const DraggableNotepadBox = ({
   const offsetRef = useRef({ x: 0, y: 0 });
 
   useEffect(() => {
-    if (isOpen && boxRef.current) {
+    if (boxRef.current) {
       const { innerWidth, innerHeight } = window;
       const { offsetWidth, offsetHeight } = boxRef.current;
-      // Initialize position to bottom right, above the button
       setPosition({
         x: innerWidth - offsetWidth - 20,
         y: innerHeight - offsetHeight - 100,
       });
     }
-  }, [isOpen]);
+  }, []);
 
   const onDragStart = useCallback((e: React.MouseEvent<HTMLDivElement> | React.TouchEvent<HTMLDivElement>) => {
     isDraggingRef.current = true;
@@ -80,19 +80,24 @@ const DraggableNotepadBox = ({
     };
   }, [onDrag, onDragEnd]);
 
-  if (!isOpen) return null;
-
   return (
     <>
-      {/* Backdrop to close when clicking outside */}
-      <div 
-        className="fixed inset-0 z-[105] bg-black/5 backdrop-blur-[1px]" 
+      <motion.div
+        className="fixed inset-0 z-[105] bg-black/5 backdrop-blur-[1px]"
         onClick={onClose}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.15 }}
       />
-      <div
+      <motion.div
         ref={boxRef}
         className="fixed z-[110] w-[85vw] max-w-[320px] h-[40vh]"
         style={{ left: `${position.x}px`, top: `${position.y}px`, touchAction: 'none' }}
+        initial={{ opacity: 0, scale: 0.92, y: 10 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.92, y: 10 }}
+        transition={{ type: 'tween', ease: [0.25, 0.46, 0.45, 0.94], duration: 0.18 }}
       >
         <Card className="h-full shadow-2xl flex flex-col overflow-hidden rounded-2xl border-accent/20">
            <CardHeader 
@@ -124,7 +129,7 @@ const DraggableNotepadBox = ({
             {children}
            </CardContent>
         </Card>
-      </div>
+      </motion.div>
     </>
   );
 };
@@ -169,22 +174,26 @@ export function QuickNotepad() {
         <StickyNote className="h-5 w-5" />
       </Button>
 
-      <DraggableNotepadBox
-        isOpen={isOpen}
-        onClose={() => setIsOpen(false)}
-        onClear={handleClear}
-      >
-        <Textarea
-          value={localContent}
-          onChange={(e) => handleChange(e.target.value)}
-          className={cn(
-            "w-full h-full text-sm bg-transparent resize-none border-none p-0",
-            "focus-visible:ring-0 focus-visible:ring-offset-0",
-            "placeholder:text-muted-foreground/40"
-          )}
-          placeholder="Jot down some notes..."
-        />
-      </DraggableNotepadBox>
+      <AnimatePresence>
+        {isOpen && (
+          <DraggableNotepadBox
+            isOpen={isOpen}
+            onClose={() => setIsOpen(false)}
+            onClear={handleClear}
+          >
+            <Textarea
+              value={localContent}
+              onChange={(e) => handleChange(e.target.value)}
+              className={cn(
+                "w-full h-full text-sm bg-transparent resize-none border-none p-0",
+                "focus-visible:ring-0 focus-visible:ring-offset-0",
+                "placeholder:text-muted-foreground/40"
+              )}
+              placeholder="Jot down some notes..."
+            />
+          </DraggableNotepadBox>
+        )}
+      </AnimatePresence>
     </>
   );
 }

@@ -1,5 +1,6 @@
 'use client';
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
 import { Button } from './ui/button';
 import { Card, CardContent, CardHeader } from './ui/card';
 import { X } from 'lucide-react';
@@ -54,19 +55,19 @@ function safeCalculate(raw: string): number {
   return result;
 }
 
-const DraggableCard = ({ children, onClose, isOpen }: { children: React.ReactNode; onClose: () => void; isOpen: boolean }) => {
+const DraggableCard = ({ children, onClose }: { children: React.ReactNode; onClose: () => void }) => {
   const cardRef = useRef<HTMLDivElement>(null);
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const isDraggingRef = useRef(false);
   const offsetRef = useRef({ x: 0, y: 0 });
 
   useEffect(() => {
-    if (isOpen && cardRef.current) {
+    if (cardRef.current) {
       const { innerWidth, innerHeight } = window;
       const { offsetWidth, offsetHeight } = cardRef.current;
       setPosition({ x: (innerWidth - offsetWidth) / 2, y: (innerHeight - offsetHeight) / 2 });
     }
-  }, [isOpen]);
+  }, []);
 
   const onDragStart = useCallback((e: React.MouseEvent<HTMLDivElement> | React.TouchEvent<HTMLDivElement>) => {
     isDraggingRef.current = true;
@@ -101,15 +102,24 @@ const DraggableCard = ({ children, onClose, isOpen }: { children: React.ReactNod
     };
   }, [onDrag, onDragEnd]);
 
-  if (!isOpen) return null;
-
   return (
     <>
-      <div className="fixed inset-0 z-[95] bg-black/5 backdrop-blur-[1.5px]" onClick={onClose} />
-      <div
+      <motion.div
+        className="fixed inset-0 z-[95] bg-black/5 backdrop-blur-[1.5px]"
+        onClick={onClose}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.15 }}
+      />
+      <motion.div
         ref={cardRef}
         className="fixed z-[100] w-[85vw] min-w-[280px] max-w-[320px]"
         style={{ left: `${position.x}px`, top: `${position.y}px`, touchAction: 'none' }}
+        initial={{ opacity: 0, scale: 0.92, y: 10 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.92, y: 10 }}
+        transition={{ type: 'tween', ease: [0.25, 0.46, 0.45, 0.94], duration: 0.18 }}
       >
         <Card className="rounded-3xl overflow-hidden border-accent/20 shadow-2xl">
           <CardHeader
@@ -131,7 +141,7 @@ const DraggableCard = ({ children, onClose, isOpen }: { children: React.ReactNod
             {children}
           </CardContent>
         </Card>
-      </div>
+      </motion.div>
     </>
   );
 };
@@ -245,7 +255,8 @@ export function FloatingCalculator({ isOpen, onClose }: { isOpen: boolean; onClo
   const activeOp = !isResult && isOp(display) ? display : '';
 
   return (
-    <DraggableCard onClose={onClose} isOpen={isOpen}>
+    <AnimatePresence>
+      {isOpen && <DraggableCard onClose={onClose}>
       <div className="space-y-2">
 
         {/* History — latest entry only, with clear button */}
@@ -312,6 +323,7 @@ export function FloatingCalculator({ isOpen, onClose }: { isOpen: boolean; onClo
         </div>
 
       </div>
-    </DraggableCard>
+    </DraggableCard>}
+    </AnimatePresence>
   );
 }
