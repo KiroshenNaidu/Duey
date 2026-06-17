@@ -6,6 +6,7 @@ import type { Debt } from '@/lib/types';
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -96,6 +97,7 @@ export function PaymentCalendarDialog({ children, debt }: { children: ReactNode,
       <DialogContent className="max-w-3xl w-full h-[90dvh] flex flex-col p-3 sm:p-4">
         <DialogHeader>
           <DialogTitle className="truncate pr-16 text-base">{debt.title}: Payment History</DialogTitle>
+          <DialogDescription className="sr-only">Calendar view of all payments made toward {debt.title}.</DialogDescription>
            <div className="flex justify-between items-center pt-2">
             <div className="flex items-center gap-2">
               <Button variant="outline" size="icon" onClick={() => setViewYear(y => y - 1)}>

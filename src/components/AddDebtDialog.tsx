@@ -4,6 +4,7 @@ import { useState, useContext, useMemo, ReactNode } from 'react';
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -91,6 +92,7 @@ export function AddDebtDialog({ children }: { children: ReactNode }) {
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>Add New Debt</DialogTitle>
+          <DialogDescription className="sr-only">Enter the debt title, total amount owed, and monthly installment to start tracking.</DialogDescription>
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">

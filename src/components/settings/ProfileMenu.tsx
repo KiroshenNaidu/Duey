@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Slider } from '@/components/ui/slider';
 import { Camera, User } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -84,6 +84,7 @@ function AvatarEditor({
       <DialogContent className="max-w-xs rounded-3xl p-0 overflow-hidden">
         <DialogHeader className="px-5 pt-5 pb-0">
           <DialogTitle className="text-base font-semibold">Adjust Photo</DialogTitle>
+          <DialogDescription className="sr-only">Drag and pinch to reposition and scale your profile photo.</DialogDescription>
         </DialogHeader>
 
         <div className="px-5 py-4 space-y-4">

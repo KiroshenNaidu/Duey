@@ -13,7 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Upload, Loader2, Trash2, Check, Plus, Minus, ShieldCheck } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { AppDataContext } from '@/context/AppDataContext';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import Link from 'next/link';
@@ -818,9 +818,13 @@ export function ThemeSettingsMenu({ onCancel, onDirtyChange, onSaved }: { onCanc
 
       {/* Color editor dialog */}
       <Dialog open={!!colorEditor} onOpenChange={(open) => !open && setColorEditor(null)}>
-        <DialogContent className="sm:max-w-[320px]">
+        <DialogContent
+          className="sm:max-w-[320px]"
+          onCloseAutoFocus={e => { e.preventDefault(); (document.activeElement as HTMLElement)?.blur(); }}
+        >
           <DialogHeader>
             <DialogTitle>Edit Color</DialogTitle>
+            <DialogDescription className="sr-only">Adjust hue, saturation, and lightness to customize this color.</DialogDescription>
           </DialogHeader>
           {colorEditor && (
             <div className="space-y-5 py-1">
@@ -871,6 +875,7 @@ export function ThemeSettingsMenu({ onCancel, onDirtyChange, onSaved }: { onCanc
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Save as Preset</DialogTitle>
+            <DialogDescription className="sr-only">Give your current color theme a name to save it as a reusable preset.</DialogDescription>
           </DialogHeader>
           <div className="space-y-2 py-2">
             <Label htmlFor="theme-name">Preset Name</Label>

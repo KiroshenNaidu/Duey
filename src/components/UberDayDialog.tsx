@@ -9,6 +9,7 @@ import { formatCurrency } from '@/lib/utils';
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
@@ -55,6 +56,7 @@ export function UberDayDialog({ date, rides, open, onOpenChange }: UberDayDialog
       <DialogContent className="sm:max-w-[380px]">
         <DialogHeader>
           <DialogTitle className="text-sm">{formattedDate}</DialogTitle>
+          <DialogDescription className="sr-only">Rides and transport costs for {formattedDate}.</DialogDescription>
           {rides.length > 0 && (
             <p className="text-[10px] text-muted-foreground">
               {rides.length} ride{rides.length !== 1 ? 's' : ''} · {formatCurrency(dayTotal)} total
