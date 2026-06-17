@@ -99,12 +99,14 @@ function EntryRow({
         {editing ? (
           <>
             <button
+              aria-label="Save"
               onClick={save}
               className="p-2.5 rounded-xl text-green-500 active:bg-green-500/10 transition-colors"
             >
               <Check size={16} />
             </button>
             <button
+              aria-label="Cancel"
               onClick={cancel}
               className="p-2.5 rounded-xl text-muted-foreground active:bg-muted transition-colors"
             >
@@ -115,6 +117,7 @@ function EntryRow({
           <>
             {canEdit && (
               <button
+                aria-label="Rename entry"
                 onClick={() => setEditing(true)}
                 className="p-2.5 rounded-xl text-muted-foreground/50 active:bg-muted active:text-muted-foreground transition-colors"
               >
@@ -122,6 +125,7 @@ function EntryRow({
               </button>
             )}
             <button
+              aria-label="Delete entry"
               onClick={() => onDelete(entry.id)}
               className="p-2.5 rounded-xl text-muted-foreground/40 active:bg-destructive/10 active:text-destructive transition-colors"
             >
@@ -138,16 +142,21 @@ export default function HistoryPage() {
   const router = useRouter();
   const { history, debts, updateHistoryEntry, deleteHistoryEntry } = useContext(AppDataContext);
 
-  const { grouped, hasInterestEntries } = useMemo(() => {
+  const { grouped, hasInterestEntries, totalPaid, paymentCount } = useMemo(() => {
     const debtTotals: Record<string, number> = {};
     debts.forEach(d => { debtTotals[d.id ?? ''] = d.total_owed; });
 
     const sorted = [...history].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
     const running: Record<string, number> = {};
     let hasInterest = false;
+    let totalPaid = 0;
+    let paymentCount = 0;
 
     const enriched = sorted.map(entry => {
-      if (entry.type !== 'payment' || !entry.debtId) return { entry, isInterest: false };
+      if (entry.type !== 'payment') return { entry, isInterest: false };
+      totalPaid += entry.amount;
+      paymentCount++;
+      if (!entry.debtId) return { entry, isInterest: false };
       running[entry.debtId] = (running[entry.debtId] ?? 0) + entry.amount;
       const isInterest = running[entry.debtId] > (debtTotals[entry.debtId] ?? Infinity);
       if (isInterest) hasInterest = true;
@@ -161,11 +170,8 @@ export default function HistoryPage() {
       groups.get(key)!.push(item);
     });
 
-    return { grouped: Array.from(groups.entries()), hasInterestEntries: hasInterest };
+    return { grouped: Array.from(groups.entries()), hasInterestEntries: hasInterest, totalPaid, paymentCount };
   }, [history, debts]);
-
-  const paymentEntries = history.filter(h => h.type === 'payment');
-  const totalPaid = paymentEntries.reduce((s, h) => s + h.amount, 0);
 
   return (
     <div className="container mx-auto max-w-md pt-12 pb-10 px-4">
@@ -190,7 +196,7 @@ export default function HistoryPage() {
           <p className="text-[10px] text-muted-foreground uppercase tracking-widest mt-0.5">Total Paid</p>
         </div>
         <div className="bg-card rounded-2xl p-4 text-center">
-          <p className="text-xl font-black">{paymentEntries.length}</p>
+          <p className="text-xl font-black">{paymentCount}</p>
           <p className="text-[10px] text-muted-foreground uppercase tracking-widest mt-0.5">Payments</p>
         </div>
       </div>

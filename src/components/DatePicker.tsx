@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
 import { CalendarDays } from 'lucide-react';
@@ -37,6 +37,10 @@ function DateColumn<T extends number>({
       if (idx >= 0) ref.current.scrollTop = idx * ITEM_H;
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    return () => { if (debounce.current) clearTimeout(debounce.current); };
   }, []);
 
   const handleScroll = useCallback(() => {
@@ -98,25 +102,35 @@ export function DatePicker({
 }) {
   const [open, setOpen] = useState(false);
 
-  const today = new Date();
   const parsed = value ? new Date(value + 'T00:00:00') : null;
-  const initDay   = parsed ? parsed.getDate()     : today.getDate();
-  const initMonth = parsed ? parsed.getMonth()    : today.getMonth();
-  const initYear  = parsed ? parsed.getFullYear() : today.getFullYear();
+  const initDay   = parsed ? parsed.getDate()     : new Date().getDate();
+  const initMonth = parsed ? parsed.getMonth()    : new Date().getMonth();
+  const initYear  = parsed ? parsed.getFullYear() : new Date().getFullYear();
 
   const [day,   setDay]   = useState(initDay);
   const [month, setMonth] = useState(initMonth);
   const [year,  setYear]  = useState(initYear);
 
-  const maxDay = daysInMonth(year, month);
-  const days = Array.from({ length: maxDay }, (_, i) => i + 1);
+  const days = useMemo(() => Array.from({ length: daysInMonth(year, month) }, (_, i) => i + 1), [year, month]);
+  const clampedDay = Math.min(day, days.length);
 
-  const clampedDay = Math.min(day, maxDay);
+  // Sync internal state from the value prop each time the picker opens so
+  // that re-opening after a clear shows today (or the current value) rather
+  // than whatever was last selected.
+  const handleOpen = (newOpen: boolean) => {
+    if (newOpen) {
+      const p = value ? new Date(value + 'T00:00:00') : null;
+      const now = new Date();
+      setDay(p ? p.getDate() : now.getDate());
+      setMonth(p ? p.getMonth() : now.getMonth());
+      setYear(p ? p.getFullYear() : now.getFullYear());
+    }
+    setOpen(newOpen);
+  };
 
   const handleConfirm = () => {
-    const d = Math.min(day, daysInMonth(year, month));
     const mm = String(month + 1).padStart(2, '0');
-    const dd = String(d).padStart(2, '0');
+    const dd = String(clampedDay).padStart(2, '0');
     onChange(`${year}-${mm}-${dd}`);
     setOpen(false);
   };
@@ -131,7 +145,7 @@ export function DatePicker({
     : '--';
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={open} onOpenChange={handleOpen}>
       <PopoverTrigger asChild>
         <button
           className={cn(

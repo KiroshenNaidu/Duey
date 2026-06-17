@@ -2,7 +2,7 @@
 
 import { useContext, useState, useRef, useCallback, useEffect } from 'react';
 import { AppDataContext } from '@/context/AppDataContext';
-import { CURRENCIES } from '@/components/CurrencyPickerDialog';
+import { CURRENCIES, CURRENCY_GROUPS } from '@/components/CurrencyPickerDialog';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -49,10 +49,10 @@ function CurrencySelector({ value, onChange }: { value: string; onChange: (code:
       </PopoverTrigger>
       <PopoverContent className="p-0 overflow-hidden rounded-2xl border-border/60 w-[var(--radix-popover-trigger-width)]" align="start" sideOffset={6}>
         <div className="bg-card max-h-[55vh] overflow-y-auto">
-          {(['Africa', 'Americas', 'Asia'] as const).map(region => (
+          {CURRENCY_GROUPS.map(({ region, currencies }) => (
             <div key={region}>
               <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground px-3 pt-3 pb-1">{region}</p>
-              {CURRENCIES.filter(c => c.region === region).map(c => (
+              {currencies.map(c => (
                 <button
                   key={c.code}
                   onClick={() => { onChange(c.code); setOpen(false); }}

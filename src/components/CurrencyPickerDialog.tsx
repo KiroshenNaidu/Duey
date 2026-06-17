@@ -43,12 +43,19 @@ export const CURRENCIES: { code: string; name: string; symbol: string; region: s
   { code: 'SGD', name: 'Singapore Dollar',      symbol: 'S$',  region: 'Asia' },
 ];
 
+export const CURRENCY_GROUPS: readonly { region: string; currencies: typeof CURRENCIES }[] =
+  (['Africa', 'Americas', 'Asia'] as const).map(region => ({
+    region,
+    currencies: CURRENCIES.filter(c => c.region === region),
+  }));
+
 export function CurrencyPickerDialog() {
   const { currency, setCurrency } = useContext(AppDataContext);
   const [selected, setSelected] = useState('ZAR');
   const open = currency === '';
 
   const save = () => setCurrency(selected);
+  const selectedCurrency = CURRENCIES.find(c => c.code === selected) ?? CURRENCIES[0];
 
   return (
     <Dialog open={open} onOpenChange={() => {}}>
@@ -65,40 +72,37 @@ export function CurrencyPickerDialog() {
         </DialogHeader>
 
         <div className="px-3 pb-3 max-h-[55vh] overflow-y-auto space-y-1">
-          {(['Africa', 'Americas', 'Asia'] as const).map(region => {
-            const group = CURRENCIES.filter(c => c.region === region);
-            return (
-              <div key={region}>
-                <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground px-2 pt-2 pb-1">{region}</p>
-                {group.map(c => (
-                  <button
-                    key={c.code}
-                    onClick={() => setSelected(c.code)}
-                    className={cn(
-                      'w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-colors',
-                      selected === c.code
-                        ? 'bg-accent/15 border border-accent/40'
-                        : 'hover:bg-muted/40 border border-transparent'
-                    )}
-                  >
-                    <span className="text-base font-bold w-8 text-center text-foreground shrink-0">{c.symbol}</span>
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium text-foreground leading-tight">{c.name}</p>
-                      <p className="text-[10px] text-muted-foreground">{c.code}</p>
-                    </div>
-                    {selected === c.code && (
-                      <span className="ml-auto text-accent font-bold text-xs shrink-0">✓</span>
-                    )}
-                  </button>
-                ))}
-              </div>
-            );
-          })}
+          {CURRENCY_GROUPS.map(({ region, currencies }) => (
+            <div key={region}>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground px-2 pt-2 pb-1">{region}</p>
+              {currencies.map(c => (
+                <button
+                  key={c.code}
+                  onClick={() => setSelected(c.code)}
+                  className={cn(
+                    'w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-colors',
+                    selected === c.code
+                      ? 'bg-accent/15 border border-accent/40'
+                      : 'hover:bg-muted/40 border border-transparent'
+                  )}
+                >
+                  <span className="text-base font-bold w-8 text-center text-foreground shrink-0">{c.symbol}</span>
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-foreground leading-tight">{c.name}</p>
+                    <p className="text-[10px] text-muted-foreground">{c.code}</p>
+                  </div>
+                  {selected === c.code && (
+                    <span className="ml-auto text-accent font-bold text-xs shrink-0">✓</span>
+                  )}
+                </button>
+              ))}
+            </div>
+          ))}
         </div>
 
         <div className="px-5 pb-5 pt-2">
           <Button onClick={save} className="w-full h-11 bg-accent text-accent-foreground hover:bg-accent/90 font-semibold">
-            Use {CURRENCIES.find(c => c.code === selected)?.symbol} {selected}
+            Use {selectedCurrency.symbol} {selected}
           </Button>
         </div>
       </DialogContent>
