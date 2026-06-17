@@ -13,6 +13,7 @@ export interface HistoryEntry {
   amount: number;
   type: 'payment' | 'creation' | 'transport' | 'completion' | 'budget';
   note?: string;
+  label?: string; // user-defined display label, e.g. "Interest", "Penalty Fee"
 }
 
 export interface TransportSettings {

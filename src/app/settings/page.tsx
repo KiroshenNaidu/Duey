@@ -3,7 +3,7 @@
 import { useState, useContext, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Palette, Database, Bell, ChevronLeft, User, Pencil } from 'lucide-react';
+import { Palette, Database, Bell, ChevronLeft, User, Pencil, History } from 'lucide-react';
 import { ThemeSettingsMenu } from '@/components/settings/ThemeSettingsMenu';
 import { DataManagementMenu } from '@/components/settings/DataManagementMenu';
 import { NotificationsMenu } from '@/components/settings/NotificationsMenu';
@@ -271,6 +271,16 @@ export default function SettingsPage() {
                     </div>
                   </button>
                 ))}
+                <button
+                  onClick={() => router.push('/history')}
+                  className="w-full text-left p-3 bg-card rounded-2xl flex items-center gap-4 transition-transform active:scale-[0.98] hover:scale-[1.02] focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background"
+                >
+                  <History className="h-5 w-5 text-accent shrink-0" />
+                  <div>
+                    <p className="text-base font-semibold text-card-foreground">Payment History</p>
+                    <p className="text-xs text-muted-foreground">View and edit all recorded payments</p>
+                  </div>
+                </button>
               </div>
               <div className="mt-4 p-3 rounded-2xl text-center">
                 <p className="text-[10px] text-muted-foreground/60">Duey · Personal finance tracker</p>

@@ -1,6 +1,8 @@
 'use client';
 
 import { useContext, useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
+import confetti from 'canvas-confetti';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
@@ -38,6 +40,7 @@ interface DebtCardProps {
 }
 
 export function DebtCard({ debt }: DebtCardProps) {
+  const router = useRouter();
   const { history, updateDebt, deleteDebt, completeDebt, logPaymentForToday, logCustomPayment } = useContext(AppDataContext);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [showCelebration, setShowCelebration] = useState(false);
@@ -69,9 +72,7 @@ export function DebtCard({ debt }: DebtCardProps) {
   useEffect(() => {
     if (isPaidOff && !prevIsPaidOff.current) {
       setShowCelebration(true);
-      import('canvas-confetti').then(m =>
-        m.default({ particleCount: 120, spread: 80, origin: { y: 0.55 } })
-      );
+      confetti({ particleCount: 120, spread: 80, origin: { y: 0.55 } });
     }
     prevIsPaidOff.current = isPaidOff;
   }, [isPaidOff]);
@@ -227,14 +228,26 @@ export function DebtCard({ debt }: DebtCardProps) {
                         </AlertDialogTrigger>
                         <AlertDialogContent>
                           <AlertDialogHeader>
-                            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              This will permanently delete the &quot;{debt.title}&quot; debt. This action cannot be undone.
+                            <AlertDialogTitle>Delete &quot;{debt.title}&quot;?</AlertDialogTitle>
+                            <AlertDialogDescription asChild>
+                              <div className="space-y-3 text-sm text-muted-foreground">
+                                <p>This removes the debt from your active list. All payment records remain in your history.</p>
+                                <div className="bg-muted/50 rounded-xl p-3 border border-border/50 text-xs space-y-1">
+                                  <p className="font-semibold text-foreground">About overpayments</p>
+                                  <p>Any amount paid beyond the debt total is labelled <span className="font-semibold text-accent">Interest</span> by default. You can rename these entries in your payment history.</p>
+                                </div>
+                                <button
+                                  onClick={() => router.push('/history')}
+                                  className="text-accent underline underline-offset-2 text-xs font-medium hover:text-accent/80 transition-colors"
+                                >
+                                  View &amp; edit payment history →
+                                </button>
+                              </div>
                             </AlertDialogDescription>
                           </AlertDialogHeader>
                           <AlertDialogFooter>
                             <AlertDialogCancel>Cancel</AlertDialogCancel>
-                            <AlertDialogAction onClick={handleDelete} className={cn(buttonVariants({ variant: 'destructive' }))}>Delete</AlertDialogAction>
+                            <AlertDialogAction onClick={handleDelete} className={cn(buttonVariants({ variant: 'destructive' }))}>Delete Debt</AlertDialogAction>
                           </AlertDialogFooter>
                         </AlertDialogContent>
                       </AlertDialog>

@@ -105,6 +105,7 @@ interface AppContextType extends AppState {
   deleteUserTheme: (themeId: string) => void;
   importData: (data: AppData) => void;
   deleteHistoryEntry: (entryId: string) => void;
+  updateHistoryEntry: (entryId: string, data: Partial<Pick<HistoryEntry, 'label' | 'note'>>) => void;
   clearData: () => void; // fire-and-forget async
   getAppState: () => AppState;
   avatarDataUrl: string;
@@ -140,6 +141,7 @@ export const AppDataContext = createContext<AppContextType>({
   deleteUserTheme: () => {},
   importData: () => {},
   deleteHistoryEntry: () => {},
+  updateHistoryEntry: () => {},
   clearData: () => {},
   getAppState: () => defaultState,
   avatarDataUrl: '',
@@ -334,6 +336,13 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     }));
   };
 
+  const updateHistoryEntry = (entryId: string, data: Partial<Pick<HistoryEntry, 'label' | 'note'>>) => {
+    updateStateAndSync(prev => ({
+      ...prev,
+      history: prev.history.map(h => h.id === entryId ? { ...h, ...data } : h),
+    }));
+  };
+
   const addUberRide = useCallback((ride: Omit<UberRide, 'id' | 'createdAt'>) => {
     updateStateAndSync(prev => ({
       ...prev,
@@ -463,6 +472,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     addUserTheme,
     deleteUserTheme,
     deleteHistoryEntry,
+    updateHistoryEntry,
     importData,
     clearData,
     getAppState: () => appState,

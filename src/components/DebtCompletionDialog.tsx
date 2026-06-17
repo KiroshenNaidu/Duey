@@ -3,9 +3,7 @@
 import {
   Dialog,
   DialogContent,
-  DialogHeader,
   DialogTitle,
-  DialogFooter,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { formatCurrency } from '@/lib/utils';
@@ -31,34 +29,38 @@ export function DebtCompletionDialog({
 }: DebtCompletionDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[400px] text-center">
-        <DialogHeader>
-          <div className="text-5xl mb-2">🎉</div>
-          <DialogTitle className="text-xl">Paid Off!</DialogTitle>
-        </DialogHeader>
-        <div className="py-2 space-y-1 text-sm text-muted-foreground">
-          <p>
-            You&apos;ve fully paid off <span className="font-semibold text-foreground">{debtTitle}</span>
-          </p>
-          <p>
-            {formatCurrency(totalOwed)} across {paymentCount} payment{paymentCount !== 1 ? 's' : ''}. Well done!
-          </p>
+      <DialogContent className="sm:max-w-[380px] p-0 gap-0 overflow-hidden">
+        <div className="flex flex-col items-center text-center px-6 pt-8 pb-6 space-y-4">
+          {/* Centered emoji */}
+          <div className="text-6xl leading-none select-none">🎉</div>
+
+          <div className="space-y-1">
+            <DialogTitle className="text-2xl font-black">Paid Off!</DialogTitle>
+            <p className="text-sm text-muted-foreground">
+              You&apos;ve fully paid off{' '}
+              <span className="font-semibold text-foreground">{debtTitle}</span>
+            </p>
+            <p className="text-sm text-muted-foreground">
+              {formatCurrency(totalOwed)} across {paymentCount} payment{paymentCount !== 1 ? 's' : ''}. Well done!
+            </p>
+          </div>
         </div>
-        <DialogFooter className="flex-col gap-2 sm:flex-col">
+
+        <div className="px-6 pb-6 flex flex-col gap-2">
           <Button
             onClick={onComplete}
-            className="w-full bg-accent text-accent-foreground hover:bg-accent/90"
+            className="w-full bg-accent text-accent-foreground hover:bg-accent/90 h-12 text-base font-semibold"
           >
             Complete &amp; Archive
           </Button>
           <Button
             variant="outline"
             onClick={onKeepTracking}
-            className="w-full"
+            className="w-full h-11"
           >
             Keep Tracking
           </Button>
-        </DialogFooter>
+        </div>
       </DialogContent>
     </Dialog>
   );
