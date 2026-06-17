@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useContext } from 'react';
+import { useRef, useContext, useEffect, useCallback } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { AnimatePresence, motion } from 'framer-motion';
 import { AppDataContext } from '@/context/AppDataContext';
@@ -20,17 +20,39 @@ const variants = {
   exit: (d: number) => ({ x: d >= 0 ? '-100%' : '100%', opacity: 0 }),
 };
 
-const transition = { type: 'tween' as const, ease: [0.25, 0.46, 0.45, 0.94] as [number, number, number, number], duration: 0.26 };
+// iOS-style ease-out curve — fast start, smooth settle
+const transition = {
+  type: 'tween' as const,
+  ease: [0.22, 1, 0.36, 1] as [number, number, number, number],
+  duration: 0.22,
+};
+
+function isInHorizontalScroller(el: EventTarget | null): boolean {
+  let node = el as Element | null;
+  while (node && node !== document.body) {
+    const style = window.getComputedStyle(node);
+    const ox = style.overflowX;
+    if ((ox === 'scroll' || ox === 'auto') && node.scrollWidth > node.clientWidth) {
+      return true;
+    }
+    node = node.parentElement;
+  }
+  return false;
+}
 
 export function PageTransitionWrapper({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const { navGuard } = useContext(AppDataContext);
+
   const prevPathnameRef = useRef(pathname);
   const directionRef = useRef(0);
-  const touchStartRef = useRef({ x: 0, y: 0 });
+  const pathnameRef = useRef(pathname);
+  const navGuardRef = useRef(navGuard);
 
-  // Compute direction from route order whenever pathname changes
+  pathnameRef.current = pathname;
+  navGuardRef.current = navGuard;
+
   if (prevPathnameRef.current !== pathname) {
     const prevIdx = ROUTE_ORDER[prevPathnameRef.current] ?? 1;
     const currIdx = ROUTE_ORDER[pathname] ?? 1;
@@ -38,32 +60,80 @@ export function PageTransitionWrapper({ children }: { children: React.ReactNode 
     prevPathnameRef.current = pathname;
   }
 
-  const handleTouchStart = (e: React.TouchEvent) => {
-    touchStartRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-  };
+  const navigate = useCallback(
+    (href: string) => {
+      if (navGuardRef.current) {
+        navGuardRef.current.onAttempt(href);
+      } else {
+        router.push(href);
+      }
+    },
+    [router],
+  );
 
-  const handleTouchEnd = (e: React.TouchEvent) => {
-    const dx = e.changedTouches[0].clientX - touchStartRef.current.x;
-    const dy = e.changedTouches[0].clientY - touchStartRef.current.y;
-    // Only fire if clearly horizontal and over 60px threshold
-    if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 2) return;
-    const currIdx = ROUTE_ORDER[pathname] ?? 1;
-    const nextIdx = dx < 0 ? currIdx + 1 : currIdx - 1;
-    if (nextIdx < 0 || nextIdx >= ROUTES.length) return;
-    const targetHref = ROUTES[nextIdx];
-    if (navGuard) {
-      navGuard.onAttempt(targetHref);
-    } else {
-      router.push(targetHref);
-    }
-  };
+  useEffect(() => {
+    const start = { x: 0, y: 0, time: 0 };
+    // 'none' = undecided, 'h' = tracking horizontal, 'v' = vertical (skip)
+    let tracking: 'none' | 'h' | 'v' = 'none';
+
+    const onStart = (e: TouchEvent) => {
+      start.x = e.touches[0].clientX;
+      start.y = e.touches[0].clientY;
+      start.time = Date.now();
+      tracking = 'none';
+    };
+
+    const onMove = (e: TouchEvent) => {
+      if (tracking === 'v') return;
+      const dx = e.touches[0].clientX - start.x;
+      const dy = e.touches[0].clientY - start.y;
+      if (Math.abs(dx) < 4 && Math.abs(dy) < 4) return;
+
+      if (tracking === 'none') {
+        if (Math.abs(dy) > Math.abs(dx)) {
+          tracking = 'v';
+          return;
+        }
+        // Don't hijack touches inside a horizontal scroll container
+        if (isInHorizontalScroller(e.target)) {
+          tracking = 'v';
+          return;
+        }
+        tracking = 'h';
+      }
+    };
+
+    const onEnd = (e: TouchEvent) => {
+      if (tracking !== 'h') return;
+      tracking = 'none';
+
+      const dx = e.changedTouches[0].clientX - start.x;
+      const velocity = Math.abs(dx) / Math.max(Date.now() - start.time, 1); // px/ms
+
+      // Fast flick needs less distance; slow drag needs more
+      const threshold = velocity > 0.4 ? 28 : 55;
+      if (Math.abs(dx) < threshold) return;
+
+      const currIdx = ROUTE_ORDER[pathnameRef.current] ?? 1;
+      const nextIdx = dx < 0 ? currIdx + 1 : currIdx - 1;
+      if (nextIdx < 0 || nextIdx >= ROUTES.length) return;
+
+      navigate(ROUTES[nextIdx]);
+    };
+
+    document.addEventListener('touchstart', onStart, { passive: true });
+    document.addEventListener('touchmove', onMove, { passive: true });
+    document.addEventListener('touchend', onEnd, { passive: true });
+
+    return () => {
+      document.removeEventListener('touchstart', onStart);
+      document.removeEventListener('touchmove', onMove);
+      document.removeEventListener('touchend', onEnd);
+    };
+  }, [navigate]);
 
   return (
-    <div
-      onTouchStart={handleTouchStart}
-      onTouchEnd={handleTouchEnd}
-      style={{ position: 'relative', overflowX: 'hidden' }}
-    >
+    <div style={{ position: 'relative', overflowX: 'hidden' }}>
       <AnimatePresence mode="popLayout" custom={directionRef.current}>
         <motion.div
           key={pathname}
