@@ -1,26 +1,31 @@
 'use client';
 
-import { useRef, useContext, useEffect, useCallback } from 'react';
+import { useContext, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
-import { AnimatePresence, motion } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { AppDataContext } from '@/context/AppDataContext';
+import { MoneyPage } from '@/components/pages/MoneyPage';
+import { TransportPage } from '@/components/pages/TransportPage';
+import { StatsPage } from '@/components/pages/StatsPage';
+import { SettingsPage } from '@/components/pages/SettingsPage';
+
+const PAGES = [
+  { href: '/transport', Component: TransportPage },
+  { href: '/',          Component: MoneyPage },
+  { href: '/stats',     Component: StatsPage },
+  { href: '/settings',  Component: SettingsPage },
+] as const;
 
 const ROUTE_ORDER: Record<string, number> = {
   '/transport': 0,
-  '/': 1,
-  '/stats': 2,
-  '/settings': 3,
+  '/':          1,
+  '/stats':     2,
+  '/settings':  3,
 };
 
 const ROUTES = ['/transport', '/', '/stats', '/settings'];
+const MAIN_ROUTES = new Set(ROUTES);
 
-const variants = {
-  enter: (d: number) => ({ x: d >= 0 ? '100%' : '-100%', opacity: 0 }),
-  center: { x: 0, opacity: 1 },
-  exit: (d: number) => ({ x: d >= 0 ? '-100%' : '100%', opacity: 0 }),
-};
-
-// iOS-style ease-out curve — fast start, smooth settle
 const transition = {
   type: 'tween' as const,
   ease: [0.22, 1, 0.36, 1] as [number, number, number, number],
@@ -40,25 +45,23 @@ function isInHorizontalScroller(el: EventTarget | null): boolean {
   return false;
 }
 
-export function PageTransitionWrapper({ children }: { children: React.ReactNode }) {
+export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const { navGuard } = useContext(AppDataContext);
 
-  const prevPathnameRef = useRef(pathname);
-  const directionRef = useRef(0);
   const pathnameRef = useRef(pathname);
   const navGuardRef = useRef(navGuard);
-
   pathnameRef.current = pathname;
   navGuardRef.current = navGuard;
 
-  if (prevPathnameRef.current !== pathname) {
-    const prevIdx = ROUTE_ORDER[prevPathnameRef.current] ?? 1;
-    const currIdx = ROUTE_ORDER[pathname] ?? 1;
-    directionRef.current = currIdx >= prevIdx ? 1 : -1;
-    prevPathnameRef.current = pathname;
-  }
+  const isMainRoute = MAIN_ROUTES.has(pathname);
+  const activeIdx = ROUTE_ORDER[pathname] ?? 1;
+
+  // Reset scroll to top before paint when switching pages
+  useLayoutEffect(() => {
+    document.querySelector('main')?.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
+  }, [activeIdx]);
 
   const navigate = useCallback(
     (href: string) => {
@@ -73,7 +76,6 @@ export function PageTransitionWrapper({ children }: { children: React.ReactNode 
 
   useEffect(() => {
     const start = { x: 0, y: 0, time: 0 };
-    // 'none' = undecided, 'h' = tracking horizontal, 'v' = vertical (skip)
     let tracking: 'none' | 'h' | 'v' = 'none';
 
     const onStart = (e: TouchEvent) => {
@@ -94,7 +96,6 @@ export function PageTransitionWrapper({ children }: { children: React.ReactNode 
           tracking = 'v';
           return;
         }
-        // Don't hijack touches inside a horizontal scroll container
         if (isInHorizontalScroller(e.target)) {
           tracking = 'v';
           return;
@@ -107,10 +108,11 @@ export function PageTransitionWrapper({ children }: { children: React.ReactNode 
       if (tracking !== 'h') return;
       tracking = 'none';
 
-      const dx = e.changedTouches[0].clientX - start.x;
-      const velocity = Math.abs(dx) / Math.max(Date.now() - start.time, 1); // px/ms
+      // Don't swipe-navigate when on a non-main route (e.g. History)
+      if (!MAIN_ROUTES.has(pathnameRef.current)) return;
 
-      // Fast flick needs less distance; slow drag needs more
+      const dx = e.changedTouches[0].clientX - start.x;
+      const velocity = Math.abs(dx) / Math.max(Date.now() - start.time, 1);
       const threshold = velocity > 0.4 ? 28 : 55;
       if (Math.abs(dx) < threshold) return;
 
@@ -133,20 +135,37 @@ export function PageTransitionWrapper({ children }: { children: React.ReactNode 
   }, [navigate]);
 
   return (
-    <div style={{ position: 'relative', overflowX: 'hidden' }}>
-      <AnimatePresence mode="popLayout" custom={directionRef.current}>
-        <motion.div
-          key={pathname}
-          custom={directionRef.current}
-          variants={variants}
-          initial="enter"
-          animate="center"
-          exit="exit"
-          transition={transition}
-        >
-          {children}
-        </motion.div>
-      </AnimatePresence>
-    </div>
+    <>
+      {/* Always-mounted carousel — all 4 pages live in the DOM permanently */}
+      <div
+        style={{
+          position: 'relative',
+          overflowX: 'hidden',
+          minHeight: '100%',
+          display: isMainRoute ? 'block' : 'none',
+        }}
+      >
+        {PAGES.map(({ href, Component }, i) => (
+          <motion.div
+            key={href}
+            animate={{ x: `${(i - activeIdx) * 100}%` }}
+            transition={transition}
+            style={{
+              position: i === activeIdx ? 'relative' : 'absolute',
+              top: 0,
+              left: 0,
+              width: '100%',
+              pointerEvents: i === activeIdx ? 'auto' : 'none',
+              visibility: i === activeIdx ? 'visible' : 'hidden',
+            }}
+          >
+            <Component />
+          </motion.div>
+        ))}
+      </div>
+
+      {/* Non-main routes (History, etc.) render children normally */}
+      {!isMainRoute && children}
+    </>
   );
 }

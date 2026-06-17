@@ -2,16 +2,9 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Safe area insets — ThemeProvider toggles body.use-safe-area via the Smart Padding setting */
+/* Safe area insets — always active, env() falls back to 0px on devices without insets */
 :root {
-  --sab: 0px;
-  --top-nav-h:  75px;   /* nav height = 51px icons + 24px status bar */
-  --top-nav-pt: 24px;   /* default top padding inside nav (status bar height) */
-  --top-main-pt: 45px;  /* default main content top padding = 21px + 24px */
-}
-body.use-safe-area {
   --sab: env(safe-area-inset-bottom, 0px);
-  /* Replace fixed offsets with real status-bar height */
   --top-nav-h:  calc(51px + env(safe-area-inset-top, 0px));
   --top-nav-pt: env(safe-area-inset-top, 0px);
   --top-main-pt: calc(21px + env(safe-area-inset-top, 0px));

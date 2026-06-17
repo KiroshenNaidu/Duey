@@ -64,7 +64,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     body.classList.toggle('has-bg-image', !!backgroundImage);
     body.classList.remove('ui-glass', 'ui-minimal', 'ui-elevated');
     if (themeSettings.uiStyle !== 'solid') body.classList.add(`ui-${themeSettings.uiStyle}`);
-    body.classList.toggle('use-safe-area', !!themeSettings.useSafeAreaInsets);
+
   }, [themeSettings, backgroundImage, isImageReady]);
 
   const fontClasses = [

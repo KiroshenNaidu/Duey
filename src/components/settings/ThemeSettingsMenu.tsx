@@ -11,7 +11,6 @@ import { Button, buttonVariants } from '@/components/ui/button';
 import { hexToHsl, hslToHex, idbGet, idbSet, cn } from '@/lib/utils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Upload, Loader2, Trash2, Check, Plus, Minus, ShieldCheck } from 'lucide-react';
-import { Switch } from '@/components/ui/switch';
 import { AppDataContext } from '@/context/AppDataContext';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
@@ -29,7 +28,7 @@ const defaultThemeSettings: Omit<ThemeSettings, 'backgroundImage'> = {
   backgroundOpacity: 0.1,
   uiScale: 1.0,
   uiStyle: 'solid',
-  useSafeAreaInsets: false,
+  useSafeAreaInsets: true,
   bgX: 50,
   bgY: 50,
   glassOpacity: 0.55,
@@ -135,7 +134,6 @@ const areThemeSettingsEqual = (
   s1.primary === s2.primary && s1.accent === s2.accent &&
   s1.foreground === s2.foreground && s1.accentForeground === s2.accentForeground &&
   s1.font === s2.font && s1.uiScale === s2.uiScale && s1.uiStyle === s2.uiStyle &&
-  !!s1.useSafeAreaInsets === !!s2.useSafeAreaInsets &&
   (s1.bgX ?? 50) === (s2.bgX ?? 50) &&
   (s1.bgY ?? 50) === (s2.bgY ?? 50);
 
@@ -190,7 +188,6 @@ export function ThemeSettingsMenu({ onCancel, onDirtyChange, onSaved }: { onCanc
       root.style.setProperty('--glass-opacity', String(saved.glassOpacity ?? 0.55));
       document.body.classList.remove('ui-glass', 'ui-minimal', 'ui-elevated');
       if (saved.uiStyle !== 'solid') document.body.classList.add(`ui-${saved.uiStyle}`);
-      document.body.classList.toggle('use-safe-area', !!saved.useSafeAreaInsets);
       document.body.style.zoom = `${saved.uiScale}`;
       const bgDiv = document.getElementById('global-bg-image');
       if (bgDiv) bgDiv.style.backgroundImage = initialBgRef.current ? `url(${initialBgRef.current})` : 'none';
@@ -503,22 +500,6 @@ export function ThemeSettingsMenu({ onCancel, onDirtyChange, onSaved }: { onCanc
                 <Button variant="outline" size="icon" className="h-10 w-10 rounded-full" onClick={() => handleScale('up')}>
                   <Plus className="h-4 w-4" />
                 </Button>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="pb-2"><CardTitle className="text-sm">Display</CardTitle></CardHeader>
-            <CardContent>
-              <div className="flex items-center justify-between">
-                <div>
-                  <Label className="text-sm font-semibold">Smart Bottom Padding</Label>
-                  <p className="text-xs text-muted-foreground">Auto-adjusts for Android nav bar. Turn off for fixed padding.</p>
-                </div>
-                <Switch
-                  checked={!!previewTheme.useSafeAreaInsets}
-                  onCheckedChange={v => setPreviewTheme(pt => ({ ...pt, useSafeAreaInsets: v }))}
-                />
               </div>
             </CardContent>
           </Card>
