@@ -422,9 +422,13 @@ export function BudgetPlanner() {
 
       <Dialog open={newPlanOpen} onOpenChange={setNewPlanOpen}>
         <DialogTrigger asChild>
-          <Button variant="outline" size="sm" className="w-full gap-1">
-            <Plus className="h-3.5 w-3.5" /> New Budget Plan
-          </Button>
+          <button
+            aria-label="New budget plan"
+            className="fixed left-1/2 -translate-x-1/2 h-12 w-12 bg-primary rounded-full flex items-center justify-center text-primary-foreground shadow-lg hover:bg-primary/90 focus:outline-none transition-transform transform hover:scale-105 z-[60]"
+            style={{ bottom: 'calc(50px + var(--sab))' }}
+          >
+            <Plus className="h-6 w-6" />
+          </button>
         </DialogTrigger>
         <DialogContent className="sm:max-w-[360px]">
           <DialogHeader><DialogTitle>New Budget Plan</DialogTitle></DialogHeader>
