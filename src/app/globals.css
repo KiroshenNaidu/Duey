@@ -5,9 +5,9 @@
 /* Safe area insets — ThemeProvider toggles body.use-safe-area via the Smart Padding setting */
 :root {
   --sab: 0px;
-  --top-nav-h:  6rem;   /* default nav height (96px) */
-  --top-nav-pt: 45px;   /* default top padding inside nav */
-  --top-main-pt: 66px;  /* default main content top padding */
+  --top-nav-h:  75px;   /* nav height = 51px icons + 24px status bar */
+  --top-nav-pt: 24px;   /* default top padding inside nav (status bar height) */
+  --top-main-pt: 45px;  /* default main content top padding = 21px + 24px */
 }
 body.use-safe-area {
   --sab: env(safe-area-inset-bottom, 0px);

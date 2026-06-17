@@ -28,7 +28,7 @@ export function FloatingTools() {
   return (
     <>
       <QuickNotepad />
-      <div className="fixed left-4 z-[60]" style={{ bottom: 'calc(50px + var(--sab))' }}>
+      <div className="fixed left-4 z-[60]" style={{ bottom: 'calc(18px + var(--sab))' }}>
          <Button
           variant="outline"
           size="icon"

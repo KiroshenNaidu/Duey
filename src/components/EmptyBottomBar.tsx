@@ -18,6 +18,6 @@ export function EmptyBottomBar() {
   }
 
   return (
-    <div className="fixed-bottom-bar fixed bottom-0 left-0 right-0 bg-card border-t border-border z-40 transition-colors duration-300" style={{ height: 'calc(110px + var(--sab))' }} />
+    <div className="fixed-bottom-bar fixed bottom-0 left-0 right-0 bg-card border-t border-border z-40 transition-colors duration-300" style={{ height: 'calc(80px + var(--sab))' }} />
   );
 }
