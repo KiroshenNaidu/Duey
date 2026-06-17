@@ -144,21 +144,49 @@ export function DebtCard({ debt }: DebtCardProps) {
                   <Pencil className="h-4 w-4" />
                 </Button>
               </DialogTrigger>
-              <DialogContent className="sm:max-w-[425px]">
-                <DialogHeader>
+              <DialogContent className="sm:max-w-[425px] p-0 gap-0 overflow-hidden">
+                {/* Hidden accessible title */}
+                <DialogHeader className="sr-only">
                   <DialogTitle>{debt.title}</DialogTitle>
-                  <div className="text-[10px] font-medium text-muted-foreground uppercase tracking-widest mt-1.5 leading-tight space-y-0.5">
-                    <div>{Math.round(progress)}% Complete</div>
-                    <div>{formatCurrency(amountPaid)} / {formatCurrency(debt.total_owed)}</div>
-                    <div>{paymentCount} / {totalInstallments}</div>
-                  </div>
                 </DialogHeader>
-                <div className="space-y-4 pt-4 border-t">
+
+                {/* Hero progress header */}
+                <div className="px-5 pt-5 pb-4">
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex-1 min-w-0 pr-3">
+                      <h2 className="text-lg font-bold text-foreground leading-tight truncate">{debt.title}</h2>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        {paymentCount} of {totalInstallments} installments
+                      </p>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <span className={cn('text-3xl font-black tabular-nums leading-none', isPaidOff ? 'text-green-500' : 'text-primary')}>
+                        {Math.round(progress)}%
+                      </span>
+                      <p className="text-[10px] text-muted-foreground mt-0.5">complete</p>
+                    </div>
+                  </div>
+
+                  {/* Progress bar */}
+                  <Progress
+                    value={progress}
+                    className={cn('h-3 rounded-full', isPaidOff ? '[&>*]:bg-green-500' : '[&>*]:bg-primary')}
+                  />
+
+                  {/* Amount labels under bar */}
+                  <div className="flex justify-between mt-2 text-xs">
+                    <span className="font-semibold text-foreground">{formatCurrency(amountPaid)} paid</span>
+                    <span className="text-muted-foreground">of {formatCurrency(debt.total_owed)}</span>
+                  </div>
+                </div>
+
+                {/* Form & actions */}
+                <div className="px-5 pb-5 space-y-4 border-t pt-4">
                   <div className="space-y-2">
                     <Label htmlFor={`title-${debt.id}`} className="text-xs">Title</Label>
                     <Input id={`title-${debt.id}`} value={editedTitle} onChange={(e) => setEditedTitle(e.target.value)} />
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-2">
                       <Label htmlFor={`total-${debt.id}`} className="text-xs">Total Owed</Label>
                       <Input id={`total-${debt.id}`} type="number" value={editedTotalOwed} onChange={(e) => setEditedTotalOwed(e.target.value)} />
@@ -169,13 +197,13 @@ export function DebtCard({ debt }: DebtCardProps) {
                     </div>
                   </div>
 
-                  <div className="space-y-2 border-t pt-4 mt-2">
+                  <div className="space-y-2 border-t pt-4">
                     <Label htmlFor={`custom-payment-${debt.id}`} className="text-xs">Custom Payment Amount</Label>
                     <div className="flex items-center gap-2">
-                      <Input 
-                        id={`custom-payment-${debt.id}`} 
-                        type="number" 
-                        placeholder={`e.g., ${debt.installment_amount * 2}`} 
+                      <Input
+                        id={`custom-payment-${debt.id}`}
+                        type="number"
+                        placeholder={`e.g., ${debt.installment_amount * 2}`}
                         value={customAmount}
                         onChange={(e) => setCustomAmount(e.target.value)}
                       />
@@ -188,9 +216,9 @@ export function DebtCard({ debt }: DebtCardProps) {
                       </Button>
                     </div>
                   </div>
-                  
-                  <div className="flex justify-between items-center pt-4 border-t">
-                    <div className='flex gap-2'>
+
+                  <div className="flex justify-between items-center pt-3 border-t">
+                    <div className="flex gap-2">
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
                           <Button variant="outline" size="icon" className="h-10 w-10">
@@ -201,12 +229,12 @@ export function DebtCard({ debt }: DebtCardProps) {
                           <AlertDialogHeader>
                             <AlertDialogTitle>Are you sure?</AlertDialogTitle>
                             <AlertDialogDescription>
-                              This will permanently delete the "{debt.title}" debt. This action cannot be undone.
+                              This will permanently delete the &quot;{debt.title}&quot; debt. This action cannot be undone.
                             </AlertDialogDescription>
                           </AlertDialogHeader>
                           <AlertDialogFooter>
                             <AlertDialogCancel>Cancel</AlertDialogCancel>
-                            <AlertDialogAction onClick={handleDelete} className={cn(buttonVariants({variant: 'destructive'}))}>Delete</AlertDialogAction>
+                            <AlertDialogAction onClick={handleDelete} className={cn(buttonVariants({ variant: 'destructive' }))}>Delete</AlertDialogAction>
                           </AlertDialogFooter>
                         </AlertDialogContent>
                       </AlertDialog>

@@ -116,6 +116,13 @@ nav.fixed,
   box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37) !important;
 }
 
+/* Tabs bar — always stays readable regardless of glass opacity slider */
+.ui-glass [role="tablist"] {
+  background-color: hsla(var(--card) / 0.88) !important;
+  backdrop-filter: blur(12px) saturate(150%);
+  -webkit-backdrop-filter: blur(12px) saturate(150%);
+}
+
 /* Navigation Bars and Floating Island Bars */
 .ui-glass nav.fixed,
 .ui-glass .fixed-bottom-bar {
