@@ -37,8 +37,10 @@ function isInHorizontalScroller(el: EventTarget | null): boolean {
   while (node && node !== document.body) {
     const role = node.getAttribute('role');
     if (role === 'slider') return true; // Radix Slider thumb
-    // Radix Slider root has data-orientation="horizontal" but is not a tablist
-    if (node.getAttribute('data-orientation') === 'horizontal' && role !== 'tablist') return true;
+    // Radix Slider root carries data-orientation="horizontal" AND contains a slider thumb.
+    // Match only that — NOT Radix Tabs root, which also has data-orientation="horizontal"
+    // but no slider descendant (otherwise page-swipe is blocked over tab strips).
+    if (node.getAttribute('data-orientation') === 'horizontal' && node.querySelector('[role="slider"]')) return true;
     const style = window.getComputedStyle(node);
     const ox = style.overflowX;
     if ((ox === 'scroll' || ox === 'auto') && node.scrollWidth > node.clientWidth) return true;

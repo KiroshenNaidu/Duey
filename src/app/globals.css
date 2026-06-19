@@ -39,7 +39,17 @@ nav.fixed,
     --input: 220 14% 20%;
     --ring: 188 78% 57%;
     --radius: 0.5rem;
-    
+
+    /* Status / category colors — themeable (overridable per-theme via ThemeProvider) */
+    --positive: 142 71% 45%;     /* payments / paid */
+    --negative: 358 100% 50%;    /* deductions / errors */
+    --cat-transport: 217 91% 60%;
+    --cat-budget: 271 91% 65%;
+    --cat-expense: 25 95% 53%;
+    --cat-completion: 43 96% 56%;
+    --cat-employment: 173 80% 40%;
+    --cat-snapshot: 199 89% 48%;
+
     --font-family: var(--font-inter);
   }
 }
@@ -89,12 +99,21 @@ nav.fixed,
   }
 }
 
-/* Protected Indicator Colors */
+/* Protected Indicator Colors — routed through themeable status vars */
 .text-green-500 {
-    color: #22c55e !important;
+    color: hsl(var(--positive)) !important;
 }
 .text-red-500 {
-    color: #FF000C !important;
+    color: hsl(var(--negative)) !important;
+}
+
+/* Indeterminate loading bar — used by the loading screen and export progress modal */
+@keyframes loading-bar {
+  0%   { transform: translateX(-120%); }
+  100% { transform: translateX(360%); }
+}
+.loading-bar-fill {
+  animation: loading-bar 1.1s ease-in-out infinite;
 }
 
 /* Glass UI Mode Styles - High Quality Frosted Look */

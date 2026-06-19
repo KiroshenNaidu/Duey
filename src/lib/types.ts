@@ -78,14 +78,12 @@ export interface BudgetPlan {
   createdAt: string;
 }
 
-export type FontFamily = 'Inter' | 'Serif' | 'Mono' | 'Nunito' | 'Lexend' | 'DM Sans' | 'Space Grotesk' | 'Playfair';
-
 export interface ThemeSettings {
   background: string;
   surface: string;
   primary: string;
   accent: string;
-  font: FontFamily;
+  font: string;
   backgroundImage: string;
   backgroundOpacity: number;
   foreground: string;
@@ -96,6 +94,15 @@ export interface ThemeSettings {
   useSafeAreaInsets?: boolean;
   bgX?: number; // 0–100, default 50 (background-position-x %)
   bgY?: number; // 0–100, default 50 (background-position-y %)
+  // Status / category colors (HSL "h s% l%"). Optional — fall back to CSS defaults when unset.
+  positive?: string;
+  negative?: string;
+  catTransport?: string;
+  catBudget?: string;
+  catExpense?: string;
+  catCompletion?: string;
+  catEmployment?: string;
+  catSnapshot?: string;
 }
 
 export interface UserTheme {

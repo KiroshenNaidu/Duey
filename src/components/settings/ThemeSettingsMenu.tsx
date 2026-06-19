@@ -1,11 +1,10 @@
 'use client';
 import { useState, useEffect, useRef, useContext, useMemo, useCallback } from 'react';
-import type { ThemeSettings, UserTheme, FontFamily } from '@/lib/types';
-import { FONT_VAR_MAP } from '@/components/ThemeProvider';
+import type { ThemeSettings, UserTheme } from '@/lib/types';
+import { STATUS_COLOR_VARS, applyStatusColors } from '@/components/ThemeProvider';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Slider } from '@/components/ui/slider';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { hexToHsl, hslToHex, idbGet, idbSet, cn } from '@/lib/utils';
@@ -32,6 +31,14 @@ const defaultThemeSettings: Omit<ThemeSettings, 'backgroundImage'> = {
   bgX: 50,
   bgY: 50,
   glassOpacity: 0.55,
+  positive: '142 71% 45%',
+  negative: '358 100% 50%',
+  catTransport: '217 91% 60%',
+  catBudget: '271 91% 65%',
+  catExpense: '25 95% 53%',
+  catCompletion: '43 96% 56%',
+  catEmployment: '173 80% 40%',
+  catSnapshot: '199 89% 48%',
 };
 
 const systemPresets: Omit<UserTheme, 'id'>[] = [
@@ -116,7 +123,26 @@ const systemPresets: Omit<UserTheme, 'id'>[] = [
       font: 'Inter', uiScale: 1.0, uiStyle: 'solid',
     },
   },
+  {
+    name: 'Noir',
+    settings: {
+      background: '0 0% 7%', surface: '0 0% 12%',
+      primary: '0 0% 42%', accent: '0 0% 62%',
+      foreground: '0 0% 98%', accentForeground: '0 0% 8%',
+      font: 'Inter', uiScale: 1.0, uiStyle: 'solid',
+      // Grayscale status colors → fully black & white
+      positive: '0 0% 82%', negative: '0 0% 52%',
+      catTransport: '0 0% 68%', catBudget: '0 0% 74%', catExpense: '0 0% 60%',
+      catCompletion: '0 0% 88%', catEmployment: '0 0% 70%', catSnapshot: '0 0% 78%',
+    },
+  },
 ];
+
+// Colored status-color defaults — applied when selecting a preset that doesn't define its
+// own status colors, so switching away from a B&W preset restores the colored palette.
+const defaultStatusColors = Object.fromEntries(
+  STATUS_COLOR_VARS.map(v => [v.field, v.default])
+) as Partial<ThemeSettings>;
 
 const MAX_IMAGE_DIMENSION = 2500;
 
@@ -182,7 +208,7 @@ export function ThemeSettingsMenu({ onCancel, onDirtyChange, onSaved }: { onCanc
       root.style.setProperty('--ring', saved.accent);
       root.style.setProperty('--foreground', saved.foreground);
       root.style.setProperty('--accent-foreground', saved.accentForeground);
-      root.style.setProperty('--font-family', FONT_VAR_MAP[saved.font] ?? 'var(--font-inter)');
+      applyStatusColors(root, saved);
       root.style.setProperty('--bg-x', `${saved.bgX ?? 50}%`);
       root.style.setProperty('--bg-y', `${saved.bgY ?? 50}%`);
       root.style.setProperty('--glass-opacity', String(saved.glassOpacity ?? 0.55));
@@ -204,7 +230,7 @@ export function ThemeSettingsMenu({ onCancel, onDirtyChange, onSaved }: { onCanc
     root.style.setProperty('--accent', previewTheme.accent);
     root.style.setProperty('--foreground', previewTheme.foreground);
     root.style.setProperty('--accent-foreground', previewTheme.accentForeground);
-    root.style.setProperty('--font-family', FONT_VAR_MAP[previewTheme.font] ?? 'var(--font-inter)');
+    applyStatusColors(root, previewTheme);
     const bgDiv = document.getElementById('global-bg-image');
     const overlayDiv = document.getElementById('global-bg-overlay');
     if (bgDiv) bgDiv.style.backgroundImage = previewTheme.backgroundImage ? `url(${previewTheme.backgroundImage})` : 'none';
@@ -336,21 +362,49 @@ export function ThemeSettingsMenu({ onCancel, onDirtyChange, onSaved }: { onCanc
   [currentActiveSettings, userThemes]);
 
   // ── Color editor state ──
-  type ColorField = keyof Pick<ThemeSettings, 'background' | 'surface' | 'primary' | 'accent' | 'foreground' | 'accentForeground'>;
+  type ColorField = keyof Pick<ThemeSettings,
+    'background' | 'surface' | 'primary' | 'accent' | 'foreground' | 'accentForeground' |
+    'positive' | 'negative' | 'catTransport' | 'catBudget' | 'catExpense' | 'catCompletion' | 'catEmployment' | 'catSnapshot'>;
   const [colorEditor, setColorEditor] = useState<{ field: ColorField; h: number; s: number; l: number } | null>(null);
+  const [hexInputValue, setHexInputValue] = useState('');
+  const hexInputRef = useRef<HTMLInputElement>(null);
 
   const openColorEditor = (field: ColorField) => {
     const [h, s, l] = parseHsl(previewTheme[field] as string);
     setColorEditor({ field, h, s, l });
+    setHexInputValue(hslToHex(h, s, l).toUpperCase());
   };
 
   const updateEditorHsl = useCallback((h: number, s: number, l: number) => {
     setColorEditor(prev => {
       if (!prev) return null;
       setPreviewTheme(pt => ({ ...pt, [prev.field]: `${Math.round(h)} ${Math.round(s)}% ${Math.round(l)}%` }));
+      if (document.activeElement !== hexInputRef.current) {
+        setHexInputValue(hslToHex(h, s, l).toUpperCase());
+      }
       return { ...prev, h, s, l };
     });
   }, []);
+
+  const handleHexInputChange = (raw: string) => {
+    setHexInputValue(raw);
+    const cleaned = raw.replace(/^#/, '');
+    // Expand 3-char shorthand
+    const full = cleaned.length === 3
+      ? cleaned.split('').map(c => c + c).join('')
+      : cleaned;
+    if (full.length === 6 && /^[0-9a-fA-F]{6}$/.test(full)) {
+      const hslStr = hexToHsl('#' + full);
+      if (hslStr) {
+        const [h, s, l] = hslStr.replace(/%/g, '').split(' ').map(Number);
+        setColorEditor(prev => {
+          if (!prev) return null;
+          setPreviewTheme(pt => ({ ...pt, [prev.field]: `${Math.round(h)} ${Math.round(s)}% ${Math.round(l)}%` }));
+          return { ...prev, h: h || 0, s: s || 0, l: l || 0 };
+        });
+      }
+    }
+  };
 
   if (!isClient) return null;
 
@@ -391,7 +445,7 @@ export function ThemeSettingsMenu({ onCancel, onDirtyChange, onSaved }: { onCanc
   }) => (
     <div className="space-y-2">
       <button
-        onClick={() => setPreviewTheme(p => ({ ...p, ...settings }))}
+        onClick={() => setPreviewTheme(p => ({ ...p, ...defaultStatusColors, ...settings }))}
         className={cn(
           'w-full aspect-square rounded-2xl border-2 flex flex-col items-center justify-center relative transition-all gap-2 p-3',
           isActive ? 'border-primary ring-2 ring-primary/30' : 'border-border hover:border-border/60'
@@ -638,26 +692,16 @@ export function ThemeSettingsMenu({ onCancel, onDirtyChange, onSaved }: { onCanc
           </Card>
 
           <Card>
-            <CardHeader className="pb-2"><CardTitle className="text-sm">Font Family</CardTitle></CardHeader>
+            <CardHeader className="pb-2"><CardTitle className="text-sm">Status Colors</CardTitle></CardHeader>
             <CardContent>
-              <Select
-                value={previewTheme.font}
-                onValueChange={(v: FontFamily) => setPreviewTheme(p => ({ ...p, font: v }))}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Inter">Modern (Inter)</SelectItem>
-                  <SelectItem value="Nunito">Rounded (Nunito)</SelectItem>
-                  <SelectItem value="Lexend">Clear (Lexend)</SelectItem>
-                  <SelectItem value="DM Sans">Clean (DM Sans)</SelectItem>
-                  <SelectItem value="Space Grotesk">Sharp (Space Grotesk)</SelectItem>
-                  <SelectItem value="Playfair">Elegant (Playfair)</SelectItem>
-                  <SelectItem value="Serif">Classic (Serif)</SelectItem>
-                  <SelectItem value="Mono">Technical (Mono)</SelectItem>
-                </SelectContent>
-              </Select>
+              <p className="text-[11px] text-muted-foreground/70 mb-3">
+                Colors used for badges and amounts across History &amp; Stats (payments, transport, budget, etc.).
+              </p>
+              <div className="grid grid-cols-3 gap-3">
+                {STATUS_COLOR_VARS.map(({ field, label }) => (
+                  <ColorSwatch key={field} label={label} field={field as ColorField} />
+                ))}
+              </div>
             </CardContent>
           </Card>
 
@@ -808,16 +852,31 @@ export function ThemeSettingsMenu({ onCancel, onDirtyChange, onSaved }: { onCanc
             <DialogDescription className="sr-only">Adjust hue, saturation, and lightness to customize this color.</DialogDescription>
           </DialogHeader>
           {colorEditor && (
-            <div className="space-y-5 py-1">
+            <div className="space-y-4 py-1">
               {/* Preview */}
               <div
                 className="h-14 rounded-2xl border border-accent/10 shadow-inner"
                 style={{ backgroundColor: hslToHex(colorEditor.h, colorEditor.s, colorEditor.l) }}
               />
-              <p className="text-center text-xs font-mono text-muted-foreground -mt-3">
-                {hslToHex(colorEditor.h, colorEditor.s, colorEditor.l).toUpperCase()}
-              </p>
+              {/* Hex input */}
+              <div className="relative flex items-center">
+                <div
+                  className="absolute left-3 w-5 h-5 rounded-md border border-white/10 shrink-0"
+                  style={{ backgroundColor: hslToHex(colorEditor.h, colorEditor.s, colorEditor.l) }}
+                />
+                <Input
+                  ref={hexInputRef}
+                  value={hexInputValue}
+                  onChange={e => handleHexInputChange(e.target.value)}
+                  onFocus={e => e.target.select()}
+                  placeholder="#000000"
+                  maxLength={7}
+                  spellCheck={false}
+                  className="pl-10 font-mono text-sm tracking-widest uppercase bg-muted/30 border-muted/40 rounded-xl h-10"
+                />
+              </div>
               {/* Sliders */}
+              <div className="space-y-4">
               {([
                 { label: 'Hue', key: 'h' as const, min: 0, max: 359, unit: '°' },
                 { label: 'Saturation', key: 's' as const, min: 0, max: 100, unit: '%' },
@@ -841,6 +900,7 @@ export function ThemeSettingsMenu({ onCancel, onDirtyChange, onSaved }: { onCanc
                   />
                 </div>
               ))}
+              </div>
             </div>
           )}
           <DialogFooter>

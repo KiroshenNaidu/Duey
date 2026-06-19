@@ -62,6 +62,15 @@ export default {
           '4': 'hsl(var(--chart-4))',
           '5': 'hsl(var(--chart-5))',
         },
+        // Themeable status / category colors (alpha channel keeps /opacity modifiers working)
+        positive:   "hsl(var(--positive) / <alpha-value>)",
+        negative:   "hsl(var(--negative) / <alpha-value>)",
+        transport:  "hsl(var(--cat-transport) / <alpha-value>)",
+        budget:     "hsl(var(--cat-budget) / <alpha-value>)",
+        expense:    "hsl(var(--cat-expense) / <alpha-value>)",
+        completion: "hsl(var(--cat-completion) / <alpha-value>)",
+        employment: "hsl(var(--cat-employment) / <alpha-value>)",
+        snapshot:   "hsl(var(--cat-snapshot) / <alpha-value>)",
       },
       borderRadius: {
         lg: "var(--radius)",

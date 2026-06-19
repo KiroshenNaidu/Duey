@@ -2,7 +2,7 @@
 
 import { useContext, useState, useMemo, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { AppDataContext } from '@/context/AppDataContext';
 import { formatCurrency, cn } from '@/lib/utils';
 import { Card, CardContent } from '@/components/ui/card';
@@ -13,7 +13,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import {
   ChevronLeft, Pencil, Trash2, Check, X, Download, FolderOpen,
   CreditCard, PlusCircle, Trophy, Car, Wallet, Zap, Receipt,
-  FileText, Sheet, Tag, Bus, CheckCircle2,
+  FileText, Sheet, Tag, Bus, CheckCircle2, Loader2, AlertCircle,
 } from 'lucide-react';
 import type { HistoryEntry, Expense, UberRide, BudgetPlan } from '@/lib/types';
 import { format } from 'date-fns';
@@ -504,9 +504,11 @@ function buildTxt(args: ExportBuilderArgs): Blob {
 
 // ─── Export Dialog ─────────────────────────────────────────────────────────────
 
+type ExportStatus = 'idle' | 'preparing' | 'saving' | 'success' | 'error';
+
 function ExportDialog({
   open, onClose, tab, initials, exportFolderUri, exportFolderName,
-  onPickFolder, onConfirm,
+  onPickFolder, onDownload, status, result, onReset,
 }: {
   open: boolean;
   onClose: () => void;
@@ -515,7 +517,10 @@ function ExportDialog({
   exportFolderUri: string;
   exportFolderName: string;
   onPickFolder: () => void;
-  onConfirm: (fmt: ExportFormat) => void;
+  onDownload: (fmt: ExportFormat) => void;
+  status: ExportStatus;
+  result: { filename: string; folder: string; error?: string } | null;
+  onReset: () => void;
 }) {
   const [fmt, setFmt] = useState<ExportFormat>('pdf');
   const [isNative, setIsNative] = useState(false);
@@ -524,73 +529,132 @@ function ExportDialog({
     import('@capacitor/core').then(({ Capacitor }) => setIsNative(Capacitor.isNativePlatform()));
   }, []);
 
+  const busy = status === 'preparing' || status === 'saving';
   const filename = `${initials}-${tab}-${buildDateStamp()}.${fmt}`;
   const folderDisplay = exportFolderName || (isNative ? 'No folder chosen' : 'Downloads folder');
 
   return (
-    <Dialog open={open} onOpenChange={v => { if (!v) onClose(); }}>
-      <DialogContent className="sm:max-w-sm">
-        <DialogHeader>
-          <DialogTitle>Export {TAB_LABELS[tab]} History</DialogTitle>
-        </DialogHeader>
+    // A single dialog drives the whole flow — no second dialog ever opens, which avoids the
+    // Radix scroll-lock race that previously froze the app after exporting. Closing is blocked
+    // while a file is being written.
+    <Dialog open={open} onOpenChange={v => { if (!v && !busy) onClose(); }}>
+      <DialogContent className="sm:max-w-sm" onInteractOutside={e => { if (busy) e.preventDefault(); }} onEscapeKeyDown={e => { if (busy) e.preventDefault(); }}>
 
-        <div className="space-y-4">
-          {/* Format picker */}
-          <div>
-            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2">Format</p>
-            <div className="grid grid-cols-3 gap-2">
-              {(['pdf', 'csv', 'txt'] as ExportFormat[]).map(f => (
-                <button
-                  key={f}
-                  onClick={() => setFmt(f)}
-                  className={cn(
-                    'py-2 rounded-xl text-xs font-semibold border transition-colors flex flex-col items-center gap-1',
-                    fmt === f
-                      ? 'bg-primary text-primary-foreground border-primary'
-                      : 'bg-transparent text-muted-foreground border-border hover:border-muted-foreground/40'
+        {status === 'idle' && (
+          <>
+            <DialogHeader>
+              <DialogTitle>Export {TAB_LABELS[tab]} History</DialogTitle>
+            </DialogHeader>
+
+            <div className="space-y-4">
+              {/* Format picker */}
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2">Format</p>
+                <div className="grid grid-cols-3 gap-2">
+                  {(['pdf', 'csv', 'txt'] as ExportFormat[]).map(f => (
+                    <button
+                      key={f}
+                      onClick={() => setFmt(f)}
+                      className={cn(
+                        'py-2 rounded-xl text-xs font-semibold border transition-colors flex flex-col items-center gap-1',
+                        fmt === f
+                          ? 'bg-primary text-primary-foreground border-primary'
+                          : 'bg-transparent text-muted-foreground border-border hover:border-muted-foreground/40'
+                      )}
+                    >
+                      {f === 'pdf' && <FileText className="h-4 w-4" />}
+                      {f === 'csv' && <Sheet className="h-4 w-4" />}
+                      {f === 'txt' && <FileText className="h-4 w-4" />}
+                      {f.toUpperCase()}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Save location */}
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2">Save to</p>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={isNative ? onPickFolder : undefined}
+                    className={cn(
+                      'flex-1 flex items-center gap-2 rounded-xl bg-muted/40 px-3 py-2.5 text-left',
+                      isNative && 'hover:bg-muted/60 transition-colors cursor-pointer'
+                    )}
+                  >
+                    <FolderOpen className="h-4 w-4 shrink-0 text-muted-foreground" />
+                    <span className={cn('text-xs truncate', !exportFolderUri && isNative ? 'text-muted-foreground/60 italic' : 'text-foreground')}>
+                      {folderDisplay}
+                    </span>
+                  </button>
+                  {isNative && (
+                    <Button size="sm" variant="ghost" onClick={onPickFolder} className="shrink-0 h-9 text-xs">
+                      Change
+                    </Button>
                   )}
-                >
-                  {f === 'pdf' && <FileText className="h-4 w-4" />}
-                  {f === 'csv' && <Sheet className="h-4 w-4" />}
-                  {f === 'txt' && <FileText className="h-4 w-4" />}
-                  {f.toUpperCase()}
-                </button>
-              ))}
+                </div>
+                <p className="text-[10px] text-muted-foreground/50 mt-1.5 pl-1">{filename}</p>
+              </div>
             </div>
-          </div>
 
-          {/* Save location */}
-          <div>
-            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2">Save to</p>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={isNative ? onPickFolder : undefined}
-                className={cn(
-                  'flex-1 flex items-center gap-2 rounded-xl bg-muted/40 px-3 py-2.5 text-left',
-                  isNative && 'hover:bg-muted/60 transition-colors cursor-pointer'
-                )}
-              >
-                <FolderOpen className="h-4 w-4 shrink-0 text-muted-foreground" />
-                <span className={cn('text-xs truncate', !exportFolderUri && isNative ? 'text-muted-foreground/60 italic' : 'text-foreground')}>
-                  {folderDisplay}
-                </span>
-              </button>
-              {isNative && (
-                <Button size="sm" variant="ghost" onClick={onPickFolder} className="shrink-0 h-9 text-xs">
-                  Change
-                </Button>
-              )}
+            <DialogFooter className="mt-2 gap-2">
+              <Button variant="secondary" onClick={onClose}>Cancel</Button>
+              <Button onClick={() => onDownload(fmt)} className="gap-2">
+                <Download className="h-4 w-4" /> Download
+              </Button>
+            </DialogFooter>
+          </>
+        )}
+
+        {busy && (
+          <>
+            <DialogHeader>
+              <DialogTitle>{status === 'preparing' ? 'Preparing file…' : 'Saving file…'}</DialogTitle>
+            </DialogHeader>
+            <div className="flex flex-col items-center gap-4 py-6">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                <div className="loading-bar-fill h-full w-1/3 rounded-full bg-primary" />
+              </div>
+              <p className="text-xs text-muted-foreground font-mono">{filename}</p>
             </div>
-            <p className="text-[10px] text-muted-foreground/50 mt-1.5 pl-1">{filename}</p>
-          </div>
-        </div>
+          </>
+        )}
 
-        <DialogFooter className="mt-2 gap-2">
-          <Button variant="secondary" onClick={onClose}>Cancel</Button>
-          <Button onClick={() => { onConfirm(fmt); onClose(); }} className="gap-2">
-            <Download className="h-4 w-4" /> Download
-          </Button>
-        </DialogFooter>
+        {status === 'success' && result && (
+          <>
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <CheckCircle2 className="h-5 w-5 text-green-500" /> File saved
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-1.5 py-2">
+              <p className="text-sm font-semibold text-foreground font-mono break-all">{result.filename}</p>
+              <p className="text-xs text-muted-foreground">Saved to {result.folder} folder.</p>
+            </div>
+            <DialogFooter>
+              <Button onClick={onClose} className="w-full">Done</Button>
+            </DialogFooter>
+          </>
+        )}
+
+        {status === 'error' && (
+          <>
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <AlertCircle className="h-5 w-5 text-red-500" /> Export failed
+              </DialogTitle>
+            </DialogHeader>
+            <p className="text-sm text-muted-foreground py-2">{result?.error ?? 'Something went wrong while exporting.'}</p>
+            <DialogFooter className="gap-2">
+              <Button variant="secondary" onClick={onClose}>Close</Button>
+              <Button onClick={() => { onReset(); onDownload(fmt); }} className="gap-2">
+                <Download className="h-4 w-4" /> Try again
+              </Button>
+            </DialogFooter>
+          </>
+        )}
+
       </DialogContent>
     </Dialog>
   );
@@ -601,12 +665,12 @@ function ExportDialog({
 const TYPE_CFG: Record<string, { label: string; color: string; bg: string; Icon: React.ElementType }> = {
   payment:    { label: 'Payment',    color: 'text-primary',          bg: 'bg-primary/15',        Icon: CreditCard  },
   creation:   { label: 'Created',    color: 'text-muted-foreground', bg: 'bg-muted/80',          Icon: PlusCircle  },
-  completion: { label: 'Completed',  color: 'text-green-500',        bg: 'bg-green-500/15',      Icon: Trophy      },
-  transport:  { label: 'Transport',  color: 'text-blue-400',         bg: 'bg-blue-400/15',       Icon: Car         },
-  budget:     { label: 'Budget',     color: 'text-purple-400',       bg: 'bg-purple-400/15',     Icon: Wallet      },
-  expense:    { label: 'Expense',    color: 'text-orange-400',       bg: 'bg-orange-400/15',     Icon: Receipt     },
-  employment: { label: 'Employment', color: 'text-teal-400',         bg: 'bg-teal-400/15',       Icon: Bus         },
-  snapshot:   { label: 'Summary',    color: 'text-sky-400',          bg: 'bg-sky-400/15',        Icon: Zap         },
+  completion: { label: 'Completed',  color: 'text-completion',       bg: 'bg-completion/15',     Icon: Trophy      },
+  transport:  { label: 'Transport',  color: 'text-transport',        bg: 'bg-transport/15',      Icon: Car         },
+  budget:     { label: 'Budget',     color: 'text-budget',           bg: 'bg-budget/15',         Icon: Wallet      },
+  expense:    { label: 'Expense',    color: 'text-expense',          bg: 'bg-expense/15',        Icon: Receipt     },
+  employment: { label: 'Employment', color: 'text-employment',       bg: 'bg-employment/15',     Icon: Bus         },
+  snapshot:   { label: 'Summary',    color: 'text-snapshot',         bg: 'bg-snapshot/15',       Icon: Zap         },
 };
 
 function TypeBadge({ type, label }: { type: string; label?: string }) {
@@ -652,7 +716,7 @@ function EntryRow({ entry, onUpdate, onDelete, showDebt = false }: {
       <div className="flex items-center gap-0.5 shrink-0">
         {editing ? (
           <>
-            <button onClick={save} className="p-2.5 rounded-xl text-green-500 active:bg-green-500/10"><Check size={15} /></button>
+            <button onClick={save} className="p-2.5 rounded-xl text-positive active:bg-positive/10"><Check size={15} /></button>
             <button onClick={cancel} className="p-2.5 rounded-xl text-muted-foreground active:bg-muted"><X size={15} /></button>
           </>
         ) : (
@@ -699,8 +763,9 @@ export default function HistoryPage() {
   const [activeTab, setActiveTab] = useState<TabId>('all');
   const [exportOpen, setExportOpen] = useState(false);
   const [choosingFolder, setChoosingFolder] = useState(false);
-  const [confirmFmt, setConfirmFmt] = useState<ExportFormat | null>(null);
-  const [showSuccess, setShowSuccess] = useState(false);
+  // Single-dialog export flow: 'idle' shows the picker, then preparing→saving→success/error.
+  const [exportStatus, setExportStatus] = useState<'idle' | 'preparing' | 'saving' | 'success' | 'error'>('idle');
+  const [exportResult, setExportResult] = useState<{ filename: string; folder: string; error?: string } | null>(null);
 
   const initials = getInitials(userProfile.name);
 
@@ -767,23 +832,35 @@ export default function HistoryPage() {
     finally { setChoosingFolder(false); }
   };
 
+  // Reset + close the export dialog, clearing any leftover Radix body scroll-lock.
+  const closeExport = () => {
+    setExportOpen(false);
+    setExportStatus('idle');
+    setExportResult(null);
+    // Defensive: ensure no stale pointer-events lock remains on <body> after the dialog unmounts.
+    setTimeout(() => { document.body.style.pointerEvents = ''; }, 0);
+  };
+
   // ── Download handler ──────────────────────────────────────────────────────────
+  // Runs entirely inside the single export dialog (no second dialog opens), driving the
+  // preparing → saving → success/error progress UI.
   const handleDownload = async (fmt: ExportFormat) => {
-    setConfirmFmt(null);
     const args: ExportBuilderArgs = { history, expenses, uberRides, budgetPlans, debts, userName: userProfile.name, tab: activeTab };
+    const filename = `${initials || 'U'}-${activeTab}-${buildDateStamp()}.${fmt}`;
+    setExportStatus('preparing');
+    setExportResult(null);
     try {
       let blob: Blob;
-      const ext = fmt;
       if (fmt === 'pdf') blob = await buildPdf(args);
       else if (fmt === 'csv') blob = buildCsv(args);
       else blob = buildTxt(args);
 
-      const filename = `${initials || 'U'}-${activeTab}-${buildDateStamp()}.${ext}`;
+      setExportStatus('saving');
       const { Capacitor } = await import('@capacitor/core');
       if (!Capacitor.isNativePlatform()) {
         triggerDownload(blob, filename);
-        setShowSuccess(true);
-        setTimeout(() => setShowSuccess(false), 2500);
+        setExportResult({ filename, folder: 'Downloads' });
+        setExportStatus('success');
         return;
       }
 
@@ -791,7 +868,7 @@ export default function HistoryPage() {
       let folderName = exportFolderName || 'your folder';
       if (!uri) {
         const picked = await FolderAccess.pickFolder().catch(() => null);
-        if (!picked) return;
+        if (!picked) { setExportStatus('idle'); return; }
         setExportFolder(picked.uri, picked.name || 'Selected folder');
         uri = picked.uri; folderName = picked.name;
       }
@@ -805,9 +882,11 @@ export default function HistoryPage() {
         await LocalNotifications.schedule({ notifications: [{ title: 'File Saved', body: `${filename} saved to ${folderName}`, id: (Date.now() % 100000) + 1000, channelId: 'downloads' }] });
       } catch { /* notification failure is non-fatal */ }
 
-      setShowSuccess(true);
-      setTimeout(() => setShowSuccess(false), 2500);
+      setExportResult({ filename, folder: folderName });
+      setExportStatus('success');
     } catch (err) {
+      setExportResult({ filename, folder: '', error: `Could not export ${fmt.toUpperCase()} file.` });
+      setExportStatus('error');
       setAppError({ friendly: `Could not export ${fmt.toUpperCase()} file.`, operation: `handleDownload (${activeTab}/${fmt}) in HistoryPage`, error: err, ts: Date.now() });
     }
   };
@@ -851,19 +930,44 @@ export default function HistoryPage() {
         ))}
       </div>
 
-      {/* Summary pill */}
-      <div className="bg-card rounded-2xl px-4 py-3.5 mb-3">
-        <p className="text-lg font-black tabular-nums text-primary">{tabStats[activeTab].label}</p>
-        <p className="text-[10px] text-muted-foreground uppercase tracking-widest mt-0.5">{tabStats[activeTab].sub}</p>
-      </div>
-
-      {/* Export button */}
-      <button
-        onClick={() => setExportOpen(true)}
-        className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-muted/50 hover:bg-muted text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors mb-4"
-      >
-        <Download size={14} /> Export {TAB_LABELS[activeTab]}
-      </button>
+      {/* Summary — split Transport vs Uber on the transport tab, single pill elsewhere */}
+      {activeTab === 'transport' ? (
+        <div className="grid grid-cols-2 gap-2 mb-4">
+          <div className="bg-card rounded-2xl px-4 py-3.5">
+            <p className="text-lg font-black tabular-nums text-primary">
+              {formatCurrency(transportEntries.reduce((s, e) => s + e.amount, 0))}
+            </p>
+            <p className="text-[10px] text-muted-foreground uppercase tracking-widest mt-0.5">
+              Transport · {transportEntries.length} month{transportEntries.length !== 1 ? 's' : ''}
+            </p>
+          </div>
+          <div className="relative bg-card rounded-2xl overflow-hidden px-4 py-3.5">
+            <button
+              onClick={() => setExportOpen(true)}
+              className="absolute inset-y-0 right-0 w-14 flex items-center justify-center rounded-r-2xl text-muted-foreground/40 active:bg-muted/60 transition-colors"
+            >
+              <Download size={16} />
+            </button>
+            <p className="text-lg font-black tabular-nums text-primary">
+              {formatCurrency(uberRides.reduce((s, r) => s + r.price, 0))}
+            </p>
+            <p className="text-[10px] text-muted-foreground uppercase tracking-widest mt-0.5">
+              Uber · {uberRides.length} ride{uberRides.length !== 1 ? 's' : ''}
+            </p>
+          </div>
+        </div>
+      ) : (
+        <div className="relative bg-card rounded-2xl overflow-hidden px-4 py-3.5 mb-4">
+          <button
+            onClick={() => setExportOpen(true)}
+            className="absolute inset-y-0 right-0 w-14 flex items-center justify-center rounded-r-2xl text-muted-foreground/40 active:bg-muted/60 transition-colors"
+          >
+            <Download size={16} />
+          </button>
+          <p className="text-lg font-black tabular-nums text-primary">{tabStats[activeTab].label}</p>
+          <p className="text-[10px] text-muted-foreground uppercase tracking-widest mt-0.5">{tabStats[activeTab].sub}</p>
+        </div>
+      )}
 
       {/* Content */}
       <div>
@@ -912,7 +1016,7 @@ export default function HistoryPage() {
                   <div className="px-4 pt-4 pb-1 flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{debtTitle}</p>
-                      {isComplete && <span className="text-[9px] bg-green-500/15 text-green-500 px-1.5 py-0.5 rounded-full font-semibold">PAID OFF</span>}
+                      {isComplete && <span className="text-[9px] bg-positive/15 text-positive px-1.5 py-0.5 rounded-full font-semibold">PAID OFF</span>}
                     </div>
                     {groupTotal > 0 && <p className="text-[10px] text-muted-foreground/60 tabular-nums">{formatCurrency(groupTotal)} paid</p>}
                   </div>
@@ -952,7 +1056,7 @@ export default function HistoryPage() {
                   {sortedUber.map(ride => (
                     <div key={ride.id} className="cv-auto flex items-center gap-3 py-3 border-b border-border/30 last:border-0">
                       <div className="flex-1 min-w-0">
-                        <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-full bg-blue-400/15 text-blue-400">
+                        <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-full bg-transport/15 text-transport">
                           <Car size={10} /> Uber
                         </span>
                         {(ride.from || ride.to) && (
@@ -996,7 +1100,7 @@ export default function HistoryPage() {
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className="text-sm font-semibold text-foreground truncate">{expense.title}</span>
                           {expense.category && (
-                            <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-orange-400/15 text-orange-400">
+                            <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-expense/15 text-expense">
                               <Tag size={9} />{expense.category}
                             </span>
                           )}
@@ -1058,60 +1162,20 @@ export default function HistoryPage() {
         )}
       </div>
 
-      {/* Export dialog — step 1: pick format & folder */}
+      {/* Export — single dialog: pick format/folder, then live progress, then result */}
       <ExportDialog
         open={exportOpen}
-        onClose={() => setExportOpen(false)}
+        onClose={closeExport}
         tab={activeTab}
         initials={initials}
         exportFolderUri={exportFolderUri}
         exportFolderName={exportFolderName}
         onPickFolder={pickFolder}
-        onConfirm={fmt => { setConfirmFmt(fmt); }}
+        onDownload={handleDownload}
+        status={exportStatus}
+        result={exportResult}
+        onReset={() => setExportStatus('idle')}
       />
-
-      {/* Confirm dialog — step 2: are you sure? */}
-      <AlertDialog open={confirmFmt !== null} onOpenChange={v => { if (!v) setConfirmFmt(null); }}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Download file?</AlertDialogTitle>
-            <AlertDialogDescription>
-              {confirmFmt && (
-                <>
-                  <span className="font-mono text-xs text-foreground">
-                    {`${initials || 'U'}-${activeTab}-${buildDateStamp()}.${confirmFmt}`}
-                  </span>
-                  {' '}will be saved to your {exportFolderName || 'Downloads'} folder.
-                </>
-              )}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setConfirmFmt(null)}>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={() => confirmFmt && handleDownload(confirmFmt)} className="gap-2">
-              <Download className="h-4 w-4" /> Download
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      {/* Success toast — auto-dismisses after 2.5 s */}
-      <AnimatePresence>
-        {showSuccess && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 20 }}
-            transition={{ duration: 0.2 }}
-            className="fixed bottom-24 inset-x-0 flex justify-center pointer-events-none z-50"
-          >
-            <div className="flex items-center gap-2 bg-card border border-border rounded-full px-5 py-2.5 shadow-lg text-sm font-semibold text-foreground">
-              <CheckCircle2 size={16} className="text-green-500 shrink-0" />
-              File saved successfully
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
     </motion.div>
   );
 }

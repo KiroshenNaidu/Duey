@@ -204,7 +204,7 @@ export function DebtCard({ debt }: DebtCardProps) {
 
                   <Progress
                     value={progress}
-                    className={cn('h-3 rounded-full', isPaidOff ? '[&>*]:bg-green-500' : '[&>*]:bg-primary')}
+                    className={cn('h-3 rounded-full', isPaidOff ? '[&>*]:bg-positive' : '[&>*]:bg-primary')}
                   />
                   <div className="flex justify-between mt-2 text-xs">
                     <span className="font-semibold text-foreground">{formatCurrency(amountPaid)} paid</span>
@@ -282,7 +282,7 @@ export function DebtCard({ debt }: DebtCardProps) {
       </CardHeader>
       
       <CardContent className="space-y-2">
-         <Progress value={progress} className={cn("h-1.5", isPaidOff ? '[&>*]:bg-green-500' : '')} />
+         <Progress value={progress} className={cn("h-1.5", isPaidOff ? '[&>*]:bg-positive' : '')} />
          <div className="flex justify-between items-baseline">
             <span className="text-xs text-muted-foreground">{formatCurrency(amountPaid)} Paid</span>
             <span className="text-xs text-muted-foreground">/ {formatCurrency(debt.total_owed)}</span>

@@ -19,14 +19,14 @@ type ProcessedHistoryEntry = HistoryEntry & { balanceAfter?: number };
 // ─────────────────────────────────────────────────────────────────────────────
 
 const TYPE_BADGE_CONFIG: Record<HistoryEntry['type'], { label: string; className: string }> = {
-  payment:    { label: 'Payment',    className: 'bg-green-500/15 text-green-600 dark:text-green-400' },
-  transport:  { label: 'Transport',  className: 'bg-blue-500/15 text-blue-600 dark:text-blue-400' },
+  payment:    { label: 'Payment',    className: 'bg-positive/15 text-positive' },
+  transport:  { label: 'Transport',  className: 'bg-transport/15 text-transport' },
   creation:   { label: 'Created',    className: 'bg-muted text-muted-foreground' },
-  completion: { label: 'Paid Off',   className: 'bg-amber-400/15 text-amber-600 dark:text-amber-400' },
-  budget:     { label: 'Budget',     className: 'bg-purple-500/15 text-purple-600 dark:text-purple-400' },
-  expense:    { label: 'Expense',    className: 'bg-orange-500/15 text-orange-600 dark:text-orange-400' },
-  employment: { label: 'Employment', className: 'bg-teal-500/15 text-teal-600 dark:text-teal-400' },
-  snapshot:   { label: 'Summary',   className: 'bg-sky-500/15 text-sky-600 dark:text-sky-400' },
+  completion: { label: 'Paid Off',   className: 'bg-completion/15 text-completion' },
+  budget:     { label: 'Budget',     className: 'bg-budget/15 text-budget' },
+  expense:    { label: 'Expense',    className: 'bg-expense/15 text-expense' },
+  employment: { label: 'Employment', className: 'bg-employment/15 text-employment' },
+  snapshot:   { label: 'Summary',   className: 'bg-snapshot/15 text-snapshot' },
 };
 
 function TypeBadge({ type }: { type: HistoryEntry['type'] }) {
@@ -46,14 +46,14 @@ function TypeBadge({ type }: { type: HistoryEntry['type'] }) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 const ENTRY_BORDER: Record<HistoryEntry['type'], string> = {
-  payment:    'border-l-green-500',
-  transport:  'border-l-blue-500',
+  payment:    'border-l-positive',
+  transport:  'border-l-transport',
   creation:   'border-l-muted-foreground/30',
-  completion: 'border-l-amber-400',
-  budget:     'border-l-purple-500',
-  expense:    'border-l-orange-500',
-  employment: 'border-l-teal-500',
-  snapshot:   'border-l-sky-500',
+  completion: 'border-l-completion',
+  budget:     'border-l-budget',
+  expense:    'border-l-expense',
+  employment: 'border-l-employment',
+  snapshot:   'border-l-snapshot',
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -127,7 +127,7 @@ function HistoryItem({ entry }: { entry: ProcessedHistoryEntry }) {
             </p>
           )}
           {isSnapshot && (
-            <p className="font-mono font-semibold text-sm text-sky-500">
+            <p className="font-mono font-semibold text-sm text-snapshot">
               {formatCurrency(entry.amount)}
             </p>
           )}

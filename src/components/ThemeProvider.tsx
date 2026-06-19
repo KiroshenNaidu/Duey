@@ -2,26 +2,31 @@
 
 import { ReactNode, useEffect, useState, useContext } from 'react';
 import { idbGet } from '@/lib/utils';
-import { Inter, Nunito, Lexend, DM_Sans, Space_Grotesk, Playfair_Display } from 'next/font/google';
+import { Inter } from 'next/font/google';
 import { AppDataContext } from '@/context/AppDataContext';
+import type { ThemeSettings } from '@/lib/types';
 
-const inter         = Inter          ({ subsets: ['latin'], variable: '--font-inter',         display: 'swap' });
-const nunito        = Nunito         ({ subsets: ['latin'], variable: '--font-nunito',        display: 'swap' });
-const lexend        = Lexend         ({ subsets: ['latin'], variable: '--font-lexend',        display: 'swap' });
-const dmSans        = DM_Sans        ({ subsets: ['latin'], variable: '--font-dm-sans',       display: 'swap' });
-const spaceGrotesk  = Space_Grotesk  ({ subsets: ['latin'], variable: '--font-space-grotesk', display: 'swap' });
-const playfair      = Playfair_Display({ subsets: ['latin'], variable: '--font-playfair',     display: 'swap' });
+// Themeable status / category colors — single source of truth shared by the apply effect,
+// the theme editor, and the default state. `default` mirrors the CSS :root fallback.
+export const STATUS_COLOR_VARS: { field: keyof ThemeSettings; cssVar: string; label: string; default: string }[] = [
+  { field: 'positive',      cssVar: '--positive',       label: 'Positive',   default: '142 71% 45%' },
+  { field: 'negative',      cssVar: '--negative',       label: 'Negative',   default: '358 100% 50%' },
+  { field: 'catTransport',  cssVar: '--cat-transport',  label: 'Transport',  default: '217 91% 60%' },
+  { field: 'catBudget',     cssVar: '--cat-budget',     label: 'Budget',     default: '271 91% 65%' },
+  { field: 'catExpense',    cssVar: '--cat-expense',    label: 'Expense',    default: '25 95% 53%' },
+  { field: 'catCompletion', cssVar: '--cat-completion', label: 'Completed',  default: '43 96% 56%' },
+  { field: 'catEmployment', cssVar: '--cat-employment', label: 'Employment', default: '173 80% 40%' },
+  { field: 'catSnapshot',   cssVar: '--cat-snapshot',   label: 'Summary',    default: '199 89% 48%' },
+];
 
-export const FONT_VAR_MAP: Record<string, string> = {
-  Inter:           'var(--font-inter)',
-  Serif:           'serif',
-  Mono:            'monospace',
-  Nunito:          'var(--font-nunito)',
-  Lexend:          'var(--font-lexend)',
-  'DM Sans':       'var(--font-dm-sans)',
-  'Space Grotesk': 'var(--font-space-grotesk)',
-  Playfair:        'var(--font-playfair)',
-};
+/** Apply themeable status colors (falling back to defaults) onto a style target. */
+export function applyStatusColors(root: HTMLElement, settings: Partial<ThemeSettings>) {
+  for (const { field, cssVar, default: def } of STATUS_COLOR_VARS) {
+    root.style.setProperty(cssVar, (settings[field] as string) || def);
+  }
+}
+
+const inter = Inter({ subsets: ['latin'], variable: '--font-inter', display: 'swap' });
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const { themeSettings } = useContext(AppDataContext);
@@ -64,7 +69,8 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     root.style.setProperty('--ring', themeSettings.accent);
     root.style.setProperty('--foreground', themeSettings.foreground);
     root.style.setProperty('--accent-foreground', themeSettings.accentForeground);
-    root.style.setProperty('--font-family', FONT_VAR_MAP[themeSettings.font] ?? 'var(--font-inter)');
+    root.style.setProperty('--font-family', 'var(--font-inter)');
+    applyStatusColors(root, themeSettings);
     root.style.setProperty('--bg-x', `${themeSettings.bgX ?? 50}%`);
     root.style.setProperty('--bg-y', `${themeSettings.bgY ?? 50}%`);
     root.style.setProperty('--glass-opacity', String(themeSettings.glassOpacity ?? 0.55));
@@ -78,13 +84,8 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   }, [themeSettings, backgroundImage, isImageReady]);
 
-  const fontClasses = [
-    inter.variable, nunito.variable, lexend.variable,
-    dmSans.variable, spaceGrotesk.variable, playfair.variable,
-  ].join(' ');
-
   return (
-    <div className={fontClasses}>
+    <div className={inter.variable}>
       <div
         id="global-bg-image"
         className="fixed inset-0 z-[-10] bg-cover"

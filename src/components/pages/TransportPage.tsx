@@ -121,7 +121,7 @@ export function TransportPage() {
           <span className={cn(
             "text-[10px] px-1.5 py-0.5 rounded-full font-semibold shrink-0",
             transportSettings.employed
-              ? "bg-green-500/20 text-green-400"
+              ? "bg-positive/20 text-positive"
               : "bg-muted text-muted-foreground"
           )}>
             {transportSettings.employed ? 'Employed' : 'Off'}
@@ -348,6 +348,7 @@ export function TransportPage() {
                     key={isoDate}
                     disabled={!isEditingCalendar || isLocked || isPaidForMonth}
                     onClick={() => handleDayToggle(day)}
+                    style={isToday ? { boxShadow: '0 0 10px 3px hsl(var(--accent) / 0.4)' } : undefined}
                     className={cn(
                       "h-7 w-7 rounded-full flex flex-col items-center justify-center transition-all duration-200 text-[10px]",
                       (isEditingCalendar && !isLocked && !isPaidForMonth) ? 'cursor-pointer hover:scale-105' : 'cursor-default',
@@ -373,6 +374,7 @@ export function TransportPage() {
                   <button
                     key={isoDate}
                     onClick={() => setUberDialogDate(isoDate)}
+                    style={isToday ? { boxShadow: '0 0 10px 3px hsl(var(--accent) / 0.4)' } : undefined}
                     className={cn(
                       "h-7 w-7 rounded-full flex flex-col items-center justify-center transition-all duration-200 text-[10px] cursor-pointer hover:scale-105",
                       hasRides ? 'bg-accent/30 text-foreground' : 'bg-muted/20 text-muted-foreground opacity-50',
@@ -439,7 +441,7 @@ export function TransportPage() {
             <Button
               className={cn(
                 "w-full h-8 text-xs font-bold",
-                isPaidForMonth && "bg-green-600/20 text-green-400 border border-green-600/30 hover:bg-destructive/20 hover:text-destructive hover:border-destructive/30"
+                isPaidForMonth && "bg-positive/20 text-positive border border-positive/30 hover:bg-destructive/20 hover:text-destructive hover:border-destructive/30"
               )}
               variant={isPaidForMonth ? 'outline' : 'default'}
               onClick={handleMarkAsPaid}

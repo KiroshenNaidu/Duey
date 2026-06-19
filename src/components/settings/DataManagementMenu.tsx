@@ -8,7 +8,7 @@ import type { AppData } from '@/lib/types';
 import { idbGet, idbSet } from '@/lib/utils';
 import { FolderAccess } from '@/lib/folderAccess';
 import { subMonths, isAfter } from 'date-fns';
-import { Download, Upload, Trash2, Code, Sparkles, FileText, FileSpreadsheet, Sheet, BookOpen, Settings2, BarChart3, FolderOpen } from 'lucide-react';
+import { Download, Upload, Trash2, Code, Sparkles, FileText, FileSpreadsheet, Sheet, BookOpen, Settings2, BarChart3, FolderOpen, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Textarea } from '@/components/ui/textarea';
@@ -216,6 +216,13 @@ export function DataManagementMenu() {
   const [isNative, setIsNative] = useState(false);
   const [choosingFolder, setChoosingFolder] = useState(false);
 
+  // Single-dialog export flow (mirrors the History page): preparing → saving → success/error,
+  // so every export here shows the same download popup and "File saved" confirmation.
+  const [exportOpen, setExportOpen] = useState(false);
+  const [exportStatus, setExportStatus] = useState<'idle' | 'preparing' | 'saving' | 'success' | 'error'>('idle');
+  const [exportResult, setExportResult] = useState<{ filename: string; folder: string; error?: string } | null>(null);
+  const exportBusy = exportStatus === 'preparing' || exportStatus === 'saving';
+
   const initials = getInitials(userProfile.name);
 
   // Detect native platform once on mount (Capacitor.isNativePlatform is sync but core is dynamically imported elsewhere).
@@ -267,11 +274,13 @@ export function DataManagementMenu() {
     }
   };
 
-  const downloadFile = async (blob: Blob, filename: string) => {
+  // Save a built blob and return the folder it landed in ('Downloads' on web), or null if the
+  // user cancelled the folder picker. Throws on a genuine save failure so runExport can surface it.
+  const saveBlob = async (blob: Blob, filename: string): Promise<string | null> => {
     const { Capacitor } = await import('@capacitor/core');
     if (!Capacitor.isNativePlatform()) {
       triggerDownload(blob, filename);
-      return;
+      return 'Downloads';
     }
 
     // First export (or grant was revoked): ask the user to pick a folder once.
@@ -280,55 +289,66 @@ export function DataManagementMenu() {
     let folderName = exportFolderName || 'your folder';
     if (!uri) {
       const picked = await chooseFolder();
-      if (!picked) return; // user cancelled
+      if (!picked) return null; // user cancelled
       uri = picked.uri;
       folderName = picked.name;
     }
 
+    const base64 = await blobToBase64(blob);
     try {
-      const base64 = await blobToBase64(blob);
-      try {
-        await FolderAccess.saveFile({
-          folderUri: uri,
-          name: filename,
-          mimeType: blob.type || 'application/octet-stream',
-          data: base64,
-        });
-      } catch (saveErr) {
-        // Grant lost (folder deleted / SD card removed / permission cleared) → re-pick once.
-        const repicked = await chooseFolder();
-        if (!repicked) {
-          setAppError({
-            friendly: `Couldn't access your export folder. Choose a new one and try again.`,
-            operation: 'FolderAccess.saveFile (retry) in DataManagementMenu',
-            error: saveErr,
-            ts: Date.now(),
-          });
-          return;
-        }
-        await FolderAccess.saveFile({
-          folderUri: repicked.uri,
-          name: filename,
-          mimeType: blob.type || 'application/octet-stream',
-          data: base64,
-        });
-        folderName = repicked.name;
-      }
-      await notifySaved(filename, folderName);
-    } catch (err) {
-      setAppError({
-        friendly: `Could not save ${filename} — storage may be unavailable.`,
-        operation: 'downloadFile (native) in DataManagementMenu',
-        error: err,
-        ts: Date.now(),
+      await FolderAccess.saveFile({
+        folderUri: uri,
+        name: filename,
+        mimeType: blob.type || 'application/octet-stream',
+        data: base64,
       });
+    } catch (saveErr) {
+      // Grant lost (folder deleted / SD card removed / permission cleared) → re-pick once.
+      const repicked = await chooseFolder();
+      if (!repicked) throw saveErr;
+      await FolderAccess.saveFile({
+        folderUri: repicked.uri,
+        name: filename,
+        mimeType: blob.type || 'application/octet-stream',
+        data: base64,
+      });
+      folderName = repicked.name;
     }
+    await notifySaved(filename, folderName);
+    return folderName;
+  };
+
+  // Drives the shared export dialog: open → preparing (build the blob) → saving → success/error.
+  const runExport = async (type: string, ext: string, build: () => Blob | Promise<Blob>) => {
+    const filename = buildFilename(initials, type, ext);
+    setExportResult({ filename, folder: '' });
+    setExportStatus('preparing');
+    setExportOpen(true);
+    try {
+      const blob = await build();
+      setExportStatus('saving');
+      const folder = await saveBlob(blob, filename);
+      if (folder === null) { closeExport(); return; } // user cancelled folder pick
+      setExportResult({ filename, folder });
+      setExportStatus('success');
+    } catch (err) {
+      setExportResult({ filename, folder: '', error: `Could not export ${ext.toUpperCase()} file — storage may be unavailable.` });
+      setExportStatus('error');
+      setAppError({ friendly: `Could not export ${ext.toUpperCase()} file.`, operation: `runExport (${type}/${ext}) in DataManagementMenu`, error: err, ts: Date.now() });
+    }
+  };
+
+  // Close + reset the export dialog, clearing any stale Radix body scroll-lock.
+  const closeExport = () => {
+    setExportOpen(false);
+    setExportStatus('idle');
+    setExportResult(null);
+    setTimeout(() => { document.body.style.pointerEvents = ''; }, 0);
   };
 
   // ── History exports ─────────────────────────────────────────────────────────
 
-  const exportAsTxt = async () => {
-    try {
+  const exportAsTxt = (): Blob => {
       const s = getAppState();
       const lines: string[] = [
         'DUEY — History Export',
@@ -382,14 +402,10 @@ export function DataManagementMenu() {
         lines.push(`\n  ${p.name} — Budget R${p.budget}, Spent R${spent}`);
         p.items.forEach(i => lines.push(`    - ${i.name}: R${i.price}${i.link ? ` (${i.link})` : ''}`));
       });
-      await downloadFile(new Blob([lines.join('\n')], { type: 'text/plain' }), buildFilename(initials, 'history', 'txt'));
-    } catch (err) {
-      setAppError({ friendly: 'Could not export text file.', operation: 'exportAsTxt in DataManagementMenu', error: err, ts: Date.now() });
-    }
+      return new Blob([lines.join('\n')], { type: 'text/plain' });
   };
 
-  const exportAsCsv = async () => {
-    try {
+  const exportAsCsv = (): Blob => {
       const s = getAppState();
       const rows: string[][] = [['Date', 'Type', 'Name', 'Amount (R)', 'Notes']];
       s.history.forEach(h => rows.push([formatDate(h.date), h.type, h.debtTitle, String(h.amount), h.note ?? '']));
@@ -397,14 +413,10 @@ export function DataManagementMenu() {
       s.expenses.forEach(e => rows.push([formatDate(e.date), 'expense', `${e.title}${e.category ? ` [${e.category}]` : ''}`, String(e.amount), e.note ?? '']));
       s.budgetPlans.forEach(p => p.items.forEach(i => rows.push([formatDate(i.createdAt), 'budget-item', `${p.name}: ${i.name}`, String(i.price), i.link ?? ''])));
       const csv = rows.map(r => r.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(',')).join('\n');
-      await downloadFile(new Blob([csv], { type: 'text/csv' }), buildFilename(initials, 'history', 'csv'));
-    } catch (err) {
-      setAppError({ friendly: 'Could not export CSV file.', operation: 'exportAsCsv in DataManagementMenu', error: err, ts: Date.now() });
-    }
+      return new Blob([csv], { type: 'text/csv' });
   };
 
-  const exportAsExcel = async () => {
-    try {
+  const exportAsExcel = async (): Promise<Blob> => {
       const s = getAppState();
       const { utils, write } = await import('xlsx');
       const wb = utils.book_new();
@@ -426,14 +438,10 @@ export function DataManagementMenu() {
       utils.book_append_sheet(wb, expensesSheet, 'Expenses');
 
       const data = write(wb, { bookType: 'xlsx', type: 'array' });
-      await downloadFile(new Blob([data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), buildFilename(initials, 'history', 'xlsx'));
-    } catch (err) {
-      setAppError({ friendly: 'Could not export Excel file.', operation: 'exportAsExcel in DataManagementMenu', error: err, ts: Date.now() });
-    }
+      return new Blob([data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
   };
 
-  const exportAsWord = async () => {
-    try {
+  const exportAsWord = async (): Promise<Blob> => {
       const s = getAppState();
       const { Document, Paragraph, TextRun, HeadingLevel, Table, TableRow, TableCell, Packer, WidthType } = await import('docx');
       const dateStr = new Date().toLocaleDateString('en-ZA', { day: '2-digit', month: 'short', year: 'numeric' });
@@ -584,17 +592,10 @@ export function DataManagementMenu() {
       ];
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await downloadFile(
-        await Packer.toBlob(new Document({ sections: [{ children: children as any[] }] })),
-        buildFilename(initials, 'history', 'docx')
-      );
-    } catch (err) {
-      setAppError({ friendly: 'Could not export Word document.', operation: 'exportAsWord in DataManagementMenu', error: err, ts: Date.now() });
-    }
+      return await Packer.toBlob(new Document({ sections: [{ children: children as any[] }] }));
   };
 
-  const exportAsPdf = async () => {
-    try {
+  const exportAsPdf = async (): Promise<Blob> => {
       const s = getAppState();
       const { jsPDF } = await import('jspdf');
       const doc = new jsPDF({ unit: 'mm', format: 'a4' });
@@ -724,16 +725,12 @@ export function DataManagementMenu() {
       const totalPages = doc.getNumberOfPages();
       for (let i = 1; i <= totalPages; i++) { doc.setPage(i); drawPageFooter(doc, i, totalPages); }
 
-      await downloadFile(doc.output('blob'), buildFilename(initials, 'history', 'pdf'));
-    } catch (err) {
-      setAppError({ friendly: 'Could not export PDF.', operation: 'exportAsPdf in DataManagementMenu', error: err, ts: Date.now() });
-    }
+      return doc.output('blob') as Blob;
   };
 
   // ── Financial Statement export ───────────────────────────────────────────────
 
-  const exportStatsPdf = async () => {
-    try {
+  const exportStatsPdf = async (): Promise<Blob> => {
       const s = getAppState();
       const cutoff = statsPeriod === '3m' ? subMonths(new Date(), 3)
                    : statsPeriod === '6m' ? subMonths(new Date(), 6)
@@ -854,14 +851,10 @@ export function DataManagementMenu() {
       const totalPages = doc.getNumberOfPages();
       for (let i = 1; i <= totalPages; i++) { doc.setPage(i); drawPageFooter(doc, i, totalPages); }
 
-      await downloadFile(doc.output('blob'), buildFilename(initials, `statement-${statsPeriod}`, 'pdf'));
-    } catch (err) {
-      setAppError({ friendly: 'Could not export PDF statement.', operation: 'exportStatsPdf in DataManagementMenu', error: err, ts: Date.now() });
-    }
+      return doc.output('blob') as Blob;
   };
 
-  const exportStatsExcel = async () => {
-    try {
+  const exportStatsExcel = async (): Promise<Blob> => {
       const s = getAppState();
       const cutoff = statsPeriod === '3m' ? subMonths(new Date(), 3)
                    : statsPeriod === '6m' ? subMonths(new Date(), 6)
@@ -912,20 +905,16 @@ export function DataManagementMenu() {
       utils.book_append_sheet(wb, summarySheet, 'Summary');
 
       const data = write(wb, { bookType: 'xlsx', type: 'array' });
-      await downloadFile(new Blob([data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), buildFilename(initials, `statement-${statsPeriod}`, 'xlsx'));
-    } catch (err) {
-      setAppError({ friendly: 'Could not export Excel statement.', operation: 'exportStatsExcel in DataManagementMenu', error: err, ts: Date.now() });
-    }
+      return new Blob([data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
   };
 
   // ── User Config export / import ──────────────────────────────────────────────
 
-  const exportUserConfig = async () => {
-    try {
+  const exportUserConfig = async (): Promise<Blob> => {
       const s = getAppState();
       const backgroundImage = await idbGet<string>('backgroundImage') ?? '';
       const avatarImage = await idbGet<string>('profileAvatar') ?? '';
-      const configBlob = new Blob([JSON.stringify({
+      return new Blob([JSON.stringify({
         type: 'duey-config',
         v: 1,
         exportedAt: new Date().toISOString(),
@@ -936,10 +925,6 @@ export function DataManagementMenu() {
         backgroundImage,
         avatarImage,
       }, null, 2)], { type: 'application/json' });
-      await downloadFile(configBlob, buildFilename(initials, 'config', 'json'));
-    } catch (err) {
-      setAppError({ friendly: 'Could not export config — storage may be unavailable.', operation: 'exportUserConfig in DataManagementMenu', error: err, ts: Date.now() });
-    }
   };
 
   const handleConfigImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -978,13 +963,9 @@ export function DataManagementMenu() {
 
   // ── Full backup ──────────────────────────────────────────────────────────────
 
-  const handleExport = async () => {
-    try {
+  const exportFullBackup = (): Blob => {
       const dataStr = JSON.stringify(getAppState(), null, 2);
-      await downloadFile(new Blob([dataStr], { type: 'application/json' }), buildFilename(initials, 'backup', 'json'));
-    } catch (err) {
-      setAppError({ friendly: 'Could not export backup.', operation: 'handleExport in DataManagementMenu', error: err, ts: Date.now() });
-    }
+      return new Blob([dataStr], { type: 'application/json' });
   };
 
   const handleImportClick = () => fullFileInputRef.current?.click();
@@ -1076,19 +1057,19 @@ export function DataManagementMenu() {
         <CardContent className="p-3 space-y-2">
           <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Export History</p>
           <div className="grid grid-cols-2 gap-2">
-            <Button onClick={exportAsTxt}   variant="secondary" size="sm" className="justify-start gap-2 text-xs">
+            <Button onClick={() => runExport('history', 'txt', exportAsTxt)}   variant="secondary" size="sm" className="justify-start gap-2 text-xs">
               <FileText className="h-3.5 w-3.5" /> Text (.txt)
             </Button>
-            <Button onClick={exportAsCsv}   variant="secondary" size="sm" className="justify-start gap-2 text-xs">
+            <Button onClick={() => runExport('history', 'csv', exportAsCsv)}   variant="secondary" size="sm" className="justify-start gap-2 text-xs">
               <FileSpreadsheet className="h-3.5 w-3.5" /> CSV (.csv)
             </Button>
-            <Button onClick={exportAsExcel} variant="secondary" size="sm" className="justify-start gap-2 text-xs">
+            <Button onClick={() => runExport('history', 'xlsx', exportAsExcel)} variant="secondary" size="sm" className="justify-start gap-2 text-xs">
               <Sheet className="h-3.5 w-3.5" /> Excel (.xlsx)
             </Button>
-            <Button onClick={exportAsWord}  variant="secondary" size="sm" className="justify-start gap-2 text-xs">
+            <Button onClick={() => runExport('history', 'docx', exportAsWord)}  variant="secondary" size="sm" className="justify-start gap-2 text-xs">
               <BookOpen className="h-3.5 w-3.5" /> Word (.docx)
             </Button>
-            <Button onClick={exportAsPdf}   variant="secondary" size="sm" className="justify-start gap-2 text-xs col-span-2">
+            <Button onClick={() => runExport('history', 'pdf', exportAsPdf)}   variant="secondary" size="sm" className="justify-start gap-2 text-xs col-span-2">
               <FileText className="h-3.5 w-3.5" /> PDF (.pdf)
             </Button>
           </div>
@@ -1101,7 +1082,7 @@ export function DataManagementMenu() {
           <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">User Config</p>
           <p className="text-[10px] text-muted-foreground/70">Theme, colors, fonts, background image, profile — transfer between devices</p>
           <div className="space-y-2 pt-1">
-            <Button onClick={exportUserConfig} className="w-full justify-start h-auto p-3 text-left">
+            <Button onClick={() => runExport('config', 'json', exportUserConfig)} className="w-full justify-start h-auto p-3 text-left">
               <Settings2 className="mr-3 h-4 w-4 shrink-0" />
               <div>
                 <p className="font-semibold text-sm">Export Config</p>
@@ -1142,10 +1123,10 @@ export function DataManagementMenu() {
             ))}
           </div>
           <div className="grid grid-cols-2 gap-2">
-            <Button onClick={exportStatsPdf}   variant="secondary" size="sm" className="justify-start gap-2 text-xs">
+            <Button onClick={() => runExport(`statement-${statsPeriod}`, 'pdf', exportStatsPdf)}   variant="secondary" size="sm" className="justify-start gap-2 text-xs">
               <BarChart3 className="h-3.5 w-3.5" /> PDF Statement
             </Button>
-            <Button onClick={exportStatsExcel} variant="secondary" size="sm" className="justify-start gap-2 text-xs">
+            <Button onClick={() => runExport(`statement-${statsPeriod}`, 'xlsx', exportStatsExcel)} variant="secondary" size="sm" className="justify-start gap-2 text-xs">
               <Sheet className="h-3.5 w-3.5" /> Excel Statement
             </Button>
           </div>
@@ -1155,7 +1136,7 @@ export function DataManagementMenu() {
       {/* Full Backup */}
       <Card>
         <CardContent className="p-2 space-y-2">
-          <Button onClick={handleExport} className="w-full justify-start h-auto p-3 text-left">
+          <Button onClick={() => runExport('backup', 'json', exportFullBackup)} className="w-full justify-start h-auto p-3 text-left">
             <Download className="mr-3 h-4 w-4 shrink-0" />
             <div>
               <p className="font-semibold text-sm">Export Full Backup</p>
@@ -1241,6 +1222,61 @@ export function DataManagementMenu() {
             <DialogClose asChild><Button type="button" variant="secondary">Cancel</Button></DialogClose>
             <Button onClick={handleSaveChanges}>Validate &amp; Push Changes</Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Shared export dialog: live download progress + "File saved" confirmation for every export */}
+      <Dialog open={exportOpen} onOpenChange={v => { if (!v && !exportBusy) closeExport(); }}>
+        <DialogContent
+          className="sm:max-w-sm"
+          onInteractOutside={e => { if (exportBusy) e.preventDefault(); }}
+          onEscapeKeyDown={e => { if (exportBusy) e.preventDefault(); }}
+        >
+          {exportBusy && (
+            <>
+              <DialogHeader>
+                <DialogTitle>{exportStatus === 'preparing' ? 'Preparing file…' : 'Saving file…'}</DialogTitle>
+              </DialogHeader>
+              <div className="flex flex-col items-center gap-4 py-6">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                  <div className="loading-bar-fill h-full w-1/3 rounded-full bg-primary" />
+                </div>
+                <p className="text-xs text-muted-foreground font-mono break-all text-center">{exportResult?.filename}</p>
+              </div>
+            </>
+          )}
+
+          {exportStatus === 'success' && exportResult && (
+            <>
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <CheckCircle2 className="h-5 w-5 text-green-500" /> File saved
+                </DialogTitle>
+              </DialogHeader>
+              <div className="space-y-1.5 py-2">
+                <p className="text-sm font-semibold text-foreground font-mono break-all">{exportResult.filename}</p>
+                <p className="text-xs text-muted-foreground">Saved to {exportResult.folder} folder.</p>
+              </div>
+              <DialogFooter>
+                <Button onClick={closeExport} className="w-full">Done</Button>
+              </DialogFooter>
+            </>
+          )}
+
+          {exportStatus === 'error' && (
+            <>
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <AlertCircle className="h-5 w-5 text-red-500" /> Export failed
+                </DialogTitle>
+              </DialogHeader>
+              <p className="text-sm text-muted-foreground py-2">{exportResult?.error ?? 'Something went wrong while exporting.'}</p>
+              <DialogFooter>
+                <Button onClick={closeExport} className="w-full">Close</Button>
+              </DialogFooter>
+            </>
+          )}
         </DialogContent>
       </Dialog>
     </div>

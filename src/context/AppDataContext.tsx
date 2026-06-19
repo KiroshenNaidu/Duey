@@ -5,6 +5,7 @@ import type { AppState, Debt, HistoryEntry, AppData, ThemeSettings, TransportSet
 import { isSameDay, startOfDay, startOfMonth, format } from 'date-fns';
 import { idbGet, idbSet, idbDel, setCurrencyCode } from '@/lib/utils';
 import { calculateTransportMonth } from '@/lib/calculations';
+import { LoadingScreen } from '@/components/LoadingScreen';
 
 const CURRENT_SCHEMA_VERSION = 8;
 
@@ -81,6 +82,14 @@ const defaultState: AppState = {
     bgX: 50,
     bgY: 50,
     glassOpacity: 0.55,
+    positive: '142 71% 45%',
+    negative: '358 100% 50%',
+    catTransport: '217 91% 60%',
+    catBudget: '271 91% 65%',
+    catExpense: '25 95% 53%',
+    catCompletion: '43 96% 56%',
+    catEmployment: '173 80% 40%',
+    catSnapshot: '199 89% 48%',
   },
   userThemes: [],
   notepadContent: '',
@@ -228,7 +237,12 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
           const prevMonthLabel = format(firstOfThisMonth, 'MMMM yyyy');
           const transportCost = calculateTransportMonth(new Date(), loaded.transportOverrides, loaded.transportSettings).totalDue;
           const budgetSpent = loaded.budgetPlans.flatMap(p => p.items).reduce((s, i) => s + i.price, 0);
-          const debtTotal = loaded.debts.reduce((s, d) => s + d.installment_amount, 0);
+          // Debt outgoings = payments actually logged against the month that just ended,
+          // not the planned installment_amount.
+          const snapshotMonthKey = format(firstOfThisMonth, 'yyyy-MM');
+          const debtTotal = loaded.history.reduce((s, h) =>
+            h.type === 'payment' && h.debtId && format(new Date(h.date), 'yyyy-MM') === snapshotMonthKey
+              ? s + h.amount : s, 0);
           const expenseTotal = loaded.expenses.reduce((s, e) => s + e.amount, 0);
           const totalExtra = (loaded.extraIncomes ?? []).reduce((s, e) => s + e.amount, 0);
           const totalOutgoings = transportCost + budgetSpent + debtTotal + expenseTotal;
@@ -645,7 +659,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     setAppError,
   }), [appState, avatarDataUrl, setProfileAvatar, navGuard, setNavGuard, appError, setAppError, addExpense, deleteExpense, updateExpense]);
 
-  if (!isLoaded) return null;
+  if (!isLoaded) return <LoadingScreen />;
 
   return (
     <AppDataContext.Provider value={value}>

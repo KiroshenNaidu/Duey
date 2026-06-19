@@ -11,7 +11,7 @@ import { Pencil, Check, Plus, Trash2, X } from 'lucide-react';
 
 export function MoneyOverview() {
   const {
-    monthlyIncome, debts, budgetPlans, expenses, extraIncomes,
+    monthlyIncome, debts, budgetPlans, expenses, extraIncomes, history,
     transportSettings, transportOverrides,
     setMonthlyIncome, addExtraIncome, deleteExtraIncome,
   } = useContext(AppDataContext);
@@ -31,7 +31,13 @@ export function MoneyOverview() {
   const now = new Date();
   const transportCost = calculateTransportMonth(now, transportOverrides, transportSettings).totalDue;
   const budgetSpent = budgetPlans.flatMap(p => p.items).reduce((s, i) => s + i.price, 0);
-  const debtInstallments = debts.reduce((s, d) => s + d.installment_amount, 0);
+  // Only count debt money actually logged as a payment THIS month — never the planned
+  // installment_amount. Nothing is deducted until the user logs a payment.
+  const debtInstallments = history.reduce((s, h) => {
+    if (h.type !== 'payment' || !h.debtId) return s;
+    const d = new Date(h.date);
+    return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear() ? s + h.amount : s;
+  }, 0);
   const totalExpenses = expenses.reduce((s, e) => s + e.amount, 0);
   const totalExtra = (extraIncomes ?? []).reduce((s, e) => s + e.amount, 0);
   const totalDeductions = transportCost + budgetSpent + debtInstallments + totalExpenses;
@@ -59,7 +65,7 @@ export function MoneyOverview() {
   const deductions = [
     { id: 'transport', label: 'Transport (this month)', value: transportCost },
     { id: 'budget',    label: 'Budget (all plans)',     value: budgetSpent },
-    { id: 'debts',     label: 'Debt installments',      value: debtInstallments },
+    { id: 'debts',     label: 'Debt payments (this month)', value: debtInstallments },
     { id: 'expenses',  label: 'Expenses (active)',       value: totalExpenses },
   ];
 
