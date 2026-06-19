@@ -38,6 +38,8 @@ function migrateState(raw: AppState): AppState {
     themeSettings: raw.themeSettings
       ? { ...raw.themeSettings, useSafeAreaInsets: true, bgX: raw.themeSettings.bgX ?? 50, bgY: raw.themeSettings.bgY ?? 50 }
       : defaultState.themeSettings,
+    exportFolderUri: raw.exportFolderUri ?? '',
+    exportFolderName: raw.exportFolderName ?? '',
     schemaVersion: CURRENT_SCHEMA_VERSION,
   };
 }
@@ -72,6 +74,8 @@ const defaultState: AppState = {
   },
   userThemes: [],
   notepadContent: '',
+  exportFolderUri: '',
+  exportFolderName: '',
 };
 
 type NavGuard = { onAttempt: (href: string) => void } | null;
@@ -110,6 +114,7 @@ interface AppContextType extends AppState {
   deleteHistoryEntry: (entryId: string) => void;
   updateHistoryEntry: (entryId: string, data: Partial<Pick<HistoryEntry, 'label' | 'note'>>) => void;
   setCurrency: (code: string) => void;
+  setExportFolder: (uri: string, name: string) => void;
   clearData: () => void; // fire-and-forget async
   getAppState: () => AppState;
   avatarDataUrl: string;
@@ -147,6 +152,7 @@ export const AppDataContext = createContext<AppContextType>({
   deleteHistoryEntry: () => {},
   updateHistoryEntry: () => {},
   setCurrency: () => {},
+  setExportFolder: () => {},
   clearData: () => {},
   getAppState: () => defaultState,
   avatarDataUrl: '',
@@ -478,6 +484,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     setThemeSettings: (settings: Omit<ThemeSettings, 'backgroundImage'>) => updateStateAndSync(p => ({ ...p, themeSettings: settings })),
     setNotepadContent: (content: string) => updateStateAndSync(p => ({ ...p, notepadContent: content })),
     setCurrency: (code: string) => updateStateAndSync(p => ({ ...p, currency: code })),
+    setExportFolder: (uri: string, name: string) => updateStateAndSync(p => ({ ...p, exportFolderUri: uri, exportFolderName: name })),
     addUserTheme,
     deleteUserTheme,
     deleteHistoryEntry,

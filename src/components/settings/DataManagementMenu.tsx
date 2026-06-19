@@ -1,13 +1,14 @@
 'use client';
 
-import { useContext, useRef, useState } from 'react';
+import { useContext, useRef, useState, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { AppDataContext } from '@/context/AppDataContext';
 import type { AppData } from '@/lib/types';
 import { idbGet, idbSet } from '@/lib/utils';
+import { FolderAccess } from '@/lib/folderAccess';
 import { subMonths, isAfter } from 'date-fns';
-import { Download, Upload, Trash2, Code, Sparkles, FileText, FileSpreadsheet, Sheet, BookOpen, Settings2, BarChart3 } from 'lucide-react';
+import { Download, Upload, Trash2, Code, Sparkles, FileText, FileSpreadsheet, Sheet, BookOpen, Settings2, BarChart3, FolderOpen } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Textarea } from '@/components/ui/textarea';
@@ -60,8 +61,18 @@ function formatDate(iso: string) {
 }
 
 function buildDateStamp(): string {
-  const now = new Date();
-  return `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}`;
+  const d = new Date();
+  return `${String(d.getDate()).padStart(2, '0')}-${String(d.getMonth() + 1).padStart(2, '0')}-${d.getFullYear()}`;
+}
+
+function getInitials(name: string): string {
+  const t = name.trim();
+  if (!t) return 'U';
+  return t.split(/\s+/).map(w => w[0].toUpperCase()).join('');
+}
+
+function buildFilename(initials: string, type: string, ext: string): string {
+  return `${initials}-${type}-${buildDateStamp()}.${ext}`;
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -194,7 +205,7 @@ const PERIOD_LABELS: Record<StatsPeriod, string> = {
 // ──────────────────────────────────────────────────────────────────────────────
 
 export function DataManagementMenu() {
-  const { getAppState, importData, clearData, setAppError } = useContext(AppDataContext);
+  const { getAppState, importData, clearData, setAppError, userProfile, exportFolderUri, exportFolderName, setExportFolder } = useContext(AppDataContext);
   const fullFileInputRef   = useRef<HTMLInputElement>(null);
   const configFileInputRef = useRef<HTMLInputElement>(null);
 
@@ -202,56 +213,115 @@ export function DataManagementMenu() {
   const [jsonString, setJsonString] = useState('');
   const [error, setError] = useState('');
   const [statsPeriod, setStatsPeriod] = useState<StatsPeriod>('all');
+  const [isNative, setIsNative] = useState(false);
+  const [choosingFolder, setChoosingFolder] = useState(false);
+
+  const initials = getInitials(userProfile.name);
+
+  // Detect native platform once on mount (Capacitor.isNativePlatform is sync but core is dynamically imported elsewhere).
+  useEffect(() => {
+    import('@capacitor/core').then(({ Capacitor }) => setIsNative(Capacitor.isNativePlatform()));
+  }, []);
+
+  // Launch the system folder picker and remember the chosen location.
+  // Returns { uri, name } on success, or null if the user cancelled.
+  const chooseFolder = async (): Promise<{ uri: string; name: string } | null> => {
+    setChoosingFolder(true);
+    try {
+      const res = await FolderAccess.pickFolder();
+      const name = res.name || 'Selected folder';
+      setExportFolder(res.uri, name);
+      return { uri: res.uri, name };
+    } catch {
+      // User dismissed the picker — not an error.
+      return null;
+    } finally {
+      setChoosingFolder(false);
+    }
+  };
 
   // ── Cross-platform download ──────────────────────────────────────────────────
-  // Native: write to cache → share → notification. Web: blob URL download.
+  // Native: write to External app directory (Files app → Android/data/com.duey.app/files/Duey).
+  // No share sheet, no extra permissions. Web: blob URL download.
+
+  const notifySaved = async (filename: string, folderName: string) => {
+    try {
+      const { LocalNotifications } = await import('@capacitor/local-notifications');
+      await LocalNotifications.createChannel({
+        id: 'downloads',
+        name: 'Downloads',
+        description: 'File download notifications',
+        importance: 3,
+        visibility: 1,
+      });
+      await LocalNotifications.schedule({
+        notifications: [{
+          title: 'File Saved',
+          body: `${filename} saved to ${folderName}`,
+          id: (Date.now() % 100000) + 1000,
+          channelId: 'downloads',
+        }],
+      });
+    } catch {
+      // Notification failure should not block the export.
+    }
+  };
 
   const downloadFile = async (blob: Blob, filename: string) => {
     const { Capacitor } = await import('@capacitor/core');
-    if (Capacitor.isNativePlatform()) {
-      try {
-        const base64 = await blobToBase64(blob);
-        const { Filesystem, Directory } = await import('@capacitor/filesystem');
-        const result = await Filesystem.writeFile({
-          path: filename,
-          data: base64,
-          directory: Directory.Cache,
-          recursive: true,
-        });
-        // Share first — user acts on the file before the notification fires
-        const { Share } = await import('@capacitor/share');
-        await Share.share({ title: filename, url: result.uri, dialogTitle: `Save ${filename}` });
-        // Notification fires after share resolves
-        try {
-          const { LocalNotifications } = await import('@capacitor/local-notifications');
-          await LocalNotifications.createChannel({
-            id: 'downloads',
-            name: 'Downloads',
-            description: 'File download notifications',
-            importance: 3,
-            visibility: 1,
-          });
-          await LocalNotifications.schedule({
-            notifications: [{
-              title: 'Export Complete',
-              body: `${filename} has been shared`,
-              id: (Date.now() % 100000) + 1000,
-              channelId: 'downloads',
-            }],
-          });
-        } catch {
-          // Notification failure should not block the export
-        }
-      } catch (err) {
-        setAppError({
-          friendly: `Could not export ${filename} — storage may be unavailable.`,
-          operation: 'downloadFile (native) in DataManagementMenu',
-          error: err,
-          ts: Date.now(),
-        });
-      }
-    } else {
+    if (!Capacitor.isNativePlatform()) {
       triggerDownload(blob, filename);
+      return;
+    }
+
+    // First export (or grant was revoked): ask the user to pick a folder once.
+    // The system picker handles permission AND location, and lists SD card / internal automatically.
+    let uri = exportFolderUri;
+    let folderName = exportFolderName || 'your folder';
+    if (!uri) {
+      const picked = await chooseFolder();
+      if (!picked) return; // user cancelled
+      uri = picked.uri;
+      folderName = picked.name;
+    }
+
+    try {
+      const base64 = await blobToBase64(blob);
+      try {
+        await FolderAccess.saveFile({
+          folderUri: uri,
+          name: filename,
+          mimeType: blob.type || 'application/octet-stream',
+          data: base64,
+        });
+      } catch (saveErr) {
+        // Grant lost (folder deleted / SD card removed / permission cleared) → re-pick once.
+        const repicked = await chooseFolder();
+        if (!repicked) {
+          setAppError({
+            friendly: `Couldn't access your export folder. Choose a new one and try again.`,
+            operation: 'FolderAccess.saveFile (retry) in DataManagementMenu',
+            error: saveErr,
+            ts: Date.now(),
+          });
+          return;
+        }
+        await FolderAccess.saveFile({
+          folderUri: repicked.uri,
+          name: filename,
+          mimeType: blob.type || 'application/octet-stream',
+          data: base64,
+        });
+        folderName = repicked.name;
+      }
+      await notifySaved(filename, folderName);
+    } catch (err) {
+      setAppError({
+        friendly: `Could not save ${filename} — storage may be unavailable.`,
+        operation: 'downloadFile (native) in DataManagementMenu',
+        error: err,
+        ts: Date.now(),
+      });
     }
   };
 
@@ -295,7 +365,7 @@ export function DataManagementMenu() {
         lines.push(`\n  ${p.name} — Budget R${p.budget}, Spent R${spent}`);
         p.items.forEach(i => lines.push(`    - ${i.name}: R${i.price}${i.link ? ` (${i.link})` : ''}`));
       });
-      await downloadFile(new Blob([lines.join('\n')], { type: 'text/plain' }), `duey-history-${buildDateStamp()}.txt`);
+      await downloadFile(new Blob([lines.join('\n')], { type: 'text/plain' }), buildFilename(initials, 'history', 'txt'));
     } catch (err) {
       setAppError({ friendly: 'Could not export text file.', operation: 'exportAsTxt in DataManagementMenu', error: err, ts: Date.now() });
     }
@@ -309,7 +379,7 @@ export function DataManagementMenu() {
       s.uberRides.forEach(r => rows.push([formatDate(r.date), 'uber', `${r.from ?? ''} → ${r.to ?? ''}`, String(r.price), r.distance ? `${r.distance}km` : '']));
       s.budgetPlans.forEach(p => p.items.forEach(i => rows.push([formatDate(i.createdAt), 'budget-item', `${p.name}: ${i.name}`, String(i.price), i.link ?? ''])));
       const csv = rows.map(r => r.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(',')).join('\n');
-      await downloadFile(new Blob([csv], { type: 'text/csv' }), `duey-history-${buildDateStamp()}.csv`);
+      await downloadFile(new Blob([csv], { type: 'text/csv' }), buildFilename(initials, 'history', 'csv'));
     } catch (err) {
       setAppError({ friendly: 'Could not export CSV file.', operation: 'exportAsCsv in DataManagementMenu', error: err, ts: Date.now() });
     }
@@ -334,7 +404,7 @@ export function DataManagementMenu() {
       utils.book_append_sheet(wb, budgetSheet, 'Budget Plans');
 
       const data = write(wb, { bookType: 'xlsx', type: 'array' });
-      await downloadFile(new Blob([data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), `duey-history-${buildDateStamp()}.xlsx`);
+      await downloadFile(new Blob([data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), buildFilename(initials, 'history', 'xlsx'));
     } catch (err) {
       setAppError({ friendly: 'Could not export Excel file.', operation: 'exportAsExcel in DataManagementMenu', error: err, ts: Date.now() });
     }
@@ -469,7 +539,7 @@ export function DataManagementMenu() {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await downloadFile(
         await Packer.toBlob(new Document({ sections: [{ children: children as any[] }] })),
-        `duey-history-${buildDateStamp()}.docx`
+        buildFilename(initials, 'history', 'docx')
       );
     } catch (err) {
       setAppError({ friendly: 'Could not export Word document.', operation: 'exportAsWord in DataManagementMenu', error: err, ts: Date.now() });
@@ -482,7 +552,6 @@ export function DataManagementMenu() {
       const { jsPDF } = await import('jspdf');
       const doc = new jsPDF({ unit: 'mm', format: 'a4' });
       const PAGE_W = doc.internal.pageSize.getWidth();
-      const stamp = buildDateStamp();
       const dateStr = new Date().toLocaleDateString('en-ZA', { day: '2-digit', month: 'short', year: 'numeric' });
 
       const DEBT_COLS: ColDef[]      = [{ header: 'Date', width: 28 }, { header: 'Debt / Description', width: 110 }, { header: 'Amount (R)', width: 52, align: 'right' }];
@@ -577,7 +646,7 @@ export function DataManagementMenu() {
       const totalPages = doc.getNumberOfPages();
       for (let i = 1; i <= totalPages; i++) { doc.setPage(i); drawPageFooter(doc, i, totalPages); }
 
-      await downloadFile(doc.output('blob'), `duey-history-${stamp}.pdf`);
+      await downloadFile(doc.output('blob'), buildFilename(initials, 'history', 'pdf'));
     } catch (err) {
       setAppError({ friendly: 'Could not export PDF.', operation: 'exportAsPdf in DataManagementMenu', error: err, ts: Date.now() });
     }
@@ -604,7 +673,6 @@ export function DataManagementMenu() {
       const { jsPDF } = await import('jspdf');
       const doc = new jsPDF({ unit: 'mm', format: 'a4' });
       const PAGE_W = doc.internal.pageSize.getWidth();
-      const stamp = buildDateStamp();
       const dateStr = new Date().toLocaleDateString('en-ZA', { day: '2-digit', month: 'short', year: 'numeric' });
 
       const DEBT_COLS: ColDef[]      = [{ header: 'Date', width: 28 }, { header: 'Debt / Description', width: 110 }, { header: 'Amount (R)', width: 52, align: 'right' }];
@@ -694,7 +762,7 @@ export function DataManagementMenu() {
       const totalPages = doc.getNumberOfPages();
       for (let i = 1; i <= totalPages; i++) { doc.setPage(i); drawPageFooter(doc, i, totalPages); }
 
-      await downloadFile(doc.output('blob'), `duey-statement-${statsPeriod}-${stamp}.pdf`);
+      await downloadFile(doc.output('blob'), buildFilename(initials, `statement-${statsPeriod}`, 'pdf'));
     } catch (err) {
       setAppError({ friendly: 'Could not export PDF statement.', operation: 'exportStatsPdf in DataManagementMenu', error: err, ts: Date.now() });
     }
@@ -743,7 +811,7 @@ export function DataManagementMenu() {
       utils.book_append_sheet(wb, summarySheet, 'Summary');
 
       const data = write(wb, { bookType: 'xlsx', type: 'array' });
-      await downloadFile(new Blob([data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), `duey-statement-${statsPeriod}-${buildDateStamp()}.xlsx`);
+      await downloadFile(new Blob([data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), buildFilename(initials, `statement-${statsPeriod}`, 'xlsx'));
     } catch (err) {
       setAppError({ friendly: 'Could not export Excel statement.', operation: 'exportStatsExcel in DataManagementMenu', error: err, ts: Date.now() });
     }
@@ -767,7 +835,7 @@ export function DataManagementMenu() {
         backgroundImage,
         avatarImage,
       }, null, 2)], { type: 'application/json' });
-      await downloadFile(configBlob, `duey-config-${buildDateStamp()}.json`);
+      await downloadFile(configBlob, buildFilename(initials, 'config', 'json'));
     } catch (err) {
       setAppError({ friendly: 'Could not export config — storage may be unavailable.', operation: 'exportUserConfig in DataManagementMenu', error: err, ts: Date.now() });
     }
@@ -812,7 +880,7 @@ export function DataManagementMenu() {
   const handleExport = async () => {
     try {
       const dataStr = JSON.stringify(getAppState(), null, 2);
-      await downloadFile(new Blob([dataStr], { type: 'application/json' }), `duey-backup-${buildDateStamp()}.json`);
+      await downloadFile(new Blob([dataStr], { type: 'application/json' }), buildFilename(initials, 'backup', 'json'));
     } catch (err) {
       setAppError({ friendly: 'Could not export backup.', operation: 'handleExport in DataManagementMenu', error: err, ts: Date.now() });
     }
@@ -869,6 +937,39 @@ export function DataManagementMenu() {
 
   return (
     <div className="space-y-3">
+
+      {/* Export Folder — native only; web always uses the browser's Downloads */}
+      {isNative && (
+        <Card>
+          <CardContent className="p-3 space-y-2">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Export Folder</p>
+            <p className="text-[10px] text-muted-foreground/70">
+              Choose once where exports go — internal storage, SD card or USB. Every export saves there automatically.
+            </p>
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-1 min-w-0 rounded-lg bg-muted/40 px-3 py-2">
+                <FolderOpen className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                <span className={cn('text-xs font-medium truncate', !exportFolderUri && 'text-muted-foreground/60 italic')}>
+                  {exportFolderUri ? (exportFolderName || 'Selected folder') : 'No folder chosen'}
+                </span>
+              </div>
+              <Button
+                size="sm"
+                variant={exportFolderUri ? 'ghost' : 'default'}
+                className="shrink-0 text-xs h-9"
+                disabled={choosingFolder}
+                onClick={chooseFolder}
+              >
+                {choosingFolder ? 'Opening…' : exportFolderUri ? 'Change' : 'Choose'}
+              </Button>
+            </div>
+            <p className="text-[10px] text-muted-foreground/50">
+              Naming: {initials || 'U'}-type-DD-MM-YYYY.ext &nbsp;·&nbsp; e.g. {buildFilename(initials || 'U', 'backup', 'json')}
+            </p>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Export History */}
       <Card>
         <CardContent className="p-3 space-y-2">

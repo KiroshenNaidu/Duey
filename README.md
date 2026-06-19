@@ -24,24 +24,34 @@
 ### Transport Calculator
 - Tap days on a custom calendar to mark days you traveled
 - Auto-calculates your total transport cost for the month
+- Log individual Uber rides with routes, distance, and price
 
-### Stats
+### Budget Planner
+- Create spending plans with a set budget and track items against it
+
+### Stats & History
 - View payment history: what was paid, how much, and when
+- Dedicated history page with editing and a financial-statement export
 
 ### Utilities
-- Built-in calculator so you don't have to leave the app
-- Export data to PDF, DOCX, or XLSX
+- Built-in calculator and a quick notepad so you don't have to leave the app
+- Multi-currency support (pick your currency in settings)
+
+### Export & Backup
+- Export history and statements to **PDF, DOCX, XLSX, CSV, or TXT**
+- Export/import a full backup or a portable config (theme + profile)
+- **Android:** choose any export folder once — internal storage, SD card, or USB — and every export saves there automatically. Files are named `INITIALS-type-DD-MM-YYYY.ext` (e.g. `K-backup-17-06-2026.json`)
 
 ### Customisation
-- Change app colors and upload a custom background image
-- **Note:** After changing the theme, close and reopen the app — an incomplete render shows briefly but your theme saves correctly.
+- Change app colors, fonts, and upload a custom background image
+- Save and switch between your own themes
 
 ---
 
 ## Notes
 
-- Currency is hardcoded to ZAR (R). The numbers calculate the same regardless, so it's a cosmetic thing if you want to change it.
-- Navigation bar padding is tuned for Home Button Navigation. Swipe Gesture devices may see slightly larger bars.
+- On Android, the first time you export, the system folder picker appears — pick where exports go and Duey remembers it for every future export (it uses the Storage Access Framework, so no broad storage permission is needed).
+- Safe-area insets are always on, so content never hides behind the phone's nav bars.
 
 ---
 
@@ -51,8 +61,8 @@
 |---|---|
 | Frontend | Next.js 15, React 19, TypeScript |
 | Styling | Tailwind CSS, Radix UI, shadcn/ui |
-| Mobile | Capacitor 7 (Android) |
-| Storage | IndexedDB (via `idb`) |
+| Mobile | Capacitor 7 (Android), custom SAF folder-access plugin |
+| Storage | localStorage + IndexedDB (via `idb`) |
 | Charts | Recharts |
 | Export | jsPDF, docx, xlsx |
 

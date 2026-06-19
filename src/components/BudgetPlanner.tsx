@@ -1,10 +1,12 @@
 'use client';
 
 import { useContext, useState, useMemo } from 'react';
+import { usePathname } from 'next/navigation';
 import { AppDataContext } from '@/context/AppDataContext';
 import type { BudgetPlan, BudgetItem } from '@/lib/types';
 import { formatCurrency, cn } from '@/lib/utils';
 import { Plus, Trash2, ExternalLink, Edit2 } from 'lucide-react';
+import { FixedPortal } from '@/components/FixedPortal';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -376,6 +378,7 @@ function PlanView({ plan }: { plan: BudgetPlan }) {
 
 export function BudgetPlanner() {
   const { budgetPlans, addBudgetPlan } = useContext(AppDataContext);
+  const pathname = usePathname();
   const [newPlanOpen, setNewPlanOpen] = useState(false);
   const [planName, setPlanName] = useState('');
   const [planBudget, setPlanBudget] = useState('');
@@ -427,15 +430,19 @@ export function BudgetPlanner() {
       )}
 
       <Dialog open={newPlanOpen} onOpenChange={setNewPlanOpen}>
-        <DialogTrigger asChild>
-          <button
-            aria-label="New budget plan"
-            className="fixed left-1/2 -translate-x-1/2 h-12 w-12 bg-primary rounded-full flex items-center justify-center text-primary-foreground shadow-lg hover:bg-primary/90 focus:outline-none transition-transform transform hover:scale-105 z-[60]"
-            style={{ bottom: 'calc(18px + var(--sab))' }}
-          >
-            <Plus className="h-6 w-6" />
-          </button>
-        </DialogTrigger>
+        {pathname === '/' && (
+          <FixedPortal>
+            <DialogTrigger asChild>
+              <button
+                aria-label="New budget plan"
+                className="fixed left-1/2 -translate-x-1/2 h-12 w-12 bg-primary rounded-full flex items-center justify-center text-primary-foreground shadow-lg hover:bg-primary/90 focus:outline-none transition-transform transform hover:scale-105 z-[60]"
+                style={{ bottom: 'calc(13px + var(--sab))' }}
+              >
+                <Plus className="h-6 w-6" />
+              </button>
+            </DialogTrigger>
+          </FixedPortal>
+        )}
         <DialogContent className="sm:max-w-[360px]">
           <DialogHeader>
             <DialogTitle>New Budget Plan</DialogTitle>

@@ -1,14 +1,17 @@
 'use client';
 
 import { useContext } from 'react';
+import { usePathname } from 'next/navigation';
 import { AppDataContext } from '@/context/AppDataContext';
 import { DebtCard } from '@/components/DebtCard';
 import { AddDebtDialog } from '@/components/AddDebtDialog';
+import { FixedPortal } from '@/components/FixedPortal';
 import { Plus } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 export function DebtsList() {
   const { debts } = useContext(AppDataContext);
+  const pathname = usePathname();
 
   return (
     <div className="space-y-3">
@@ -26,15 +29,19 @@ export function DebtsList() {
         debts.map((debt) => <DebtCard key={debt.id} debt={debt} />)
       )}
 
-      <AddDebtDialog>
-        <button
-          aria-label="Add new debt"
-          className="fixed left-1/2 -translate-x-1/2 h-12 w-12 bg-primary rounded-full flex items-center justify-center text-primary-foreground shadow-lg hover:bg-primary/90 focus:outline-none transition-transform transform hover:scale-105 z-[60]"
-          style={{ bottom: 'calc(18px + var(--sab))' }}
-        >
-          <Plus className="h-6 w-6" />
-        </button>
-      </AddDebtDialog>
+      {pathname === '/' && (
+        <FixedPortal>
+          <AddDebtDialog>
+            <button
+              aria-label="Add new debt"
+              className="fixed left-1/2 -translate-x-1/2 h-12 w-12 bg-primary rounded-full flex items-center justify-center text-primary-foreground shadow-lg hover:bg-primary/90 focus:outline-none transition-transform transform hover:scale-105 z-[60]"
+              style={{ bottom: 'calc(13px + var(--sab))' }}
+            >
+              <Plus className="h-6 w-6" />
+            </button>
+          </AddDebtDialog>
+        </FixedPortal>
+      )}
     </div>
   );
 }

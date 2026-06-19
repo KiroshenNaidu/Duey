@@ -119,6 +119,10 @@ export interface AppState {
   themeSettings: Omit<ThemeSettings, 'backgroundImage'>;
   userThemes: UserTheme[];
   notepadContent: string;
+  /** SAF tree URI of the user-chosen export folder (Android). Empty = not yet chosen. */
+  exportFolderUri: string;
+  /** Human-readable name of the chosen folder, for display in settings. */
+  exportFolderName: string;
 }
 
 // For Import/Export, which might not have all fields.
