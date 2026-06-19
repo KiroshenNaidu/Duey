@@ -35,11 +35,22 @@ const transition = {
 function isInHorizontalScroller(el: EventTarget | null): boolean {
   let node = el as Element | null;
   while (node && node !== document.body) {
+    const role = node.getAttribute('role');
+    if (role === 'slider') return true; // Radix Slider thumb
+    // Radix Slider root has data-orientation="horizontal" but is not a tablist
+    if (node.getAttribute('data-orientation') === 'horizontal' && role !== 'tablist') return true;
     const style = window.getComputedStyle(node);
     const ox = style.overflowX;
-    if ((ox === 'scroll' || ox === 'auto') && node.scrollWidth > node.clientWidth) {
-      return true;
-    }
+    if ((ox === 'scroll' || ox === 'auto') && node.scrollWidth > node.clientWidth) return true;
+    node = node.parentElement;
+  }
+  return false;
+}
+
+function isInDialog(el: EventTarget | null): boolean {
+  let node = el as Element | null;
+  while (node && node !== document.body) {
+    if (node.getAttribute('role') === 'dialog') return true;
     node = node.parentElement;
   }
   return false;
@@ -82,7 +93,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       start.x = e.touches[0].clientX;
       start.y = e.touches[0].clientY;
       start.time = Date.now();
-      tracking = 'none';
+      // Touches inside a modal dialog must never trigger page swipes
+      tracking = isInDialog(e.target) ? 'v' : 'none';
     };
 
     const onMove = (e: TouchEvent) => {

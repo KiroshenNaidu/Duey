@@ -35,38 +35,55 @@ import {
 } from '@/components/ui/alert-dialog';
 import { buttonVariants } from '@/components/ui/button';
 
-const ITEM_COLORS = [
-  'bg-primary/30 border-primary/50 shadow-sm',
-  'bg-accent/25 border-accent/50 shadow-sm',
-  'bg-secondary border-border shadow-sm',
-  'bg-green-500/25 border-green-500/50 shadow-sm',
-  'bg-orange-500/25 border-orange-500/50 shadow-sm',
-  'bg-purple-500/25 border-purple-500/50 shadow-sm',
-];
+function parseHsl(hsl: string): [number, number, number] {
+  const parts = hsl.split(' ');
+  return [parseFloat(parts[0]), parseFloat(parts[1]), parseFloat(parts[2])];
+}
 
-function ItemBox({ item, planBudget, colorIndex, onDelete }: {
+function buildPalette(primary: string, accent: string): { bg: string; text: string }[] {
+  const [ph, ps, pl] = parseHsl(primary);
+  const [ah, as_, al] = parseHsl(accent);
+  const norm = (h: number) => ((h % 360) + 360) % 360;
+  const entry = (h: number, s: number, l: number) => ({
+    bg: `hsl(${norm(h)}, ${Math.round(s)}%, ${Math.round(l)}%)`,
+    text: l > 55 ? '#111827' : '#ffffff',
+  });
+  return [
+    entry(ph, ps, pl),
+    entry(ph + 22, ps, pl),
+    entry(ah, as_, al),
+    entry(ah - 22, as_, al),
+    entry(ph - 22, ps, pl),
+    entry(ah + 22, as_, al),
+    entry(ph + 44, ps, pl),
+    entry(ah - 44, as_, al),
+  ];
+}
+
+function ItemBox({ item, planBudget, colorStyle, onDelete }: {
   item: BudgetItem;
   planBudget: number;
-  colorIndex: number;
+  colorStyle: { bg: string; text: string };
   onDelete: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const ratio = planBudget > 0 ? item.price / planBudget : 0;
-  const colSpan = ratio >= 0.4 ? 'col-span-3' : ratio >= 0.2 ? 'col-span-2' : 'col-span-1';
-  const minH = ratio >= 0.4 ? 'min-h-[80px]' : ratio >= 0.2 ? 'min-h-[60px]' : 'min-h-[48px]';
-  const color = ITEM_COLORS[colorIndex % ITEM_COLORS.length];
+  // Proportional column span across a 12-column grid (min 2 so text is readable)
+  const span = Math.max(2, Math.min(12, Math.round(ratio * 12)));
+  // Proportional height: bigger chunks get taller boxes
+  const minH = Math.max(52, Math.round(ratio * 220));
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <button
+          style={{ gridColumn: `span ${span}`, minHeight: `${minH}px`, backgroundColor: colorStyle.bg, color: colorStyle.text }}
           className={cn(
-            'rounded-lg border p-2 flex flex-col justify-between text-left transition-all hover:brightness-110 active:scale-[0.97]',
-            colSpan, minH, color
+            'rounded-xl p-3 flex flex-col justify-between text-left transition-all hover:brightness-110 active:scale-[0.97]',
           )}
         >
-          <span className="text-[11px] font-bold text-foreground leading-tight line-clamp-2">{item.name}</span>
-          <span className="text-[10px] font-bold text-foreground mt-1">{formatCurrency(item.price)}</span>
+          <span className="text-[11px] font-bold leading-tight line-clamp-2">{item.name}</span>
+          <span className="text-[11px] font-bold mt-1 opacity-90">{formatCurrency(item.price)}</span>
         </button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[320px]">
@@ -265,7 +282,11 @@ function AddItemDialog({ plan, onAdd }: { plan: BudgetPlan; onAdd: (item: Omit<B
 }
 
 function PlanView({ plan }: { plan: BudgetPlan }) {
-  const { deleteBudgetPlan, addBudgetItem, deleteBudgetItem, updateBudgetPlan } = useContext(AppDataContext);
+  const { deleteBudgetPlan, addBudgetItem, deleteBudgetItem, updateBudgetPlan, themeSettings } = useContext(AppDataContext);
+  const palette = useMemo(
+    () => buildPalette(themeSettings.primary, themeSettings.accent),
+    [themeSettings.primary, themeSettings.accent]
+  );
   const [editOpen, setEditOpen] = useState(false);
   const [editName, setEditName] = useState(plan.name);
   const [editBudget, setEditBudget] = useState(plan.budget.toString());
@@ -352,13 +373,13 @@ function PlanView({ plan }: { plan: BudgetPlan }) {
       </Card>
 
       {plan.items.length > 0 && (
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-12 gap-2">
           {plan.items.map((item, idx) => (
             <ItemBox
               key={item.id}
               item={item}
               planBudget={plan.budget}
-              colorIndex={idx}
+              colorStyle={palette[idx % palette.length]}
               onDelete={() => deleteBudgetItem(plan.id, item.id)}
             />
           ))}

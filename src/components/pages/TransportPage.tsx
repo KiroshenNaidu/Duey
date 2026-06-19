@@ -21,6 +21,7 @@ import {
   DialogTitle,
   DialogClose,
 } from '@/components/ui/dialog';
+import { DatePickerInput } from '@/components/ui/date-picker';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -97,6 +98,9 @@ export function TransportPage() {
   const rateStr = pricingMode === 'monthly'
     ? `${formatCurrency(transportSettings.monthlyFee)}/mo`
     : `${formatCurrency(transportSettings.dailyFee)}/day`;
+  const jobChip = transportSettings.employed && (transportSettings.jobTitle || transportSettings.company)
+    ? [transportSettings.jobTitle, transportSettings.company].filter(Boolean).join(' @ ')
+    : null;
   const chipText = transportSettings.driverName
     ? `${transportSettings.driverName} · ${rateStr}`
     : rateStr;
@@ -113,6 +117,7 @@ export function TransportPage() {
         <div className="flex items-center gap-2 min-w-0">
           <Settings2 className="h-4 w-4 text-muted-foreground shrink-0" />
           <span className="text-xs text-foreground font-medium truncate">{chipText}</span>
+          {jobChip && <span className="text-[10px] text-muted-foreground truncate hidden sm:block">{jobChip}</span>}
           <span className={cn(
             "text-[10px] px-1.5 py-0.5 rounded-full font-semibold shrink-0",
             transportSettings.employed
@@ -146,10 +151,48 @@ export function TransportPage() {
                 </div>
                 <Switch
                   checked={transportSettings.employed}
-                  onCheckedChange={v => setTransportSettings({ ...transportSettings, employed: v })}
+                  onCheckedChange={v => {
+                    const now = new Date().toISOString().slice(0, 10);
+                    if (v) {
+                      setTransportSettings({ ...transportSettings, employed: true, employmentStartDate: now, employmentEndDate: undefined });
+                    } else {
+                      setTransportSettings({ ...transportSettings, employed: false, employmentEndDate: now });
+                    }
+                  }}
                   className="h-4 w-8"
                 />
               </div>
+
+              {transportSettings.employed && (
+                <div className="space-y-2 pt-1">
+                  <div className="space-y-1">
+                    <Label className="text-[10px] text-muted-foreground">Job Title</Label>
+                    <Input
+                      value={transportSettings.jobTitle ?? ''}
+                      onChange={e => setTransportSettings({ ...transportSettings, jobTitle: e.target.value || undefined })}
+                      placeholder="e.g., Software Developer"
+                      className="h-8 text-xs"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-[10px] text-muted-foreground">Company</Label>
+                    <Input
+                      value={transportSettings.company ?? ''}
+                      onChange={e => setTransportSettings({ ...transportSettings, company: e.target.value || undefined })}
+                      placeholder="e.g., Acme Corp"
+                      className="h-8 text-xs"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-[10px] text-muted-foreground">Start Date</Label>
+                    <DatePickerInput
+                      value={transportSettings.employmentStartDate}
+                      onChange={v => setTransportSettings({ ...transportSettings, employmentStartDate: v || undefined })}
+                      placeholder="Select start date"
+                    />
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="border-t border-border" />

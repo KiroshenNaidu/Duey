@@ -292,7 +292,7 @@ export function ThemeSettingsMenu({ onCancel, onDirtyChange, onSaved }: { onCanc
       onDirtyChange?.(false);
       onSaved?.('Theme saved!');
       document.documentElement.classList.add('page-fading-out');
-      setTimeout(() => { window.location.href = '/'; }, 220);
+      setTimeout(() => { window.location.href = '/'; }, 130);
     } catch (err) {
       setAppError({
         friendly: 'Could not save theme — storage may be full.',

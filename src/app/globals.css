@@ -211,13 +211,20 @@ nav.fixed,
   }
 }
 
-/* Theme save → navigate fade-out */
+/* Theme save → navigate fade-out / fade-in */
 @keyframes page-fade-out {
   to { opacity: 0; }
 }
+@keyframes page-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
 .page-fading-out {
-  animation: page-fade-out 0.2s ease-out forwards;
+  animation: page-fade-out 0.12s ease-out forwards;
   pointer-events: none;
+}
+body {
+  animation: page-fade-in 0.15s ease-out both;
 }
 
 /* Transport Page Styling */

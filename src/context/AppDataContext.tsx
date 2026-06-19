@@ -1,11 +1,12 @@
 'use client';
 
 import { createContext, ReactNode, useEffect, useState, useMemo, useCallback } from 'react';
-import type { AppState, Debt, HistoryEntry, AppData, ThemeSettings, TransportSettings, TransportOverrides, DayState, UberRide, UserTheme, BudgetPlan, BudgetItem, UserProfile, NotificationSettings, AppError } from '@/lib/types';
-import { isSameDay, startOfDay } from 'date-fns';
+import type { AppState, Debt, HistoryEntry, AppData, ThemeSettings, TransportSettings, TransportOverrides, DayState, UberRide, UserTheme, BudgetPlan, BudgetItem, UserProfile, NotificationSettings, AppError, Expense, ExtraIncome } from '@/lib/types';
+import { isSameDay, startOfDay, startOfMonth, format } from 'date-fns';
 import { idbGet, idbSet, idbDel, setCurrencyCode } from '@/lib/utils';
+import { calculateTransportMonth } from '@/lib/calculations';
 
-const CURRENT_SCHEMA_VERSION = 6;
+const CURRENT_SCHEMA_VERSION = 8;
 
 function migrateState(raw: AppState): AppState {
   const overrides: TransportOverrides = {};
@@ -19,6 +20,10 @@ function migrateState(raw: AppState): AppState {
     pricingMode: raw.transportSettings?.pricingMode ?? 'daily',
     dailyFee: raw.transportSettings?.dailyFee ?? 0,
     monthlyFee: raw.transportSettings?.monthlyFee ?? 0,
+    jobTitle: raw.transportSettings?.jobTitle,
+    company: raw.transportSettings?.company,
+    employmentStartDate: raw.transportSettings?.employmentStartDate,
+    employmentEndDate: raw.transportSettings?.employmentEndDate,
   };
   return {
     ...raw,
@@ -27,6 +32,8 @@ function migrateState(raw: AppState): AppState {
     transportSettings,
     transportOverrides: overrides,
     uberRides: raw.uberRides ?? [],
+    expenses: raw.expenses ?? [],
+    extraIncomes: raw.extraIncomes ?? [],
     budgetPlans: raw.budgetPlans ?? [],
     monthlyIncome: raw.monthlyIncome ?? 0,
     userProfile: raw.userProfile
@@ -40,6 +47,7 @@ function migrateState(raw: AppState): AppState {
       : defaultState.themeSettings,
     exportFolderUri: raw.exportFolderUri ?? '',
     exportFolderName: raw.exportFolderName ?? '',
+    lastSnapshotMonth: raw.lastSnapshotMonth ?? '',
     schemaVersion: CURRENT_SCHEMA_VERSION,
   };
 }
@@ -52,6 +60,8 @@ const defaultState: AppState = {
   transportSettings: { driverName: '', employed: true, pricingMode: 'daily', dailyFee: 0, monthlyFee: 0 },
   transportOverrides: {},
   uberRides: [],
+  expenses: [],
+  extraIncomes: [],
   budgetPlans: [],
   monthlyIncome: 0,
   userProfile: { name: '', paydayDay: 26, bio: '' },
@@ -76,6 +86,7 @@ const defaultState: AppState = {
   notepadContent: '',
   exportFolderUri: '',
   exportFolderName: '',
+  lastSnapshotMonth: '',
 };
 
 type NavGuard = { onAttempt: (href: string) => void } | null;
@@ -98,6 +109,11 @@ interface AppContextType extends AppState {
   addUberRide: (ride: Omit<UberRide, 'id' | 'createdAt'>) => void;
   deleteUberRide: (rideId: string) => void;
   updateUberRide: (rideId: string, data: Partial<Omit<UberRide, 'id' | 'createdAt'>>) => void;
+  addExpense: (expense: Omit<Expense, 'id' | 'createdAt'>) => void;
+  deleteExpense: (expenseId: string) => void;
+  updateExpense: (expenseId: string, data: Partial<Omit<Expense, 'id' | 'createdAt'>>) => void;
+  addExtraIncome: (label: string, amount: number) => void;
+  deleteExtraIncome: (id: string) => void;
   addBudgetPlan: (name: string, budget: number) => void;
   deleteBudgetPlan: (planId: string) => void;
   updateBudgetPlan: (planId: string, data: { name?: string; budget?: number }) => void;
@@ -136,6 +152,11 @@ export const AppDataContext = createContext<AppContextType>({
   addUberRide: () => {},
   deleteUberRide: () => {},
   updateUberRide: () => {},
+  addExpense: () => {},
+  deleteExpense: () => {},
+  updateExpense: () => {},
+  addExtraIncome: () => {},
+  deleteExtraIncome: () => {},
   addBudgetPlan: () => {},
   deleteBudgetPlan: () => {},
   updateBudgetPlan: () => {},
@@ -177,7 +198,61 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     const storedStateRaw = localStorage.getItem('appState');
     if (storedStateRaw) {
       try {
-        setAppState(migrateState(JSON.parse(storedStateRaw)));
+        let loaded = migrateState(JSON.parse(storedStateRaw));
+
+        // Auto-purge non-recurring expenses from previous months
+        const firstOfThisMonth = startOfMonth(new Date());
+        const expired = loaded.expenses.filter(
+          e => !e.recurring && new Date(e.createdAt) < firstOfThisMonth
+        );
+        if (expired.length > 0) {
+          const purgeEntries: HistoryEntry[] = expired.map(e => ({
+            id: crypto.randomUUID(),
+            debtTitle: e.title,
+            date: new Date().toISOString(),
+            amount: e.amount,
+            type: 'expense' as const,
+            note: 'Auto-removed (one-time expense)',
+          }));
+          loaded = {
+            ...loaded,
+            expenses: loaded.expenses.filter(e => e.recurring || new Date(e.createdAt) >= firstOfThisMonth),
+            history: [...purgeEntries, ...loaded.history],
+          };
+        }
+
+        // Monthly balance snapshot — logs once per month on first load of a new month.
+        // lastSnapshotMonth === '' means fresh install; skip to avoid a noisy first entry.
+        const currentMonthKey = format(new Date(), 'yyyy-MM');
+        if (loaded.lastSnapshotMonth && loaded.lastSnapshotMonth !== currentMonthKey) {
+          const prevMonthLabel = format(firstOfThisMonth, 'MMMM yyyy');
+          const transportCost = calculateTransportMonth(new Date(), loaded.transportOverrides, loaded.transportSettings).totalDue;
+          const budgetSpent = loaded.budgetPlans.flatMap(p => p.items).reduce((s, i) => s + i.price, 0);
+          const debtTotal = loaded.debts.reduce((s, d) => s + d.installment_amount, 0);
+          const expenseTotal = loaded.expenses.reduce((s, e) => s + e.amount, 0);
+          const totalExtra = (loaded.extraIncomes ?? []).reduce((s, e) => s + e.amount, 0);
+          const totalOutgoings = transportCost + budgetSpent + debtTotal + expenseTotal;
+          const income = loaded.monthlyIncome + totalExtra;
+          const remaining = income - totalOutgoings;
+          const snapshotEntry: HistoryEntry = {
+            id: crypto.randomUUID(),
+            debtTitle: `${prevMonthLabel} Summary`,
+            date: new Date().toISOString(),
+            amount: Math.abs(remaining),
+            type: 'snapshot' as const,
+            note: `Income: ${income} · Outgoings: ${totalOutgoings} · ${remaining >= 0 ? 'Surplus' : 'Deficit'}: ${Math.abs(remaining)}`,
+          };
+          loaded = {
+            ...loaded,
+            history: [snapshotEntry, ...loaded.history],
+            lastSnapshotMonth: currentMonthKey,
+          };
+        } else if (!loaded.lastSnapshotMonth) {
+          // Fresh install — just record the month so the next month-turn creates a real snapshot.
+          loaded = { ...loaded, lastSnapshotMonth: currentMonthKey };
+        }
+
+        setAppState(loaded);
       } catch (e) {
         console.error("Failed to parse persisted app state", e);
       }
@@ -378,6 +453,49 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     }));
   };
 
+  const addExpense = useCallback((expenseData: Omit<Expense, 'id' | 'createdAt'>) => {
+    updateStateAndSync(prev => {
+      const newExpense: Expense = { ...expenseData, id: crypto.randomUUID(), createdAt: new Date().toISOString() };
+      const historyEntry: HistoryEntry = {
+        id: crypto.randomUUID(),
+        debtTitle: newExpense.title,
+        date: newExpense.date,
+        amount: newExpense.amount,
+        type: 'expense',
+        note: newExpense.note,
+      };
+      return { ...prev, expenses: [...prev.expenses, newExpense], history: [historyEntry, ...prev.history] };
+    });
+  }, [updateStateAndSync]);
+
+  const deleteExpense = useCallback((expenseId: string) => {
+    updateStateAndSync(prev => ({
+      ...prev,
+      expenses: prev.expenses.filter(e => e.id !== expenseId),
+    }));
+  }, [updateStateAndSync]);
+
+  const updateExpense = useCallback((expenseId: string, data: Partial<Omit<Expense, 'id' | 'createdAt'>>) => {
+    updateStateAndSync(prev => ({
+      ...prev,
+      expenses: prev.expenses.map(e => e.id === expenseId ? { ...e, ...data } : e),
+    }));
+  }, [updateStateAndSync]);
+
+  const addExtraIncome = useCallback((label: string, amount: number) => {
+    updateStateAndSync(prev => ({
+      ...prev,
+      extraIncomes: [...(prev.extraIncomes ?? []), { id: crypto.randomUUID(), label, amount, createdAt: new Date().toISOString() }],
+    }));
+  }, [updateStateAndSync]);
+
+  const deleteExtraIncome = useCallback((id: string) => {
+    updateStateAndSync(prev => ({
+      ...prev,
+      extraIncomes: (prev.extraIncomes ?? []).filter(e => e.id !== id),
+    }));
+  }, [updateStateAndSync]);
+
   const addBudgetPlan = useCallback((name: string, budget: number) => {
     updateStateAndSync(prev => ({
       ...prev,
@@ -467,12 +585,39 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     togglePaymentDate,
     logPaymentForToday,
     logCustomPayment,
-    setTransportSettings: (settings: TransportSettings) => updateStateAndSync(p => ({ ...p, transportSettings: settings })),
+    setTransportSettings: (settings: TransportSettings) => updateStateAndSync(p => {
+      const prev = p.transportSettings;
+      const historyEntries: HistoryEntry[] = [];
+      if (prev.employed !== settings.employed) {
+        const label = settings.employed ? 'Started employment' : 'Ended employment';
+        const note = settings.employed
+          ? [settings.jobTitle, settings.company].filter(Boolean).join(' at ') || undefined
+          : [prev.jobTitle, prev.company].filter(Boolean).join(' at ') || undefined;
+        historyEntries.push({
+          id: crypto.randomUUID(),
+          debtTitle: label,
+          date: new Date().toISOString(),
+          amount: 0,
+          type: 'employment',
+          note,
+        });
+      }
+      return {
+        ...p,
+        transportSettings: settings,
+        history: historyEntries.length > 0 ? [...historyEntries, ...p.history] : p.history,
+      };
+    }),
     setTransportOverrides: (overrides: TransportOverrides) => updateStateAndSync(p => ({ ...p, transportOverrides: overrides })),
     logTransportPayment,
     addUberRide,
     deleteUberRide,
     updateUberRide,
+    addExpense,
+    deleteExpense,
+    updateExpense,
+    addExtraIncome,
+    deleteExtraIncome,
     addBudgetPlan,
     deleteBudgetPlan,
     updateBudgetPlan,
@@ -498,7 +643,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     setNavGuard,
     appError,
     setAppError,
-  }), [appState, avatarDataUrl, setProfileAvatar, navGuard, setNavGuard, appError, setAppError]);
+  }), [appState, avatarDataUrl, setProfileAvatar, navGuard, setNavGuard, appError, setAppError, addExpense, deleteExpense, updateExpense]);
 
   if (!isLoaded) return null;
 

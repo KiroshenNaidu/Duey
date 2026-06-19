@@ -5,13 +5,31 @@ export interface Debt {
   installment_amount: number;
 }
 
+export interface Expense {
+  id: string;
+  title: string;
+  amount: number;
+  category?: string; // kept for backward compat
+  date: string; // ISO 8601
+  note?: string;
+  createdAt: string; // ISO 8601
+  recurring?: boolean; // true = stays every month; false/undefined = auto-deleted on 1st of next month
+}
+
+export interface ExtraIncome {
+  id: string;
+  label: string;
+  amount: number;
+  createdAt: string; // ISO 8601
+}
+
 export interface HistoryEntry {
   id: string;
   debtId?: string;
   debtTitle: string;
   date: string; // ISO 8601 format
   amount: number;
-  type: 'payment' | 'creation' | 'transport' | 'completion' | 'budget';
+  type: 'payment' | 'creation' | 'transport' | 'completion' | 'budget' | 'expense' | 'employment' | 'snapshot';
   note?: string;
   label?: string; // user-defined display label, e.g. "Interest", "Penalty Fee"
 }
@@ -22,6 +40,10 @@ export interface TransportSettings {
   pricingMode: 'daily' | 'monthly';
   dailyFee: number;
   monthlyFee: number;
+  jobTitle?: string;
+  company?: string;
+  employmentStartDate?: string; // ISO 8601 date string
+  employmentEndDate?: string;   // ISO 8601 date string — set when marked as no longer employed
 }
 
 export type DayState = 0 | 1 | 1.5; // 0=home, 1=full travel, 1.5=half day
@@ -109,6 +131,8 @@ export interface AppState {
   currency: string; // ISO 4217 code, e.g. 'ZAR', 'USD'
   debts: Debt[];
   history: HistoryEntry[];
+  expenses: Expense[];
+  extraIncomes: ExtraIncome[];
   transportSettings: TransportSettings;
   transportOverrides: TransportOverrides;
   uberRides: UberRide[];
@@ -123,6 +147,8 @@ export interface AppState {
   exportFolderUri: string;
   /** Human-readable name of the chosen folder, for display in settings. */
   exportFolderName: string;
+  /** 'yyyy-MM' of the last month we already pushed a balance snapshot to history. */
+  lastSnapshotMonth: string;
 }
 
 // For Import/Export, which might not have all fields.

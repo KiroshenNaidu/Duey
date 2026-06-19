@@ -351,6 +351,19 @@ export function DataManagementMenu() {
           else if (e.type === 'completion') lines.push(`  COMPLETED R${e.amount} on ${formatDate(e.date)}`);
         }
       }
+      lines.push('', '=== EMPLOYMENT ===');
+      if (s.transportSettings.employed) {
+        lines.push(`  Status: Employed`);
+        if (s.transportSettings.jobTitle) lines.push(`  Job Title: ${s.transportSettings.jobTitle}`);
+        if (s.transportSettings.company)  lines.push(`  Company: ${s.transportSettings.company}`);
+        if (s.transportSettings.employmentStartDate) lines.push(`  Started: ${formatDate(s.transportSettings.employmentStartDate)}`);
+      } else {
+        lines.push(`  Status: Not currently employed`);
+        if (s.transportSettings.employmentEndDate) lines.push(`  Last ended: ${formatDate(s.transportSettings.employmentEndDate)}`);
+      }
+      s.history.filter(h => h.type === 'employment').forEach(h => {
+        lines.push(`  ${formatDate(h.date)} — ${h.debtTitle}${h.note ? ` (${h.note})` : ''}`);
+      });
       lines.push('', '=== TRANSPORT ===');
       s.history.filter(h => h.type === 'transport').forEach(h => {
         lines.push(`  ${h.debtTitle} — R${h.amount} on ${formatDate(h.date)}`);
@@ -358,6 +371,10 @@ export function DataManagementMenu() {
       lines.push('', '=== UBER RIDES ===');
       s.uberRides.forEach(r => {
         lines.push(`  ${formatDate(r.date)} — R${r.price}${r.from ? ` from ${r.from}` : ''}${r.to ? ` to ${r.to}` : ''}${r.distance ? ` (${r.distance}km)` : ''}`);
+      });
+      lines.push('', '=== EXPENSES ===');
+      s.expenses.forEach(e => {
+        lines.push(`  ${formatDate(e.date)} — ${e.title}${e.category ? ` [${e.category}]` : ''}: R${e.amount}${e.note ? ` (${e.note})` : ''}`);
       });
       lines.push('', '=== BUDGET PLANS ===');
       s.budgetPlans.forEach(p => {
@@ -377,6 +394,7 @@ export function DataManagementMenu() {
       const rows: string[][] = [['Date', 'Type', 'Name', 'Amount (R)', 'Notes']];
       s.history.forEach(h => rows.push([formatDate(h.date), h.type, h.debtTitle, String(h.amount), h.note ?? '']));
       s.uberRides.forEach(r => rows.push([formatDate(r.date), 'uber', `${r.from ?? ''} → ${r.to ?? ''}`, String(r.price), r.distance ? `${r.distance}km` : '']));
+      s.expenses.forEach(e => rows.push([formatDate(e.date), 'expense', `${e.title}${e.category ? ` [${e.category}]` : ''}`, String(e.amount), e.note ?? '']));
       s.budgetPlans.forEach(p => p.items.forEach(i => rows.push([formatDate(i.createdAt), 'budget-item', `${p.name}: ${i.name}`, String(i.price), i.link ?? ''])));
       const csv = rows.map(r => r.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(',')).join('\n');
       await downloadFile(new Blob([csv], { type: 'text/csv' }), buildFilename(initials, 'history', 'csv'));
@@ -402,6 +420,10 @@ export function DataManagementMenu() {
       const budgetSheet = utils.json_to_sheet(s.budgetPlans.flatMap(p => p.items.map(i => ({ Plan: p.name, Budget: p.budget, Item: i.name, 'Price (R)': i.price, Link: i.link ?? '' }))));
       budgetSheet['!cols'] = [{ wch: 20 }, { wch: 12 }, { wch: 30 }, { wch: 12 }, { wch: 40 }];
       utils.book_append_sheet(wb, budgetSheet, 'Budget Plans');
+
+      const expensesSheet = utils.json_to_sheet(s.expenses.map(e => ({ Date: formatDate(e.date), Title: e.title, Category: e.category ?? '', 'Amount (R)': e.amount, Note: e.note ?? '' })));
+      expensesSheet['!cols'] = [{ wch: 12 }, { wch: 30 }, { wch: 16 }, { wch: 14 }, { wch: 30 }];
+      utils.book_append_sheet(wb, expensesSheet, 'Expenses');
 
       const data = write(wb, { bookType: 'xlsx', type: 'array' });
       await downloadFile(new Blob([data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), buildFilename(initials, 'history', 'xlsx'));
@@ -462,6 +484,7 @@ export function DataManagementMenu() {
 
       const debtEntries = s.history.filter(h => ['creation', 'payment', 'completion'].includes(h.type));
       const transportEntries = s.history.filter(h => h.type === 'transport');
+      const employmentEntries = s.history.filter(h => h.type === 'employment');
 
       const uberTable = new Table({
         width: { size: 8640, type: WidthType.DXA },
@@ -530,6 +553,30 @@ export function DataManagementMenu() {
           uberTable,
           new Paragraph({ text: '' }),
         ] : []),
+        ...(s.expenses.length > 0 ? [
+          new Paragraph({ text: 'Expenses', heading: HeadingLevel.HEADING_1 }),
+          make3ColTable(
+            ['Date', 'Title / Category', 'Amount (R)'],
+            s.expenses.map(e => [formatDate(e.date), e.title + (e.category ? ` [${e.category}]` : ''), `R ${e.amount.toFixed(2)}`] as [string, string, string])
+          ),
+          new Paragraph({ text: '' }),
+        ] : []),
+        ...(employmentEntries.length > 0 || s.transportSettings.jobTitle || s.transportSettings.company ? [
+          new Paragraph({ text: 'Employment', heading: HeadingLevel.HEADING_1 }),
+          ...(s.transportSettings.jobTitle || s.transportSettings.company ? [
+            new Paragraph({ children: [new TextRun(`${s.transportSettings.jobTitle ?? ''}${s.transportSettings.company ? ` at ${s.transportSettings.company}` : ''} · ${s.transportSettings.employed ? 'Currently employed' : 'Not employed'}`)] }),
+            ...(s.transportSettings.employmentStartDate ? [new Paragraph({ children: [new TextRun(`Start date: ${formatDate(s.transportSettings.employmentStartDate)}`)] })] : []),
+            ...(s.transportSettings.employmentEndDate ? [new Paragraph({ children: [new TextRun(`End date: ${formatDate(s.transportSettings.employmentEndDate)}`)] })] : []),
+            new Paragraph({ text: '' }),
+          ] : []),
+          ...(employmentEntries.length > 0 ? [
+            make3ColTable(
+              ['Date', 'Event', 'Details'],
+              employmentEntries.map(h => [formatDate(h.date), h.debtTitle, h.note ?? '—'] as [string, string, string])
+            ),
+            new Paragraph({ text: '' }),
+          ] : []),
+        ] : []),
         ...(s.budgetPlans.length > 0 ? [
           new Paragraph({ text: 'Budget Plans', heading: HeadingLevel.HEADING_1 }),
           ...budgetSections,
@@ -592,6 +639,7 @@ export function DataManagementMenu() {
 
       // Debt payments
       const debtEntries = s.history.filter(h => ['payment', 'creation', 'completion'].includes(h.type));
+      const employmentPdfEntries = s.history.filter(h => h.type === 'employment');
       if (debtEntries.length > 0) {
         sectionHeader('DEBT PAYMENTS');
         const paymentRows: RowData[] = debtEntries.map(h => [
@@ -623,6 +671,36 @@ export function DataManagementMenu() {
         });
         const totalUber = s.uberRides.reduce((a, r) => a + r.price, 0);
         y = drawTable(doc, y, UBER_COLS, uberRows, ['', '', '', `R  ${totalUber.toFixed(2)}`]);
+        y += 6;
+      }
+
+      // Employment history
+      if (employmentPdfEntries.length > 0 || s.transportSettings.jobTitle || s.transportSettings.company) {
+        const EMP_COLS: ColDef[] = [{ header: 'Date', width: 28 }, { header: 'Event', width: 110 }, { header: 'Details', width: 52 }];
+        sectionHeader('EMPLOYMENT');
+        if (s.transportSettings.jobTitle || s.transportSettings.company) {
+          const empLine = [s.transportSettings.jobTitle, s.transportSettings.company].filter(Boolean).join(' at ');
+          doc.setFont('helvetica', 'italic'); doc.setFontSize(8); doc.setTextColor(80, 80, 80);
+          doc.text(`Current: ${empLine} (${s.transportSettings.employed ? 'Active' : 'Ended'})`, 12, y); y += 5;
+        }
+        if (employmentPdfEntries.length > 0) {
+          const empRows: RowData[] = employmentPdfEntries.map(h => [formatDate(h.date), h.debtTitle, h.note ?? '']);
+          y = drawTable(doc, y, EMP_COLS, empRows);
+        }
+        y += 6;
+      }
+
+      // Expenses
+      if (s.expenses.length > 0) {
+        const EXPENSE_COLS: ColDef[] = [{ header: 'Date', width: 28 }, { header: 'Title / Category', width: 110 }, { header: 'Amount (R)', width: 52, align: 'right' }];
+        sectionHeader('EXPENSES');
+        const expenseRows: RowData[] = s.expenses.map(e => [
+          formatDate(e.date),
+          e.title + (e.category ? ` [${e.category}]` : ''),
+          `R  ${e.amount.toFixed(2)}`,
+        ]);
+        const totalExpenses = s.expenses.reduce((a, e) => a + e.amount, 0);
+        y = drawTable(doc, y, EXPENSE_COLS, expenseRows, ['', 'Total', `R  ${totalExpenses.toFixed(2)}`]);
         y += 6;
       }
 
@@ -666,9 +744,11 @@ export function DataManagementMenu() {
 
       const payments   = fHist.filter(h => h.type === 'payment');
       const transport  = fHist.filter(h => h.type === 'transport');
+      const fExpenses  = s.expenses.filter(e => isAfter(new Date(e.date), cutoff));
       const totalPaid  = payments.reduce((a, h) => a + h.amount, 0);
       const totalTrans = transport.reduce((a, h) => a + h.amount, 0);
       const totalUber  = fRides.reduce((a, r) => a + r.price, 0);
+      const totalExp   = fExpenses.reduce((a, e) => a + e.amount, 0);
 
       const { jsPDF } = await import('jspdf');
       const doc = new jsPDF({ unit: 'mm', format: 'a4' });
@@ -750,14 +830,26 @@ export function DataManagementMenu() {
       }
       y += 6;
 
+      // Expenses
+      const EXPENSE_STAT_COLS: ColDef[] = [{ header: 'Date', width: 28 }, { header: 'Title / Category', width: 110 }, { header: 'Amount (R)', width: 52, align: 'right' }];
+      sectionHeader('EXPENSES');
+      if (fExpenses.length > 0) {
+        const expRows: RowData[] = fExpenses.map(e => [formatDate(e.date), e.title + (e.category ? ` [${e.category}]` : ''), `R  ${e.amount.toFixed(2)}`]);
+        y = drawTable(doc, y, EXPENSE_STAT_COLS, expRows, ['', 'Subtotal', `R  ${totalExp.toFixed(2)}`]);
+      } else {
+        emptyNote('No expenses in this period.');
+      }
+      y += 6;
+
       // Summary
       sectionHeader('SUMMARY');
       const summaryRows: RowData[] = [
         ['Debt Payments', `R  ${totalPaid.toFixed(2)}`],
         ['Transport',     `R  ${totalTrans.toFixed(2)}`],
         ['Uber Rides',    `R  ${totalUber.toFixed(2)}`],
+        ['Expenses',      `R  ${totalExp.toFixed(2)}`],
       ];
-      y = drawTable(doc, y, SUMMARY_COLS, summaryRows, ['Grand Total', `R  ${(totalPaid + totalTrans + totalUber).toFixed(2)}`]);
+      y = drawTable(doc, y, SUMMARY_COLS, summaryRows, ['Grand Total', `R  ${(totalPaid + totalTrans + totalUber + totalExp).toFixed(2)}`]);
 
       const totalPages = doc.getNumberOfPages();
       for (let i = 1; i <= totalPages; i++) { doc.setPage(i); drawPageFooter(doc, i, totalPages); }
@@ -798,14 +890,23 @@ export function DataManagementMenu() {
       uberSheet['!cols'] = [{ wch: 12 }, { wch: 22 }, { wch: 22 }, { wch: 12 }, { wch: 14 }];
       utils.book_append_sheet(wb, uberSheet, 'Uber Rides');
 
+      const fExpensesExcel = s.expenses.filter(e => isAfter(new Date(e.date), cutoff));
+      const expensesStatSheet = utils.json_to_sheet(
+        fExpensesExcel.map(e => ({ Date: formatDate(e.date), Title: e.title, Category: e.category ?? '', 'Amount (R)': e.amount, Note: e.note ?? '' }))
+      );
+      expensesStatSheet['!cols'] = [{ wch: 12 }, { wch: 30 }, { wch: 16 }, { wch: 14 }, { wch: 30 }];
+      utils.book_append_sheet(wb, expensesStatSheet, 'Expenses');
+
       const totalPaid  = fHist.filter(h => h.type === 'payment').reduce((a, h) => a + h.amount, 0);
       const totalTrans = fHist.filter(h => h.type === 'transport').reduce((a, h) => a + h.amount, 0);
       const totalUber  = fRides.reduce((a, r) => a + r.price, 0);
+      const totalExpStat = fExpensesExcel.reduce((a, e) => a + e.amount, 0);
       const summarySheet = utils.json_to_sheet([
         { Category: 'Debt Payments', 'Total (R)': totalPaid },
         { Category: 'Transport',     'Total (R)': totalTrans },
         { Category: 'Uber Rides',    'Total (R)': totalUber },
-        { Category: 'Grand Total',   'Total (R)': totalPaid + totalTrans + totalUber },
+        { Category: 'Expenses',      'Total (R)': totalExpStat },
+        { Category: 'Grand Total',   'Total (R)': totalPaid + totalTrans + totalUber + totalExpStat },
       ]);
       summarySheet['!cols'] = [{ wch: 20 }, { wch: 14 }];
       utils.book_append_sheet(wb, summarySheet, 'Summary');
