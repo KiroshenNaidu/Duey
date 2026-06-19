@@ -71,8 +71,8 @@
 
 1. Download the latest APK from the [Releases page](https://github.com/KiroshenNaidu/Duey/releases/latest).
 2. Open the `.apk` on your Android device.
-3. Allow installation from unknown sources when prompted — Google will warn you since it's a raw APK. Install if you trust the file; don't if you don't. Fair enough.
-4. Launch **Duey** and face your debts.
+3. Allow installation from unknown sources when prompted — Google will warn you since it's a raw APK. Install if you trust the file...or dont your call lmao i aint your dad-unless.
+4. Launch **Duey** and embrace the disapointment your family has always had for you.
 
 ---
 
