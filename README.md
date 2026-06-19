@@ -38,7 +38,7 @@
 - Multi-currency support (pick your currency in settings)
 
 ### Export & Backup
-- Export history and statements to **PDF, DOCX, XLSX, CSV, or TXT**
+- Export history and statements to **PDF, DOCX, XLSX, CSV, or TXT** — PDFs and Word docs include the app logo in the header
 - Export/import a full backup or a portable config (theme + profile)
 - **Android:** choose any export folder once — internal storage, SD card, or USB — and every export saves there automatically. Files are named `INITIALS-type-DD-MM-YYYY.ext` (e.g. `K-backup-17-06-2026.json`)
 
@@ -80,9 +80,11 @@
 ## Local Development
 
 ```bash
-npm install
+npm install        # may show errors — that's fine, skip to the next step
 npm run dev        # runs on port 9002
 ```
+
+> **`npm install` errors are expected** — some optional or peer dependencies may fail to resolve. As long as `node_modules` exists, `npm run dev` will work correctly. Skip the install entirely if you already have the folder.
 
 To build and sync to Android:
 

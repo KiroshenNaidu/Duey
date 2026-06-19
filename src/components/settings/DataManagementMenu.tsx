@@ -13,6 +13,41 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogC
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
+// Converts /favicon.ico to a PNG base64 string via canvas so it can be embedded in
+// jsPDF (addImage) and docx (ImageRun). Returns '' on failure — exports fall back gracefully.
+function getLogoBase64(): Promise<string> {
+  return new Promise(resolve => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = 32; canvas.height = 32;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) { resolve(''); return; }
+      ctx.drawImage(img, 0, 0, 32, 32);
+      resolve(canvas.toDataURL('image/png').split(',')[1]);
+    };
+    img.onerror = () => resolve('');
+    img.src = '/favicon.ico';
+  });
+}
+
+// Loads the docx UMD bundle via a <script> tag, bypassing Turbopack's module bundler
+// which incorrectly transforms ES6 class `super` calls regardless of transpilePackages.
+// Modern browsers handle native ES6 class syntax fine; the issue is only in Turbopack.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function loadDocxLib(): Promise<any> {
+  return new Promise((resolve, reject) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const w = window as any;
+    if (w.docx) { resolve(w.docx); return; }
+    const s = document.createElement('script');
+    s.src = '/docx-umd.js';
+    s.onload = () => resolve(w.docx);
+    s.onerror = () => reject(new Error('Failed to load docx'));
+    document.head.appendChild(s);
+  });
+}
+
 // Minimal duck-type for jsPDF instances — avoids a top-level import that Turbopack
 // would process at module load time and fail on jsPDF's ES6 class `super` calls.
 interface PDFDoc {
@@ -443,7 +478,9 @@ export function DataManagementMenu() {
 
   const exportAsWord = async (): Promise<Blob> => {
       const s = getAppState();
-      const { Document, Paragraph, TextRun, HeadingLevel, Table, TableRow, TableCell, Packer, WidthType } = await import('docx');
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const [{ Document, Paragraph, TextRun, HeadingLevel, Table, TableRow, TableCell, Packer, WidthType, ImageRun }, logoBase64] = await Promise.all([loadDocxLib() as any, getLogoBase64()]);
+      const logoData = logoBase64 ? Uint8Array.from(atob(logoBase64), c => c.charCodeAt(0)) : null;
       const dateStr = new Date().toLocaleDateString('en-ZA', { day: '2-digit', month: 'short', year: 'numeric' });
 
       const HDR_FILL = '2D323A';
@@ -451,8 +488,10 @@ export function DataManagementMenu() {
       const COL_NAME = 5760;
       const COL_AMT  = 1440;
 
-      type DocCell = InstanceType<typeof TableCell>;
-      type DocRow  = InstanceType<typeof TableRow>;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      type DocCell = any;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      type DocRow  = any;
 
       const makeHdrCell = (text: string, width: number): DocCell =>
         new TableCell({
@@ -536,7 +575,13 @@ export function DataManagementMenu() {
       }
 
       const children: (InstanceType<typeof Paragraph> | InstanceType<typeof Table>)[] = [
-        new Paragraph({ text: 'DUEY — History Report', heading: HeadingLevel.TITLE }),
+        new Paragraph({
+          children: [
+            ...(logoData ? [new ImageRun({ data: logoData, transformation: { width: 36, height: 36 }, type: 'png' }), new TextRun({ text: '  ' })] : []),
+            new TextRun({ text: 'DUEY — History Report', bold: true, size: 52 }),
+          ],
+          spacing: { after: 120 },
+        }),
         new Paragraph({ children: [new TextRun(`Generated: ${dateStr}`)] }),
         ...(s.userProfile.name ? [new Paragraph({ children: [new TextRun(`Prepared for: ${s.userProfile.name}`)] })] : []),
         new Paragraph({ text: '' }),
@@ -597,7 +642,7 @@ export function DataManagementMenu() {
 
   const exportAsPdf = async (): Promise<Blob> => {
       const s = getAppState();
-      const { jsPDF } = await import('jspdf');
+      const [{ jsPDF }, logoBase64] = await Promise.all([import('jspdf'), getLogoBase64()]);
       const doc = new jsPDF({ unit: 'mm', format: 'a4' });
       const PAGE_W = doc.internal.pageSize.getWidth();
       const dateStr = new Date().toLocaleDateString('en-ZA', { day: '2-digit', month: 'short', year: 'numeric' });
@@ -610,10 +655,11 @@ export function DataManagementMenu() {
       let y = 18;
 
       // Page header
+      if (logoBase64) doc.addImage(logoBase64, 'PNG', 10, y - 7, 7, 7);
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(20);
       doc.setTextColor(30, 30, 30);
-      doc.text('DUEY', 10, y);
+      doc.text('DUEY', logoBase64 ? 19 : 10, y);
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(9);
       doc.setTextColor(100, 100, 100);
@@ -747,7 +793,7 @@ export function DataManagementMenu() {
       const totalUber  = fRides.reduce((a, r) => a + r.price, 0);
       const totalExp   = fExpenses.reduce((a, e) => a + e.amount, 0);
 
-      const { jsPDF } = await import('jspdf');
+      const [{ jsPDF }, logoBase64] = await Promise.all([import('jspdf'), getLogoBase64()]);
       const doc = new jsPDF({ unit: 'mm', format: 'a4' });
       const PAGE_W = doc.internal.pageSize.getWidth();
       const dateStr = new Date().toLocaleDateString('en-ZA', { day: '2-digit', month: 'short', year: 'numeric' });
@@ -760,10 +806,11 @@ export function DataManagementMenu() {
       let y = 18;
 
       // Cover header
+      if (logoBase64) doc.addImage(logoBase64, 'PNG', 10, y - 7, 7, 7);
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(18);
       doc.setTextColor(30, 30, 30);
-      doc.text('DUEY Financial Statement', 10, y);
+      doc.text('DUEY Financial Statement', logoBase64 ? 19 : 10, y);
       y += 7;
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(9);

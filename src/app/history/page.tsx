@@ -68,6 +68,24 @@ function blobToBase64(blob: Blob): Promise<string> {
   });
 }
 
+// Converts /favicon.ico to PNG base64 via canvas for embedding in PDF headers.
+// Returns '' on failure so exports fall back gracefully to text-only.
+function getLogoBase64(): Promise<string> {
+  return new Promise(resolve => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = 32; canvas.height = 32;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) { resolve(''); return; }
+      ctx.drawImage(img, 0, 0, 32, 32);
+      resolve(canvas.toDataURL('image/png').split(',')[1]);
+    };
+    img.onerror = () => resolve('');
+    img.src = '/favicon.ico';
+  });
+}
+
 // ─── PDF table helper ─────────────────────────────────────────────────────────
 
 type ColDef = { header: string; width: number; align?: 'left' | 'right' };
@@ -127,14 +145,15 @@ function drawTable(doc: any, startY: number, cols: ColDef[], rows: RowData[], to
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function pdfHeader(doc: any, title: string, subtitle: string, name: string): number {
+function pdfHeader(doc: any, title: string, subtitle: string, name: string, logoBase64?: string): number {
   const W = doc.internal.pageSize.getWidth();
   const dateStr = format(new Date(), 'd MMM yyyy');
   let y = 15;
   doc.setFillColor(40, 44, 52);
   doc.rect(0, 0, W, 22, 'F');
+  if (logoBase64) doc.addImage(logoBase64, 'PNG', 10, 7, 8, 8);
   doc.setFont('helvetica', 'bold'); doc.setFontSize(14); doc.setTextColor(255, 255, 255);
-  doc.text('DUEY', 10, 14);
+  doc.text('DUEY', logoBase64 ? 20 : 10, 14);
   doc.setFont('helvetica', 'normal'); doc.setFontSize(8);
   doc.text(dateStr, W - 10, 14, { align: 'right' });
   y = 28;
@@ -187,12 +206,12 @@ type ExportBuilderArgs = {
 };
 
 async function buildPdf(args: ExportBuilderArgs): Promise<Blob> {
-  const { jsPDF } = await import('jspdf');
+  const [{ jsPDF }, logoBase64] = await Promise.all([import('jspdf'), getLogoBase64()]);
   const { history, expenses, uberRides, budgetPlans, debts, userName, tab } = args;
   const doc = new jsPDF({ unit: 'mm', format: 'a4' });
 
   if (tab === 'all') {
-    let y = pdfHeader(doc, 'Complete History Report', 'All transactions and events', userName);
+    let y = pdfHeader(doc, 'Complete History Report', 'All transactions and events', userName, logoBase64);
     const sorted = [...history].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
     // Group by month
@@ -243,7 +262,7 @@ async function buildPdf(args: ExportBuilderArgs): Promise<Blob> {
     }
 
   } else if (tab === 'debts') {
-    let y = pdfHeader(doc, 'Debt History Report', 'All debt payments, creations and completions', userName);
+    let y = pdfHeader(doc, 'Debt History Report', 'All debt payments, creations and completions', userName, logoBase64);
     const debtEntries = history.filter(h => ['payment', 'creation', 'completion'].includes(h.type));
     const groups = new Map<string, HistoryEntry[]>();
     for (const e of debtEntries) {
@@ -289,7 +308,7 @@ async function buildPdf(args: ExportBuilderArgs): Promise<Blob> {
     }
 
   } else if (tab === 'transport') {
-    let y = pdfHeader(doc, 'Transport History Report', 'Monthly transport payments and Uber rides', userName);
+    let y = pdfHeader(doc, 'Transport History Report', 'Monthly transport payments and Uber rides', userName, logoBase64);
     const transportEntries = [...history.filter(h => h.type === 'transport')].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
     const sortedUber = [...uberRides].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
@@ -324,7 +343,7 @@ async function buildPdf(args: ExportBuilderArgs): Promise<Blob> {
     }
 
   } else if (tab === 'expenses') {
-    let y = pdfHeader(doc, 'Expenses Report', 'All recorded expenses by category', userName);
+    let y = pdfHeader(doc, 'Expenses Report', 'All recorded expenses by category', userName, logoBase64);
     const sorted = [...expenses].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
     // Group by category
@@ -352,7 +371,7 @@ async function buildPdf(args: ExportBuilderArgs): Promise<Blob> {
     y = drawTable(doc, y, COLS, rows, ['', '', '', 'Total', `R ${grandTotal.toFixed(2)}`]);
 
   } else if (tab === 'budget') {
-    let y = pdfHeader(doc, 'Budget Plans Report', 'All budget plans with items and spending', userName);
+    let y = pdfHeader(doc, 'Budget Plans Report', 'All budget plans with items and spending', userName, logoBase64);
 
     if (budgetPlans.length === 0) {
       doc.setFont('helvetica', 'italic'); doc.setFontSize(9); doc.setTextColor(130, 130, 130);
