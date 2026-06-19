@@ -152,10 +152,30 @@ export function SettingsPage() {
       menuDirectionRef.current = target === 'main' ? -1 : 1;
       setActiveMenu(target);
       setMenuIsDirty(false);
+      // Push a dummy history entry so the Android hardware back button can pop
+      // back to the settings main menu instead of exiting the app or jumping to
+      // the previous route. The URL stays at /settings; we handle the pop below.
+      if (target !== 'main') {
+        window.history.pushState({ __duey_settings: target }, '', window.location.href);
+      }
     }
   };
 
   const handleBack = () => tryNavigate('main');
+
+  // Intercept Android hardware back button while inside a sub-menu.
+  useEffect(() => {
+    const onPop = () => {
+      if (activeMenu !== 'main') {
+        // Re-push so the entry is restored, then animate to main.
+        window.history.pushState({ __duey_settings: activeMenu }, '', window.location.href);
+        tryNavigate('main');
+      }
+    };
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeMenu]);
 
   const confirmDiscard = () => {
     setMenuIsDirty(false);

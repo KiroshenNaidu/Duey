@@ -28,6 +28,17 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const [backgroundImage, setBackgroundImage] = useState('');
   const [isImageReady, setIsImageReady] = useState(false);
 
+  // One-time probe: flag genuinely low-end devices so globals.css can ease the
+  // most GPU-expensive effect (glass backdrop-blur) without changing the look elsewhere.
+  useEffect(() => {
+    const nav = navigator as Navigator & { deviceMemory?: number };
+    const cores = nav.hardwareConcurrency ?? 8;
+    const memory = nav.deviceMemory ?? 8;
+    if (cores <= 4 || memory <= 3) {
+      document.body.classList.add('low-power');
+    }
+  }, []);
+
   useEffect(() => {
     async function loadInitialImage() {
       try {

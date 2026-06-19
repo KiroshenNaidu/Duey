@@ -2,7 +2,7 @@
 
 import { useContext, useState, useMemo, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { AppDataContext } from '@/context/AppDataContext';
 import { formatCurrency, cn } from '@/lib/utils';
 import { Card, CardContent } from '@/components/ui/card';
@@ -13,7 +13,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import {
   ChevronLeft, Pencil, Trash2, Check, X, Download, FolderOpen,
   CreditCard, PlusCircle, Trophy, Car, Wallet, Zap, Receipt,
-  FileText, Sheet, Tag, Bus, ChevronRight,
+  FileText, Sheet, Tag, Bus, CheckCircle2,
 } from 'lucide-react';
 import type { HistoryEntry, Expense, UberRide, BudgetPlan } from '@/lib/types';
 import { format } from 'date-fns';
@@ -506,7 +506,7 @@ function buildTxt(args: ExportBuilderArgs): Blob {
 
 function ExportDialog({
   open, onClose, tab, initials, exportFolderUri, exportFolderName,
-  onPickFolder, onDownload,
+  onPickFolder, onConfirm,
 }: {
   open: boolean;
   onClose: () => void;
@@ -515,7 +515,7 @@ function ExportDialog({
   exportFolderUri: string;
   exportFolderName: string;
   onPickFolder: () => void;
-  onDownload: (fmt: ExportFormat) => void;
+  onConfirm: (fmt: ExportFormat) => void;
 }) {
   const [fmt, setFmt] = useState<ExportFormat>('pdf');
   const [isNative, setIsNative] = useState(false);
@@ -587,7 +587,7 @@ function ExportDialog({
 
         <DialogFooter className="mt-2 gap-2">
           <Button variant="secondary" onClick={onClose}>Cancel</Button>
-          <Button onClick={() => onDownload(fmt)} className="gap-2">
+          <Button onClick={() => { onConfirm(fmt); onClose(); }} className="gap-2">
             <Download className="h-4 w-4" /> Download
           </Button>
         </DialogFooter>
@@ -599,13 +599,14 @@ function ExportDialog({
 // ─── Badge ────────────────────────────────────────────────────────────────────
 
 const TYPE_CFG: Record<string, { label: string; color: string; bg: string; Icon: React.ElementType }> = {
-  payment:    { label: 'Payment',   color: 'text-primary',          bg: 'bg-primary/15',        Icon: CreditCard  },
-  creation:   { label: 'Created',   color: 'text-muted-foreground', bg: 'bg-muted/80',          Icon: PlusCircle  },
-  completion: { label: 'Completed', color: 'text-green-500',        bg: 'bg-green-500/15',      Icon: Trophy      },
-  transport:  { label: 'Transport', color: 'text-blue-400',         bg: 'bg-blue-400/15',       Icon: Car         },
-  budget:     { label: 'Budget',    color: 'text-purple-400',       bg: 'bg-purple-400/15',     Icon: Wallet      },
-  expense:    { label: 'Expense',   color: 'text-orange-400',       bg: 'bg-orange-400/15',     Icon: Receipt     },
-  employment: { label: 'Employment', color: 'text-teal-400',        bg: 'bg-teal-400/15',       Icon: Bus         },
+  payment:    { label: 'Payment',    color: 'text-primary',          bg: 'bg-primary/15',        Icon: CreditCard  },
+  creation:   { label: 'Created',    color: 'text-muted-foreground', bg: 'bg-muted/80',          Icon: PlusCircle  },
+  completion: { label: 'Completed',  color: 'text-green-500',        bg: 'bg-green-500/15',      Icon: Trophy      },
+  transport:  { label: 'Transport',  color: 'text-blue-400',         bg: 'bg-blue-400/15',       Icon: Car         },
+  budget:     { label: 'Budget',     color: 'text-purple-400',       bg: 'bg-purple-400/15',     Icon: Wallet      },
+  expense:    { label: 'Expense',    color: 'text-orange-400',       bg: 'bg-orange-400/15',     Icon: Receipt     },
+  employment: { label: 'Employment', color: 'text-teal-400',         bg: 'bg-teal-400/15',       Icon: Bus         },
+  snapshot:   { label: 'Summary',    color: 'text-sky-400',          bg: 'bg-sky-400/15',        Icon: Zap         },
 };
 
 function TypeBadge({ type, label }: { type: string; label?: string }) {
@@ -698,6 +699,8 @@ export default function HistoryPage() {
   const [activeTab, setActiveTab] = useState<TabId>('all');
   const [exportOpen, setExportOpen] = useState(false);
   const [choosingFolder, setChoosingFolder] = useState(false);
+  const [confirmFmt, setConfirmFmt] = useState<ExportFormat | null>(null);
+  const [showSuccess, setShowSuccess] = useState(false);
 
   const initials = getInitials(userProfile.name);
 
@@ -766,7 +769,7 @@ export default function HistoryPage() {
 
   // ── Download handler ──────────────────────────────────────────────────────────
   const handleDownload = async (fmt: ExportFormat) => {
-    setExportOpen(false);
+    setConfirmFmt(null);
     const args: ExportBuilderArgs = { history, expenses, uberRides, budgetPlans, debts, userName: userProfile.name, tab: activeTab };
     try {
       let blob: Blob;
@@ -777,7 +780,12 @@ export default function HistoryPage() {
 
       const filename = `${initials || 'U'}-${activeTab}-${buildDateStamp()}.${ext}`;
       const { Capacitor } = await import('@capacitor/core');
-      if (!Capacitor.isNativePlatform()) { triggerDownload(blob, filename); return; }
+      if (!Capacitor.isNativePlatform()) {
+        triggerDownload(blob, filename);
+        setShowSuccess(true);
+        setTimeout(() => setShowSuccess(false), 2500);
+        return;
+      }
 
       let uri = exportFolderUri;
       let folderName = exportFolderName || 'your folder';
@@ -796,6 +804,9 @@ export default function HistoryPage() {
         await LocalNotifications.createChannel({ id: 'downloads', name: 'Downloads', description: 'File download notifications', importance: 3, visibility: 1 });
         await LocalNotifications.schedule({ notifications: [{ title: 'File Saved', body: `${filename} saved to ${folderName}`, id: (Date.now() % 100000) + 1000, channelId: 'downloads' }] });
       } catch { /* notification failure is non-fatal */ }
+
+      setShowSuccess(true);
+      setTimeout(() => setShowSuccess(false), 2500);
     } catch (err) {
       setAppError({ friendly: `Could not export ${fmt.toUpperCase()} file.`, operation: `handleDownload (${activeTab}/${fmt}) in HistoryPage`, error: err, ts: Date.now() });
     }
@@ -823,13 +834,13 @@ export default function HistoryPage() {
       </div>
 
       {/* Tab strip */}
-      <div className="flex gap-1 mb-4 overflow-x-auto no-scrollbar pb-1">
+      <div className="flex flex-wrap justify-center gap-1.5 mb-4">
         {TAB_ORDER.map(tab => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
             className={cn(
-              'flex-shrink-0 px-3.5 py-1.5 rounded-full text-xs font-semibold transition-colors',
+              'px-3.5 py-1.5 rounded-full text-xs font-semibold transition-colors',
               activeTab === tab
                 ? 'bg-primary text-primary-foreground'
                 : 'bg-muted/50 text-muted-foreground hover:bg-muted'
@@ -841,18 +852,18 @@ export default function HistoryPage() {
       </div>
 
       {/* Summary pill */}
-      <div className="bg-card rounded-2xl px-4 py-3.5 mb-4 flex items-center justify-between">
-        <div>
-          <p className="text-lg font-black tabular-nums text-primary">{tabStats[activeTab].label}</p>
-          <p className="text-[10px] text-muted-foreground uppercase tracking-widest mt-0.5">{tabStats[activeTab].sub}</p>
-        </div>
-        <button
-          onClick={() => setExportOpen(true)}
-          className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors"
-        >
-          <Download size={13} /> Export
-        </button>
+      <div className="bg-card rounded-2xl px-4 py-3.5 mb-3">
+        <p className="text-lg font-black tabular-nums text-primary">{tabStats[activeTab].label}</p>
+        <p className="text-[10px] text-muted-foreground uppercase tracking-widest mt-0.5">{tabStats[activeTab].sub}</p>
       </div>
+
+      {/* Export button */}
+      <button
+        onClick={() => setExportOpen(true)}
+        className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-muted/50 hover:bg-muted text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors mb-4"
+      >
+        <Download size={14} /> Export {TAB_LABELS[activeTab]}
+      </button>
 
       {/* Content */}
       <div>
@@ -867,7 +878,7 @@ export default function HistoryPage() {
               </div>
             )}
             {monthGroups.map(([month, entries]) => (
-              <Card key={month} className="overflow-hidden">
+              <Card key={month} className="overflow-hidden cv-auto">
                 <div className="px-4 pt-4 pb-1 flex items-center justify-between">
                   <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{month}</p>
                   <p className="text-[10px] text-muted-foreground/60 tabular-nums">
@@ -897,7 +908,7 @@ export default function HistoryPage() {
               const groupTotal = items.filter(i => i.type === 'payment').reduce((s, i) => s + i.amount, 0);
               const isComplete = items.some(i => i.type === 'completion');
               return (
-                <Card key={debtTitle} className="overflow-hidden">
+                <Card key={debtTitle} className="overflow-hidden cv-auto">
                   <div className="px-4 pt-4 pb-1 flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{debtTitle}</p>
@@ -939,7 +950,7 @@ export default function HistoryPage() {
                 </div>
                 <CardContent className="px-4 pb-2 pt-0">
                   {sortedUber.map(ride => (
-                    <div key={ride.id} className="flex items-center gap-3 py-3 border-b border-border/30 last:border-0">
+                    <div key={ride.id} className="cv-auto flex items-center gap-3 py-3 border-b border-border/30 last:border-0">
                       <div className="flex-1 min-w-0">
                         <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-full bg-blue-400/15 text-blue-400">
                           <Car size={10} /> Uber
@@ -980,7 +991,7 @@ export default function HistoryPage() {
               <Card className="overflow-hidden">
                 <CardContent className="px-4 pb-2 pt-4 space-y-0">
                   {sortedExpenses.map(expense => (
-                    <div key={expense.id} className="flex items-center gap-3 py-3 border-b border-border/30 last:border-0">
+                    <div key={expense.id} className="cv-auto flex items-center gap-3 py-3 border-b border-border/30 last:border-0">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className="text-sm font-semibold text-foreground truncate">{expense.title}</span>
@@ -1016,7 +1027,7 @@ export default function HistoryPage() {
               const rem = Math.max(0, plan.budget - spent);
               const pct = plan.budget > 0 ? Math.min(100, (spent / plan.budget) * 100) : 0;
               return (
-                <Card key={plan.id} className="overflow-hidden">
+                <Card key={plan.id} className="overflow-hidden cv-auto">
                   <div className="px-4 pt-4 pb-2">
                     <div className="flex items-center justify-between mb-1">
                       <p className="text-sm font-bold text-foreground">{plan.name}</p>
@@ -1047,7 +1058,7 @@ export default function HistoryPage() {
         )}
       </div>
 
-      {/* Export dialog */}
+      {/* Export dialog — step 1: pick format & folder */}
       <ExportDialog
         open={exportOpen}
         onClose={() => setExportOpen(false)}
@@ -1056,8 +1067,51 @@ export default function HistoryPage() {
         exportFolderUri={exportFolderUri}
         exportFolderName={exportFolderName}
         onPickFolder={pickFolder}
-        onDownload={handleDownload}
+        onConfirm={fmt => { setConfirmFmt(fmt); }}
       />
+
+      {/* Confirm dialog — step 2: are you sure? */}
+      <AlertDialog open={confirmFmt !== null} onOpenChange={v => { if (!v) setConfirmFmt(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Download file?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {confirmFmt && (
+                <>
+                  <span className="font-mono text-xs text-foreground">
+                    {`${initials || 'U'}-${activeTab}-${buildDateStamp()}.${confirmFmt}`}
+                  </span>
+                  {' '}will be saved to your {exportFolderName || 'Downloads'} folder.
+                </>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setConfirmFmt(null)}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => confirmFmt && handleDownload(confirmFmt)} className="gap-2">
+              <Download className="h-4 w-4" /> Download
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Success toast — auto-dismisses after 2.5 s */}
+      <AnimatePresence>
+        {showSuccess && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 20 }}
+            transition={{ duration: 0.2 }}
+            className="fixed bottom-24 inset-x-0 flex justify-center pointer-events-none z-50"
+          >
+            <div className="flex items-center gap-2 bg-card border border-border rounded-full px-5 py-2.5 shadow-lg text-sm font-semibold text-foreground">
+              <CheckCircle2 size={16} className="text-green-500 shrink-0" />
+              File saved successfully
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 }

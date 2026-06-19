@@ -163,6 +163,28 @@ nav.fixed,
   }
 }
 
+/* Adaptive low-end devices: keep the glass look but make backdrop-filter cheaper
+   to composite (smaller blur radius, no saturate). Only applied when the runtime
+   probe in ThemeProvider flags a low-power device — flagships are untouched. */
+.low-power.ui-glass .bg-card,
+.low-power.ui-glass .bg-popover,
+.low-power.ui-glass [role="dialog"],
+.low-power.ui-glass [role="tablist"],
+.low-power.ui-glass nav.fixed,
+.low-power.ui-glass .fixed-bottom-bar,
+.low-power.ui-glass .bg-primary:not(.rounded-full),
+.low-power.ui-glass .bg-accent:not(.rounded-full) {
+  backdrop-filter: blur(6px) !important;
+  -webkit-backdrop-filter: blur(6px) !important;
+}
+
+/* Skip layout/paint for off-screen rows in long history lists. `auto` caches the
+   real size after first render, so output is pixel-identical with far less work. */
+.cv-auto {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 120px;
+}
+
 /* Transport Page Styling */
 .calendar-container {
     position: relative;

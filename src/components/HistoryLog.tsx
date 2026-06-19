@@ -74,7 +74,7 @@ function HistoryItem({ entry }: { entry: ProcessedHistoryEntry }) {
 
   return (
     <div className={cn(
-      'rounded-lg border border-border/40 border-l-[3px] bg-card/40',
+      'cv-auto rounded-lg border border-border/40 border-l-[3px] bg-card/40',
       ENTRY_BORDER[entry.type]
     )}>
       <div className="flex justify-between items-start px-3 py-2.5">

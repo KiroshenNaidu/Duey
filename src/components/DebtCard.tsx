@@ -2,7 +2,6 @@
 
 import { useContext, useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import confetti from 'canvas-confetti';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
@@ -73,7 +72,10 @@ export function DebtCard({ debt }: DebtCardProps) {
   useEffect(() => {
     if (isPaidOff && !prevIsPaidOff.current) {
       setShowCelebration(true);
-      confetti({ particleCount: 120, spread: 80, origin: { y: 0.55 } });
+      // Lazy-load confetti so the ~15KB lib stays out of the initial bundle.
+      import('canvas-confetti').then(({ default: confetti }) => {
+        confetti({ particleCount: 120, spread: 80, origin: { y: 0.55 } });
+      });
     }
     prevIsPaidOff.current = isPaidOff;
   }, [isPaidOff]);
