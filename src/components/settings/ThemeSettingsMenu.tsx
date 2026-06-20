@@ -8,15 +8,56 @@ import { Input } from '@/components/ui/input';
 import { Slider } from '@/components/ui/slider';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { hexToHsl, hslToHex, idbGet, idbSet, cn } from '@/lib/utils';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Upload, Loader2, Trash2, Check, Plus, Minus, ShieldCheck } from 'lucide-react';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Upload, Loader2, Trash2, Check, Plus, Minus, ShieldCheck, Film, AlertTriangle } from 'lucide-react';
 import { AppDataContext } from '@/context/AppDataContext';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { AnimatePresence, motion } from 'framer-motion';
 import Link from 'next/link';
 
-const defaultThemeSettings: Omit<ThemeSettings, 'backgroundImage'> = {
+const TAB_ORDER = ['style', 'colors', 'background', 'presets'] as const;
+type TabKey = (typeof TAB_ORDER)[number];
+
+// Match the page-level carousel transition (AppShell) so sub-tab swipes feel identical.
+const tabTransition = { type: 'tween' as const, ease: [0.22, 1, 0.36, 1] as [number, number, number, number], duration: 0.22 };
+const tabVariants = {
+  enter: (dir: number) => ({ x: dir >= 0 ? '40%' : '-40%', opacity: 0 }),
+  center: { x: 0, opacity: 1 },
+  exit: (dir: number) => ({ x: dir >= 0 ? '-40%' : '40%', opacity: 0 }),
+};
+
+// Width of the left/right edge band whose swipes always change tabs (bypassing the
+// slider guard) — keeps slider-heavy tabs like Background swipeable.
+const EDGE_ZONE = 28;
+// Distance a horizontal swipe must travel to commit a tab change.
+const SWIPE_THRESHOLD = 45;
+
+// A horizontal swipe that starts inside a slider or horizontal scroller adjusts that
+// control instead of changing tabs.
+function isInHScroller(el: EventTarget | null): boolean {
+  let node = el as Element | null;
+  while (node && node !== document.body) {
+    if (node.getAttribute('role') === 'slider') return true;
+    if (node.getAttribute('data-orientation') === 'horizontal' && node.querySelector('[role="slider"]')) return true;
+    const ox = window.getComputedStyle(node).overflowX;
+    if ((ox === 'scroll' || ox === 'auto') && node.scrollWidth > node.clientWidth) return true;
+    node = node.parentElement;
+  }
+  return false;
+}
+
+function isInDialog(el: EventTarget | null): boolean {
+  let node = el as Element | null;
+  while (node && node !== document.body) {
+    if (node.getAttribute('role') === 'dialog') return true;
+    node = node.parentElement;
+  }
+  return false;
+}
+
+const defaultThemeSettings: Omit<ThemeSettings, 'backgroundImage' | 'backgroundVideo'> = {
   background: '240 6% 7%',
   surface: '240 4% 11%',
   primary: '96 65% 64%',
@@ -25,11 +66,13 @@ const defaultThemeSettings: Omit<ThemeSettings, 'backgroundImage'> = {
   accentForeground: '240 3% 62%',
   font: 'Inter',
   backgroundOpacity: 0.5,
+  backgroundBlur: 0,
   uiScale: 1.0,
   uiStyle: 'solid',
   useSafeAreaInsets: true,
   bgX: 50,
   bgY: 50,
+  bgScale: 1,
   glassOpacity: 0.55,
   positive: '161 50% 57%',
   negative: '0 70% 62%',
@@ -189,6 +232,14 @@ const systemPresets: Omit<UserTheme, 'id'>[] = [
   },
 ];
 
+// Built-in looping video backgrounds (bundled assets under /public). Selecting one
+// shows a one-time performance warning, then sets it as a full-screen background.
+const videoPresets: { name: string; src: string }[] = [
+  { name: 'Aurora', src: '/loading.mp4' },
+];
+
+const VIDEO_WARNING_KEY = 'duey_video_bg_warned';
+
 // Colored status-color defaults — applied when selecting a preset that doesn't define its
 // own status colors, so switching away from a B&W preset restores the colored palette.
 const defaultStatusColors = Object.fromEntries(
@@ -204,8 +255,8 @@ function parseHsl(hslStr: string): [number, number, number] {
 }
 
 const areThemeSettingsEqual = (
-  s1: Omit<ThemeSettings, 'backgroundImage' | 'backgroundOpacity'>,
-  s2: Omit<ThemeSettings, 'backgroundImage' | 'backgroundOpacity'>
+  s1: Omit<ThemeSettings, 'backgroundImage' | 'backgroundVideo' | 'backgroundOpacity'>,
+  s2: Omit<ThemeSettings, 'backgroundImage' | 'backgroundVideo' | 'backgroundOpacity'>
 ) =>
   s1.background === s2.background && s1.surface === s2.surface &&
   s1.primary === s2.primary && s1.accent === s2.accent &&
@@ -221,29 +272,39 @@ export function ThemeSettingsMenu({ onCancel, onDirtyChange, onSaved }: { onCanc
     ...defaultThemeSettings,
     ...themeSettings,
     backgroundImage: '',
+    backgroundVideo: '',
   }));
   const [isClient, setIsClient] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const videoInputRef = useRef<HTMLInputElement>(null);
   const previewRef = useRef<HTMLDivElement>(null);
   const isBgDraggingRef = useRef(false);
   const lastBgPosRef = useRef({ x: 0, y: 0 });
   const [isSaveDialogOpen, setIsSaveDialogOpen] = useState(false);
   const [newThemeName, setNewThemeName] = useState('');
+  const [videoWarnOpen, setVideoWarnOpen] = useState(false);
+  const [pendingVideoSrc, setPendingVideoSrc] = useState<string | null>(null);
+  // Real device aspect ratio so the preview crops exactly like the full-screen background.
+  const [screenAspect, setScreenAspect] = useState('9 / 19.5');
 
   // Refs for dirty detection and unmount-cleanup
   const initialThemeRef = useRef<ThemeSettings | null>(null);
   const initialBgRef = useRef('');
+  const initialVideoRef = useRef('');
   const savedThemeRef = useRef(themeSettings);
 
   useEffect(() => {
     const capturedSettings = themeSettings;
     setIsClient(true);
-    idbGet<string>('backgroundImage').then(img => {
-      const loaded = img || '';
-      initialBgRef.current = loaded;
-      if (loaded) setPreviewTheme(p => ({ ...p, backgroundImage: loaded }));
-      initialThemeRef.current = { ...capturedSettings, backgroundImage: loaded };
+    setScreenAspect(`${window.innerWidth} / ${window.innerHeight}`);
+    Promise.all([idbGet<string>('backgroundImage'), idbGet<string>('backgroundVideo')]).then(([img, vid]) => {
+      const loadedImg = img || '';
+      const loadedVid = vid || '';
+      initialBgRef.current = loadedImg;
+      initialVideoRef.current = loadedVid;
+      if (loadedImg || loadedVid) setPreviewTheme(p => ({ ...p, backgroundImage: loadedImg, backgroundVideo: loadedVid }));
+      initialThemeRef.current = { ...capturedSettings, backgroundImage: loadedImg, backgroundVideo: loadedVid };
     });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -262,13 +323,24 @@ export function ThemeSettingsMenu({ onCancel, onDirtyChange, onSaved }: { onCanc
       applyStatusColors(root, saved);
       root.style.setProperty('--bg-x', `${saved.bgX ?? 50}%`);
       root.style.setProperty('--bg-y', `${saved.bgY ?? 50}%`);
+      root.style.setProperty('--bg-scale', String(saved.bgScale ?? 1));
+      root.style.setProperty('--bg-blur', `${saved.backgroundBlur ?? 0}px`);
       root.style.setProperty('--glass-opacity', String(saved.glassOpacity ?? 0.55));
       document.body.classList.remove('ui-glass', 'ui-minimal', 'ui-elevated');
       if (saved.uiStyle !== 'solid') document.body.classList.add(`ui-${saved.uiStyle}`);
       document.body.style.zoom = `${saved.uiScale}`;
+      const hadVideo = !!initialVideoRef.current;
       const bgDiv = document.getElementById('global-bg-image');
-      if (bgDiv) bgDiv.style.backgroundImage = initialBgRef.current ? `url(${initialBgRef.current})` : 'none';
-      document.body.classList.toggle('has-bg-image', !!initialBgRef.current);
+      if (bgDiv) {
+        bgDiv.style.backgroundImage = initialBgRef.current ? `url(${initialBgRef.current})` : 'none';
+        bgDiv.style.display = hadVideo ? 'none' : 'block';
+      }
+      const bgVid = document.getElementById('global-bg-video') as HTMLVideoElement | null;
+      if (bgVid) {
+        bgVid.src = initialVideoRef.current || '';
+        bgVid.style.display = hadVideo ? 'block' : 'none';
+      }
+      document.body.classList.toggle('has-bg-image', !!initialBgRef.current || hadVideo);
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -282,13 +354,30 @@ export function ThemeSettingsMenu({ onCancel, onDirtyChange, onSaved }: { onCanc
     root.style.setProperty('--foreground', previewTheme.foreground);
     root.style.setProperty('--accent-foreground', previewTheme.accentForeground);
     applyStatusColors(root, previewTheme);
+    const hasVideo = !!previewTheme.backgroundVideo;
+    const hasBg = hasVideo || !!previewTheme.backgroundImage;
     const bgDiv = document.getElementById('global-bg-image');
+    const bgVid = document.getElementById('global-bg-video') as HTMLVideoElement | null;
     const overlayDiv = document.getElementById('global-bg-overlay');
-    if (bgDiv) bgDiv.style.backgroundImage = previewTheme.backgroundImage ? `url(${previewTheme.backgroundImage})` : 'none';
-    if (overlayDiv) overlayDiv.style.opacity = String(previewTheme.backgroundImage ? previewTheme.backgroundOpacity : 0);
+    if (bgDiv) {
+      bgDiv.style.backgroundImage = previewTheme.backgroundImage ? `url(${previewTheme.backgroundImage})` : 'none';
+      bgDiv.style.display = hasVideo ? 'none' : 'block';
+    }
+    if (bgVid) {
+      const nextSrc = previewTheme.backgroundVideo || '';
+      // Only reassign src when it actually changes — otherwise the video restarts on every slider tick.
+      if (bgVid.getAttribute('src') !== nextSrc) {
+        bgVid.src = nextSrc;
+        if (nextSrc) bgVid.play?.().catch(() => {});
+      }
+      bgVid.style.display = hasVideo ? 'block' : 'none';
+    }
+    if (overlayDiv) overlayDiv.style.opacity = String(hasBg ? previewTheme.backgroundOpacity : 0);
     root.style.setProperty('--bg-x', `${previewTheme.bgX ?? 50}%`);
     root.style.setProperty('--bg-y', `${previewTheme.bgY ?? 50}%`);
-    document.body.classList.toggle('has-bg-image', !!previewTheme.backgroundImage);
+    root.style.setProperty('--bg-scale', String(previewTheme.bgScale ?? 1));
+    root.style.setProperty('--bg-blur', `${previewTheme.backgroundBlur ?? 0}px`);
+    document.body.classList.toggle('has-bg-image', hasBg);
     document.body.classList.remove('ui-glass', 'ui-minimal', 'ui-elevated');
     if (previewTheme.uiStyle !== 'solid') document.body.classList.add(`ui-${previewTheme.uiStyle}`);
     document.body.style.zoom = `${previewTheme.uiScale}`;
@@ -319,7 +408,8 @@ export function ThemeSettingsMenu({ onCancel, onDirtyChange, onSaved }: { onCanc
         if (!ctx) { setIsProcessing(false); return; }
         ctx.drawImage(img, 0, 0, width, height);
         const dataUrl = file.type === 'image/gif' ? (e.target?.result as string) : canvas.toDataURL(file.type, 0.9);
-        setPreviewTheme(p => ({ ...p, backgroundImage: dataUrl }));
+        // Uploaded image replaces any video and resets to full-screen framing.
+        setPreviewTheme(p => ({ ...p, backgroundImage: dataUrl, backgroundVideo: '', bgX: 50, bgY: 50, bgScale: 1 }));
         setIsProcessing(false);
       };
       img.onerror = () => {
@@ -337,14 +427,56 @@ export function ThemeSettingsMenu({ onCancel, onDirtyChange, onSaved }: { onCanc
     event.target.value = '';
   };
 
-  const handleRemoveImage = () => setPreviewTheme(p => ({ ...p, backgroundImage: '', bgX: 50, bgY: 50 }));
+  const handleRemoveImage = () => setPreviewTheme(p => ({ ...p, backgroundImage: '', backgroundVideo: '', bgX: 50, bgY: 50, bgScale: 1, backgroundBlur: 0 }));
+
+  // Selecting a video background — gated behind a one-time performance warning.
+  const applyVideo = (src: string) =>
+    setPreviewTheme(p => ({ ...p, backgroundVideo: src, backgroundImage: '', bgX: 50, bgY: 50, bgScale: 1 }));
+
+  const requestVideo = (src: string) => {
+    if (localStorage.getItem(VIDEO_WARNING_KEY) === '1') {
+      applyVideo(src);
+    } else {
+      setPendingVideoSrc(src);
+      setVideoWarnOpen(true);
+    }
+  };
+
+  const confirmVideoWarning = () => {
+    localStorage.setItem(VIDEO_WARNING_KEY, '1');
+    if (pendingVideoSrc) applyVideo(pendingVideoSrc);
+    setPendingVideoSrc(null);
+    setVideoWarnOpen(false);
+  };
+
+  const handleVideoFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    setIsProcessing(true);
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      setIsProcessing(false);
+      requestVideo(e.target?.result as string);
+    };
+    reader.onerror = () => {
+      setIsProcessing(false);
+      setAppError({
+        friendly: 'Could not read video — file may be corrupted or unsupported.',
+        operation: 'reader.onerror in handleVideoFileChange in ThemeSettingsMenu',
+        error: new Error('Video failed to load'),
+        ts: Date.now(),
+      });
+    };
+    reader.readAsDataURL(file);
+    event.target.value = '';
+  };
 
   const onBgPointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
-    if (!previewTheme.backgroundImage) return;
+    if (!previewTheme.backgroundImage && !previewTheme.backgroundVideo) return;
     e.currentTarget.setPointerCapture(e.pointerId);
     isBgDraggingRef.current = true;
     lastBgPosRef.current = { x: e.clientX, y: e.clientY };
-  }, [previewTheme.backgroundImage]);
+  }, [previewTheme.backgroundImage, previewTheme.backgroundVideo]);
 
   const onBgPointerMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     if (!isBgDraggingRef.current || !previewRef.current) return;
@@ -362,9 +494,10 @@ export function ThemeSettingsMenu({ onCancel, onDirtyChange, onSaved }: { onCanc
   const onBgPointerUp = useCallback(() => { isBgDraggingRef.current = false; }, []);
 
   const handleSave = async () => {
-    const { backgroundImage, ...settingsToSave } = previewTheme;
+    const { backgroundImage, backgroundVideo, ...settingsToSave } = previewTheme;
     try {
       await idbSet('backgroundImage', backgroundImage);
+      await idbSet('backgroundVideo', backgroundVideo);
       setThemeSettings(settingsToSave);
       onDirtyChange?.(false);
       onSaved?.('Theme saved!');
@@ -382,7 +515,7 @@ export function ThemeSettingsMenu({ onCancel, onDirtyChange, onSaved }: { onCanc
 
   const handleSavePreset = () => {
     if (!newThemeName.trim()) return;
-    const { backgroundImage, backgroundOpacity, ...settingsToSave } = previewTheme;
+    const { backgroundImage, backgroundVideo, backgroundOpacity, ...settingsToSave } = previewTheme;
     addUserTheme(newThemeName, settingsToSave);
     setNewThemeName('');
     setIsSaveDialogOpen(false);
@@ -403,9 +536,11 @@ export function ThemeSettingsMenu({ onCancel, onDirtyChange, onSaved }: { onCanc
   useEffect(() => { onDirtyChange?.(isDirty); }, [isDirty, onDirtyChange]);
 
   const currentActiveSettings = useMemo(() => {
-    const { backgroundImage, backgroundOpacity, ...settings } = previewTheme;
+    const { backgroundImage, backgroundVideo, backgroundOpacity, ...settings } = previewTheme;
     return settings;
   }, [previewTheme]);
+
+  const hasBg = !!previewTheme.backgroundImage || !!previewTheme.backgroundVideo;
 
   const isCurrentThemeSaved = useMemo(() =>
     systemPresets.some(p => areThemeSettingsEqual(p.settings, currentActiveSettings)) ||
@@ -457,6 +592,65 @@ export function ThemeSettingsMenu({ onCancel, onDirtyChange, onSaved }: { onCanc
     }
   };
 
+  // ── Sub-tab navigation (swipeable) ──
+  const [tab, setTab] = useState<TabKey>('style');
+  const tabDirRef = useRef(0);
+  const tabRef = useRef(tab);
+  tabRef.current = tab;
+  const goToTab = useCallback((next: TabKey) => {
+    setTab(prev => {
+      tabDirRef.current = TAB_ORDER.indexOf(next) - TAB_ORDER.indexOf(prev);
+      return next;
+    });
+  }, []);
+
+  // Listen at the document level (not on a child element) so swipes that start in the
+  // page's side gutters — and the left/right edge band — are caught across the full
+  // screen width. SettingsPage locks AppShell's page-swipe nav while this menu is open,
+  // so these gestures only ever change sub-tabs.
+  useEffect(() => {
+    const s = { x: 0, y: 0, mode: 'none' as 'none' | 'h' | 'v', edge: false };
+    const onStart = (e: TouchEvent) => {
+      if (isInDialog(e.target)) { s.mode = 'v'; return; }
+      const x = e.touches[0].clientX;
+      s.x = x;
+      s.y = e.touches[0].clientY;
+      s.mode = 'none';
+      // Edge swipes always change tabs (bypass the slider guard); interior swipes yield
+      // to sliders / the drag-to-position preview.
+      s.edge = x <= EDGE_ZONE || x >= window.innerWidth - EDGE_ZONE;
+    };
+    const onMove = (e: TouchEvent) => {
+      if (s.mode === 'v') return;
+      const dx = e.touches[0].clientX - s.x;
+      const dy = e.touches[0].clientY - s.y;
+      if (Math.abs(dx) < 4 && Math.abs(dy) < 4) return;
+      if (s.mode === 'none') {
+        if (Math.abs(dy) > Math.abs(dx)) { s.mode = 'v'; return; }
+        if (!s.edge && isInHScroller(e.target)) { s.mode = 'v'; return; }
+        s.mode = 'h';
+      }
+    };
+    const onEnd = (e: TouchEvent) => {
+      if (s.mode !== 'h') { s.mode = 'none'; return; }
+      s.mode = 'none';
+      const dx = e.changedTouches[0].clientX - s.x;
+      if (Math.abs(dx) < SWIPE_THRESHOLD) return;
+      const idx = TAB_ORDER.indexOf(tabRef.current);
+      const next = dx < 0 ? idx + 1 : idx - 1;
+      if (next < 0 || next >= TAB_ORDER.length) return;
+      goToTab(TAB_ORDER[next]);
+    };
+    document.addEventListener('touchstart', onStart, { passive: true });
+    document.addEventListener('touchmove', onMove, { passive: true });
+    document.addEventListener('touchend', onEnd, { passive: true });
+    return () => {
+      document.removeEventListener('touchstart', onStart);
+      document.removeEventListener('touchmove', onMove);
+      document.removeEventListener('touchend', onEnd);
+    };
+  }, [goToTab]);
+
   if (!isClient) return null;
 
   const ColorSwatch = ({
@@ -489,7 +683,7 @@ export function ThemeSettingsMenu({ onCancel, onDirtyChange, onSaved }: { onCanc
     isDefault,
   }: {
     name: string;
-    settings: Omit<ThemeSettings, 'backgroundImage' | 'backgroundOpacity'>;
+    settings: Omit<ThemeSettings, 'backgroundImage' | 'backgroundVideo' | 'backgroundOpacity'>;
     onDelete?: () => void;
     isActive: boolean;
     isDefault?: boolean;
@@ -579,7 +773,7 @@ export function ThemeSettingsMenu({ onCancel, onDirtyChange, onSaved }: { onCanc
         </Button>
       </div>
 
-      <Tabs defaultValue="style" className="w-full">
+      <Tabs value={tab} onValueChange={(v) => goToTab(v as TabKey)} className="w-full">
         <TabsList className="grid w-full grid-cols-4 h-9">
           <TabsTrigger value="style" className="text-[11px]">Style</TabsTrigger>
           <TabsTrigger value="colors" className="text-[11px]">Colors</TabsTrigger>
@@ -587,8 +781,22 @@ export function ThemeSettingsMenu({ onCancel, onDirtyChange, onSaved }: { onCanc
           <TabsTrigger value="presets" className="text-[11px]">Presets</TabsTrigger>
         </TabsList>
 
+        {/* Sub-tab carousel — same easing/timing as the page-level carousel. Swipes are
+            handled by a document-level listener so the whole screen (incl. edges) works. */}
+        <div className="relative overflow-hidden">
+          <AnimatePresence mode="popLayout" custom={tabDirRef.current} initial={false}>
+            <motion.div
+              key={tab}
+              custom={tabDirRef.current}
+              variants={tabVariants}
+              initial="enter"
+              animate="center"
+              exit="exit"
+              transition={tabTransition}
+            >
         {/* ── Tab 1: Style ── */}
-        <TabsContent value="style" className="mt-4 space-y-4">
+        {tab === 'style' && (
+        <div className="mt-4 space-y-4">
           <Card>
             <CardHeader className="pb-2"><CardTitle className="text-sm">UI Size</CardTitle></CardHeader>
             <CardContent>
@@ -724,10 +932,12 @@ export function ThemeSettingsMenu({ onCancel, onDirtyChange, onSaved }: { onCanc
               )}
             </CardContent>
           </Card>
-        </TabsContent>
+        </div>
+        )}
 
         {/* ── Tab 2: Colors ── */}
-        <TabsContent value="colors" className="mt-4 space-y-4">
+        {tab === 'colors' && (
+        <div className="mt-4 space-y-4">
           <Card>
             <CardHeader className="pb-2"><CardTitle className="text-sm">Color Palette</CardTitle></CardHeader>
             <CardContent>
@@ -764,63 +974,123 @@ export function ThemeSettingsMenu({ onCancel, onDirtyChange, onSaved }: { onCanc
           >
             {isCurrentThemeSaved ? 'Colors already saved as preset' : 'Save current colors as preset'}
           </Button>
-        </TabsContent>
+        </div>
+        )}
 
         {/* ── Tab 3: Background ── */}
-        <TabsContent value="background" className="mt-4 space-y-4">
+        {tab === 'background' && (
+        <div className="mt-4 space-y-4">
           <Card>
-            <CardHeader className="pb-2"><CardTitle className="text-sm">Background Image</CardTitle></CardHeader>
+            <CardHeader className="pb-2"><CardTitle className="text-sm">Background</CardTitle></CardHeader>
             <CardContent className="space-y-4">
-              {/* Preview — drag to reposition */}
+              {/* Preview — matches the device aspect ratio so framing is WYSIWYG. Drag to reposition. */}
+              <div className="flex justify-center">
               <div
                 ref={previewRef}
                 className={cn(
-                  "w-full aspect-video rounded-xl bg-secondary relative overflow-hidden border border-accent/10",
-                  previewTheme.backgroundImage && "cursor-grab active:cursor-grabbing touch-none select-none"
+                  "h-[260px] max-w-full rounded-xl bg-secondary relative overflow-hidden border border-accent/10",
+                  hasBg && "cursor-grab active:cursor-grabbing touch-none select-none"
                 )}
-                style={{
-                  backgroundImage: previewTheme.backgroundImage ? `url(${previewTheme.backgroundImage})` : undefined,
-                  backgroundSize: 'cover',
-                  backgroundPosition: `${previewTheme.bgX ?? 50}% ${previewTheme.bgY ?? 50}%`,
-                }}
+                style={{ aspectRatio: screenAspect }}
                 onPointerDown={onBgPointerDown}
                 onPointerMove={onBgPointerMove}
                 onPointerUp={onBgPointerUp}
                 onPointerCancel={onBgPointerUp}
               >
-                {!previewTheme.backgroundImage && (
+                {previewTheme.backgroundVideo ? (
+                  <video
+                    key={previewTheme.backgroundVideo}
+                    autoPlay muted loop playsInline preload="auto"
+                    src={previewTheme.backgroundVideo}
+                    className="absolute inset-0 w-full h-full pointer-events-none"
+                    style={{
+                      objectFit: 'cover',
+                      objectPosition: `${previewTheme.bgX ?? 50}% ${previewTheme.bgY ?? 50}%`,
+                      transform: `scale(${previewTheme.bgScale ?? 1})`,
+                      filter: `blur(${(previewTheme.backgroundBlur ?? 0) / 3}px)`,
+                    }}
+                  />
+                ) : previewTheme.backgroundImage ? (
+                  <div
+                    className="absolute inset-0 bg-cover pointer-events-none"
+                    style={{
+                      backgroundImage: `url(${previewTheme.backgroundImage})`,
+                      backgroundPosition: `${previewTheme.bgX ?? 50}% ${previewTheme.bgY ?? 50}%`,
+                      transform: `scale(${previewTheme.bgScale ?? 1})`,
+                      filter: `blur(${(previewTheme.backgroundBlur ?? 0) / 3}px)`,
+                    }}
+                  />
+                ) : null}
+                {!hasBg && (
                   <div className="flex items-center justify-center h-full">
-                    <p className="text-muted-foreground text-xs">No image selected</p>
+                    <p className="text-muted-foreground text-xs">No background selected</p>
                   </div>
                 )}
-                {previewTheme.backgroundImage && (
+                {hasBg && (
                   <div
-                    className="absolute w-3 h-3 rounded-full border-2 border-white/80 pointer-events-none -translate-x-1/2 -translate-y-1/2"
+                    className="absolute w-3 h-3 rounded-full border-2 border-white/80 pointer-events-none -translate-x-1/2 -translate-y-1/2 z-10"
                     style={{ left: `${previewTheme.bgX ?? 50}%`, top: `${previewTheme.bgY ?? 50}%`, boxShadow: '0 0 0 1px rgba(0,0,0,0.5)' }}
                   />
                 )}
-                <div className="absolute inset-0 bg-black rounded-xl" style={{ opacity: previewTheme.backgroundImage ? previewTheme.backgroundOpacity : 0, transition: 'opacity 0.2s' }} />
+                <div className="absolute inset-0 bg-black rounded-xl pointer-events-none" style={{ opacity: hasBg ? previewTheme.backgroundOpacity : 0, transition: 'opacity 0.2s' }} />
+              </div>
               </div>
 
-              {/* Upload / Remove */}
+              {/* Video background presets */}
+              <div className="space-y-2">
+                <Label className="text-xs flex items-center gap-1.5"><Film className="h-3.5 w-3.5" /> Video Backgrounds</Label>
+                <div className="grid grid-cols-2 gap-2">
+                  {videoPresets.map(preset => {
+                    const active = previewTheme.backgroundVideo === preset.src;
+                    return (
+                      <button
+                        key={preset.src}
+                        onClick={() => requestVideo(preset.src)}
+                        className={cn(
+                          'relative aspect-video rounded-xl overflow-hidden border-2 transition-all',
+                          active ? 'border-primary ring-2 ring-primary/30' : 'border-border hover:border-border/60'
+                        )}
+                      >
+                        <video
+                          src={preset.src}
+                          muted loop playsInline autoPlay preload="metadata"
+                          className="absolute inset-0 w-full h-full object-cover pointer-events-none"
+                        />
+                        <span className="absolute bottom-1 left-2 text-[10px] font-semibold text-white drop-shadow">{preset.name}</span>
+                        {active && (
+                          <div className="absolute top-1.5 right-1.5 h-5 w-5 rounded-full bg-primary flex items-center justify-center">
+                            <Check className="h-3 w-3 text-primary-foreground" />
+                          </div>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Upload (image / video) + Remove */}
               <div className="grid grid-cols-2 gap-2">
-                <Button onClick={() => fileInputRef.current?.click()} className="w-full" disabled={isProcessing}>
+                <Button onClick={() => fileInputRef.current?.click()} variant="outline" className="w-full" disabled={isProcessing}>
                   {isProcessing
                     ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Processing...</>
-                    : <><Upload className="mr-2 h-4 w-4" />Upload</>}
+                    : <><Upload className="mr-2 h-4 w-4" />Image</>}
                 </Button>
-                <Button onClick={handleRemoveImage} variant="destructive" className="w-full" disabled={!previewTheme.backgroundImage}>
-                  <Trash2 className="mr-2 h-4 w-4" />Remove
+                <Button onClick={() => videoInputRef.current?.click()} variant="outline" className="w-full" disabled={isProcessing}>
+                  <Film className="mr-2 h-4 w-4" />Video
                 </Button>
               </div>
+              <Button onClick={handleRemoveImage} variant="destructive" className="w-full" disabled={!hasBg}>
+                <Trash2 className="mr-2 h-4 w-4" />Remove background
+              </Button>
               <input ref={fileInputRef} type="file" onChange={handleFileChange} accept="image/*" className="hidden" />
+              <input ref={videoInputRef} type="file" onChange={handleVideoFileChange} accept="video/*" className="hidden" />
 
               {/* Opacity */}
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <Label className="text-xs">Overlay Opacity</Label>
                   <div className="flex items-center gap-3">
-                    {previewTheme.backgroundImage && (previewTheme.bgX !== 50 || previewTheme.bgY !== 50) && (
+                    {hasBg && (previewTheme.bgX !== 50 || previewTheme.bgY !== 50) && (
                       <button
                         className="text-[10px] text-muted-foreground/50 hover:text-muted-foreground transition-colors"
                         onClick={() => setPreviewTheme(p => ({ ...p, bgX: 50, bgY: 50 }))}
@@ -838,15 +1108,83 @@ export function ThemeSettingsMenu({ onCancel, onDirtyChange, onSaved }: { onCanc
                   onValueChange={([v]) => setPreviewTheme(p => ({ ...p, backgroundOpacity: v }))}
                   max={1}
                   step={0.05}
-                  disabled={!previewTheme.backgroundImage}
+                  disabled={!hasBg}
+                />
+              </div>
+
+              {/* Position X / Y — sliders with steppers for precise framing */}
+              {([
+                { axis: 'bgX' as const, label: 'Position X' },
+                { axis: 'bgY' as const, label: 'Position Y' },
+              ]).map(({ axis, label }) => {
+                const val = previewTheme[axis] ?? 50;
+                const nudge = (d: number) =>
+                  setPreviewTheme(p => ({ ...p, [axis]: Math.min(100, Math.max(0, Math.round((p[axis] ?? 50) + d))) }));
+                return (
+                  <div key={axis} className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-xs">{label}</Label>
+                      <span className="text-xs text-muted-foreground tabular-nums">{Math.round(val)}%</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button variant="outline" size="icon" className="h-8 w-8 rounded-full shrink-0" disabled={!hasBg} onClick={() => nudge(-1)}>
+                        <Minus className="h-3.5 w-3.5" />
+                      </Button>
+                      <Slider
+                        value={[val]}
+                        onValueChange={([v]) => setPreviewTheme(p => ({ ...p, [axis]: v }))}
+                        min={0}
+                        max={100}
+                        step={1}
+                        disabled={!hasBg}
+                        className="flex-1"
+                      />
+                      <Button variant="outline" size="icon" className="h-8 w-8 rounded-full shrink-0" disabled={!hasBg} onClick={() => nudge(1)}>
+                        <Plus className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })}
+
+              {/* Blur */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs">Blur</Label>
+                  <span className="text-xs text-muted-foreground tabular-nums">{(previewTheme.backgroundBlur ?? 0).toFixed(0)}px</span>
+                </div>
+                <Slider
+                  value={[previewTheme.backgroundBlur ?? 0]}
+                  onValueChange={([v]) => setPreviewTheme(p => ({ ...p, backgroundBlur: v }))}
+                  max={20}
+                  step={1}
+                  disabled={!hasBg}
+                />
+              </div>
+
+              {/* Zoom */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs">Zoom</Label>
+                  <span className="text-xs text-muted-foreground tabular-nums">{(previewTheme.bgScale ?? 1).toFixed(2)}×</span>
+                </div>
+                <Slider
+                  value={[previewTheme.bgScale ?? 1]}
+                  onValueChange={([v]) => setPreviewTheme(p => ({ ...p, bgScale: v }))}
+                  min={1}
+                  max={3}
+                  step={0.05}
+                  disabled={!hasBg}
                 />
               </div>
             </CardContent>
           </Card>
-        </TabsContent>
+        </div>
+        )}
 
         {/* ── Tab 4: Presets ── */}
-        <TabsContent value="presets" className="mt-4 space-y-5">
+        {tab === 'presets' && (
+        <div className="mt-4 space-y-5">
           <div>
             <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">System</h3>
             <div className="grid grid-cols-2 gap-x-3 gap-y-5">
@@ -889,8 +1227,32 @@ export function ThemeSettingsMenu({ onCancel, onDirtyChange, onSaved }: { onCanc
           >
             {isCurrentThemeSaved ? 'Colors already saved' : 'Save current colors as preset'}
           </Button>
-        </TabsContent>
+        </div>
+        )}
+            </motion.div>
+          </AnimatePresence>
+        </div>
       </Tabs>
+
+      {/* One-time performance warning before enabling a video background */}
+      <AlertDialog open={videoWarnOpen} onOpenChange={(open) => { if (!open) { setVideoWarnOpen(false); setPendingVideoSrc(null); } }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-accent" /> Use a video background?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              A looping video background may reduce performance and battery life on older
+              devices. On modern phones it should run smoothly. You can change or remove it
+              anytime. This is the only time we&apos;ll ask.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => { setVideoWarnOpen(false); setPendingVideoSrc(null); }}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmVideoWarning}>Use video</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Color editor dialog */}
       <Dialog open={!!colorEditor} onOpenChange={(open) => !open && setColorEditor(null)}>

@@ -44,7 +44,7 @@ function migrateState(raw: AppState): AppState {
       ? { enabled: raw.notificationSettings.enabled ?? false, paydayDay: raw.notificationSettings.paydayDay ?? 26, hour: raw.notificationSettings.hour ?? 18, minute: raw.notificationSettings.minute ?? 0, message: raw.notificationSettings.message ?? 'Time to log your monthly payments.' }
       : { enabled: false, paydayDay: 26, hour: 18, minute: 0, message: 'Time to log your monthly payments.' },
     themeSettings: raw.themeSettings
-      ? { ...raw.themeSettings, useSafeAreaInsets: true, bgX: raw.themeSettings.bgX ?? 50, bgY: raw.themeSettings.bgY ?? 50 }
+      ? { ...raw.themeSettings, useSafeAreaInsets: true, bgX: raw.themeSettings.bgX ?? 50, bgY: raw.themeSettings.bgY ?? 50, bgScale: raw.themeSettings.bgScale ?? 1, backgroundBlur: raw.themeSettings.backgroundBlur ?? 0 }
       : defaultState.themeSettings,
     exportFolderUri: raw.exportFolderUri ?? '',
     exportFolderName: raw.exportFolderName ?? '',
@@ -81,6 +81,8 @@ const defaultState: AppState = {
     useSafeAreaInsets: true,
     bgX: 50,
     bgY: 50,
+    bgScale: 1,
+    backgroundBlur: 0,
     glassOpacity: 0.55,
     positive: '161 50% 57%',
     negative: '0 70% 62%',
@@ -103,6 +105,10 @@ type NavGuard = { onAttempt: (href: string) => void } | null;
 interface AppContextType extends AppState {
   navGuard: NavGuard;
   setNavGuard: (guard: NavGuard) => void;
+  // When true, AppShell suppresses page-level swipe navigation (e.g. while a Settings
+  // sub-menu is open and owns horizontal swipes for its own sub-tabs).
+  pageSwipeLocked: boolean;
+  setPageSwipeLocked: (locked: boolean) => void;
   appError: AppError | null;
   setAppError: (error: AppError | null) => void;
   addDebt: (debt: Omit<Debt, 'id'>) => void;
@@ -131,9 +137,9 @@ interface AppContextType extends AppState {
   setMonthlyIncome: (income: number) => void;
   setUserProfile: (profile: UserProfile) => void;
   setNotificationSettings: (settings: NotificationSettings) => void;
-  setThemeSettings: (settings: Omit<ThemeSettings, 'backgroundImage'>) => void;
+  setThemeSettings: (settings: Omit<ThemeSettings, 'backgroundImage' | 'backgroundVideo'>) => void;
   setNotepadContent: (content: string) => void;
-  addUserTheme: (name: string, settings: Omit<ThemeSettings, 'backgroundImage' | 'backgroundOpacity'>) => void;
+  addUserTheme: (name: string, settings: Omit<ThemeSettings, 'backgroundImage' | 'backgroundVideo' | 'backgroundOpacity'>) => void;
   deleteUserTheme: (themeId: string) => void;
   importData: (data: AppData) => void;
   deleteHistoryEntry: (entryId: string) => void;
@@ -189,6 +195,8 @@ export const AppDataContext = createContext<AppContextType>({
   setProfileAvatar: async () => {},
   navGuard: null,
   setNavGuard: () => {},
+  pageSwipeLocked: false,
+  setPageSwipeLocked: () => {},
   appError: null,
   setAppError: () => {},
 });
@@ -198,6 +206,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
   const [isLoaded, setIsLoaded] = useState(false);
   const [avatarDataUrl, setAvatarDataUrl] = useState('');
   const [navGuard, setNavGuard] = useState<NavGuard>(null);
+  const [pageSwipeLocked, setPageSwipeLocked] = useState(false);
   const [appError, setAppError] = useState<AppError | null>(null);
 
   // Keep module-level currency in sync with state so formatCurrency() picks it up everywhere.
@@ -562,7 +571,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     }));
   };
 
-  const addUserTheme = useCallback((name: string, settings: Omit<ThemeSettings, 'backgroundImage' | 'backgroundOpacity'>) => {
+  const addUserTheme = useCallback((name: string, settings: Omit<ThemeSettings, 'backgroundImage' | 'backgroundVideo' | 'backgroundOpacity'>) => {
     updateStateAndSync(prev => ({
       ...prev,
       userThemes: [...prev.userThemes, { id: crypto.randomUUID(), name, settings }]
@@ -584,6 +593,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     const keysToRemove = ['appState', 'duey_device_id'];
     keysToRemove.forEach(key => localStorage.removeItem(key));
     idbDel('backgroundImage').catch(() => {});
+    idbDel('backgroundVideo').catch(() => {});
     idbDel('profileAvatar').catch(() => {});
     setAppState(defaultState);
     setAvatarDataUrl('');
@@ -640,7 +650,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     setMonthlyIncome: (income: number) => updateStateAndSync(p => ({ ...p, monthlyIncome: income })),
     setUserProfile: (profile: UserProfile) => updateStateAndSync(p => ({ ...p, userProfile: profile })),
     setNotificationSettings: (settings: NotificationSettings) => updateStateAndSync(p => ({ ...p, notificationSettings: settings })),
-    setThemeSettings: (settings: Omit<ThemeSettings, 'backgroundImage'>) => updateStateAndSync(p => ({ ...p, themeSettings: settings })),
+    setThemeSettings: (settings: Omit<ThemeSettings, 'backgroundImage' | 'backgroundVideo'>) => updateStateAndSync(p => ({ ...p, themeSettings: settings })),
     setNotepadContent: (content: string) => updateStateAndSync(p => ({ ...p, notepadContent: content })),
     setCurrency: (code: string) => updateStateAndSync(p => ({ ...p, currency: code })),
     setExportFolder: (uri: string, name: string) => updateStateAndSync(p => ({ ...p, exportFolderUri: uri, exportFolderName: name })),
@@ -655,9 +665,11 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     setProfileAvatar,
     navGuard,
     setNavGuard,
+    pageSwipeLocked,
+    setPageSwipeLocked,
     appError,
     setAppError,
-  }), [appState, avatarDataUrl, setProfileAvatar, navGuard, setNavGuard, appError, setAppError, addExpense, deleteExpense, updateExpense]);
+  }), [appState, avatarDataUrl, setProfileAvatar, navGuard, setNavGuard, pageSwipeLocked, appError, setAppError, addExpense, deleteExpense, updateExpense]);
 
   if (!isLoaded) return <LoadingScreen />;
 

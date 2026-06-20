@@ -85,7 +85,9 @@ export interface ThemeSettings {
   accent: string;
   font: string;
   backgroundImage: string;
+  backgroundVideo: string; // looping background video: '/loading.mp4' preset path, or a data URL for uploads
   backgroundOpacity: number;
+  backgroundBlur?: number; // 0–20 px blur applied to the background image/video
   foreground: string;
   accentForeground: string;
   uiScale: number;
@@ -94,6 +96,7 @@ export interface ThemeSettings {
   useSafeAreaInsets?: boolean;
   bgX?: number; // 0–100, default 50 (background-position-x %)
   bgY?: number; // 0–100, default 50 (background-position-y %)
+  bgScale?: number; // 1–3, default 1 (zoom for background image/video)
   // Status / category colors (HSL "h s% l%"). Optional — fall back to CSS defaults when unset.
   positive?: string;
   negative?: string;
@@ -108,7 +111,7 @@ export interface ThemeSettings {
 export interface UserTheme {
     id: string;
     name: string;
-    settings: Omit<ThemeSettings, 'backgroundImage' | 'backgroundOpacity'>;
+    settings: Omit<ThemeSettings, 'backgroundImage' | 'backgroundVideo' | 'backgroundOpacity'>;
 }
 
 export interface AvatarSettings {
@@ -147,7 +150,7 @@ export interface AppState {
   monthlyIncome: number;
   userProfile: UserProfile;
   notificationSettings: NotificationSettings;
-  themeSettings: Omit<ThemeSettings, 'backgroundImage'>;
+  themeSettings: Omit<ThemeSettings, 'backgroundImage' | 'backgroundVideo'>;
   userThemes: UserTheme[];
   notepadContent: string;
   /** SAF tree URI of the user-chosen export folder (Android). Empty = not yet chosen. */

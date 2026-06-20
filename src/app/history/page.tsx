@@ -149,18 +149,18 @@ function pdfHeader(doc: any, title: string, subtitle: string, name: string, logo
   const dateStr = format(new Date(), 'd MMM yyyy');
   let y = 15;
   doc.setFillColor(40, 44, 52);
-  doc.rect(0, 0, W, 22, 'F');
+  doc.rect(0, 0, W, 28, 'F');
   // The logo (stark.png) is the full brand wordmark — show it large and skip the "DUEY" text.
   // Falls back to the text wordmark only if the logo file is missing.
   if (logoBase64) {
-    doc.addImage(logoBase64, 'PNG', 10, 4, 14, 14);
+    doc.addImage(logoBase64, 'PNG', 10, 4, 21, 21);
   } else {
     doc.setFont('helvetica', 'bold'); doc.setFontSize(14); doc.setTextColor(255, 255, 255);
-    doc.text('DUEY', 10, 14);
+    doc.text('DUEY', 10, 17);
   }
   doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(255, 255, 255);
-  doc.text(dateStr, W - 10, 14, { align: 'right' });
-  y = 28;
+  doc.text(dateStr, W - 10, 17, { align: 'right' });
+  y = 34;
   doc.setFont('helvetica', 'bold'); doc.setFontSize(13); doc.setTextColor(30, 30, 30);
   doc.text(title, 10, y); y += 6;
   doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(90, 90, 90);

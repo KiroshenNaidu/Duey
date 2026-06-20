@@ -579,7 +579,7 @@ export function DataManagementMenu() {
         // Logo (stark.png) is the full brand mark — show it large on its own line; the title omits
         // "DUEY" since the image carries it. Falls back to the text wordmark if the logo is missing.
         ...(logoData ? [new Paragraph({
-          children: [new ImageRun({ data: logoData, transformation: { width: 72, height: 72 }, type: 'png' })],
+          children: [new ImageRun({ data: logoData, transformation: { width: 108, height: 108 }, type: 'png' })],
           spacing: { after: 80 },
         })] : []),
         new Paragraph({
@@ -663,7 +663,7 @@ export function DataManagementMenu() {
       // Page header — logo (stark.png) is the full brand wordmark, shown large; "DUEY" text is
       // skipped since the image carries it. Falls back to the text wordmark if the logo is missing.
       if (logoBase64) {
-        doc.addImage(logoBase64, 'PNG', 10, 4, 16, 16);
+        doc.addImage(logoBase64, 'PNG', 10, 4, 24, 24);
       } else {
         doc.setFont('helvetica', 'bold');
         doc.setFontSize(20);
@@ -818,11 +818,11 @@ export function DataManagementMenu() {
       // Cover header — logo (stark.png) is the full brand wordmark, shown large to the left of the
       // title. "DUEY" is dropped from the title since the image carries it (text fallback if missing).
       if (logoBase64) {
-        doc.addImage(logoBase64, 'PNG', 10, 4, 16, 16);
+        doc.addImage(logoBase64, 'PNG', 10, 4, 24, 24);
         doc.setFont('helvetica', 'bold');
         doc.setFontSize(18);
         doc.setTextColor(30, 30, 30);
-        doc.text('Financial Statement', 30, y);
+        doc.text('Financial Statement', 38, y);
       } else {
         doc.setFont('helvetica', 'bold');
         doc.setFontSize(18);
@@ -978,6 +978,7 @@ export function DataManagementMenu() {
   const exportUserConfig = async (): Promise<Blob> => {
       const s = getAppState();
       const backgroundImage = await idbGet<string>('backgroundImage') ?? '';
+      const backgroundVideo = await idbGet<string>('backgroundVideo') ?? '';
       const avatarImage = await idbGet<string>('profileAvatar') ?? '';
       return new Blob([JSON.stringify({
         type: 'duey-config',
@@ -988,6 +989,7 @@ export function DataManagementMenu() {
         notificationSettings: s.notificationSettings,
         userThemes: s.userThemes,
         backgroundImage,
+        backgroundVideo,
         avatarImage,
       }, null, 2)], { type: 'application/json' });
   };
@@ -1013,6 +1015,7 @@ export function DataManagementMenu() {
         importData(partial);
         try {
           if (data.backgroundImage) await idbSet('backgroundImage', data.backgroundImage);
+          if (data.backgroundVideo) await idbSet('backgroundVideo', data.backgroundVideo);
           if (data.avatarImage)     await idbSet('profileAvatar', data.avatarImage);
         } catch (idbErr) {
           setAppError({ friendly: 'Config imported but images could not be saved — storage may be full.', operation: 'idbSet in handleConfigImport in DataManagementMenu', error: idbErr, ts: Date.now() });

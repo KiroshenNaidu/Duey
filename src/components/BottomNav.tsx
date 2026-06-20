@@ -45,9 +45,6 @@ export function BottomNav() {
               )}
               <item.icon className={cn("h-5 w-5 relative", isActive ? "text-primary" : "text-muted-foreground")} />
               <span className={cn("text-[10px] font-semibold relative", isActive ? "text-primary" : "text-muted-foreground font-medium")}>{item.label}</span>
-              {isActive && (
-                <span className="absolute bottom-0 left-3 right-3 h-[2px] rounded-full bg-primary pointer-events-none" />
-              )}
             </button>
           );
         })}

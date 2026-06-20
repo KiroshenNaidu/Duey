@@ -75,13 +75,15 @@ public class MainActivity extends BridgeActivity {
     }
 
     /**
-     * Paint the WebView with the brand color so there is no white flash before the
-     * web content's first paint. Does not change rendered content.
+     * Paint the WebView with the app's dark background so there is no flash before the
+     * web content's first paint. Matches the native splash and the web loading screen
+     * (#111113) so the whole cold start is a single uninterrupted dark. Does not change
+     * rendered content.
      */
     private void polishWebView() {
         try {
             if (this.bridge != null && this.bridge.getWebView() != null) {
-                this.bridge.getWebView().setBackgroundColor(0xFF4062BF);
+                this.bridge.getWebView().setBackgroundColor(0xFF111113);
             }
         } catch (Exception ignored) {
             // Cosmetic only.

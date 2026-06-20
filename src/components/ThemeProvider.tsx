@@ -31,6 +31,7 @@ const inter = Inter({ subsets: ['latin'], variable: '--font-inter', display: 'sw
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const { themeSettings } = useContext(AppDataContext);
   const [backgroundImage, setBackgroundImage] = useState('');
+  const [backgroundVideo, setBackgroundVideo] = useState('');
   const [isImageReady, setIsImageReady] = useState(false);
 
   // One-time probe: flag genuinely low-end devices so globals.css can ease the
@@ -47,10 +48,14 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     async function loadInitialImage() {
       try {
-        const storedImage = await idbGet<string>('backgroundImage');
+        const [storedImage, storedVideo] = await Promise.all([
+          idbGet<string>('backgroundImage'),
+          idbGet<string>('backgroundVideo'),
+        ]);
         if (storedImage) setBackgroundImage(storedImage);
+        if (storedVideo) setBackgroundVideo(storedVideo);
       } catch (error) {
-        console.error("Failed to load background image", error);
+        console.error("Failed to load background media", error);
       } finally {
         setIsImageReady(true);
       }
@@ -95,29 +100,65 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
     document.body.style.zoom = `${themeSettings.uiScale || 1.0}`;
 
+    root.style.setProperty('--bg-scale', String(themeSettings.bgScale ?? 1));
+    root.style.setProperty('--bg-blur', `${themeSettings.backgroundBlur ?? 0}px`);
+
     const body = document.body;
-    body.classList.toggle('has-bg-image', !!backgroundImage);
+    body.classList.toggle('has-bg-image', !!backgroundImage || !!backgroundVideo);
     body.classList.remove('ui-glass', 'ui-minimal', 'ui-elevated');
     if (themeSettings.uiStyle !== 'solid') body.classList.add(`ui-${themeSettings.uiStyle}`);
 
-  }, [themeSettings, backgroundImage, isImageReady]);
+  }, [themeSettings, backgroundImage, backgroundVideo, isImageReady]);
+
+  // Background layers are over-scanned (104%) so the blur filter's soft edge
+  // falls outside the viewport instead of showing a transparent halo.
+  const bgLayerStyle = {
+    position: 'fixed' as const,
+    top: '-2%', left: '-2%', width: '104%', height: '104%',
+    zIndex: -10,
+    filter: 'blur(var(--bg-blur, 0px))',
+    transform: 'translateZ(0) scale(var(--bg-scale, 1))',
+    transformOrigin: 'center',
+    willChange: 'opacity',
+  };
+
+  // A video background takes precedence over an image when both are set. Both
+  // layers stay mounted (visibility toggled) so the theme editor can mutate them
+  // directly for live preview, mirroring how it already drives the image layer.
+  const showVideo = !!backgroundVideo;
+  const hasBg = showVideo || !!backgroundImage;
 
   return (
     <div className={inter.variable}>
+      <video
+        id="global-bg-video"
+        autoPlay
+        muted
+        loop
+        playsInline
+        preload="auto"
+        src={backgroundVideo || undefined}
+        style={{
+          ...bgLayerStyle,
+          objectFit: 'cover',
+          objectPosition: 'var(--bg-x, 50%) var(--bg-y, 50%)',
+          display: showVideo ? 'block' : 'none',
+        }}
+      />
       <div
         id="global-bg-image"
-        className="fixed inset-0 z-[-10] bg-cover"
+        className="bg-cover"
         style={{
+          ...bgLayerStyle,
           backgroundImage: backgroundImage ? `url(${backgroundImage})` : 'none',
           backgroundPosition: 'var(--bg-x, 50%) var(--bg-y, 50%)',
-          willChange: 'opacity',
-          transform: 'translateZ(0)',
+          display: showVideo ? 'none' : 'block',
         }}
       />
       <div
         id="global-bg-overlay"
         className="fixed inset-0 z-[-9] bg-black transition-opacity duration-500"
-        style={{ opacity: backgroundImage ? themeSettings.backgroundOpacity : 0, willChange: 'opacity', transform: 'translateZ(0)' }}
+        style={{ opacity: hasBg ? themeSettings.backgroundOpacity : 0, willChange: 'opacity', transform: 'translateZ(0)' }}
       />
       {children}
     </div>

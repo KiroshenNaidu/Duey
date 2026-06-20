@@ -3,4 +3,7 @@
     <color name="colorPrimary">#4062BF</color>
     <color name="colorPrimaryDark">#2D4A99</color>
     <color name="colorAccent">#4062BF</color>
+    <!-- App dark background — used for the cold-start splash/window so there is no flash
+         before the web UI (which is also #111113) paints. -->
+    <color name="splashBg">#111113</color>
 </resources>

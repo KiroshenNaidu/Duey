@@ -12,11 +12,17 @@
     <style name="AppTheme.NoActionBar" parent="Theme.AppCompat.DayNight.NoActionBar">
         <item name="windowActionBar">false</item>
         <item name="windowNoTitle">true</item>
-        <item name="android:background">@null</item>
+        <!-- Dark window background so nothing light shows between splash dismiss and WebView paint. -->
+        <item name="android:background">@color/splashBg</item>
+        <item name="android:windowBackground">@color/splashBg</item>
     </style>
 
 
     <style name="AppTheme.NoActionBarLaunch" parent="Theme.SplashScreen">
-        <item name="android:background">@drawable/splash</item>
+        <!-- Plain dark splash (the web mp4 carries the branding). Covers both the
+             Android 12+ system splash and the legacy window background. -->
+        <item name="windowSplashScreenBackground">@color/splashBg</item>
+        <item name="android:windowBackground">@color/splashBg</item>
+        <item name="android:background">@color/splashBg</item>
     </style>
 </resources>

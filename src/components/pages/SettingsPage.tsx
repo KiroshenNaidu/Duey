@@ -107,7 +107,7 @@ const menuTransition = { type: 'tween' as const, ease: [0.25, 0.46, 0.45, 0.94] 
 
 export function SettingsPage() {
   const router = useRouter();
-  const { setNavGuard } = useContext(AppDataContext);
+  const { setNavGuard, setPageSwipeLocked } = useContext(AppDataContext);
   const [activeMenu, setActiveMenu] = useState<ActiveMenu>('main');
   const menuDirectionRef = useRef(1);
   const [menuIsDirty, setMenuIsDirty] = useState(false);
@@ -160,6 +160,13 @@ export function SettingsPage() {
       }
     }
   };
+
+  // While inside a sub-menu, that menu owns horizontal swipes (its own sub-tabs), so
+  // suppress the page-level swipe nav that would otherwise jump to Transport/Stats/etc.
+  useEffect(() => {
+    setPageSwipeLocked(activeMenu !== 'main');
+    return () => setPageSwipeLocked(false);
+  }, [activeMenu, setPageSwipeLocked]);
 
   const handleBack = () => tryNavigate('main');
 

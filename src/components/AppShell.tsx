@@ -62,12 +62,14 @@ function isInDialog(el: EventTarget | null): boolean {
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { navGuard } = useContext(AppDataContext);
+  const { navGuard, pageSwipeLocked } = useContext(AppDataContext);
 
   const pathnameRef = useRef(pathname);
   const navGuardRef = useRef(navGuard);
+  const pageSwipeLockedRef = useRef(pageSwipeLocked);
   pathnameRef.current = pathname;
   navGuardRef.current = navGuard;
+  pageSwipeLockedRef.current = pageSwipeLocked;
 
   const isMainRoute = MAIN_ROUTES.has(pathname);
   const activeIdx = ROUTE_ORDER[pathname] ?? 1;
@@ -139,6 +141,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     const onEnd = (e: TouchEvent) => {
       if (tracking !== 'h') return;
       tracking = 'none';
+
+      // A sub-view (e.g. Theme menu) may own horizontal swipes for its own sub-tabs.
+      if (pageSwipeLockedRef.current) return;
 
       // Don't swipe-navigate when on a non-main route (e.g. History)
       if (!MAIN_ROUTES.has(pathnameRef.current)) return;

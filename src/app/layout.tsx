@@ -9,11 +9,19 @@ import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { ErrorModal } from '@/components/ErrorModal';
 import { AppShell } from '@/components/AppShell';
 import { CurrencyPickerDialog } from '@/components/CurrencyPickerDialog';
+import { HardwareBackButton } from '@/components/HardwareBackButton';
 
 export const metadata: Metadata = {
   title: 'Duey',
   description: 'Manual Debt & Payment Tracker',
   manifest: '/manifest.json',
+  icons: {
+    icon: [
+      { url: '/favicon-32.png', sizes: '32x32', type: 'image/png' },
+      { url: '/favicon-16.png', sizes: '16x16', type: 'image/png' },
+    ],
+    apple: [{ url: '/apple-touch-icon.png', sizes: '180x180', type: 'image/png' }],
+  },
 };
 
 export const viewport: Viewport = {
@@ -48,6 +56,7 @@ export default function RootLayout({
                 </div>
                 <ErrorModal />
                 <CurrencyPickerDialog />
+                <HardwareBackButton />
               </ErrorBoundary>
             </ThemeProvider>
           </AppDataProvider>
