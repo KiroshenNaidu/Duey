@@ -4,12 +4,13 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack -p 9002",
-    "build": "next build",
+    "clean": "node -e \"const fs=require('fs');for(const d of ['.next','out'])fs.rmSync(d,{recursive:true,force:true})\"",
+    "build": "npm run clean && next build",
     "start": "npx serve out",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
     "android": "npx cap open android",
-    "sync:android": "next build && npx cap sync android"
+    "sync:android": "npm run clean && next build && npx cap sync android"
   },
   "dependencies": {
     "@capacitor/android": "^7.0.0",

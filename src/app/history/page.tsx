@@ -68,11 +68,12 @@ function blobToBase64(blob: Blob): Promise<string> {
   });
 }
 
-// Fetches /logo.png as raw bytes and returns base64 — reliable in Capacitor Android
-// (avoids <img> + canvas + .ico which Android WebView cannot decode).
+// Fetches /stark.png (the document-only brand mark, separate from the in-app /logo.png) as raw
+// bytes and returns base64 — reliable in Capacitor Android (avoids <img> + canvas + .ico which
+// Android WebView cannot decode). Returns '' if the file is missing; exports fall back to text.
 async function getLogoBase64(): Promise<string> {
   try {
-    const res = await fetch('/logo.png');
+    const res = await fetch('/stark.png');
     if (!res.ok) return '';
     const buf = await res.arrayBuffer();
     const bytes = new Uint8Array(buf);
@@ -149,10 +150,15 @@ function pdfHeader(doc: any, title: string, subtitle: string, name: string, logo
   let y = 15;
   doc.setFillColor(40, 44, 52);
   doc.rect(0, 0, W, 22, 'F');
-  if (logoBase64) doc.addImage(logoBase64, 'PNG', 10, 7, 8, 8);
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(14); doc.setTextColor(255, 255, 255);
-  doc.text('DUEY', logoBase64 ? 20 : 10, 14);
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(8);
+  // The logo (stark.png) is the full brand wordmark — show it large and skip the "DUEY" text.
+  // Falls back to the text wordmark only if the logo file is missing.
+  if (logoBase64) {
+    doc.addImage(logoBase64, 'PNG', 10, 4, 14, 14);
+  } else {
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(14); doc.setTextColor(255, 255, 255);
+    doc.text('DUEY', 10, 14);
+  }
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(255, 255, 255);
   doc.text(dateStr, W - 10, 14, { align: 'right' });
   y = 28;
   doc.setFont('helvetica', 'bold'); doc.setFontSize(13); doc.setTextColor(30, 30, 30);
@@ -885,7 +891,7 @@ export default function HistoryPage() {
 
   // Combined transport + uber list filtered by month and toggles, sorted newest first
   const combinedTransport = useMemo((): ({ kind: 'transport'; entry: HistoryEntry; date: number } | { kind: 'uber'; ride: UberRide; date: number })[] => {
-    const items: TransportItem[] = [];
+    const items: ({ kind: 'transport'; entry: HistoryEntry; date: number } | { kind: 'uber'; ride: UberRide; date: number })[] = [];
     if (showTransportEntries) {
       transportEntries.forEach(e => {
         if (transportMonth === 'all' || e.date.startsWith(transportMonth)) {
@@ -1205,7 +1211,7 @@ export default function HistoryPage() {
                 className={cn(
                   'flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors',
                   showUberEntries
-                    ? 'bg-transport/15 text-transport border-transport/30'
+                    ? 'bg-primary/15 text-primary border-primary/30'
                     : 'bg-transparent text-muted-foreground border-border/50 opacity-50'
                 )}
               >

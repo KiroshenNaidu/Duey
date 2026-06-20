@@ -13,22 +13,22 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogC
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
-// Converts /favicon.ico to a PNG base64 string via canvas so it can be embedded in
-// jsPDF (addImage) and docx (ImageRun). Returns '' on failure — exports fall back gracefully.
-function getLogoBase64(): Promise<string> {
-  return new Promise(resolve => {
-    const img = new Image();
-    img.onload = () => {
-      const canvas = document.createElement('canvas');
-      canvas.width = 32; canvas.height = 32;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) { resolve(''); return; }
-      ctx.drawImage(img, 0, 0, 32, 32);
-      resolve(canvas.toDataURL('image/png').split(',')[1]);
-    };
-    img.onerror = () => resolve('');
-    img.src = '/favicon.ico';
-  });
+// Fetches /stark.png (the document-only brand mark, separate from the in-app /logo.png) as raw
+// bytes and returns base64 so it can be embedded in jsPDF (addImage) and docx (ImageRun).
+// Byte-fetch (not <img> + canvas) is reliable in Capacitor Android's WebView. Returns '' if the
+// file is missing — exports fall back to text-only gracefully.
+async function getLogoBase64(): Promise<string> {
+  try {
+    const res = await fetch('/stark.png');
+    if (!res.ok) return '';
+    const buf = await res.arrayBuffer();
+    const bytes = new Uint8Array(buf);
+    let bin = '';
+    for (let i = 0; i < bytes.byteLength; i++) bin += String.fromCharCode(bytes[i]);
+    return btoa(bin);
+  } catch {
+    return '';
+  }
 }
 
 // Loads the docx UMD bundle via a <script> tag, bypassing Turbopack's module bundler
@@ -576,10 +576,15 @@ export function DataManagementMenu() {
       }
 
       const children: (InstanceType<typeof Paragraph> | InstanceType<typeof Table>)[] = [
+        // Logo (stark.png) is the full brand mark — show it large on its own line; the title omits
+        // "DUEY" since the image carries it. Falls back to the text wordmark if the logo is missing.
+        ...(logoData ? [new Paragraph({
+          children: [new ImageRun({ data: logoData, transformation: { width: 72, height: 72 }, type: 'png' })],
+          spacing: { after: 80 },
+        })] : []),
         new Paragraph({
           children: [
-            ...(logoData ? [new ImageRun({ data: logoData, transformation: { width: 36, height: 36 }, type: 'png' }), new TextRun({ text: '  ' })] : []),
-            new TextRun({ text: 'DUEY — History Report', bold: true, size: 52 }),
+            new TextRun({ text: logoData ? 'History Report' : 'DUEY — History Report', bold: true, size: 44 }),
           ],
           spacing: { after: 120 },
         }),
@@ -655,12 +660,16 @@ export function DataManagementMenu() {
 
       let y = 18;
 
-      // Page header
-      if (logoBase64) doc.addImage(logoBase64, 'PNG', 10, y - 7, 7, 7);
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(20);
-      doc.setTextColor(30, 30, 30);
-      doc.text('DUEY', logoBase64 ? 19 : 10, y);
+      // Page header — logo (stark.png) is the full brand wordmark, shown large; "DUEY" text is
+      // skipped since the image carries it. Falls back to the text wordmark if the logo is missing.
+      if (logoBase64) {
+        doc.addImage(logoBase64, 'PNG', 10, 4, 16, 16);
+      } else {
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(20);
+        doc.setTextColor(30, 30, 30);
+        doc.text('DUEY', 10, y);
+      }
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(9);
       doc.setTextColor(100, 100, 100);
@@ -806,12 +815,20 @@ export function DataManagementMenu() {
 
       let y = 18;
 
-      // Cover header
-      if (logoBase64) doc.addImage(logoBase64, 'PNG', 10, y - 7, 7, 7);
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(18);
-      doc.setTextColor(30, 30, 30);
-      doc.text('DUEY Financial Statement', logoBase64 ? 19 : 10, y);
+      // Cover header — logo (stark.png) is the full brand wordmark, shown large to the left of the
+      // title. "DUEY" is dropped from the title since the image carries it (text fallback if missing).
+      if (logoBase64) {
+        doc.addImage(logoBase64, 'PNG', 10, 4, 16, 16);
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(18);
+        doc.setTextColor(30, 30, 30);
+        doc.text('Financial Statement', 30, y);
+      } else {
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(18);
+        doc.setTextColor(30, 30, 30);
+        doc.text('DUEY Financial Statement', 10, y);
+      }
       y += 7;
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(9);

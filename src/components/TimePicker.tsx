@@ -96,9 +96,11 @@ function TimeColumn({
 export function TimePicker({
   value,
   onChange,
+  disabled,
 }: {
   value: string;
   onChange: (v: string) => void;
+  disabled?: boolean;
 }) {
   const [open, setOpen] = useState(false);
 
@@ -118,13 +120,15 @@ export function TimePicker({
   }, [h, onChange]);
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={open} onOpenChange={disabled ? undefined : setOpen}>
       <PopoverTrigger asChild>
         <button
+          disabled={disabled}
           className={cn(
             'flex items-center gap-2 w-full h-9 rounded-md border border-input bg-background px-3 text-sm',
             'transition-colors hover:border-ring/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
-            !hasValue && 'text-muted-foreground'
+            !hasValue && 'text-muted-foreground',
+            disabled && 'opacity-50 cursor-not-allowed pointer-events-none'
           )}
         >
           <Clock className="h-3.5 w-3.5 text-muted-foreground shrink-0" />

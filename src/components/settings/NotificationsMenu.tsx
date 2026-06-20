@@ -8,6 +8,7 @@ import { Switch } from '@/components/ui/switch';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
+import { TimePicker } from '@/components/TimePicker';
 import { Smartphone } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -197,10 +198,9 @@ export function NotificationsMenu({ onDirtyChange, onSaved, onCancel }: Notifica
 
           <div className="space-y-1.5">
             <Label className="text-xs">Reminder Time</Label>
-            <Input
-              type="time"
+            <TimePicker
               value={draftTimeString}
-              onChange={e => handleTimeChange(e.target.value)}
+              onChange={handleTimeChange}
               disabled={!draft.enabled}
             />
           </div>
