@@ -152,12 +152,7 @@ export function TransportPage() {
                 <Switch
                   checked={transportSettings.employed}
                   onCheckedChange={v => {
-                    const now = new Date().toISOString().slice(0, 10);
-                    if (v) {
-                      setTransportSettings({ ...transportSettings, employed: true, employmentStartDate: now, employmentEndDate: undefined });
-                    } else {
-                      setTransportSettings({ ...transportSettings, employed: false, employmentEndDate: now });
-                    }
+                    setTransportSettings({ ...transportSettings, employed: v });
                   }}
                   className="h-4 w-8"
                 />
@@ -188,7 +183,15 @@ export function TransportPage() {
                     <DatePickerInput
                       value={transportSettings.employmentStartDate}
                       onChange={v => setTransportSettings({ ...transportSettings, employmentStartDate: v || undefined })}
-                      placeholder="Select start date"
+                      placeholder="Select start date (optional)"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-[10px] text-muted-foreground">End Date</Label>
+                    <DatePickerInput
+                      value={transportSettings.employmentEndDate}
+                      onChange={v => setTransportSettings({ ...transportSettings, employmentEndDate: v || undefined })}
+                      placeholder="Select end date (optional)"
                     />
                   </div>
                 </div>

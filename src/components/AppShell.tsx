@@ -1,6 +1,7 @@
 'use client';
 
 import { useContext, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
+import { FolderAccess } from '@/lib/folderAccess';
 import { usePathname, useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { AppDataContext } from '@/context/AppDataContext';
@@ -86,6 +87,23 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     },
     [router],
   );
+
+  // Open downloaded file when user taps a "File Saved" notification
+  useEffect(() => {
+    let removeListener: (() => void) | null = null;
+    import('@capacitor/core').then(({ Capacitor }) => {
+      if (!Capacitor.isNativePlatform()) return;
+      import('@capacitor/local-notifications').then(({ LocalNotifications }) => {
+        LocalNotifications.addListener('localNotificationActionPerformed', action => {
+          const extra = (action.notification as { extra?: { fileUri?: string; mimeType?: string } }).extra;
+          if (extra?.fileUri) {
+            FolderAccess.openFile({ fileUri: extra.fileUri, mimeType: extra.mimeType ?? '*/*' }).catch(() => {});
+          }
+        }).then(handle => { removeListener = () => handle.remove(); });
+      });
+    });
+    return () => { removeListener?.(); };
+  }, []);
 
   useEffect(() => {
     const start = { x: 0, y: 0, time: 0 };

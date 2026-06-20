@@ -3,6 +3,8 @@
 import { useState } from 'react';
 import { formatCurrency, getCurrencySymbol, cn } from '@/lib/utils';
 import { ChevronDown } from 'lucide-react';
+import { MeasurementConverter } from '@/components/MeasurementConverter';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { TimePicker } from '@/components/TimePicker';
@@ -244,16 +246,17 @@ function UnitConverter() {
         </div>
         <div className="space-y-1">
           <Label className="text-xs">Convert from</Label>
-          <select
-            className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm text-foreground appearance-none"
-            value={unit}
-            onChange={e => setUnit(e.target.value as TimeUnit)}
-          >
-            <option value="seconds">Seconds</option>
-            <option value="minutes">Minutes</option>
-            <option value="hours">Hours</option>
-            <option value="days">Days</option>
-          </select>
+          <Select value={unit} onValueChange={v => setUnit(v as TimeUnit)}>
+            <SelectTrigger className="h-9">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="seconds">Seconds</SelectItem>
+              <SelectItem value="minutes">Minutes</SelectItem>
+              <SelectItem value="hours">Hours</SelectItem>
+              <SelectItem value="days">Days</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
       </div>
       {n > 0 && (
@@ -279,7 +282,10 @@ export function TimeCalculator() {
       <Section title="Earnings Calculator">
         <EarningsCalculator />
       </Section>
-      <Section title="Unit Converter">
+      <Section title="Measurement Converter">
+        <MeasurementConverter />
+      </Section>
+      <Section title="Time Converter">
         <UnitConverter />
       </Section>
     </div>

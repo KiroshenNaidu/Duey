@@ -41,14 +41,12 @@ export function DebtProgressCharts() {
   return (
     <div className="space-y-3">
       {debtProgressData.map((debt) => (
-        <div key={debt.id} className="grid grid-cols-[auto_1fr_auto] items-center gap-x-3">
-          <span className="text-xs font-medium text-foreground truncate">
-            {debt.name.substring(0, 5)}
-          </span>
-          <Progress value={debt.progress} className="h-2 bg-card [&>*]:bg-accent" />
-          <span className="text-xs font-mono text-muted-foreground w-8 text-right">
-            {Math.round(debt.progress)}%
-          </span>
+        <div key={debt.id} className="space-y-1">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-xs font-medium text-foreground truncate">{debt.name}</span>
+            <span className="text-xs font-mono text-muted-foreground shrink-0">{Math.round(debt.progress)}%</span>
+          </div>
+          <Progress value={debt.progress} className="h-1.5 bg-muted/40 [&>*]:bg-accent" />
         </div>
       ))}
     </div>

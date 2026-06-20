@@ -101,8 +101,8 @@ export function CurrencyPickerDialog() {
         </div>
 
         <div className="px-5 pb-5 pt-2">
-          <Button onClick={save} className="w-full h-11 bg-accent text-accent-foreground hover:bg-accent/90 font-semibold">
-            Use {selectedCurrency.symbol} {selected}
+          <Button onClick={save} className="w-full h-11 font-semibold">
+            Use {selectedCurrency.name}
           </Button>
         </div>
       </DialogContent>

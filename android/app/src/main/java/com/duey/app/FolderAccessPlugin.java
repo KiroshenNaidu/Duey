@@ -114,6 +114,26 @@ public class FolderAccessPlugin extends Plugin {
     }
 
     @PluginMethod
+    public void openFile(PluginCall call) {
+        String fileUri = call.getString("fileUri");
+        String mimeType = call.getString("mimeType", "*/*");
+        if (fileUri == null) {
+            call.reject("missing-args");
+            return;
+        }
+        try {
+            Uri uri = Uri.parse(fileUri);
+            Intent intent = new Intent(Intent.ACTION_VIEW);
+            intent.setDataAndType(uri, mimeType);
+            intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_ACTIVITY_NEW_TASK);
+            getContext().startActivity(intent);
+            call.resolve();
+        } catch (Exception e) {
+            call.reject("open-failed: " + e.getMessage());
+        }
+    }
+
+    @PluginMethod
     public void checkFolder(PluginCall call) {
         String folderUri = call.getString("folderUri");
         JSObject ret = new JSObject();

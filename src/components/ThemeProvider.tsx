@@ -9,14 +9,14 @@ import type { ThemeSettings } from '@/lib/types';
 // Themeable status / category colors — single source of truth shared by the apply effect,
 // the theme editor, and the default state. `default` mirrors the CSS :root fallback.
 export const STATUS_COLOR_VARS: { field: keyof ThemeSettings; cssVar: string; label: string; default: string }[] = [
-  { field: 'positive',      cssVar: '--positive',       label: 'Positive',   default: '142 71% 45%' },
-  { field: 'negative',      cssVar: '--negative',       label: 'Negative',   default: '358 100% 50%' },
-  { field: 'catTransport',  cssVar: '--cat-transport',  label: 'Transport',  default: '217 91% 60%' },
-  { field: 'catBudget',     cssVar: '--cat-budget',     label: 'Budget',     default: '271 91% 65%' },
+  { field: 'positive',      cssVar: '--positive',       label: 'Positive',   default: '161 50% 57%' },
+  { field: 'negative',      cssVar: '--negative',       label: 'Negative',   default: '0 70% 62%' },
+  { field: 'catTransport',  cssVar: '--cat-transport',  label: 'Transport',  default: '217 91% 68%' },
+  { field: 'catBudget',     cssVar: '--cat-budget',     label: 'Budget',     default: '0 70% 62%' },
   { field: 'catExpense',    cssVar: '--cat-expense',    label: 'Expense',    default: '25 95% 53%' },
-  { field: 'catCompletion', cssVar: '--cat-completion', label: 'Completed',  default: '43 96% 56%' },
-  { field: 'catEmployment', cssVar: '--cat-employment', label: 'Employment', default: '173 80% 40%' },
-  { field: 'catSnapshot',   cssVar: '--cat-snapshot',   label: 'Summary',    default: '199 89% 48%' },
+  { field: 'catCompletion', cssVar: '--cat-completion', label: 'Completed',  default: '43 96% 70%' },
+  { field: 'catEmployment', cssVar: '--cat-employment', label: 'Employment', default: '173 80% 74%' },
+  { field: 'catSnapshot',   cssVar: '--cat-snapshot',   label: 'Summary',    default: '199 89% 62%' },
 ];
 
 /** Apply themeable status colors (falling back to defaults) onto a style target. */
@@ -62,13 +62,31 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     if (!themeSettings) return;
 
     const root = document.documentElement;
+
+    // Derive secondary/muted/border/input by lightening the surface value
+    const lighten = (hsl: string, delta: number) => {
+      const p = hsl.trim().split(/\s+/);
+      if (p.length < 3) return hsl;
+      const l = Math.min(100, Math.max(0, parseFloat(p[2]) + delta));
+      return `${p[0]} ${p[1]} ${l.toFixed(0)}%`;
+    };
+
     root.style.setProperty('--background', themeSettings.background);
+    root.style.setProperty('--foreground', themeSettings.foreground);
     root.style.setProperty('--card', themeSettings.surface);
+    root.style.setProperty('--card-foreground', themeSettings.foreground);
+    root.style.setProperty('--popover', themeSettings.background);
+    root.style.setProperty('--popover-foreground', themeSettings.foreground);
     root.style.setProperty('--primary', themeSettings.primary);
     root.style.setProperty('--accent', themeSettings.accent);
     root.style.setProperty('--ring', themeSettings.accent);
-    root.style.setProperty('--foreground', themeSettings.foreground);
     root.style.setProperty('--accent-foreground', themeSettings.accentForeground);
+    root.style.setProperty('--secondary', lighten(themeSettings.surface, 4));
+    root.style.setProperty('--secondary-foreground', themeSettings.foreground);
+    root.style.setProperty('--muted', lighten(themeSettings.surface, 4));
+    root.style.setProperty('--muted-foreground', themeSettings.accentForeground);
+    root.style.setProperty('--border', lighten(themeSettings.surface, 9));
+    root.style.setProperty('--input', lighten(themeSettings.surface, 6));
     root.style.setProperty('--font-family', 'var(--font-inter)');
     applyStatusColors(root, themeSettings);
     root.style.setProperty('--bg-x', `${themeSettings.bgX ?? 50}%`);

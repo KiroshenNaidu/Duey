@@ -54,7 +54,7 @@ function AddExpenseDialog({ children }: { children: React.ReactNode }) {
           </div>
           <div>
             <label className="text-xs font-medium text-muted-foreground mb-1 block">Amount</label>
-            <Input type="number" placeholder="e.g., 410" value={amount} onChange={e => setAmount(e.target.value)} />
+            <Input type="number" placeholder="e.g., 1000" value={amount} onChange={e => setAmount(e.target.value)} />
           </div>
           <div>
             <label className="text-xs font-medium text-muted-foreground mb-1 block">Note (optional)</label>
@@ -68,7 +68,7 @@ function AddExpenseDialog({ children }: { children: React.ReactNode }) {
               <p className="text-[10px] text-muted-foreground mt-0.5">
                 {recurring
                   ? 'Stays active every month until manually removed'
-                  : 'Auto-removed on the 1st of next month'}
+                  : 'Auto-removed on the 1st of the next month'}
               </p>
             </div>
             <Switch checked={recurring} onCheckedChange={setRecurring} />

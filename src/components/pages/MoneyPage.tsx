@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import dynamic from 'next/dynamic';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -13,12 +14,26 @@ const MoneyOverview = dynamic(() => import('@/components/MoneyOverview').then(m 
   loading: () => <Skeleton className="h-48 w-full" />,
 });
 
+const TAB_LABELS: Record<string, { label: string; description: string }> = {
+  debts:    { label: 'Debts',    description: 'Track what you owe' },
+  budget:   { label: 'Budget',   description: 'Plan your monthly spending' },
+  tools:    { label: 'Tools',    description: 'Calculators & converters' },
+  expenses: { label: 'Expenses', description: 'Log your spending' },
+  balance:  { label: 'Balance',  description: 'Money overview' },
+};
+
 export function MoneyPage() {
+  const [activeTab, setActiveTab] = useState('debts');
+  const current = TAB_LABELS[activeTab];
+
   return (
     <div className="container mx-auto max-w-md pt-11">
-      <h1 className="text-lg font-bold mb-3 text-foreground text-center">Manage Money</h1>
+      <div className="text-center mb-3">
+        <h1 className="text-lg font-bold text-foreground">Manage Money</h1>
+        <p className="text-xs text-muted-foreground mt-0.5">{current.description}</p>
+      </div>
 
-      <Tabs defaultValue="debts">
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="w-full mb-3">
           <TabsTrigger value="debts" className="flex-1">Debts</TabsTrigger>
           <TabsTrigger value="budget" className="flex-1">Budget</TabsTrigger>

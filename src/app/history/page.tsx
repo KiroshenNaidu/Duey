@@ -2,7 +2,7 @@
 
 import { useContext, useState, useMemo, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { AppDataContext } from '@/context/AppDataContext';
 import { formatCurrency, cn } from '@/lib/utils';
 import { Card, CardContent } from '@/components/ui/card';
@@ -68,22 +68,20 @@ function blobToBase64(blob: Blob): Promise<string> {
   });
 }
 
-// Converts /favicon.ico to PNG base64 via canvas for embedding in PDF headers.
-// Returns '' on failure so exports fall back gracefully to text-only.
-function getLogoBase64(): Promise<string> {
-  return new Promise(resolve => {
-    const img = new Image();
-    img.onload = () => {
-      const canvas = document.createElement('canvas');
-      canvas.width = 32; canvas.height = 32;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) { resolve(''); return; }
-      ctx.drawImage(img, 0, 0, 32, 32);
-      resolve(canvas.toDataURL('image/png').split(',')[1]);
-    };
-    img.onerror = () => resolve('');
-    img.src = '/favicon.ico';
-  });
+// Fetches /logo.png as raw bytes and returns base64 — reliable in Capacitor Android
+// (avoids <img> + canvas + .ico which Android WebView cannot decode).
+async function getLogoBase64(): Promise<string> {
+  try {
+    const res = await fetch('/logo.png');
+    if (!res.ok) return '';
+    const buf = await res.arrayBuffer();
+    const bytes = new Uint8Array(buf);
+    let bin = '';
+    for (let i = 0; i < bytes.byteLength; i++) bin += String.fromCharCode(bytes[i]);
+    return btoa(bin);
+  } catch {
+    return '';
+  }
 }
 
 // ─── PDF table helper ─────────────────────────────────────────────────────────
@@ -525,9 +523,12 @@ function buildTxt(args: ExportBuilderArgs): Blob {
 
 type ExportStatus = 'idle' | 'preparing' | 'saving' | 'success' | 'error';
 
+type TransportExportFilter = 'both' | 'transport' | 'uber';
+
 function ExportDialog({
   open, onClose, tab, initials, exportFolderUri, exportFolderName,
   onPickFolder, onDownload, status, result, onReset,
+  transportFilter, onTransportFilterChange,
 }: {
   open: boolean;
   onClose: () => void;
@@ -540,6 +541,8 @@ function ExportDialog({
   status: ExportStatus;
   result: { filename: string; folder: string; error?: string } | null;
   onReset: () => void;
+  transportFilter: TransportExportFilter;
+  onTransportFilterChange: (f: TransportExportFilter) => void;
 }) {
   const [fmt, setFmt] = useState<ExportFormat>('pdf');
   const [isNative, setIsNative] = useState(false);
@@ -589,6 +592,29 @@ function ExportDialog({
                   ))}
                 </div>
               </div>
+
+              {/* Transport include picker */}
+              {tab === 'transport' && (
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2">Include</p>
+                  <div className="grid grid-cols-3 gap-2">
+                    {([['both', 'Both'], ['transport', 'Transport'], ['uber', 'Uber']] as [TransportExportFilter, string][]).map(([val, label]) => (
+                      <button
+                        key={val}
+                        onClick={() => onTransportFilterChange(val)}
+                        className={cn(
+                          'py-2 rounded-xl text-xs font-semibold border transition-colors',
+                          transportFilter === val
+                            ? 'bg-primary text-primary-foreground border-primary'
+                            : 'bg-transparent text-muted-foreground border-border hover:border-muted-foreground/40'
+                        )}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* Save location */}
               <div>
@@ -786,10 +812,24 @@ export default function HistoryPage() {
   const [exportStatus, setExportStatus] = useState<'idle' | 'preparing' | 'saving' | 'success' | 'error'>('idle');
   const [exportResult, setExportResult] = useState<{ filename: string; folder: string; error?: string } | null>(null);
 
+  // Transport tab filters
+  const [transportMonth, setTransportMonth] = useState<string>('all');
+  const [showTransportEntries, setShowTransportEntries] = useState(true);
+  const [showUberEntries, setShowUberEntries] = useState(true);
+  const [transportExportFilter, setTransportExportFilter] = useState<TransportExportFilter>('both');
+
   const initials = getInitials(userProfile.name);
 
   // ── Swipe detection ─────────────────────────────────────────────────────────
   const touchStartX = useRef<number | null>(null);
+  const swipeDir = useRef<number>(1);
+
+  const changeTab = (tab: TabId) => {
+    const cur = TAB_ORDER.indexOf(activeTab);
+    const next = TAB_ORDER.indexOf(tab);
+    swipeDir.current = next >= cur ? 1 : -1;
+    setActiveTab(tab);
+  };
 
   const handleTouchStart = (e: React.TouchEvent) => { touchStartX.current = e.touches[0].clientX; };
   const handleTouchEnd = (e: React.TouchEvent) => {
@@ -797,8 +837,8 @@ export default function HistoryPage() {
     const delta = touchStartX.current - e.changedTouches[0].clientX;
     if (Math.abs(delta) < 50) return;
     const idx = TAB_ORDER.indexOf(activeTab);
-    if (delta > 0 && idx < TAB_ORDER.length - 1) setActiveTab(TAB_ORDER[idx + 1]);
-    if (delta < 0 && idx > 0) setActiveTab(TAB_ORDER[idx - 1]);
+    if (delta > 0 && idx < TAB_ORDER.length - 1) { swipeDir.current = 1; setActiveTab(TAB_ORDER[idx + 1]); }
+    if (delta < 0 && idx > 0) { swipeDir.current = -1; setActiveTab(TAB_ORDER[idx - 1]); }
     touchStartX.current = null;
   };
 
@@ -832,6 +872,48 @@ export default function HistoryPage() {
   const sortedUber = useMemo(() => [...uberRides].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()), [uberRides]);
   const sortedExpenses = useMemo(() => [...expenses].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()), [expenses]);
 
+  // Transport tab: available months (from both transport entries + uber rides)
+  const transportMonths = useMemo(() => {
+    const keys = new Set<string>();
+    transportEntries.forEach(e => keys.add(e.date.slice(0, 7)));
+    uberRides.forEach(r => keys.add(r.date.slice(0, 7)));
+    return Array.from(keys).sort((a, b) => b.localeCompare(a)).map(key => ({
+      key,
+      label: format(new Date(key + '-01'), 'MMM yyyy'),
+    }));
+  }, [transportEntries, uberRides]);
+
+  // Combined transport + uber list filtered by month and toggles, sorted newest first
+  const combinedTransport = useMemo((): ({ kind: 'transport'; entry: HistoryEntry; date: number } | { kind: 'uber'; ride: UberRide; date: number })[] => {
+    const items: TransportItem[] = [];
+    if (showTransportEntries) {
+      transportEntries.forEach(e => {
+        if (transportMonth === 'all' || e.date.startsWith(transportMonth)) {
+          items.push({ kind: 'transport', entry: e, date: new Date(e.date).getTime() });
+        }
+      });
+    }
+    if (showUberEntries) {
+      uberRides.forEach(r => {
+        if (transportMonth === 'all' || r.date.startsWith(transportMonth)) {
+          items.push({ kind: 'uber', ride: r, date: new Date(r.date).getTime() });
+        }
+      });
+    }
+    return items.sort((a, b) => b.date - a.date);
+  }, [transportEntries, uberRides, transportMonth, showTransportEntries, showUberEntries]);
+
+  // Group combined transport entries by month for rendering
+  const combinedTransportByMonth = useMemo(() => {
+    const map = new Map<string, typeof combinedTransport>();
+    for (const item of combinedTransport) {
+      const key = (item.kind === 'transport' ? item.entry.date : item.ride.date).slice(0, 7);
+      if (!map.has(key)) map.set(key, []);
+      map.get(key)!.push(item);
+    }
+    return Array.from(map.entries());
+  }, [combinedTransport]);
+
   // ── Tab summary stats ─────────────────────────────────────────────────────────
   const tabStats = useMemo(() => ({
     all: { label: formatCurrency(totalPaid), sub: `${paymentCount} payments` },
@@ -864,7 +946,13 @@ export default function HistoryPage() {
   // Runs entirely inside the single export dialog (no second dialog opens), driving the
   // preparing → saving → success/error progress UI.
   const handleDownload = async (fmt: ExportFormat) => {
-    const args: ExportBuilderArgs = { history, expenses, uberRides, budgetPlans, debts, userName: userProfile.name, tab: activeTab };
+    const filteredHistory = activeTab === 'transport' && transportExportFilter === 'uber'
+      ? history.filter(h => h.type !== 'transport')
+      : history;
+    const filteredUberRides = activeTab === 'transport' && transportExportFilter === 'transport'
+      ? []
+      : uberRides;
+    const args: ExportBuilderArgs = { history: filteredHistory, expenses, uberRides: filteredUberRides, budgetPlans, debts, userName: userProfile.name, tab: activeTab };
     const filename = `${initials || 'U'}-${activeTab}-${buildDateStamp()}.${fmt}`;
     setExportStatus('preparing');
     setExportResult(null);
@@ -893,12 +981,12 @@ export default function HistoryPage() {
       }
 
       const base64 = await blobToBase64(blob);
-      await FolderAccess.saveFile({ folderUri: uri, name: filename, mimeType: blob.type || 'application/octet-stream', data: base64 });
+      const saved = await FolderAccess.saveFile({ folderUri: uri, name: filename, mimeType: blob.type || 'application/octet-stream', data: base64 });
 
       try {
         const { LocalNotifications } = await import('@capacitor/local-notifications');
         await LocalNotifications.createChannel({ id: 'downloads', name: 'Downloads', description: 'File download notifications', importance: 3, visibility: 1 });
-        await LocalNotifications.schedule({ notifications: [{ title: 'File Saved', body: `${filename} saved to ${folderName}`, id: (Date.now() % 100000) + 1000, channelId: 'downloads' }] });
+        await LocalNotifications.schedule({ notifications: [{ title: 'File Saved', body: `Tap to open ${filename}`, id: (Date.now() % 100000) + 1000, channelId: 'downloads', extra: { fileUri: saved.uri, mimeType: blob.type || 'application/octet-stream' } }] });
       } catch { /* notification failure is non-fatal */ }
 
       setExportResult({ filename, folder: folderName });
@@ -916,7 +1004,7 @@ export default function HistoryPage() {
       initial={{ x: '100%' }}
       animate={{ x: 0 }}
       transition={{ type: 'tween', ease: [0.22, 1, 0.36, 1], duration: 0.22 }}
-      className="container mx-auto max-w-md pt-12 pb-10 px-4"
+      className="container mx-auto max-w-md pt-12 pb-10 px-4 min-h-screen"
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
     >
@@ -936,7 +1024,7 @@ export default function HistoryPage() {
         {TAB_ORDER.map(tab => (
           <button
             key={tab}
-            onClick={() => setActiveTab(tab)}
+            onClick={() => changeTab(tab)}
             className={cn(
               'px-3.5 py-1.5 rounded-full text-xs font-semibold transition-colors',
               activeTab === tab
@@ -951,29 +1039,31 @@ export default function HistoryPage() {
 
       {/* Summary — split Transport vs Uber on the transport tab, single pill elsewhere */}
       {activeTab === 'transport' ? (
-        <div className="grid grid-cols-2 gap-2 mb-4">
-          <div className="bg-card rounded-2xl px-4 py-3.5">
-            <p className="text-lg font-black tabular-nums text-primary">
-              {formatCurrency(transportEntries.reduce((s, e) => s + e.amount, 0))}
-            </p>
-            <p className="text-[10px] text-muted-foreground uppercase tracking-widest mt-0.5">
-              Transport · {transportEntries.length} month{transportEntries.length !== 1 ? 's' : ''}
-            </p>
+        <div className="space-y-2 mb-4">
+          <div className="grid grid-cols-2 gap-2">
+            <div className="bg-card rounded-2xl px-4 py-3.5">
+              <p className="text-lg font-black tabular-nums text-primary">
+                {formatCurrency(transportEntries.reduce((s, e) => s + e.amount, 0))}
+              </p>
+              <p className="text-[10px] text-muted-foreground uppercase tracking-widest mt-0.5">
+                Transport · {transportEntries.length} month{transportEntries.length !== 1 ? 's' : ''}
+              </p>
+            </div>
+            <div className="bg-card rounded-2xl px-4 py-3.5">
+              <p className="text-lg font-black tabular-nums text-primary">
+                {formatCurrency(uberRides.reduce((s, r) => s + r.price, 0))}
+              </p>
+              <p className="text-[10px] text-muted-foreground uppercase tracking-widest mt-0.5">
+                Uber · {uberRides.length} ride{uberRides.length !== 1 ? 's' : ''}
+              </p>
+            </div>
           </div>
-          <div className="relative bg-card rounded-2xl overflow-hidden px-4 py-3.5">
-            <button
-              onClick={() => setExportOpen(true)}
-              className="absolute inset-y-0 right-0 w-14 flex items-center justify-center rounded-r-2xl text-muted-foreground/40 active:bg-muted/60 transition-colors"
-            >
-              <Download size={16} />
-            </button>
-            <p className="text-lg font-black tabular-nums text-primary">
-              {formatCurrency(uberRides.reduce((s, r) => s + r.price, 0))}
-            </p>
-            <p className="text-[10px] text-muted-foreground uppercase tracking-widest mt-0.5">
-              Uber · {uberRides.length} ride{uberRides.length !== 1 ? 's' : ''}
-            </p>
-          </div>
+          <button
+            onClick={() => setExportOpen(true)}
+            className="w-full flex items-center justify-center gap-2 bg-card rounded-2xl py-2.5 text-xs font-semibold text-muted-foreground active:bg-muted/60 transition-colors"
+          >
+            <Download size={14} /> Export
+          </button>
         </div>
       ) : (
         <div className="relative bg-card rounded-2xl overflow-hidden px-4 py-3.5 mb-4">
@@ -989,6 +1079,17 @@ export default function HistoryPage() {
       )}
 
       {/* Content */}
+      <AnimatePresence mode="popLayout" custom={swipeDir.current}>
+      <motion.div
+        key={activeTab}
+        custom={swipeDir.current}
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        initial={((dir: number) => ({ x: dir > 0 ? '60%' : '-60%', opacity: 0 })) as any}
+        animate={{ x: 0, opacity: 1 }}
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        exit={((dir: number) => ({ x: dir > 0 ? '-60%' : '60%', opacity: 0 })) as any}
+        transition={{ type: 'tween', ease: [0.22, 1, 0.36, 1], duration: 0.22 }}
+      >
       <div>
 
         {/* ALL TAB */}
@@ -1053,50 +1154,117 @@ export default function HistoryPage() {
         {/* TRANSPORT TAB */}
         {activeTab === 'transport' && (
           <div className="space-y-3">
-            {transportEntries.length > 0 && (
-              <Card className="overflow-hidden">
-                <div className="px-4 pt-4 pb-1">
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Monthly Transport</p>
-                </div>
-                <CardContent className="px-4 pb-2 pt-0">
-                  {transportEntries.map(entry => (
-                    <EntryRow key={entry.id} entry={entry} onUpdate={updateHistoryEntry} onDelete={deleteHistoryEntry} />
-                  ))}
-                </CardContent>
-              </Card>
+
+            {/* Month picker — stopPropagation prevents horizontal scroll from triggering the page swipe handler */}
+            {transportMonths.length > 0 && (
+              <div
+                className="flex gap-1.5 overflow-x-auto pb-1 no-scrollbar"
+                onTouchStart={e => e.stopPropagation()}
+                onTouchMove={e => e.stopPropagation()}
+                onTouchEnd={e => e.stopPropagation()}
+              >
+                <button
+                  onClick={() => setTransportMonth('all')}
+                  className={cn(
+                    'shrink-0 px-3.5 py-1.5 rounded-full text-xs font-semibold transition-colors',
+                    transportMonth === 'all' ? 'bg-primary text-primary-foreground' : 'bg-muted/50 text-muted-foreground hover:bg-muted'
+                  )}
+                >
+                  All
+                </button>
+                {transportMonths.map(m => (
+                  <button
+                    key={m.key}
+                    onClick={() => setTransportMonth(m.key)}
+                    className={cn(
+                      'shrink-0 px-3.5 py-1.5 rounded-full text-xs font-semibold transition-colors',
+                      transportMonth === m.key ? 'bg-primary text-primary-foreground' : 'bg-muted/50 text-muted-foreground hover:bg-muted'
+                    )}
+                  >
+                    {m.label}
+                  </button>
+                ))}
+              </div>
             )}
-            {sortedUber.length > 0 && (
-              <Card className="overflow-hidden">
-                <div className="px-4 pt-4 pb-1 flex items-center justify-between">
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Uber Rides</p>
-                  <p className="text-[10px] text-muted-foreground/60">{formatCurrency(sortedUber.reduce((s, r) => s + r.price, 0))} total</p>
-                </div>
-                <CardContent className="px-4 pb-2 pt-0">
-                  {sortedUber.map(ride => (
-                    <div key={ride.id} className="cv-auto flex items-center gap-3 py-3 border-b border-border/30 last:border-0">
-                      <div className="flex-1 min-w-0">
-                        <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-full bg-transport/15 text-transport">
-                          <Car size={10} /> Uber
-                        </span>
-                        {(ride.from || ride.to) && (
-                          <p className="text-xs text-foreground mt-1 truncate">
-                            {ride.from}{ride.from && ride.to ? ' → ' : ''}{ride.to}
-                          </p>
-                        )}
-                        <p className="text-xs text-muted-foreground mt-0.5">
-                          {fmtDate(ride.date)}{ride.distance ? ` · ${ride.distance}km` : ''}
-                        </p>
-                      </div>
-                      <span className="text-sm font-bold tabular-nums shrink-0">{formatCurrency(ride.price)}</span>
+
+            {/* Type toggles */}
+            <div className="flex gap-2">
+              <button
+                onClick={() => setShowTransportEntries(v => !v)}
+                className={cn(
+                  'flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors',
+                  showTransportEntries
+                    ? 'bg-transport/15 text-transport border-transport/30'
+                    : 'bg-transparent text-muted-foreground border-border/50 opacity-50'
+                )}
+              >
+                <Car size={11} /> Transport
+              </button>
+              <button
+                onClick={() => setShowUberEntries(v => !v)}
+                className={cn(
+                  'flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors',
+                  showUberEntries
+                    ? 'bg-transport/15 text-transport border-transport/30'
+                    : 'bg-transparent text-muted-foreground border-border/50 opacity-50'
+                )}
+              >
+                <Car size={11} /> Uber
+              </button>
+            </div>
+
+            {/* Combined list — separate card per month when All is selected */}
+            {combinedTransportByMonth.map(([monthKey, items]) => (
+                <Card key={monthKey} className="overflow-hidden">
+                  {transportMonth === 'all' && (
+                    <div className="px-4 pt-3 pb-1 flex items-center justify-between">
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                        {format(new Date(monthKey + '-01'), 'MMMM yyyy')}
+                      </p>
+                      <p className="text-[10px] text-muted-foreground/50 tabular-nums">
+                        {formatCurrency(items.reduce((s, i) => s + (i.kind === 'transport' ? i.entry.amount : i.ride.price), 0))}
+                      </p>
                     </div>
-                  ))}
-                </CardContent>
-              </Card>
-            )}
-            {transportEntries.length === 0 && sortedUber.length === 0 && (
-              <div className="flex flex-col items-center justify-center mt-24 gap-3 text-muted-foreground">
+                  )}
+                  <CardContent className="px-4 pb-2 pt-3">
+                    {items.map(item => item.kind === 'transport' ? (
+                      <EntryRow
+                        key={item.entry.id}
+                        entry={item.entry}
+                        onUpdate={updateHistoryEntry}
+                        onDelete={deleteHistoryEntry}
+                      />
+                    ) : (
+                      <div key={item.ride.id} className="flex items-center gap-3 py-3 border-b border-border/30 last:border-0">
+                        <div className="w-0.5 self-stretch rounded-full bg-primary/60 shrink-0 -ml-1 mr-1" />
+                        <div className="flex-1 min-w-0">
+                          <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-full bg-primary/15 text-primary">
+                            <Car size={10} /> Uber
+                          </span>
+                          {(item.ride.from || item.ride.to) && (
+                            <p className="text-xs font-medium text-foreground mt-1 truncate">
+                              {item.ride.from}{item.ride.from && item.ride.to ? ' → ' : ''}{item.ride.to}
+                            </p>
+                          )}
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            {fmtDate(item.ride.date)}{item.ride.distance ? ` · ${item.ride.distance}km` : ''}
+                          </p>
+                        </div>
+                        <span className="text-sm font-bold tabular-nums shrink-0 text-primary">{formatCurrency(item.ride.price)}</span>
+                      </div>
+                    ))}
+                  </CardContent>
+                </Card>
+            ))}
+
+            {combinedTransportByMonth.length === 0 && (
+              <div className="flex flex-col items-center justify-center mt-20 gap-3 text-muted-foreground">
                 <Car size={48} className="opacity-20" />
-                <p className="text-sm">No transport history yet</p>
+                <p className="text-sm">
+                  {transportEntries.length === 0 && uberRides.length === 0
+                    ? 'No transport history yet'
+                    : 'Nothing to show — try adjusting filters'}
+                </p>
               </div>
             )}
           </div>
@@ -1180,6 +1348,8 @@ export default function HistoryPage() {
           </div>
         )}
       </div>
+      </motion.div>
+      </AnimatePresence>
 
       {/* Export — single dialog: pick format/folder, then live progress, then result */}
       <ExportDialog
@@ -1194,6 +1364,8 @@ export default function HistoryPage() {
         status={exportStatus}
         result={exportResult}
         onReset={() => setExportStatus('idle')}
+        transportFilter={transportExportFilter}
+        onTransportFilterChange={setTransportExportFilter}
       />
     </motion.div>
   );

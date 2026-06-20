@@ -250,6 +250,12 @@ export function DataManagementMenu() {
   const [statsPeriod, setStatsPeriod] = useState<StatsPeriod>('all');
   const [isNative, setIsNative] = useState(false);
   const [choosingFolder, setChoosingFolder] = useState(false);
+  const [importResult, setImportResult] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+
+  const showImportResult = (type: 'success' | 'error', message: string) => {
+    setImportResult({ type, message });
+    if (type === 'success') setTimeout(() => setImportResult(null), 4000);
+  };
 
   // Single-dialog export flow (mirrors the History page): preparing → saving → success/error,
   // so every export here shows the same download popup and "File saved" confirmation.
@@ -286,7 +292,7 @@ export function DataManagementMenu() {
   // Native: write to External app directory (Files app → Android/data/com.duey.app/files/Duey).
   // No share sheet, no extra permissions. Web: blob URL download.
 
-  const notifySaved = async (filename: string, folderName: string) => {
+  const notifySaved = async (filename: string, folderName: string, fileUri: string, mimeType: string) => {
     try {
       const { LocalNotifications } = await import('@capacitor/local-notifications');
       await LocalNotifications.createChannel({
@@ -299,9 +305,10 @@ export function DataManagementMenu() {
       await LocalNotifications.schedule({
         notifications: [{
           title: 'File Saved',
-          body: `${filename} saved to ${folderName}`,
+          body: `Tap to open ${filename}`,
           id: (Date.now() % 100000) + 1000,
           channelId: 'downloads',
+          extra: { fileUri, mimeType },
         }],
       });
     } catch {
@@ -329,27 +336,21 @@ export function DataManagementMenu() {
       folderName = picked.name;
     }
 
+    const mimeType = blob.type || 'application/octet-stream';
     const base64 = await blobToBase64(blob);
+    let savedUri: string;
     try {
-      await FolderAccess.saveFile({
-        folderUri: uri,
-        name: filename,
-        mimeType: blob.type || 'application/octet-stream',
-        data: base64,
-      });
+      const result = await FolderAccess.saveFile({ folderUri: uri, name: filename, mimeType, data: base64 });
+      savedUri = result.uri;
     } catch (saveErr) {
       // Grant lost (folder deleted / SD card removed / permission cleared) → re-pick once.
       const repicked = await chooseFolder();
       if (!repicked) throw saveErr;
-      await FolderAccess.saveFile({
-        folderUri: repicked.uri,
-        name: filename,
-        mimeType: blob.type || 'application/octet-stream',
-        data: base64,
-      });
+      const result = await FolderAccess.saveFile({ folderUri: repicked.uri, name: filename, mimeType, data: base64 });
+      savedUri = result.uri;
       folderName = repicked.name;
     }
-    await notifySaved(filename, folderName);
+    await notifySaved(filename, folderName, savedUri, mimeType);
     return folderName;
   };
 
@@ -981,10 +982,10 @@ export function DataManagementMenu() {
     reader.onload = async (e) => {
       try {
         const raw = e.target?.result;
-        if (typeof raw !== 'string') { setError('Could not read config file.'); return; }
+        if (typeof raw !== 'string') { showImportResult('error', 'Could not read config file.'); return; }
         const data = JSON.parse(raw);
         if (data.type !== 'duey-config') {
-          setError('Not a valid Duey config file.');
+          showImportResult('error', 'Not a valid Duey config file.');
           return;
         }
         const partial: AppData = {};
@@ -999,9 +1000,10 @@ export function DataManagementMenu() {
         } catch (idbErr) {
           setAppError({ friendly: 'Config imported but images could not be saved — storage may be full.', operation: 'idbSet in handleConfigImport in DataManagementMenu', error: idbErr, ts: Date.now() });
         }
-        setTimeout(() => window.location.reload(), 600);
+        showImportResult('success', 'Config imported successfully. Reloading…');
+        setTimeout(() => window.location.reload(), 1200);
       } catch {
-        setError('Failed to read config file.');
+        showImportResult('error', 'Failed to read config file — file may be corrupted.');
       }
     };
     reader.readAsText(file);
@@ -1024,13 +1026,14 @@ export function DataManagementMenu() {
       reader.onload = (e) => {
         try {
           const raw = e.target?.result;
-          if (typeof raw !== 'string') { setError('Could not read file.'); return; }
+          if (typeof raw !== 'string') { showImportResult('error', 'Could not read file.'); return; }
           importData(JSON.parse(raw));
+          showImportResult('success', `"${file.name}" imported successfully.`);
         } catch {
-          setError('Invalid backup file format.');
+          showImportResult('error', 'Invalid backup file — check the format and try again.');
         }
       };
-      reader.onerror = () => setError('Failed to read file.');
+      reader.onerror = () => showImportResult('error', 'Failed to read file.');
       reader.readAsText(file);
       event.target.value = '';
     }
@@ -1227,6 +1230,23 @@ export function DataManagementMenu() {
           </AlertDialog>
         </CardContent>
       </Card>
+
+      {importResult && (
+        <div className={cn(
+          'flex items-start gap-2.5 rounded-xl px-3 py-2.5 text-xs',
+          importResult.type === 'success'
+            ? 'bg-[hsl(var(--positive))]/10 text-[hsl(var(--positive))]'
+            : 'bg-destructive/10 text-destructive'
+        )}>
+          {importResult.type === 'success'
+            ? <CheckCircle2 className="h-4 w-4 shrink-0 mt-0.5" />
+            : <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />}
+          <span className="font-medium leading-snug">{importResult.message}</span>
+          {importResult.type === 'error' && (
+            <button onClick={() => setImportResult(null)} className="ml-auto shrink-0 opacity-60 hover:opacity-100">✕</button>
+          )}
+        </div>
+      )}
 
       {error && <p className="text-xs text-destructive px-1">{error}</p>}
 

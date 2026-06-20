@@ -2,6 +2,11 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer utilities {
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+  .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+}
+
 /* Safe area insets — always active, env() falls back to 0px on devices without insets */
 :root {
   --sab: env(safe-area-inset-bottom, 0px);
@@ -19,36 +24,36 @@ nav.fixed,
 
 @layer base {
   :root {
-    --background: 220 14% 10%;
-    --foreground: 0 0% 98%;
-    --card: 220 14% 12%;
-    --card-foreground: 0 0% 98%;
-    --popover: 220 14% 10%;
-    --popover-foreground: 0 0% 98%;
-    --primary: 225 50% 50%;
-    --primary-foreground: 0 0% 98%;
-    --secondary: 220 14% 15%;
-    --secondary-foreground: 0 0% 98%;
-    --muted: 220 14% 15%;
-    --muted-foreground: 0 0% 63.9%;
-    --accent: 188 78% 57%;
-    --accent-foreground: 0 0% 98%;
+    --background: 240 6% 7%;
+    --foreground: 60 8% 95%;
+    --card: 240 4% 11%;
+    --card-foreground: 60 8% 95%;
+    --popover: 240 6% 7%;
+    --popover-foreground: 60 8% 95%;
+    --primary: 96 65% 64%;
+    --primary-foreground: 0 0% 5%;
+    --secondary: 240 4% 15%;
+    --secondary-foreground: 60 8% 95%;
+    --muted: 240 4% 15%;
+    --muted-foreground: 240 3% 62%;
+    --accent: 103 77% 59%;
+    --accent-foreground: 240 3% 62%;
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 0 0% 98%;
-    --border: 220 14% 25%;
-    --input: 220 14% 20%;
-    --ring: 188 78% 57%;
+    --border: 240 4% 20%;
+    --input: 240 4% 17%;
+    --ring: 103 77% 59%;
     --radius: 0.5rem;
 
     /* Status / category colors — themeable (overridable per-theme via ThemeProvider) */
-    --positive: 142 71% 45%;     /* payments / paid */
-    --negative: 358 100% 50%;    /* deductions / errors */
-    --cat-transport: 217 91% 60%;
-    --cat-budget: 271 91% 65%;
+    --positive: 161 50% 57%;
+    --negative: 0 70% 62%;
+    --cat-transport: 217 91% 68%;
+    --cat-budget: 0 70% 62%;
     --cat-expense: 25 95% 53%;
-    --cat-completion: 43 96% 56%;
-    --cat-employment: 173 80% 40%;
-    --cat-snapshot: 199 89% 48%;
+    --cat-completion: 43 96% 70%;
+    --cat-employment: 173 80% 74%;
+    --cat-snapshot: 199 89% 62%;
 
     --font-family: var(--font-inter);
   }
