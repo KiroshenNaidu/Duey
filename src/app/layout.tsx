@@ -10,6 +10,7 @@ import { ErrorModal } from '@/components/ErrorModal';
 import { AppShell } from '@/components/AppShell';
 import { CurrencyPickerDialog } from '@/components/CurrencyPickerDialog';
 import { HardwareBackButton } from '@/components/HardwareBackButton';
+import { KeyboardInset } from '@/components/KeyboardInset';
 
 export const metadata: Metadata = {
   title: 'Duey',
@@ -57,6 +58,7 @@ export default function RootLayout({
                 <ErrorModal />
                 <CurrencyPickerDialog />
                 <HardwareBackButton />
+                <KeyboardInset />
               </ErrorBoundary>
             </ThemeProvider>
           </AppDataProvider>

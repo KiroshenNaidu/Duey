@@ -157,6 +157,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       const nextIdx = dx < 0 ? currIdx + 1 : currIdx - 1;
       if (nextIdx < 0 || nextIdx >= ROUTES.length) return;
 
+      // Reset scroll synchronously here so the incoming page is never seen at
+      // a scroll position inherited from the page being swiped away from.
+      // The useLayoutEffect below is a safety net for tab-tap navigation.
+      document.querySelector('main')?.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
+
       navigate(ROUTES[nextIdx]);
     };
 

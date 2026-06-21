@@ -13,6 +13,8 @@
   --top-nav-h:  calc(51px + env(safe-area-inset-top, 0px));
   --top-nav-pt: env(safe-area-inset-top, 0px);
   --top-main-pt: calc(21px + env(safe-area-inset-top, 0px));
+  /* Height the on-screen keyboard overlaps the viewport — updated live by KeyboardInset */
+  --keyboard-height: 0px;
 }
 
 /* GPU layer promotion — compositor handles these independently of JS thread */

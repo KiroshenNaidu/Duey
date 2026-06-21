@@ -41,6 +41,7 @@ function isInHScroller(el: EventTarget | null): boolean {
   while (node && node !== document.body) {
     if (node.getAttribute('role') === 'slider') return true;
     if (node.getAttribute('data-orientation') === 'horizontal' && node.querySelector('[role="slider"]')) return true;
+    if (node.getAttribute('data-h-scroll') === 'true') return true;
     const ox = window.getComputedStyle(node).overflowX;
     if ((ox === 'scroll' || ox === 'auto') && node.scrollWidth > node.clientWidth) return true;
     node = node.parentElement;
@@ -1039,7 +1040,11 @@ export function ThemeSettingsMenu({ onCancel, onDirtyChange, onSaved }: { onCanc
               {/* Video background presets */}
               <div className="space-y-2">
                 <Label className="text-xs flex items-center gap-1.5"><Film className="h-3.5 w-3.5" /> Video Backgrounds</Label>
-                <div className="grid grid-cols-2 gap-2">
+                <div
+                  data-h-scroll="true"
+                  className="flex gap-2 overflow-x-auto snap-x snap-mandatory pb-1"
+                  style={{ scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch' } as React.CSSProperties}
+                >
                   {videoPresets.map(preset => {
                     const active = previewTheme.backgroundVideo === preset.src;
                     return (
@@ -1047,7 +1052,8 @@ export function ThemeSettingsMenu({ onCancel, onDirtyChange, onSaved }: { onCanc
                         key={preset.src}
                         onClick={() => requestVideo(preset.src)}
                         className={cn(
-                          'relative aspect-video rounded-xl overflow-hidden border-2 transition-all',
+                          'relative aspect-video rounded-xl overflow-hidden border-2 transition-all shrink-0 snap-start',
+                          'w-[44%]',
                           active ? 'border-primary ring-2 ring-primary/30' : 'border-border hover:border-border/60'
                         )}
                       >
