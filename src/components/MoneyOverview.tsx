@@ -11,7 +11,7 @@ import { Pencil, Check, Plus, Trash2, X } from 'lucide-react';
 
 export function MoneyOverview() {
   const {
-    monthlyIncome, debts, budgetPlans, expenses, extraIncomes, history,
+    monthlyIncome, debts, budgetPlans, expenses, extraIncomes, history, uberRides,
     transportSettings, transportOverrides,
     setMonthlyIncome, addExtraIncome, deleteExtraIncome,
   } = useContext(AppDataContext);
@@ -39,11 +39,15 @@ export function MoneyOverview() {
     return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear() ? s + h.amount : s;
   }, 0);
   const totalExpenses = expenses.reduce((s, e) => s + e.amount, 0);
+  const uberSpend = (uberRides ?? []).reduce((s, r) => {
+    const d = new Date(r.date);
+    return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear() ? s + r.price : s;
+  }, 0);
   const totalExtra = (extraIncomes ?? []).reduce((s, e) => s + e.amount, 0);
-  const totalDeductions = transportCost + budgetSpent + debtInstallments + totalExpenses;
+  const totalDeductions = transportCost + budgetSpent + debtInstallments + totalExpenses + uberSpend;
   // Effective totals exclude tapped-out rows (local state only — no data is changed)
-  const effectiveDeductions = [transportCost, budgetSpent, debtInstallments, totalExpenses]
-    .filter((_, i) => !excludedIds.has(['transport', 'budget', 'debts', 'expenses'][i]))
+  const effectiveDeductions = [transportCost, budgetSpent, debtInstallments, totalExpenses, uberSpend]
+    .filter((_, i) => !excludedIds.has(['transport', 'budget', 'debts', 'expenses', 'uber'][i]))
     .reduce((s, v) => s + v, 0);
   const remaining = monthlyIncome + totalExtra - effectiveDeductions;
 
@@ -64,6 +68,7 @@ export function MoneyOverview() {
 
   const deductions = [
     { id: 'transport', label: 'Transport (this month)', value: transportCost },
+    { id: 'uber',      label: 'Uber (this month)',       value: uberSpend },
     { id: 'budget',    label: 'Budget (all plans)',     value: budgetSpent },
     { id: 'debts',     label: 'Debt payments (this month)', value: debtInstallments },
     { id: 'expenses',  label: 'Expenses (active)',       value: totalExpenses },
