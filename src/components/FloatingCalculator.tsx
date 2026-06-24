@@ -251,9 +251,9 @@ export function FloatingCalculator({ isOpen, onClose }: { isOpen: boolean; onClo
   // legible whatever the theme's primary/accent colours are: the dark halo carries
   // contrast on light buttons, the light halo carries it on dark buttons.
   const glyphOutline = "[text-shadow:_0_0_1px_rgba(0,0,0,0.55),_0_0_2px_rgba(0,0,0,0.45),_0_0_1px_rgba(255,255,255,0.55),_0_0_2px_rgba(255,255,255,0.45)]";
-  const op  = cn("h-12 text-lg font-bold rounded-2xl bg-primary text-primary-foreground hover:bg-primary/85 shadow-sm transition-transform active:scale-95 duration-75 select-none", glyphOutline);
+  const op  = cn("h-12 text-lg font-bold rounded-2xl bg-primary text-btn-on-primary hover:bg-primary/85 shadow-sm transition-transform active:scale-95 duration-75 select-none", glyphOutline);
   const fn  = "h-12 text-[13px] font-semibold rounded-2xl bg-foreground/8 text-foreground/60 hover:bg-foreground/12 border border-accent/10 shadow-sm transition-transform active:scale-95 duration-75 select-none";
-  const eq  = cn("h-12 text-lg font-bold rounded-2xl bg-accent text-accent-foreground hover:bg-accent/85 shadow-sm transition-transform active:scale-95 duration-75 select-none", glyphOutline);
+  const eq  = cn("h-12 text-lg font-bold rounded-2xl bg-accent text-btn-on-accent hover:bg-accent/85 shadow-sm transition-transform active:scale-95 duration-75 select-none", glyphOutline);
 
   // Highlight the active operator button only while waiting for the next number
   const activeOp = !isResult && isOp(display) ? display : '';

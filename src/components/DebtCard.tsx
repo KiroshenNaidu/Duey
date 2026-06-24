@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
+import { DebtSemiGauge } from '@/components/DebtSemiGauge';
 import { AppDataContext } from '@/context/AppDataContext';
 import { formatCurrency, cn } from '@/lib/utils';
 import type { Debt } from '@/lib/types';
@@ -187,28 +188,18 @@ export function DebtCard({ debt }: DebtCardProps) {
 
                 {/* Hero progress header */}
                 <div className="px-5 pt-5 pb-4">
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="flex-1 min-w-0 pr-3">
+                  <div className="flex items-center gap-4">
+                    <DebtSemiGauge progress={progress} paidOff={isPaidOff} />
+                    <div className="flex-1 min-w-0">
                       <h2 className="text-lg font-bold text-foreground leading-tight truncate">{debt.title}</h2>
                       <p className="text-xs text-muted-foreground mt-0.5">
                         {paymentCount} of {totalInstallments} installments
                       </p>
+                      <div className="mt-3 space-y-0.5">
+                        <p className="text-sm font-semibold text-primary">{formatCurrency(amountPaid)} paid</p>
+                        <p className="text-xs text-muted-foreground">of {formatCurrency(debt.total_owed)}</p>
+                      </div>
                     </div>
-                    <div className="text-right shrink-0">
-                      <span className={cn('text-3xl font-black tabular-nums leading-none', isPaidOff ? 'text-green-500' : 'text-primary')}>
-                        {Math.round(progress)}%
-                      </span>
-                      <p className="text-[10px] text-muted-foreground mt-0.5">complete</p>
-                    </div>
-                  </div>
-
-                  <Progress
-                    value={progress}
-                    className={cn('h-3 rounded-full', isPaidOff ? '[&>*]:bg-positive' : '[&>*]:bg-primary')}
-                  />
-                  <div className="flex justify-between mt-2 text-xs">
-                    <span className="font-semibold text-foreground">{formatCurrency(amountPaid)} paid</span>
-                    <span className="text-muted-foreground">of {formatCurrency(debt.total_owed)}</span>
                   </div>
                 </div>
 
@@ -242,7 +233,7 @@ export function DebtCard({ debt }: DebtCardProps) {
                       <Button
                         onClick={handleLogCustomPayment}
                         disabled={!customAmount || parseFloat(customAmount) <= 0 || isSubmitting}
-                        className="bg-accent text-accent-foreground hover:bg-accent/90 flex-shrink-0"
+                        className="bg-accent text-btn-on-accent hover:bg-accent/90 flex-shrink-0"
                       >
                         Log
                       </Button>

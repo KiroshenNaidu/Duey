@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Progress } from '@/components/ui/progress';
+import { BudgetGauge } from '@/components/BudgetGauge';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import {
   Dialog,
@@ -40,50 +41,44 @@ function parseHsl(hsl: string): [number, number, number] {
   return [parseFloat(parts[0]), parseFloat(parts[1]), parseFloat(parts[2])];
 }
 
-function buildPalette(primary: string, accent: string): { bg: string; text: string }[] {
-  const [ph, ps, pl] = parseHsl(primary);
-  const [ah, as_, al] = parseHsl(accent);
-  const norm = (h: number) => ((h % 360) + 360) % 360;
-  const entry = (h: number, s: number, l: number) => ({
-    bg: `hsl(${norm(h)}, ${Math.round(s)}%, ${Math.round(l)}%)`,
-    text: l > 55 ? '#111827' : '#ffffff',
+// Analogous palette: hues rotate around the theme's primary so each ring/legend
+// entry is clearly distinct while staying in the same colour family. Driven by
+// the active theme, so it re-colours automatically when the theme changes.
+function buildAnalogous(primary: string, count: number): string[] {
+  const [h, s, l] = parseHsl(primary);
+  const norm = (x: number) => ((x % 360) + 360) % 360;
+  const n = Math.max(1, count);
+  const spread = 18; // degrees between adjacent entries
+  const clampL = (v: number) => Math.max(30, Math.min(66, v));
+  return Array.from({ length: n }, (_, i) => {
+    const offset = i - (n - 1) / 2;
+    const hue = norm(h + offset * spread);
+    const light = clampL(l + offset * 5);
+    return `hsl(${Math.round(hue)}, ${Math.round(s)}%, ${Math.round(light)}%)`;
   });
-  return [
-    entry(ph, ps, pl),
-    entry(ph + 22, ps, pl),
-    entry(ah, as_, al),
-    entry(ah - 22, as_, al),
-    entry(ph - 22, ps, pl),
-    entry(ah + 22, as_, al),
-    entry(ph + 44, ps, pl),
-    entry(ah - 44, as_, al),
-  ];
 }
 
-function ItemBox({ item, planBudget, colorStyle, onDelete }: {
+function ItemRow({ item, planBudget, color, onDelete }: {
   item: BudgetItem;
   planBudget: number;
-  colorStyle: { bg: string; text: string };
+  color: string;
   onDelete: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const ratio = planBudget > 0 ? item.price / planBudget : 0;
-  // Proportional column span across a 12-column grid (min 2 so text is readable)
-  const span = Math.max(2, Math.min(12, Math.round(ratio * 12)));
-  // Proportional height: bigger chunks get taller boxes
-  const minH = Math.max(52, Math.round(ratio * 220));
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <button
-          style={{ gridColumn: `span ${span}`, minHeight: `${minH}px`, backgroundColor: colorStyle.bg, color: colorStyle.text }}
-          className={cn(
-            'rounded-xl p-3 flex flex-col justify-between text-left transition-all hover:brightness-110 active:scale-[0.97]',
-          )}
-        >
-          <span className="text-[11px] font-bold leading-tight line-clamp-2">{item.name}</span>
-          <span className="text-[11px] font-bold mt-1 opacity-90">{formatCurrency(item.price)}</span>
+        <button className="flex items-center gap-2.5 w-full text-left py-1.5 rounded-lg transition-colors hover:bg-muted/50 active:bg-muted">
+          <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: color }} />
+          <span className="text-xs text-foreground truncate flex-1 min-w-0">{item.name}</span>
+          <span className="text-[11px] text-muted-foreground tabular-nums shrink-0 w-9 text-right">
+            {Math.round(ratio * 100)}%
+          </span>
+          <span className="text-xs font-semibold text-foreground tabular-nums shrink-0 w-20 text-right">
+            {formatCurrency(item.price)}
+          </span>
         </button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[320px]" onCloseAutoFocus={(e) => e.preventDefault()}>
@@ -283,9 +278,14 @@ function AddItemDialog({ plan, onAdd }: { plan: BudgetPlan; onAdd: (item: Omit<B
 
 function PlanView({ plan }: { plan: BudgetPlan }) {
   const { deleteBudgetPlan, addBudgetItem, deleteBudgetItem, updateBudgetPlan, themeSettings } = useContext(AppDataContext);
-  const palette = useMemo(
-    () => buildPalette(themeSettings.primary, themeSettings.accent),
-    [themeSettings.primary, themeSettings.accent]
+  // Largest item first so it maps to the outer ring; colours match by index.
+  const sortedItems = useMemo(
+    () => [...plan.items].sort((a, b) => b.price - a.price),
+    [plan.items]
+  );
+  const colors = useMemo(
+    () => buildAnalogous(themeSettings.primary, sortedItems.length),
+    [themeSettings.primary, sortedItems.length]
   );
   const [editOpen, setEditOpen] = useState(false);
   const [editName, setEditName] = useState(plan.name);
@@ -359,7 +359,24 @@ function PlanView({ plan }: { plan: BudgetPlan }) {
           </div>
         </CardHeader>
         <CardContent className="p-3 pt-0 space-y-2">
-          <Progress value={progress} className={cn('h-2', progress >= 100 ? '[&>*]:bg-destructive' : '[&>*]:bg-accent')} />
+          {plan.items.length > 0 ? (
+            <div className="py-2 space-y-3">
+              <BudgetGauge items={sortedItems} budget={plan.budget} colors={colors} />
+              <div className="space-y-0.5 pt-1">
+                {sortedItems.map((item, idx) => (
+                  <ItemRow
+                    key={item.id}
+                    item={item}
+                    planBudget={plan.budget}
+                    color={colors[idx % colors.length]}
+                    onDelete={() => deleteBudgetItem(plan.id, item.id)}
+                  />
+                ))}
+              </div>
+            </div>
+          ) : (
+            <Progress value={progress} className={cn('h-2', progress >= 100 ? '[&>*]:bg-destructive' : '[&>*]:bg-accent')} />
+          )}
           <div className="flex justify-between text-xs">
             <span className="text-muted-foreground">Spent: <span className="font-bold text-foreground">{formatCurrency(spent)}</span></span>
             <span className="text-muted-foreground">Budget: <span className="font-bold text-foreground">{formatCurrency(plan.budget)}</span></span>
@@ -371,20 +388,6 @@ function PlanView({ plan }: { plan: BudgetPlan }) {
           )}
         </CardContent>
       </Card>
-
-      {plan.items.length > 0 && (
-        <div className="grid grid-cols-12 gap-2">
-          {plan.items.map((item, idx) => (
-            <ItemBox
-              key={item.id}
-              item={item}
-              planBudget={plan.budget}
-              colorStyle={palette[idx % palette.length]}
-              onDelete={() => deleteBudgetItem(plan.id, item.id)}
-            />
-          ))}
-        </div>
-      )}
 
       {plan.items.length === 0 && (
         <p className="text-center text-xs text-muted-foreground py-4">No items yet. Add one below.</p>

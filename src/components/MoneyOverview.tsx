@@ -88,7 +88,7 @@ export function MoneyOverview() {
                 onKeyDown={e => e.key === 'Enter' && confirmEdit()}
                 autoFocus className="text-base font-bold"
               />
-              <button onClick={confirmEdit} className="p-2 rounded-full bg-accent text-accent-foreground shrink-0">
+              <button onClick={confirmEdit} className="p-2 rounded-full bg-accent text-btn-on-accent shrink-0">
                 <Check className="h-4 w-4" />
               </button>
             </div>

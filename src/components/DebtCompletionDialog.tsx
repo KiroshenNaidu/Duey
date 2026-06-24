@@ -53,7 +53,7 @@ export function DebtCompletionDialog({
         <div className="px-6 pb-6 flex flex-col gap-2">
           <Button
             onClick={onComplete}
-            className="w-full bg-accent text-accent-foreground hover:bg-accent/90 h-12 text-base font-semibold"
+            className="w-full bg-accent text-btn-on-accent hover:bg-accent/90 h-12 text-base font-semibold"
           >
             Complete &amp; Archive
           </Button>

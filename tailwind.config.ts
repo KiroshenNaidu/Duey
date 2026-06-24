@@ -47,6 +47,14 @@ export default {
           DEFAULT: "hsl(var(--accent))",
           foreground: "hsl(var(--accent-foreground))",
         },
+        // Auto-contrast button text: pure white/black chosen per theme for max
+        // legibility against each button background (set in ThemeProvider).
+        btn: {
+          "on-primary": "hsl(var(--btn-on-primary))",
+          "on-secondary": "hsl(var(--btn-on-secondary))",
+          "on-accent": "hsl(var(--btn-on-accent))",
+          "on-destructive": "hsl(var(--btn-on-destructive))",
+        },
         popover: {
           DEFAULT: "hsl(var(--popover))",
           foreground: "hsl(var(--popover-foreground))",

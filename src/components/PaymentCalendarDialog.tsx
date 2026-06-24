@@ -58,7 +58,7 @@ function MonthCard({ monthDate, paidDates, onDayClick }: MonthCardProps) {
               onClick={() => onDayClick(day)}
               className={cn(
                 "h-8 w-8 rounded-full flex items-center justify-center text-xs transition-all hover:bg-secondary",
-                isPaid ? "bg-accent text-accent-foreground hover:bg-accent/90" : "bg-transparent",
+                isPaid ? "bg-accent text-btn-on-accent hover:bg-accent/90" : "bg-transparent",
                 isBefore(day, new Date()) && !isSameDay(day, new Date()) ? "text-muted-foreground" : "text-foreground",
               )}
             >

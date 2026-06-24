@@ -47,6 +47,12 @@ nav.fixed,
     --ring: 103 77% 59%;
     --radius: 0.5rem;
 
+    /* Auto-contrast button text (white/black) — recomputed per theme in ThemeProvider */
+    --btn-on-primary: 0 0% 0%;
+    --btn-on-secondary: 0 0% 100%;
+    --btn-on-accent: 0 0% 0%;
+    --btn-on-destructive: 0 0% 100%;
+
     /* Status / category colors — themeable (overridable per-theme via ThemeProvider) */
     --positive: 161 50% 57%;
     --negative: 0 70% 62%;

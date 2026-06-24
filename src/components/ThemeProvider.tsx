@@ -28,6 +28,36 @@ export function applyStatusColors(root: HTMLElement, settings: Partial<ThemeSett
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter', display: 'swap' });
 
+// Pick pure white or black — whichever has the higher WCAG contrast ratio against
+// the given "h s% l%" background. Used to keep button text legible on any theme
+// (value only — no hue), regardless of how dull the theme's own foreground is.
+function autoContrast(hsl: string): string {
+  const p = hsl.trim().split(/\s+/);
+  if (p.length < 3) return '0 0% 100%';
+  const h = ((parseFloat(p[0]) % 360) + 360) % 360;
+  const s = parseFloat(p[1]) / 100;
+  const l = parseFloat(p[2]) / 100;
+  const c = (1 - Math.abs(2 * l - 1)) * s;
+  const hp = h / 60;
+  const x = c * (1 - Math.abs((hp % 2) - 1));
+  let r = 0, g = 0, b = 0;
+  if (hp < 1) { r = c; g = x; }
+  else if (hp < 2) { r = x; g = c; }
+  else if (hp < 3) { g = c; b = x; }
+  else if (hp < 4) { g = x; b = c; }
+  else if (hp < 5) { r = x; b = c; }
+  else { r = c; b = x; }
+  const m = l - c / 2;
+  const lin = (v: number) => {
+    const u = v + m;
+    return u <= 0.03928 ? u / 12.92 : Math.pow((u + 0.055) / 1.055, 2.4);
+  };
+  const L = 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
+  const contrastWhite = 1.05 / (L + 0.05);
+  const contrastBlack = (L + 0.05) / 0.05;
+  return contrastWhite >= contrastBlack ? '0 0% 100%' : '0 0% 0%';
+}
+
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const { themeSettings } = useContext(AppDataContext);
   const [backgroundImage, setBackgroundImage] = useState('');
@@ -92,6 +122,13 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     root.style.setProperty('--muted-foreground', themeSettings.accentForeground);
     root.style.setProperty('--border', lighten(themeSettings.surface, 9));
     root.style.setProperty('--input', lighten(themeSettings.surface, 6));
+
+    // Auto-contrast button text (white or black) per the active theme, so filled
+    // buttons stay legible even when the theme's own foreground is dull.
+    root.style.setProperty('--btn-on-primary', autoContrast(themeSettings.primary));
+    root.style.setProperty('--btn-on-secondary', autoContrast(lighten(themeSettings.surface, 4)));
+    root.style.setProperty('--btn-on-accent', autoContrast(themeSettings.accent));
+    root.style.setProperty('--btn-on-destructive', autoContrast('0 62.8% 30.6%'));
     root.style.setProperty('--font-family', 'var(--font-inter)');
     applyStatusColors(root, themeSettings);
     root.style.setProperty('--bg-x', `${themeSettings.bgX ?? 50}%`);

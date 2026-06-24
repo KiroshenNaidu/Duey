@@ -140,7 +140,7 @@ export function UberDayDialog({ date, rides, open, onOpenChange }: UberDayDialog
           <Button
             onClick={handleAdd}
             disabled={!price || parseFloat(price) <= 0}
-            className="w-full h-8 text-xs font-bold bg-accent text-accent-foreground hover:bg-accent/90"
+            className="w-full h-8 text-xs font-bold bg-accent text-btn-on-accent hover:bg-accent/90"
           >
             Add Ride
           </Button>
