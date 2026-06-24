@@ -137,6 +137,59 @@ nav.fixed,
     color: hsl(var(--negative)) !important;
 }
 
+/* Arc / gauge colour flow — cycles through the analogous palette.
+   arc-flow animates CSS `color` (picked up by stroke="currentColor" paths).
+   stroke-flow animates SVG `stroke` directly for paths with explicit stroke classes.
+   Two variants: normal (primary leads) and complete (primary-complete leads). */
+/* Two-state arcs — alternate reverses the animation so there's no jump back to the start. */
+@keyframes arc-flow {
+  from { color: hsl(var(--primary-a)); }
+  to   { color: hsl(var(--primary-b)); }
+}
+@keyframes arc-flow-complete {
+  from { color: hsl(var(--primary-b)); }
+  to   { color: hsl(var(--primary-complete)); }
+}
+@keyframes stroke-flow {
+  from { stroke: hsl(var(--primary-a)); }
+  to   { stroke: hsl(var(--primary-b)); }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .arc-animated          { animation: arc-flow          1.6s ease-in-out infinite alternate; }
+  .arc-animated-complete { animation: arc-flow-complete 1.6s ease-in-out infinite alternate; }
+  .stroke-animated       { animation: stroke-flow       1.6s ease-in-out infinite alternate; }
+}
+
+/* Budget gauge ring pulse glow — each ring's glow colour is supplied via --ring-color
+   so the shadow matches the ring's own category colour. Rings are staggered with
+   animationDelay in JSX, creating a cascading shimmer from outer to inner ring. */
+@keyframes ring-glow {
+  0%, 100% { filter: drop-shadow(0 0 1px var(--ring-color, currentColor)); }
+  50%       { filter: drop-shadow(0 0 3px var(--ring-color, currentColor)); }
+}
+@keyframes bar-glow {
+  0%, 100% { box-shadow: 0 0 1px hsl(var(--primary-complete) / 0.3); }
+  50%       { box-shadow: 0 0 4px hsl(var(--primary-complete) / 0.65); }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .ring-pulse { animation: ring-glow 2s ease-in-out infinite; }
+  .bar-glow   { animation: bar-glow  2s ease-in-out infinite; }
+}
+
+/* Progress bar flowing gradient — animates background-position on a repeating gradient
+   so the two theme colours flow continuously. Both stops are CSS variables, so the
+   animation updates automatically whenever the active theme changes. */
+@keyframes bar-flow {
+  0%   { background-position: 100% 0; }
+  100% { background-position: -100% 0; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .bar-animated {
+    background-size: 200% auto !important;
+    animation: bar-flow 2s linear infinite;
+  }
+}
+
 /* Indeterminate loading bar — used by the loading screen and export progress modal */
 @keyframes loading-bar {
   0%   { transform: translateX(-120%); }
@@ -145,6 +198,7 @@ nav.fixed,
 .loading-bar-fill {
   animation: loading-bar 1.1s ease-in-out infinite;
 }
+
 
 /* Glass UI Mode Styles - High Quality Frosted Look */
 .ui-glass .bg-card,

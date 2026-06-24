@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation';
 import { AppDataContext } from '@/context/AppDataContext';
 import type { BudgetPlan, BudgetItem } from '@/lib/types';
 import { formatCurrency, cn } from '@/lib/utils';
-import { Plus, Trash2, ExternalLink, Edit2 } from 'lucide-react';
+import { Plus, Trash2, ExternalLink, Edit2, Check } from 'lucide-react';
 import { FixedPortal } from '@/components/FixedPortal';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -72,7 +72,7 @@ function ItemRow({ item, planBudget, color, onDelete }: {
       <DialogTrigger asChild>
         <button className="flex items-center gap-2.5 w-full text-left py-1.5 rounded-lg transition-colors hover:bg-muted/50 active:bg-muted">
           <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: color }} />
-          <span className="text-xs text-foreground truncate flex-1 min-w-0">{item.name}</span>
+          <span className={cn('text-xs truncate flex-1 min-w-0', item.purchased ? 'line-through text-muted-foreground' : 'text-foreground')}>{item.name}</span>
           <span className="text-[11px] text-muted-foreground tabular-nums shrink-0 w-9 text-right">
             {Math.round(ratio * 100)}%
           </span>
@@ -120,7 +120,10 @@ function ItemRow({ item, planBudget, color, onDelete }: {
                 <AlertDialogCancel>Cancel</AlertDialogCancel>
                 <AlertDialogAction
                   className={cn(buttonVariants({ variant: 'destructive' }))}
-                  onClick={() => { onDelete(); setOpen(false); }}
+                  // Let the AlertDialog close this tick, then close the parent Dialog +
+                  // delete one tick later — closing both at once leaves Radix's backdrop
+                  // overlay stuck, making the page unclickable.
+                  onClick={() => { setTimeout(() => { setOpen(false); onDelete(); }, 100); }}
                 >
                   Remove
                 </AlertDialogAction>
@@ -277,7 +280,7 @@ function AddItemDialog({ plan, onAdd }: { plan: BudgetPlan; onAdd: (item: Omit<B
 }
 
 function PlanView({ plan }: { plan: BudgetPlan }) {
-  const { deleteBudgetPlan, addBudgetItem, deleteBudgetItem, updateBudgetPlan, themeSettings } = useContext(AppDataContext);
+  const { deleteBudgetPlan, addBudgetItem, deleteBudgetItem, toggleBudgetItemPurchased, updateBudgetPlan, themeSettings } = useContext(AppDataContext);
   // Largest item first so it maps to the outer ring; colours match by index.
   const sortedItems = useMemo(
     () => [...plan.items].sort((a, b) => b.price - a.price),
@@ -311,10 +314,10 @@ function PlanView({ plan }: { plan: BudgetPlan }) {
                     <Edit2 className="h-3.5 w-3.5" />
                   </Button>
                 </DialogTrigger>
-                <DialogContent className="sm:max-w-[320px]">
+                <DialogContent className="sm:max-w-[360px]">
                   <DialogHeader>
                     <DialogTitle>Edit Plan</DialogTitle>
-                    <DialogDescription className="sr-only">Edit the plan name and total budget</DialogDescription>
+                    <DialogDescription className="sr-only">Edit plan name, budget and manage items</DialogDescription>
                   </DialogHeader>
                   <div className="space-y-3">
                     <div className="space-y-1">
@@ -325,6 +328,42 @@ function PlanView({ plan }: { plan: BudgetPlan }) {
                       <Label className="text-xs">Budget (R)</Label>
                       <Input type="number" value={editBudget} onChange={e => setEditBudget(e.target.value)} />
                     </div>
+
+                    {sortedItems.length > 0 && (
+                      <div className="space-y-1">
+                        <Label className="text-xs">Items</Label>
+                        <div className="rounded-md border border-border/50 divide-y divide-border/30 max-h-56 overflow-y-auto">
+                          {sortedItems.map((item, idx) => (
+                            <div key={item.id} className={cn('flex items-center gap-2 px-2.5 py-2', item.purchased && 'opacity-50')}>
+                              <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: colors[idx % colors.length] }} />
+                              <span className={cn('text-xs flex-1 min-w-0 truncate', item.purchased && 'line-through text-muted-foreground')}>
+                                {item.name}
+                              </span>
+                              <span className="text-[11px] text-muted-foreground tabular-nums shrink-0">{formatCurrency(item.price)}</span>
+                              <button
+                                title={item.purchased ? 'Mark as not bought' : 'Mark as bought'}
+                                onClick={() => toggleBudgetItemPurchased(plan.id, item.id)}
+                                className={cn(
+                                  'h-6 w-6 rounded-full border flex items-center justify-center shrink-0 transition-colors',
+                                  item.purchased
+                                    ? 'bg-accent border-accent text-accent-foreground'
+                                    : 'border-border/60 text-transparent hover:border-accent/60'
+                                )}
+                              >
+                                <Check className="h-3 w-3" />
+                              </button>
+                              <button
+                                title="Remove item"
+                                onClick={() => deleteBudgetItem(plan.id, item.id)}
+                                className="h-6 w-6 rounded flex items-center justify-center shrink-0 text-muted-foreground hover:text-destructive transition-colors"
+                              >
+                                <Trash2 className="h-3 w-3" />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                   <DialogFooter>
                     <DialogClose asChild><Button variant="secondary" size="sm">Cancel</Button></DialogClose>
@@ -345,7 +384,7 @@ function PlanView({ plan }: { plan: BudgetPlan }) {
                 <AlertDialogContent>
                   <AlertDialogHeader>
                     <AlertDialogTitle>Delete plan?</AlertDialogTitle>
-                    <AlertDialogDescription>This will delete &ldquo;{plan.name}&rdquo; and all its items. This action is logged in history.</AlertDialogDescription>
+                    <AlertDialogDescription>This will delete &ldquo;{plan.name}&rdquo; and all its items. This cannot be undone.</AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
                     <AlertDialogCancel>Cancel</AlertDialogCancel>

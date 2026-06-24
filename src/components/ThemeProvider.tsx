@@ -106,6 +106,16 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       return `${p[0]} ${p[1]} ${l.toFixed(0)}%`;
     };
 
+    // Derive the "completed debt" colour by rotating the primary hue +30°.
+    // This keeps it in the same colour family as the active theme while staying
+    // visually distinct — e.g. gold→yellow, blue→purple, green→teal.
+    const shiftHue = (hsl: string, delta: number) => {
+      const p = hsl.trim().split(/\s+/);
+      if (p.length < 3) return hsl;
+      const h = ((parseFloat(p[0]) + delta) % 360 + 360) % 360;
+      return `${h.toFixed(0)} ${p[1]} ${p[2]}`;
+    };
+
     root.style.setProperty('--background', themeSettings.background);
     root.style.setProperty('--foreground', themeSettings.foreground);
     root.style.setProperty('--card', themeSettings.surface);
@@ -113,6 +123,12 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     root.style.setProperty('--popover', themeSettings.background);
     root.style.setProperty('--popover-foreground', themeSettings.foreground);
     root.style.setProperty('--primary', themeSettings.primary);
+    // Analogous hue family — used for the flowing progress bar gradient.
+    // Each variable is a fixed hue offset from --primary, so all four update
+    // together whenever the theme changes. Spread: -20° … 0° … +20° … +45°
+    root.style.setProperty('--primary-a',        shiftHue(themeSettings.primary, -20)); // cool side
+    root.style.setProperty('--primary-b',        shiftHue(themeSettings.primary,  20)); // warm side
+    root.style.setProperty('--primary-complete', shiftHue(themeSettings.primary,  45)); // completion colour
     root.style.setProperty('--accent', themeSettings.accent);
     root.style.setProperty('--ring', themeSettings.accent);
     root.style.setProperty('--accent-foreground', themeSettings.accentForeground);

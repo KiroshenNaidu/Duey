@@ -134,6 +134,7 @@ interface AppContextType extends AppState {
   updateBudgetPlan: (planId: string, data: { name?: string; budget?: number }) => void;
   addBudgetItem: (planId: string, item: Omit<BudgetItem, 'id' | 'createdAt'>) => void;
   deleteBudgetItem: (planId: string, itemId: string) => void;
+  toggleBudgetItemPurchased: (planId: string, itemId: string) => void;
   setMonthlyIncome: (income: number) => void;
   setUserProfile: (profile: UserProfile) => void;
   setNotificationSettings: (settings: NotificationSettings) => void;
@@ -177,6 +178,7 @@ export const AppDataContext = createContext<AppContextType>({
   updateBudgetPlan: () => {},
   addBudgetItem: () => {},
   deleteBudgetItem: () => {},
+  toggleBudgetItemPurchased: () => {},
   setMonthlyIncome: () => {},
   setUserProfile: () => {},
   setNotificationSettings: () => {},
@@ -527,21 +529,10 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
   }, [updateStateAndSync]);
 
   const deleteBudgetPlan = useCallback((planId: string) => {
-    updateStateAndSync(prev => {
-      const plan = prev.budgetPlans.find(p => p.id === planId);
-      const historyEntry: HistoryEntry | null = plan ? {
-        id: crypto.randomUUID(),
-        debtTitle: `Budget: ${plan.name}`,
-        date: new Date().toISOString(),
-        amount: plan.items.reduce((s, i) => s + i.price, 0),
-        type: 'budget',
-      } : null;
-      return {
-        ...prev,
-        budgetPlans: prev.budgetPlans.filter(p => p.id !== planId),
-        history: historyEntry ? [historyEntry, ...prev.history] : prev.history,
-      };
-    });
+    updateStateAndSync(prev => ({
+      ...prev,
+      budgetPlans: prev.budgetPlans.filter(p => p.id !== planId),
+    }));
   }, [updateStateAndSync]);
 
   const updateBudgetPlan = (planId: string, data: { name?: string; budget?: number }) => {
@@ -567,6 +558,17 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       ...prev,
       budgetPlans: prev.budgetPlans.map(p =>
         p.id === planId ? { ...p, items: p.items.filter(i => i.id !== itemId) } : p
+      ),
+    }));
+  };
+
+  const toggleBudgetItemPurchased = (planId: string, itemId: string) => {
+    updateStateAndSync(prev => ({
+      ...prev,
+      budgetPlans: prev.budgetPlans.map(p =>
+        p.id === planId
+          ? { ...p, items: p.items.map(i => i.id === itemId ? { ...i, purchased: !i.purchased } : i) }
+          : p
       ),
     }));
   };
@@ -647,6 +649,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     updateBudgetPlan,
     addBudgetItem,
     deleteBudgetItem,
+    toggleBudgetItemPurchased,
     setMonthlyIncome: (income: number) => updateStateAndSync(p => ({ ...p, monthlyIncome: income })),
     setUserProfile: (profile: UserProfile) => updateStateAndSync(p => ({ ...p, userProfile: profile })),
     setNotificationSettings: (settings: NotificationSettings) => updateStateAndSync(p => ({ ...p, notificationSettings: settings })),

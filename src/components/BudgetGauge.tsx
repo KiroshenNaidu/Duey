@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import type { BudgetItem } from '@/lib/types';
 import { cn } from '@/lib/utils';
 
@@ -51,13 +51,23 @@ export function BudgetGauge({ items, budget, colors }: {
   const step = ringWidth + gap;
   const outerR = CENTER - PAD - ringWidth / 2;
 
+  // `ready` flips true one frame after mount, triggering the fill-in animation.
+  // Without this, the rings are already at their final value on first paint
+  // so the CSS transition has nothing to animate.
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    // Double-RAF ensures the browser has painted the empty rings first
+    const id = requestAnimationFrame(() => requestAnimationFrame(() => setReady(true)));
+    return () => cancelAnimationFrame(id);
+  }, []);
+
   const spent = items.reduce((s, i) => s + i.price, 0);
   const usedPct = budget > 0 ? Math.round((spent / budget) * 100) : 0;
   const over = spent > budget;
 
   return (
-    <div className="relative mx-auto" style={{ width: SIZE, maxWidth: '100%', aspectRatio: '1 / 1' }}>
-      <svg viewBox={`0 0 ${SIZE} ${SIZE}`} className="w-full h-full">
+    <div className="relative mx-auto" style={{ width: SIZE, maxWidth: '100%', aspectRatio: '1 / 1', padding: 4 }}>
+      <svg viewBox={`0 0 ${SIZE} ${SIZE}`} className="w-full h-full" style={{ overflow: 'visible' }}>
         {rings.map((ring, i) => {
           const r = outerR - i * step;
           if (r <= ringWidth / 2) return null;
@@ -74,7 +84,9 @@ export function BudgetGauge({ items, budget, colors }: {
                 strokeOpacity={0.18}
                 strokeWidth={ringWidth}
               />
-              {/* Value */}
+              {/* Value — starts empty, fills to its share when `ready` fires.
+                  Each ring is delayed by 70ms × its index so they cascade
+                  from the outermost ring inward. */}
               <circle
                 cx={CENTER}
                 cy={CENTER}
@@ -84,8 +96,14 @@ export function BudgetGauge({ items, budget, colors }: {
                 strokeWidth={ringWidth}
                 strokeLinecap="round"
                 strokeDasharray={circumference}
-                strokeDashoffset={circumference * (1 - ring.share)}
-                style={{ transition: 'stroke-dashoffset 0.8s cubic-bezier(0.22, 1, 0.36, 1)' }}
+                strokeDashoffset={ready ? circumference * (1 - ring.share) : circumference}
+                className="ring-pulse"
+                style={{
+                  transition: 'stroke-dashoffset 0.85s cubic-bezier(0.22, 1, 0.36, 1)',
+                  transitionDelay: ready ? `${i * 70}ms` : '0ms',
+                  animationDelay: `${i * 0.25}s`,
+                  ['--ring-color' as string]: ring.color,
+                } as React.CSSProperties}
               />
             </g>
           );

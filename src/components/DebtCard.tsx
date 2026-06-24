@@ -4,7 +4,6 @@ import { useContext, useState, useEffect, useCallback, useRef, useMemo } from 'r
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button, buttonVariants } from '@/components/ui/button';
-import { Progress } from '@/components/ui/progress';
 import { DebtSemiGauge } from '@/components/DebtSemiGauge';
 import { AppDataContext } from '@/context/AppDataContext';
 import { formatCurrency, cn } from '@/lib/utils';
@@ -97,7 +96,17 @@ export function DebtCard({ debt }: DebtCardProps) {
     if (isPaidOff && !prevIsPaidOff.current) {
       setShowCelebration(true);
       import('canvas-confetti').then(({ default: confetti }) => {
-        confetti({ particleCount: 120, spread: 80, origin: { y: 0.55 } });
+        // Analogous palette around the app accent (hsl 103 = lime-green):
+        //   -30° → yellow-green, 0° → accent, +30° → teal-green, plus light tints
+        const themeColors = [
+          'hsl(103,77%,59%)',  // accent green (the main brand colour)
+          'hsl(73,75%,58%)',   // yellow-green  (-30°)
+          'hsl(133,65%,52%)',  // teal-green    (+30°)
+          'hsl(88,70%,68%)',   // soft lime      (-15°, lighter)
+          'hsl(118,60%,65%)',  // soft emerald   (+15°, lighter)
+          'hsl(103,80%,80%)',  // pale accent tint for brightness
+        ];
+        confetti({ particleCount: 140, spread: 85, origin: { y: 0.55 }, colors: themeColors });
       });
     }
     prevIsPaidOff.current = isPaidOff;
@@ -159,12 +168,17 @@ export function DebtCard({ debt }: DebtCardProps) {
       }
 
       if (pendingPayment) {
-        logCustomPayment(debt.id, pendingPayment.amount);
+        logCustomPayment(debt.id, effectivePendingAmount);
       }
 
       setShowSaveConfirm(false);
-      setIsDialogOpen(false);
-      showToast('Changes saved successfully');
+      // Delay parent Dialog close until the nested AlertDialog finishes its exit animation.
+      // Closing both in the same tick leaves Radix's backdrop overlay stuck on screen,
+      // making the entire page unclickable until a hard refresh.
+      setTimeout(() => {
+        setIsDialogOpen(false);
+        showToast('Changes saved successfully');
+      }, 100);
     } catch {
       setShowSaveConfirm(false);
       showToast('Failed to save — please try again', 'error');
@@ -197,6 +211,17 @@ export function DebtCard({ debt }: DebtCardProps) {
     : (parseFloat(customAmount) > 0);
 
   const liveInstallmentAmount = parseFloat(editedInstallmentAmount) || debt.installment_amount;
+
+  // If payment type is 'installment', always mirror the live installment field value
+  // so changing the Installment input instantly updates the staged badge and gauge ghost.
+  const effectivePendingAmount = pendingPayment
+    ? pendingPayment.type === 'installment' ? liveInstallmentAmount : pendingPayment.amount
+    : 0;
+
+  // How many extra percentage points the staged payment would add (capped at 100%)
+  const pendingProgressPct = debt.total_owed > 0 && effectivePendingAmount > 0
+    ? Math.min(100 - progress, (effectivePendingAmount / debt.total_owed) * 100)
+    : 0;
 
   return (
     <>
@@ -279,10 +304,13 @@ export function DebtCard({ debt }: DebtCardProps) {
       </AlertDialog>
 
       {/* Card */}
-      <Card className="overflow-hidden border-border transition-all duration-300">
+      <Card className="overflow-hidden transition-all duration-300">
         <CardHeader>
           <div className="flex justify-between items-center gap-2">
-            <CardTitle className="text-base font-bold truncate pr-2">{debt.title}</CardTitle>
+            <CardTitle
+              className="text-base font-bold truncate pr-2"
+              style={isPaidOff ? { color: 'hsl(var(--primary-complete))' } : undefined}
+            >{debt.title}</CardTitle>
             <div className="flex items-center gap-2">
               <span className="text-xs text-muted-foreground whitespace-nowrap">
                 {paymentCount} of {totalInstallments} ({Math.round(progress)}%)
@@ -317,7 +345,7 @@ export function DebtCard({ debt }: DebtCardProps) {
                   >
                     <DialogContent className="sm:max-w-[360px]">
                       <DialogHeader>
-                        <DialogTitle>{pendingPayment ? 'Edit Payment' : 'Make Payment'}</DialogTitle>
+                        <DialogTitle>Make Payment</DialogTitle>
                         <DialogDescription>
                           {pendingPayment
                             ? 'Replace your staged payment — only one will be logged on save.'
@@ -392,7 +420,7 @@ export function DebtCard({ debt }: DebtCardProps) {
                           <div className="space-y-3 text-sm text-muted-foreground">
                             {pendingPayment ? (() => {
                               const newTotalOwed = parseFloat(editedTotalOwed) || debt.total_owed;
-                              const newAmountPaid = amountPaid + pendingPayment.amount;
+                              const newAmountPaid = amountPaid + effectivePendingAmount;
                               const newProgress = newTotalOwed <= 0 ? 100 : Math.min(100, (newAmountPaid / newTotalOwed) * 100);
                               return (
                                 <div className="space-y-3">
@@ -402,7 +430,7 @@ export function DebtCard({ debt }: DebtCardProps) {
                                       {pendingPayment.type === 'installment' ? 'Standard installment' : 'Custom payment'}
                                     </span>
                                     <span className="text-sm font-bold text-accent">
-                                      +{formatCurrency(pendingPayment.amount)}
+                                      +{formatCurrency(effectivePendingAmount)}
                                     </span>
                                   </div>
 
@@ -412,11 +440,17 @@ export function DebtCard({ debt }: DebtCardProps) {
                                       <p className="text-[10px] uppercase tracking-wide text-muted-foreground/60">Before</p>
                                       <p className="font-semibold text-foreground">{formatCurrency(amountPaid)}</p>
                                       <p className="text-muted-foreground">{Math.round(progress)}% paid</p>
+                                      {newTotalOwed > amountPaid && (
+                                        <p className="text-muted-foreground/60">{formatCurrency(newTotalOwed - amountPaid)} left</p>
+                                      )}
                                     </div>
                                     <div className="rounded-lg border border-accent/20 bg-accent/5 px-3 py-2.5 space-y-1">
                                       <p className="text-[10px] uppercase tracking-wide text-muted-foreground/60">After</p>
                                       <p className="font-semibold text-accent">{formatCurrency(newAmountPaid)}</p>
                                       <p className="text-muted-foreground">{Math.round(newProgress)}% paid</p>
+                                      {newTotalOwed > newAmountPaid && (
+                                        <p className="text-muted-foreground/60">{formatCurrency(newTotalOwed - newAmountPaid)} left</p>
+                                      )}
                                     </div>
                                   </div>
 
@@ -471,15 +505,23 @@ export function DebtCard({ debt }: DebtCardProps) {
                   {/* Hero progress header */}
                   <div className="px-5 pt-5 pb-4">
                     <div className="flex items-center gap-4">
-                      <DebtSemiGauge progress={progress} paidOff={isPaidOff} />
+                      <DebtSemiGauge progress={progress} pendingProgress={pendingProgressPct} paidOff={isPaidOff} />
                       <div className="flex-1 min-w-0">
                         <h2 className="text-lg font-bold text-foreground leading-tight break-words">{debt.title}</h2>
                         <p className="text-xs text-muted-foreground mt-0.5">
                           {paymentCount} of {totalInstallments} installments
                         </p>
                         <div className="mt-3 space-y-0.5">
-                          <p className="text-sm font-semibold text-primary">{formatCurrency(amountPaid)} paid</p>
+                          <p
+                            className="text-sm font-semibold text-primary"
+                            style={isPaidOff ? { color: 'hsl(var(--primary-complete))' } : undefined}
+                          >{formatCurrency(amountPaid)} paid</p>
                           <p className="text-xs text-muted-foreground">of {formatCurrency(debt.total_owed)}</p>
+                          {!isPaidOff && debt.total_owed > amountPaid && (
+                            <p className="text-xs text-muted-foreground/70">
+                              {formatCurrency(debt.total_owed - amountPaid)} remaining
+                            </p>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -489,7 +531,7 @@ export function DebtCard({ debt }: DebtCardProps) {
                       <div className="mt-3 flex items-center justify-between rounded-xl border border-accent/30 bg-accent/10 px-3 py-2">
                         <div>
                           <p className="text-xs font-semibold text-accent">
-                            Payment staged: +{formatCurrency(pendingPayment.amount)}
+                            Payment staged: +{formatCurrency(effectivePendingAmount)}
                           </p>
                           <p className="text-xs text-muted-foreground">
                             {pendingPayment.type === 'installment' ? 'Standard installment' : 'Custom payment'} · will log on save
@@ -562,7 +604,7 @@ export function DebtCard({ debt }: DebtCardProps) {
                           </Button>
                         ) : (
                           <Button variant="secondary" onClick={openPaymentDialog}>
-                            {pendingPayment ? 'Edit Payment' : 'Make Payment'}
+                            Make Payment
                           </Button>
                         )}
                         <Button
@@ -587,9 +629,36 @@ export function DebtCard({ debt }: DebtCardProps) {
         </CardHeader>
 
         <CardContent className="space-y-2">
-          <Progress value={progress} className={cn("h-1.5", isPaidOff ? '[&>*]:bg-positive' : '')} />
+          {/* Custom progress bar — includes ghost segment for staged payment preview */}
+          <div className="relative h-1.5 w-full overflow-hidden rounded-full bg-secondary">
+            {/* Ghost: extends to where the staged payment would reach */}
+            {pendingProgressPct > 0 && (
+              <div
+                className="absolute inset-y-0 left-0 rounded-full bg-primary transition-all duration-500"
+                style={{
+                  width: `${Math.min(100, progress + pendingProgressPct)}%`,
+                  opacity: 0.38,
+                  ...(isPaidOff && { backgroundColor: 'hsl(var(--primary-complete))' }),
+                }}
+              />
+            )}
+            {/* Solid: real current progress — flowing gradient between --primary and
+                --primary-complete so it stays in-theme and updates on theme change. */}
+            <div
+              className={`absolute inset-y-0 left-0 rounded-full transition-[width] duration-700 bar-animated${isPaidOff ? ' bar-glow' : ''}`}
+              style={{
+                width: `${progress}%`,
+                background: isPaidOff
+                  ? 'repeating-linear-gradient(to right, hsl(var(--primary-b)) 0%, hsl(var(--primary-complete)) 25%, hsl(var(--primary-b)) 50%, hsl(var(--primary-complete)) 75%, hsl(var(--primary-b)) 100%)'
+                  : 'repeating-linear-gradient(to right, hsl(var(--primary-a)) 0%, hsl(var(--primary)) 25%, hsl(var(--primary-b)) 50%, hsl(var(--primary)) 75%, hsl(var(--primary-a)) 100%)',
+              }}
+            />
+          </div>
           <div className="flex justify-between items-baseline">
-            <span className="text-xs text-muted-foreground">{formatCurrency(amountPaid)} Paid</span>
+            <span
+              className="text-xs font-medium text-muted-foreground"
+              style={isPaidOff ? { color: 'hsl(var(--primary-complete))' } : undefined}
+            >{formatCurrency(amountPaid)} Paid</span>
             <span className="text-xs text-muted-foreground">/ {formatCurrency(debt.total_owed)}</span>
           </div>
         </CardContent>

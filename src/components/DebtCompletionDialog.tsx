@@ -8,6 +8,7 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { formatCurrency } from '@/lib/utils';
+import { SuccessCheckmark } from '@/components/SuccessCheckmark';
 
 interface DebtCompletionDialogProps {
   open: boolean;
@@ -36,8 +37,8 @@ export function DebtCompletionDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[380px] p-0 gap-0 overflow-hidden">
         <div className="flex flex-col items-center text-center px-6 pt-8 pb-6 space-y-4">
-          {/* Centered emoji */}
-          <div className="text-6xl leading-none select-none">🎉</div>
+          {/* Animated checkmark — draws circle first, then the tick */}
+          <SuccessCheckmark />
 
           <div className="space-y-1">
             <DialogTitle className="text-2xl font-black">Paid Off!</DialogTitle>

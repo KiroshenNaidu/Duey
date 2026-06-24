@@ -404,7 +404,7 @@ export function ProfileMenu({ onDirtyChange, onSaved, onCancel }: ProfileMenuPro
           <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1.5">About</p>
           <p className="text-sm text-foreground font-medium">Duey</p>
           <p className="text-xs text-muted-foreground">Your personal finance companion</p>
-          <p className="text-xs text-muted-foreground mt-1">Made by Kiro · v1.7</p>
+          <p className="text-xs text-muted-foreground mt-1">Made by Kiro · v1.8</p>
         </CardContent>
       </Card>
     </div>

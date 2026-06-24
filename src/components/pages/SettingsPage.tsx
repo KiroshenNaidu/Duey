@@ -306,7 +306,7 @@ export function SettingsPage() {
               </div>
               <div className="mt-4 p-3 rounded-2xl text-center">
                 <p className="text-[10px] text-muted-foreground/60">Duey · Personal finance tracker</p>
-                <p className="text-[10px] text-muted-foreground/60">Built by Kiroshen · v1.7</p>
+                <p className="text-[10px] text-muted-foreground/60">Built by Kiroshen · v1.8</p>
               </div>
             </>
           )}

@@ -977,20 +977,26 @@ export function DataManagementMenu() {
 
   const exportUserConfig = async (): Promise<Blob> => {
       const s = getAppState();
-      const backgroundImage = await idbGet<string>('backgroundImage') ?? '';
-      const backgroundVideo = await idbGet<string>('backgroundVideo') ?? '';
-      const avatarImage = await idbGet<string>('profileAvatar') ?? '';
+      const [backgroundImage, backgroundVideo, avatarImage] = await Promise.all([
+        idbGet<string>('backgroundImage') ?? Promise.resolve(''),
+        idbGet<string>('backgroundVideo') ?? Promise.resolve(''),
+        idbGet<string>('profileAvatar')   ?? Promise.resolve(''),
+      ]);
       return new Blob([JSON.stringify({
         type: 'duey-config',
-        v: 1,
+        v: 2,
         exportedAt: new Date().toISOString(),
-        themeSettings: s.themeSettings,
-        userProfile: s.userProfile,
+        themeSettings:        s.themeSettings,
+        userThemes:           s.userThemes,
+        userProfile:          s.userProfile,
         notificationSettings: s.notificationSettings,
-        userThemes: s.userThemes,
-        backgroundImage,
-        backgroundVideo,
-        avatarImage,
+        currency:             s.currency,
+        monthlyIncome:        s.monthlyIncome,
+        transportSettings:    s.transportSettings,
+        notepadContent:       s.notepadContent,
+        backgroundImage:      backgroundImage ?? '',
+        backgroundVideo:      backgroundVideo ?? '',
+        avatarImage:          avatarImage     ?? '',
       }, null, 2)], { type: 'application/json' });
   };
 
@@ -1009,9 +1015,13 @@ export function DataManagementMenu() {
         }
         const partial: AppData = {};
         if (data.themeSettings)        partial.themeSettings        = data.themeSettings;
+        if (data.userThemes)           partial.userThemes           = data.userThemes;
         if (data.userProfile)          partial.userProfile          = data.userProfile;
         if (data.notificationSettings) partial.notificationSettings = data.notificationSettings;
-        if (data.userThemes)           partial.userThemes           = data.userThemes;
+        if (data.currency)             partial.currency             = data.currency;
+        if (data.monthlyIncome != null) partial.monthlyIncome       = data.monthlyIncome;
+        if (data.transportSettings)    partial.transportSettings    = data.transportSettings;
+        if (data.notepadContent != null) partial.notepadContent     = data.notepadContent;
         importData(partial);
         try {
           if (data.backgroundImage) await idbSet('backgroundImage', data.backgroundImage);
@@ -1032,9 +1042,25 @@ export function DataManagementMenu() {
 
   // ── Full backup ──────────────────────────────────────────────────────────────
 
-  const exportFullBackup = (): Blob => {
-      const dataStr = JSON.stringify(getAppState(), null, 2);
-      return new Blob([dataStr], { type: 'application/json' });
+  const exportFullBackup = async (): Promise<Blob> => {
+      const s = getAppState();
+      const [backgroundImage, backgroundVideo, avatarImage] = await Promise.all([
+        idbGet<string>('backgroundImage') ?? Promise.resolve(''),
+        idbGet<string>('backgroundVideo') ?? Promise.resolve(''),
+        idbGet<string>('profileAvatar')   ?? Promise.resolve(''),
+      ]);
+      const payload = {
+        ...s,
+        _meta: {
+          type: 'duey-backup',
+          v: 2,
+          exportedAt: new Date().toISOString(),
+        },
+        backgroundImage: backgroundImage ?? '',
+        backgroundVideo: backgroundVideo ?? '',
+        avatarImage:     avatarImage     ?? '',
+      };
+      return new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
   };
 
   const handleImportClick = () => fullFileInputRef.current?.click();
@@ -1043,11 +1069,22 @@ export function DataManagementMenu() {
     const file = event.target.files?.[0];
     if (file) {
       const reader = new FileReader();
-      reader.onload = (e) => {
+      reader.onload = async (e) => {
         try {
           const raw = e.target?.result;
           if (typeof raw !== 'string') { showImportResult('error', 'Could not read file.'); return; }
-          importData(JSON.parse(raw));
+          const data = JSON.parse(raw);
+          // Strip the _meta envelope before passing to importData
+          const { _meta: _stripped, backgroundImage, backgroundVideo, avatarImage, ...appState } = data;
+          importData(appState);
+          // Restore wallpapers and avatar if present in the backup
+          try {
+            if (backgroundImage) await idbSet('backgroundImage', backgroundImage);
+            if (backgroundVideo) await idbSet('backgroundVideo', backgroundVideo);
+            if (avatarImage)     await idbSet('profileAvatar', avatarImage);
+          } catch (idbErr) {
+            setAppError({ friendly: 'Data imported but wallpaper/avatar could not be restored — storage may be full.', operation: 'idbSet in handleFileChange in DataManagementMenu', error: idbErr, ts: Date.now() });
+          }
           showImportResult('success', `"${file.name}" imported successfully.`);
         } catch {
           showImportResult('error', 'Invalid backup file — check the format and try again.');
@@ -1150,7 +1187,7 @@ export function DataManagementMenu() {
       <Card>
         <CardContent className="p-3 space-y-2">
           <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">User Config</p>
-          <p className="text-[10px] text-muted-foreground/70">Theme, colors, fonts, background image, profile — transfer between devices</p>
+          <p className="text-[10px] text-muted-foreground/70">All settings — themes, colours, wallpaper, profile, transport &amp; income config — transfer between devices</p>
           <div className="space-y-2 pt-1">
             <Button onClick={() => runExport('config', 'json', exportUserConfig)} className="w-full justify-start h-auto p-3 text-left">
               <Settings2 className="mr-3 h-4 w-4 shrink-0" />
@@ -1244,7 +1281,7 @@ export function DataManagementMenu() {
               </AlertDialogHeader>
               <AlertDialogFooter>
                 <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction onClick={openEditor}>Enter</AlertDialogAction>
+                <AlertDialogAction onClick={() => setTimeout(openEditor, 100)}>Enter</AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
@@ -1291,7 +1328,10 @@ export function DataManagementMenu() {
       </div>
 
       {/* Developer JSON editor dialog */}
-      <Dialog open={isEditorOpen} onOpenChange={setIsEditorOpen}>
+      <Dialog open={isEditorOpen} onOpenChange={(open) => {
+        setIsEditorOpen(open);
+        if (!open) setTimeout(() => { document.body.style.pointerEvents = ''; }, 0);
+      }}>
         <DialogContent className="max-w-3xl">
           <DialogHeader>
             <div className="flex justify-between items-center">

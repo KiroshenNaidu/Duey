@@ -91,6 +91,40 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     [router],
   );
 
+  // Global safety net for Radix's stuck-overlay bug. When two modal layers
+  // (e.g. a nested AlertDialog inside a Dialog) tear down in the same tick, or a
+  // dialog unmounts mid-close, Radix can leave `pointer-events: none` on <body>
+  // and never remove it — making the whole app unclickable until a refresh.
+  // This watchdog watches <body> for that inline lock and clears it whenever no
+  // modal layer is actually open, recovering from any missed call-site cleanup.
+  useEffect(() => {
+    const body = document.body;
+
+    const hasOpenModalLayer = () =>
+      document.querySelector(
+        '[role="dialog"][data-state="open"], [role="alertdialog"][data-state="open"], [role="menu"][data-state="open"], [role="listbox"][data-state="open"]'
+      ) != null;
+
+    const clearIfStale = () => {
+      if (body.style.pointerEvents === 'none' && !hasOpenModalLayer()) {
+        body.style.pointerEvents = '';
+      }
+    };
+
+    // Defer past Radix's own DOM work (which may briefly have no open layer
+    // while it swaps state) so we only clear a genuinely stale lock.
+    let raf = 0;
+    const observer = new MutationObserver(() => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(clearIfStale);
+    });
+    // Body's inline style carries the lock; its direct children are where Radix
+    // portals mount/unmount — both signal a teardown worth re-checking.
+    observer.observe(body, { attributes: true, attributeFilter: ['style'], childList: true });
+
+    return () => { observer.disconnect(); cancelAnimationFrame(raf); };
+  }, []);
+
   // Open downloaded file when user taps a "File Saved" notification
   useEffect(() => {
     let removeListener: (() => void) | null = null;

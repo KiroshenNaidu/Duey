@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 
 // A sideways semicircular gauge (a "C" opening to the right). The arc traces the
@@ -16,16 +17,31 @@ const STROKE = 9;       // intentionally thinner than the reference illustration
 // Left semicircle: top (CX, CY-R) → left → bottom (CX, CY+R). sweep-flag 0 bulges left.
 const ARC_PATH = `M ${CX} ${CY - R} A ${R} ${R} 0 0 0 ${CX} ${CY + R}`;
 
-export function DebtSemiGauge({ progress, paidOff, className }: {
+export function DebtSemiGauge({ progress, pendingProgress = 0, paidOff, className }: {
   progress: number;
+  /** Extra progress percentage to show as a ghost preview (staged payment) */
+  pendingProgress?: number;
   paidOff?: boolean;
   className?: string;
 }) {
   const p = Math.max(0, Math.min(100, progress));
+  const ghost = Math.max(0, Math.min(100 - p, pendingProgress));
+
+  // Fill-in on mount — same double-RAF trick as BudgetGauge so the browser
+  // paints the empty arc first, then animates to the real value.
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    const id = requestAnimationFrame(() => requestAnimationFrame(() => setReady(true)));
+    return () => cancelAnimationFrame(id);
+  }, []);
 
   return (
     <div
-      className={cn('relative shrink-0', paidOff ? 'text-positive' : 'text-primary', className)}
+      className={cn(
+        'relative shrink-0',
+        paidOff ? 'arc-animated-complete' : 'arc-animated',
+        className
+      )}
       style={{ width: W, height: H }}
     >
       <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-full">
@@ -38,7 +54,23 @@ export function DebtSemiGauge({ progress, paidOff, className }: {
           strokeWidth={STROKE}
           strokeLinecap="round"
         />
-        {/* Value */}
+        {/* Ghost arc: shows where the staged payment will reach.
+            Drawn from 0→(p+ghost) behind the solid arc, so only the
+            portion beyond p is visually new (lighter preview). */}
+        {ghost > 0 && (
+          <path
+            d={ARC_PATH}
+            fill="none"
+            stroke="currentColor"
+            strokeOpacity={0.38}
+            strokeWidth={STROKE}
+            strokeLinecap="round"
+            pathLength={100}
+            strokeDasharray={`${p + ghost} 100`}
+            style={{ transition: 'stroke-dasharray 0.35s ease-out' }}
+          />
+        )}
+        {/* Solid value: starts empty, draws itself in when ready (fill-in on mount) */}
         <path
           d={ARC_PATH}
           fill="none"
@@ -46,8 +78,8 @@ export function DebtSemiGauge({ progress, paidOff, className }: {
           strokeWidth={STROKE}
           strokeLinecap="round"
           pathLength={100}
-          strokeDasharray={`${p} 100`}
-          style={{ transition: 'stroke-dasharray 0.7s cubic-bezier(0.22, 1, 0.36, 1)' }}
+          strokeDasharray={ready ? `${p} 100` : '0 100'}
+          style={{ transition: 'stroke-dasharray 0.85s cubic-bezier(0.22, 1, 0.36, 1)' }}
         />
       </svg>
       {/* Value readout, seated in the mouth of the "C" */}

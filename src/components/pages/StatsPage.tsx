@@ -1,6 +1,6 @@
 'use client';
 
-import { useContext, useMemo } from 'react';
+import { useContext, useMemo, useState, useEffect } from 'react';
 import { AppDataContext } from '@/context/AppDataContext';
 import { Card, CardContent } from '@/components/ui/card';
 import { formatCurrency, cn } from '@/lib/utils';
@@ -27,6 +27,12 @@ function DebtHeroCard() {
   const pct = Math.min(100, Math.round(progress * 100));
   const offset = DONUT_CIRC * (1 - Math.min(progress, 1));
 
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    const id = requestAnimationFrame(() => requestAnimationFrame(() => setReady(true)));
+    return () => cancelAnimationFrame(id);
+  }, []);
+
   return (
     <div className="bg-card rounded-3xl p-5 flex items-center gap-5">
       <div className="relative shrink-0 w-24 h-24">
@@ -34,8 +40,10 @@ function DebtHeroCard() {
           <circle cx="50" cy="50" r={DONUT_RADIUS} fill="none" strokeWidth="9" className="stroke-muted-foreground/10" />
           <circle
             cx="50" cy="50" r={DONUT_RADIUS} fill="none" strokeWidth="9"
-            strokeDasharray={DONUT_CIRC} strokeDashoffset={offset} strokeLinecap="round"
-            className="stroke-accent transition-all duration-700"
+            strokeDasharray={DONUT_CIRC}
+            strokeDashoffset={ready ? offset : DONUT_CIRC}
+            strokeLinecap="round"
+            className="stroke-animated transition-all duration-700"
           />
         </svg>
         <div className="absolute inset-0 flex flex-col items-center justify-center">

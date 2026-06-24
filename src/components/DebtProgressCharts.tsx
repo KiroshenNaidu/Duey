@@ -4,7 +4,6 @@ import { useContext, useMemo, useState, useEffect } from 'react';
 import { AppDataContext } from '@/context/AppDataContext';
 import { Skeleton } from '@/components/ui/skeleton';
 import { getProgress } from '@/lib/calculations';
-import { Progress } from '@/components/ui/progress';
 
 export function DebtProgressCharts() {
   const { debts, history } = useContext(AppDataContext);
@@ -46,7 +45,15 @@ export function DebtProgressCharts() {
             <span className="text-xs font-medium text-foreground truncate">{debt.name}</span>
             <span className="text-xs font-mono text-muted-foreground shrink-0">{Math.round(debt.progress)}%</span>
           </div>
-          <Progress value={debt.progress} className="h-1.5 bg-muted/40 [&>*]:bg-accent" />
+          <div className="relative h-1.5 w-full overflow-hidden rounded-full bg-muted/40">
+            <div
+              className="absolute inset-y-0 left-0 rounded-full transition-[width] duration-700 bar-animated"
+              style={{
+                width: `${debt.progress}%`,
+                background: 'repeating-linear-gradient(to right, hsl(var(--primary-a)) 0%, hsl(var(--primary)) 25%, hsl(var(--primary-b)) 50%, hsl(var(--primary)) 75%, hsl(var(--primary-a)) 100%)',
+              }}
+            />
+          </div>
         </div>
       ))}
     </div>

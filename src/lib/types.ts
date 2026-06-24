@@ -67,6 +67,7 @@ export interface BudgetItem {
   name: string;
   price: number;
   link?: string;
+  purchased?: boolean;
   createdAt: string;
 }
 
