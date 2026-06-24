@@ -1,6 +1,6 @@
 'use client';
 
-import { useContext, useState, useMemo, useRef, useEffect } from 'react';
+import { useContext, useState, useMemo, useRef, useEffect, useLayoutEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AppDataContext } from '@/context/AppDataContext';
@@ -827,8 +827,13 @@ export default function HistoryPage() {
   const initials = getInitials(userProfile.name);
 
   // ── Swipe detection ─────────────────────────────────────────────────────────
-  const touchStartX = useRef<number | null>(null);
+  const touchStart = useRef<{ x: number; y: number } | null>(null);
   const swipeDir = useRef<number>(1);
+
+  // Reset scroll synchronously after every tab change, before paint
+  useLayoutEffect(() => {
+    document.querySelector('main')?.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
+  }, [activeTab]);
 
   const changeTab = (tab: TabId) => {
     const cur = TAB_ORDER.indexOf(activeTab);
@@ -837,15 +842,19 @@ export default function HistoryPage() {
     setActiveTab(tab);
   };
 
-  const handleTouchStart = (e: React.TouchEvent) => { touchStartX.current = e.touches[0].clientX; };
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStart.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+  };
   const handleTouchEnd = (e: React.TouchEvent) => {
-    if (touchStartX.current === null) return;
-    const delta = touchStartX.current - e.changedTouches[0].clientX;
-    if (Math.abs(delta) < 50) return;
+    if (!touchStart.current) return;
+    const dx = touchStart.current.x - e.changedTouches[0].clientX;
+    const dy = touchStart.current.y - e.changedTouches[0].clientY;
+    touchStart.current = null;
+    // Must be clearly horizontal: min 75px AND horizontal travel > 2.5× vertical travel
+    if (Math.abs(dx) < 75 || Math.abs(dx) < Math.abs(dy) * 2.5) return;
     const idx = TAB_ORDER.indexOf(activeTab);
-    if (delta > 0 && idx < TAB_ORDER.length - 1) { swipeDir.current = 1; setActiveTab(TAB_ORDER[idx + 1]); }
-    if (delta < 0 && idx > 0) { swipeDir.current = -1; setActiveTab(TAB_ORDER[idx - 1]); }
-    touchStartX.current = null;
+    if (dx > 0 && idx < TAB_ORDER.length - 1) { swipeDir.current = 1; setActiveTab(TAB_ORDER[idx + 1]); }
+    if (dx < 0 && idx > 0) { swipeDir.current = -1; setActiveTab(TAB_ORDER[idx - 1]); }
   };
 
   // ── Derived data ─────────────────────────────────────────────────────────────

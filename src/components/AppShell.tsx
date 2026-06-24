@@ -74,17 +74,18 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const isMainRoute = MAIN_ROUTES.has(pathname);
   const activeIdx = ROUTE_ORDER[pathname] ?? 1;
 
-  // Reset scroll to top before paint when switching pages
+  // Reset scroll to top before paint on every route change (covers main tabs,
+  // non-main routes like /history, and navigating back from them)
   useLayoutEffect(() => {
     document.querySelector('main')?.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
-  }, [activeIdx]);
+  }, [pathname]);
 
   const navigate = useCallback(
     (href: string) => {
       if (navGuardRef.current) {
         navGuardRef.current.onAttempt(href);
       } else {
-        router.push(href);
+        router.push(href, { scroll: false });
       }
     },
     [router],
@@ -182,7 +183,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <div
         style={{
           position: 'relative',
-          overflowX: 'hidden',
+          overflow: 'hidden',
           minHeight: '100%',
           display: isMainRoute ? 'block' : 'none',
         }}

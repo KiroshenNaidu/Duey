@@ -17,11 +17,12 @@
   --keyboard-height: 0px;
 }
 
-/* GPU layer promotion — compositor handles these independently of JS thread */
+/* GPU layer promotion — compositor handles these independently of JS thread.
+   will-change alone is sufficient; transform: translateZ(0) causes hit-testing
+   misalignment for fixed elements in Chrome Android. */
 nav.fixed,
 .fixed-bottom-bar {
   will-change: transform, opacity;
-  transform: translateZ(0);
 }
 
 @layer base {

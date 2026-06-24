@@ -5,7 +5,6 @@ import { AppDataContext } from '@/context/AppDataContext';
 import { Card, CardContent } from '@/components/ui/card';
 import { formatCurrency, cn } from '@/lib/utils';
 import { DebtProgressCharts } from '@/components/DebtProgressCharts';
-import { HistoryLog } from '@/components/HistoryLog';
 import { TransportStatusCard } from '@/components/TransportStatusCard';
 import { calculateGlobalStats } from '@/lib/calculations';
 import {
@@ -297,13 +296,6 @@ export function StatsPage() {
         <SectionLabel>Transport</SectionLabel>
         <TransportExtrasCard />
       </div>
-
-      {history.length > 0 && (
-        <section>
-          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2 px-1">Payment History</p>
-          <HistoryLog />
-        </section>
-      )}
 
     </div>
   );

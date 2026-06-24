@@ -6,10 +6,10 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { AppDataContext } from '@/context/AppDataContext';
 import { formatCurrency, cn } from '@/lib/utils';
 import { format } from 'date-fns';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
 import type { HistoryEntry } from '@/lib/types';
 import { Skeleton } from './ui/skeleton';
-import { Check, Trophy } from 'lucide-react';
+import { Check, Trophy, ChevronDown, ChevronUp } from 'lucide-react';
 
 // HistoryEntry extended with a running balance for payment rows
 type ProcessedHistoryEntry = HistoryEntry & { balanceAfter?: number };
@@ -166,6 +166,8 @@ function MonthHeader({ label }: { label: string }) {
 export function HistoryLog() {
   const { debts, history } = useContext(AppDataContext);
   const [isClient, setIsClient] = useState(false);
+  const [activeTab, setActiveTab] = useState('all');
+  const [isExpanded, setIsExpanded] = useState(false);
 
   useEffect(() => { setIsClient(true); }, []);
 
@@ -249,28 +251,76 @@ export function HistoryLog() {
     );
   }
 
-  const defaultTab = debtProfiles.length > 0
-    ? debtProfiles[0].id
-    : transportHistory.length > 0 ? 'transport' : 'all';
+  // Build ordered tab list — All always first
+  const allTabs = [
+    { value: 'all', label: 'All', archived: false },
+    ...debtProfiles.map(p => ({ value: p.id, label: p.title, archived: p.archived })),
+    ...(transportHistory.length > 0 ? [{ value: 'transport', label: 'Transport', archived: false }] : []),
+  ];
+
+  const activeLabel = allTabs.find(t => t.value === activeTab)?.label ?? 'All';
+  const activeArchived = allTabs.find(t => t.value === activeTab)?.archived ?? false;
+
+  const handleChipClick = (value: string) => {
+    if (value === activeTab) {
+      setIsExpanded(prev => !prev);
+    } else {
+      setActiveTab(value);
+      setIsExpanded(false);
+    }
+  };
 
   // ── Main render ────────────────────────────────────────────────────────────
 
   return (
     <Card>
       <CardContent className="p-2">
-        <Tabs defaultValue={defaultTab} className="w-full">
+        <Tabs value={activeTab} onValueChange={(val) => { setActiveTab(val); setIsExpanded(false); }} className="w-full">
 
-          {/* Tab triggers — one per debt, plus Transport and All */}
-          <TabsList className="h-auto flex-wrap justify-start p-1 mb-2">
-            {debtProfiles.map((profile) => (
-              <TabsTrigger key={profile.id} value={profile.id} className={cn(profile.archived && 'opacity-60')}>
-                {profile.title}
-                {profile.archived && <span className="ml-1 text-[8px] text-accent">✓</span>}
-              </TabsTrigger>
-            ))}
-            {transportHistory.length > 0 && <TabsTrigger value="transport">Transport</TabsTrigger>}
-            <TabsTrigger value="all">All</TabsTrigger>
-          </TabsList>
+          {/* Collapsible filter bar */}
+          <div className="mb-2">
+            {isExpanded ? (
+              /* Expanded — show all chips */
+              <div className="flex flex-wrap gap-1 p-1 bg-card border border-border rounded-xl">
+                {allTabs.map((tab) => (
+                  <button
+                    key={tab.value}
+                    type="button"
+                    onClick={() => handleChipClick(tab.value)}
+                    className={cn(
+                      "inline-flex items-center whitespace-nowrap rounded-lg px-3 py-1.5 text-sm font-medium transition-all",
+                      activeTab === tab.value
+                        ? "bg-primary text-primary-foreground shadow-sm"
+                        : "text-muted-foreground hover:text-foreground",
+                      tab.archived && "opacity-60"
+                    )}
+                  >
+                    {tab.label}
+                    {tab.archived && <span className="ml-1 text-[8px] text-accent">✓</span>}
+                    {activeTab === tab.value && (
+                      <ChevronUp className="ml-1 h-3 w-3 opacity-70" />
+                    )}
+                  </button>
+                ))}
+              </div>
+            ) : (
+              /* Collapsed — show only active chip */
+              <div className="flex items-center p-1">
+                <button
+                  type="button"
+                  onClick={() => setIsExpanded(true)}
+                  className={cn(
+                    "inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-1.5 text-sm font-medium bg-primary text-primary-foreground shadow-sm transition-all",
+                    activeArchived && "opacity-60"
+                  )}
+                >
+                  {activeLabel}
+                  {activeArchived && <span className="ml-1 text-[8px] text-accent">✓</span>}
+                  <ChevronDown className="h-3 w-3 opacity-70" />
+                </button>
+              </div>
+            )}
+          </div>
 
           {/* Per-debt tab — shows entries newest-first with running balance */}
           {debtProfiles.map((profile) => {

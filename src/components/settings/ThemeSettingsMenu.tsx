@@ -599,6 +599,7 @@ export function ThemeSettingsMenu({ onCancel, onDirtyChange, onSaved }: { onCanc
   const tabRef = useRef(tab);
   tabRef.current = tab;
   const goToTab = useCallback((next: TabKey) => {
+    document.querySelector('main')?.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
     setTab(prev => {
       tabDirRef.current = TAB_ORDER.indexOf(next) - TAB_ORDER.indexOf(prev);
       return next;

@@ -20,7 +20,7 @@ export function BottomNav() {
 
   return (
     <nav className="fixed top-0 left-0 right-0 bg-card border-b border-border z-50 transition-colors duration-300" style={{ height: 'var(--top-nav-h)' }}>
-      <div className="flex justify-around items-center h-full max-w-md mx-auto px-2" style={{ paddingTop: 'var(--top-nav-pt)' }}>
+      <div className="flex justify-around items-stretch h-full max-w-md mx-auto px-2" style={{ paddingTop: 'var(--top-nav-pt)' }}>
         {navItems.map((item) => {
           const isActive = pathname === item.href;
           return (
@@ -32,7 +32,7 @@ export function BottomNav() {
                 if (navGuard && !isActive) {
                   navGuard.onAttempt(item.href);
                 } else {
-                  router.push(item.href);
+                  router.push(item.href, { scroll: false });
                 }
               }}
               className={cn(

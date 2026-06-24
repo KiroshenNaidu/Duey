@@ -359,6 +359,15 @@ function PlanView({ plan }: { plan: BudgetPlan }) {
           </div>
         </CardHeader>
         <CardContent className="p-3 pt-0 space-y-2">
+          <div className="flex justify-between text-xs">
+            <span className="text-muted-foreground">Spent: <span className="font-bold text-foreground">{formatCurrency(spent)}</span></span>
+            <span className="text-muted-foreground">Budget: <span className="font-bold text-foreground">{formatCurrency(plan.budget)}</span></span>
+          </div>
+          {remaining > 0 ? (
+            <p className="text-[11px] text-accent font-semibold">{formatCurrency(remaining)} remaining</p>
+          ) : (
+            <p className="text-[11px] text-destructive font-semibold">Budget reached</p>
+          )}
           {plan.items.length > 0 ? (
             <div className="py-2 space-y-3">
               <BudgetGauge items={sortedItems} budget={plan.budget} colors={colors} />
@@ -376,15 +385,6 @@ function PlanView({ plan }: { plan: BudgetPlan }) {
             </div>
           ) : (
             <Progress value={progress} className={cn('h-2', progress >= 100 ? '[&>*]:bg-destructive' : '[&>*]:bg-accent')} />
-          )}
-          <div className="flex justify-between text-xs">
-            <span className="text-muted-foreground">Spent: <span className="font-bold text-foreground">{formatCurrency(spent)}</span></span>
-            <span className="text-muted-foreground">Budget: <span className="font-bold text-foreground">{formatCurrency(plan.budget)}</span></span>
-          </div>
-          {remaining > 0 ? (
-            <p className="text-[11px] text-accent font-semibold">{formatCurrency(remaining)} remaining</p>
-          ) : (
-            <p className="text-[11px] text-destructive font-semibold">Budget reached</p>
           )}
         </CardContent>
       </Card>

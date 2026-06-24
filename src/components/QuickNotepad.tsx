@@ -51,7 +51,6 @@ const DraggableNotepadBox = ({
 
   const onDrag = useCallback((e: MouseEvent | TouchEvent) => {
     if (!isDraggingRef.current) return;
-    if (e.type === 'touchmove') e.preventDefault();
     
     const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
     const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
@@ -68,7 +67,7 @@ const DraggableNotepadBox = ({
 
   useEffect(() => {
     window.addEventListener('mousemove', onDrag);
-    window.addEventListener('touchmove', onDrag, { passive: false });
+    window.addEventListener('touchmove', onDrag, { passive: true });
     window.addEventListener('mouseup', onDragEnd);
     window.addEventListener('touchend', onDragEnd);
 

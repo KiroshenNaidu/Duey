@@ -14,6 +14,7 @@ interface DebtCompletionDialogProps {
   onOpenChange: (open: boolean) => void;
   debtTitle: string;
   totalOwed: number;
+  amountPaid: number;
   paymentCount: number;
   onComplete: () => void;
   onKeepTracking: () => void;
@@ -24,10 +25,13 @@ export function DebtCompletionDialog({
   onOpenChange,
   debtTitle,
   totalOwed,
+  amountPaid,
   paymentCount,
   onComplete,
   onKeepTracking,
 }: DebtCompletionDialogProps) {
+  const overpaid = Math.max(0, amountPaid - totalOwed);
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[380px] p-0 gap-0 overflow-hidden">
@@ -45,8 +49,13 @@ export function DebtCompletionDialog({
               <span className="font-semibold text-foreground">{debtTitle}</span>
             </p>
             <p className="text-sm text-muted-foreground">
-              {formatCurrency(totalOwed)} across {paymentCount} payment{paymentCount !== 1 ? 's' : ''}. Well done!
+              {formatCurrency(amountPaid)} across {paymentCount} payment{paymentCount !== 1 ? 's' : ''}. Well done!
             </p>
+            {overpaid > 0 && (
+              <p className="text-xs text-muted-foreground/70 mt-1">
+                {formatCurrency(overpaid)} over the {formatCurrency(totalOwed)} owed
+              </p>
+            )}
           </div>
         </div>
 

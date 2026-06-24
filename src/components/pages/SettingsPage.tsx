@@ -152,6 +152,7 @@ export function SettingsPage() {
       menuDirectionRef.current = target === 'main' ? -1 : 1;
       setActiveMenu(target);
       setMenuIsDirty(false);
+      document.querySelector('main')?.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
       // Push a dummy history entry so the Android hardware back button can pop
       // back to the settings main menu instead of exiting the app or jumping to
       // the previous route. The URL stays at /settings; we handle the pop below.
