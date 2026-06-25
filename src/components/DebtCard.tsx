@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { DebtSemiGauge } from '@/components/DebtSemiGauge';
 import { AppDataContext } from '@/context/AppDataContext';
-import { formatCurrency, cn } from '@/lib/utils';
+import { formatCurrency, cn, hslToHex } from '@/lib/utils';
 import type { Debt } from '@/lib/types';
 import { Pencil, Trash2, CalendarDays, CheckCircle2, XCircle, X, Archive } from 'lucide-react';
 import { Input } from './ui/input';
@@ -32,6 +32,7 @@ import {
 import { PaymentCalendarDialog } from './PaymentCalendarDialog';
 import { DebtCompletionDialog } from './DebtCompletionDialog';
 import { getPaymentCount, getTotalInstallments, getAmountPaid } from '@/lib/calculations';
+import { useReplayOnActive } from '@/hooks/useReplayOnActive';
 
 interface DebtCardProps {
   debt: Debt;
@@ -45,6 +46,31 @@ interface PendingPayment {
 interface ToastState {
   message: string;
   variant: 'success' | 'error';
+}
+
+// Radix dialogs run a ~200ms exit animation; removing the card in the same tick leaves
+// the body pointer-events lock stuck. Both completeDebt call sites use this delay.
+const DIALOG_CLOSE_DELAY_MS = 220;
+
+// canvas-confetti only understands hex colours (strips every non-hex char, which
+// silently mangled the old HSL strings), so everything is converted to hex via hslToHex.
+function getConfettiColors(): string[] {
+  const fallback = ['#7ee04f', '#a8e85f', '#4fd97a', '#b6f08a', '#8ce0a0', '#cdf2a8'];
+  if (typeof window === 'undefined') return fallback;
+  const raw = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim();
+  const [h, s, l] = raw.split(/\s+/).map((v) => parseFloat(v));
+  if ([h, s, l].some((v) => Number.isNaN(v))) return fallback;
+
+  const wrap = (v: number) => ((v % 360) + 360) % 360;
+  const clamp = (v: number) => Math.max(0, Math.min(100, v));
+  return [
+    hslToHex(h, s, l),                                    // accent
+    hslToHex(wrap(h - 30), s, l),                         // analogous, cooler
+    hslToHex(wrap(h + 30), clamp(s - 12), clamp(l - 7)),  // analogous, deeper
+    hslToHex(wrap(h - 15), clamp(s - 7), clamp(l + 9)),   // light tint
+    hslToHex(wrap(h + 15), clamp(s - 17), clamp(l + 6)),  // soft tint
+    hslToHex(h, clamp(s + 3), clamp(l + 21)),             // pale tint for sparkle
+  ];
 }
 
 export function DebtCard({ debt }: DebtCardProps) {
@@ -91,22 +117,17 @@ export function DebtCard({ debt }: DebtCardProps) {
     return { paymentCount, totalInstallments, amountPaid, progress, isPaidOff: progress >= 100 };
   }, [debt, history]);
 
+  // Bar fills from 0 → progress. Replays every time the Money page (route '/') becomes
+  // active — swipe or tab — not just on first mount, since the carousel keeps all pages
+  // permanently mounted. Mirrors the BudgetGauge load fill.
+  const barReady = useReplayOnActive('/');
+
   const prevIsPaidOff = useRef(isPaidOff);
   useEffect(() => {
     if (isPaidOff && !prevIsPaidOff.current) {
       setShowCelebration(true);
       import('canvas-confetti').then(({ default: confetti }) => {
-        // Analogous palette around the app accent (hsl 103 = lime-green):
-        //   -30° → yellow-green, 0° → accent, +30° → teal-green, plus light tints
-        const themeColors = [
-          'hsl(103,77%,59%)',  // accent green (the main brand colour)
-          'hsl(73,75%,58%)',   // yellow-green  (-30°)
-          'hsl(133,65%,52%)',  // teal-green    (+30°)
-          'hsl(88,70%,68%)',   // soft lime      (-15°, lighter)
-          'hsl(118,60%,65%)',  // soft emerald   (+15°, lighter)
-          'hsl(103,80%,80%)',  // pale accent tint for brightness
-        ];
-        confetti({ particleCount: 140, spread: 85, origin: { y: 0.55 }, colors: themeColors });
+        confetti({ particleCount: 140, spread: 85, origin: { y: 0.55 }, colors: getConfettiColors() });
       });
     }
     prevIsPaidOff.current = isPaidOff;
@@ -248,7 +269,14 @@ export function DebtCard({ debt }: DebtCardProps) {
         totalOwed={debt.total_owed}
         amountPaid={amountPaid}
         paymentCount={paymentCount}
-        onComplete={() => { setShowCelebration(false); completeDebt(debt.id); }}
+        onComplete={() => {
+          setShowCelebration(false);
+          // Defer removal until the dialog finishes its ~200ms exit. completeDebt removes
+          // this debt, which unmounts the card (and this dialog with it). Doing that in the
+          // same tick as the close leaves Radix's body pointer-events lock stuck — the page
+          // freezes and the archive appears to "do nothing". Same race as handleConfirmSave.
+          setTimeout(() => completeDebt(debt.id), DIALOG_CLOSE_DELAY_MS);
+        }}
         onKeepTracking={() => setShowCelebration(false)}
       />
 
@@ -294,7 +322,9 @@ export function DebtCard({ debt }: DebtCardProps) {
           <AlertDialogFooter className="flex-row justify-end">
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              onClick={() => { completeDebt(debt.id); }}
+              // Defer for the same reason as the celebration dialog: let this AlertDialog
+              // finish closing before completeDebt unmounts the card, or the page freezes.
+              onClick={() => { setTimeout(() => completeDebt(debt.id), DIALOG_CLOSE_DELAY_MS); }}
               className="bg-primary text-primary-foreground hover:bg-primary/90"
             >
               Archive
@@ -645,9 +675,9 @@ export function DebtCard({ debt }: DebtCardProps) {
             {/* Solid: real current progress — flowing gradient between --primary and
                 --primary-complete so it stays in-theme and updates on theme change. */}
             <div
-              className={`absolute inset-y-0 left-0 rounded-full transition-[width] duration-700 bar-animated${isPaidOff ? ' bar-glow' : ''}`}
+              className={cn('absolute inset-y-0 left-0 rounded-full bar-animated', barReady && 'transition-[width] duration-700', isPaidOff && 'bar-glow')}
               style={{
-                width: `${progress}%`,
+                width: `${barReady ? progress : 0}%`,
                 background: isPaidOff
                   ? 'repeating-linear-gradient(to right, hsl(var(--primary-b)) 0%, hsl(var(--primary-complete)) 25%, hsl(var(--primary-b)) 50%, hsl(var(--primary-complete)) 75%, hsl(var(--primary-b)) 100%)'
                   : 'repeating-linear-gradient(to right, hsl(var(--primary-a)) 0%, hsl(var(--primary)) 25%, hsl(var(--primary-b)) 50%, hsl(var(--primary)) 75%, hsl(var(--primary-a)) 100%)',

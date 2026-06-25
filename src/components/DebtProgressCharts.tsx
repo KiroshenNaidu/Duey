@@ -4,6 +4,8 @@ import { useContext, useMemo, useState, useEffect } from 'react';
 import { AppDataContext } from '@/context/AppDataContext';
 import { Skeleton } from '@/components/ui/skeleton';
 import { getProgress } from '@/lib/calculations';
+import { cn } from '@/lib/utils';
+import { useReplayOnActive } from '@/hooks/useReplayOnActive';
 
 export function DebtProgressCharts() {
   const { debts, history } = useContext(AppDataContext);
@@ -12,6 +14,11 @@ export function DebtProgressCharts() {
   useEffect(() => {
     setIsClient(true);
   }, []);
+
+  // Bars paint at width 0 then animate to their real progress — replays every time
+  // the Stats page becomes active (swipe or tab), not just on first mount. Gated on
+  // isClient because the bars only render after hydration (skeleton shows before).
+  const barsReady = useReplayOnActive('/stats', isClient);
 
   const debtProgressData = useMemo(() => {
     return debts.map((debt) => ({
@@ -47,9 +54,9 @@ export function DebtProgressCharts() {
           </div>
           <div className="relative h-1.5 w-full overflow-hidden rounded-full bg-muted/40">
             <div
-              className="absolute inset-y-0 left-0 rounded-full transition-[width] duration-700 bar-animated"
+              className={cn('absolute inset-y-0 left-0 rounded-full bar-animated', barsReady && 'transition-[width] duration-700')}
               style={{
-                width: `${debt.progress}%`,
+                width: `${barsReady ? debt.progress : 0}%`,
                 background: 'repeating-linear-gradient(to right, hsl(var(--primary-a)) 0%, hsl(var(--primary)) 25%, hsl(var(--primary-b)) 50%, hsl(var(--primary)) 75%, hsl(var(--primary-a)) 100%)',
               }}
             />

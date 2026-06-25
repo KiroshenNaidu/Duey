@@ -50,6 +50,9 @@ export function SuccessCheckmark() {
 
         /* --- Circle --- */
         .duey-circle {
+          /* Themed via CSS so it follows the active colour scheme. var() only
+             resolves in CSS, not in SVG presentation attributes. */
+          stroke: hsl(var(--accent));
           /* Start fully hidden: the dash gap covers the whole circumference */
           stroke-dasharray: ${CIRCLE_CIRCUMFERENCE};
           stroke-dashoffset: ${CIRCLE_CIRCUMFERENCE};
@@ -61,6 +64,7 @@ export function SuccessCheckmark() {
 
         /* --- Checkmark --- */
         .duey-check {
+          stroke: hsl(var(--accent));
           stroke-dasharray: ${CHECK_LENGTH};
           stroke-dashoffset: ${CHECK_LENGTH};
         }
@@ -87,7 +91,6 @@ export function SuccessCheckmark() {
           cy="50"
           r={CIRCLE_RADIUS}
           fill="none"
-          stroke="hsl(103 77% 59%)"
           strokeWidth="5"
           strokeLinecap="round"
           transform="rotate(-90 50 50)"
@@ -102,7 +105,6 @@ export function SuccessCheckmark() {
         <path
           d="M 25 50 L 42 67 L 75 33"
           fill="none"
-          stroke="hsl(103 77% 59%)"
           strokeWidth="5.5"
           strokeLinecap="round"
           strokeLinejoin="round"

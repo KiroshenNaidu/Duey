@@ -94,4 +94,42 @@ npm run android        # opens Android Studio
 
 ---
 
+## Starting from Scratch (after deleting node_modules or package-lock.json)
+
+If you deleted `node_modules` and/or `package-lock.json` (e.g. to fix a broken install), run:
+
+```bash
+npm install
+```
+
+> Use `npm install` — not `npm run install` (that's not a script and will error).
+
+If you get an `ERESOLVE` peer dependency conflict involving `@capacitor/*` packages, it means something bumped a Capacitor package to a different major version. All Capacitor packages must be on the **same major version**. Check `package.json` and align them — this project targets **Capacitor 7** across the board:
+- `@capacitor/core`, `@capacitor/android`, `@capacitor/cli`, `@capacitor/app`, `@capacitor/local-notifications`, `@capacitor/filesystem`, `@capacitor/share` should all be `^7.x`
+
+Once `npm install` succeeds cleanly, continue as normal.
+
+---
+
+## Test Data
+
+Want to try the app with realistic data already loaded? A sample backup is included in the repo.
+
+**[Download test-data.json](test-data.json)**
+
+It includes:
+- 4 debts (student loan, phone, dad, credit card) with 6 months of payment history
+- 5 budget plans at various stages — some fully spent, some in-progress, some just planned
+- Recurring and one-off expenses
+- 3 extra income sources
+- Transport log (Jan–Jun 2026, R88/day, with public holidays and half-days marked)
+- 7 Uber rides with routes and distances
+- Notepad, profile, and snapshot history
+
+To import: **Settings → Data Management → Import Backup** → select `test-data.json`.
+
+> This will overwrite your current data — export a backup first if you have anything you want to keep.
+
+---
+
 *Built with <3 to solve my own forgetfulness.*

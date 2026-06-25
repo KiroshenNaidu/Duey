@@ -15,7 +15,7 @@ interface DatePickerInputProps {
 }
 
 export function DatePickerInput({ value, onChange, placeholder = 'Pick a date', className }: DatePickerInputProps) {
-  const selected = value ? new Date(value + 'T12:00:00') : null;
+  const selected = value ? new Date(value.slice(0, 10) + 'T12:00:00') : null;
   const [viewMonth, setViewMonth] = useState<Date>(selected ?? startOfToday());
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);

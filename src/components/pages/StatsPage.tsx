@@ -1,10 +1,11 @@
 'use client';
 
-import { useContext, useMemo, useState, useEffect } from 'react';
+import { useContext, useMemo } from 'react';
 import { AppDataContext } from '@/context/AppDataContext';
 import { Card, CardContent } from '@/components/ui/card';
 import { formatCurrency, cn } from '@/lib/utils';
 import { DebtProgressCharts } from '@/components/DebtProgressCharts';
+import { useReplayOnActive } from '@/hooks/useReplayOnActive';
 import { TransportStatusCard } from '@/components/TransportStatusCard';
 import { calculateGlobalStats } from '@/lib/calculations';
 import {
@@ -27,11 +28,9 @@ function DebtHeroCard() {
   const pct = Math.min(100, Math.round(progress * 100));
   const offset = DONUT_CIRC * (1 - Math.min(progress, 1));
 
-  const [ready, setReady] = useState(false);
-  useEffect(() => {
-    const id = requestAnimationFrame(() => requestAnimationFrame(() => setReady(true)));
-    return () => cancelAnimationFrame(id);
-  }, []);
+  // Re-runs the ring-fill every time the Stats page becomes active (swipe or tab),
+  // not just on first mount — the carousel keeps this page permanently mounted.
+  const ready = useReplayOnActive('/stats');
 
   return (
     <div className="bg-card rounded-3xl p-5 flex items-center gap-5">
@@ -43,7 +42,9 @@ function DebtHeroCard() {
             strokeDasharray={DONUT_CIRC}
             strokeDashoffset={ready ? offset : DONUT_CIRC}
             strokeLinecap="round"
-            className="stroke-animated transition-all duration-700"
+            // Transition only while filling, so the reset to empty on re-entry is instant
+            // (no reverse-unwind animation).
+            className={cn('stroke-animated', ready && 'transition-all duration-700')}
           />
         </svg>
         <div className="absolute inset-0 flex flex-col items-center justify-center">
