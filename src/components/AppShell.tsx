@@ -5,6 +5,7 @@ import { FolderAccess } from '@/lib/folderAccess';
 import { usePathname, useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { AppDataContext } from '@/context/AppDataContext';
+import { warmBackgroundChunks } from '@/lib/prefetch';
 import { MoneyPage } from '@/components/pages/MoneyPage';
 import { TransportPage } from '@/components/pages/TransportPage';
 import { StatsPage } from '@/components/pages/StatsPage';
@@ -124,6 +125,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
     return () => { observer.disconnect(); cancelAnimationFrame(raf); };
   }, []);
+
+  // Once the app is interactive, warm the deferred chunks in the background (Money Balance
+  // first, then Profile + its sub-pages) and prefetch the History route, so navigating to
+  // them later is instant without bloating the initial bundle/boot.
+  useEffect(() => {
+    warmBackgroundChunks();
+    router.prefetch?.('/history');
+  }, [router]);
 
   // Open downloaded file when user taps a "File Saved" notification
   useEffect(() => {

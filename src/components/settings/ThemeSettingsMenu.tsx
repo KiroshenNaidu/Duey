@@ -231,6 +231,66 @@ const systemPresets: Omit<UserTheme, 'id'>[] = [
       catCompletion: '43 96% 70%', catEmployment: '173 80% 74%', catSnapshot: '255 62% 72%',
     },
   },
+  {
+    name: 'Emerald',
+    settings: {
+      background: '150 22% 6%', surface: '150 16% 10%',
+      primary: '152 60% 50%', accent: '160 64% 52%',
+      foreground: '150 10% 96%', accentForeground: '150 6% 62%',
+      font: 'Inter', uiScale: 1.0, uiStyle: 'solid',
+      positive: '152 60% 50%', negative: '0 70% 62%',
+      catTransport: '217 91% 68%', catBudget: '0 70% 62%', catExpense: '25 95% 53%',
+      catCompletion: '43 96% 70%', catEmployment: '160 64% 52%', catSnapshot: '199 89% 62%',
+    },
+  },
+  {
+    name: 'Coral',
+    settings: {
+      background: '12 18% 6%', surface: '12 14% 10%',
+      primary: '8 80% 66%', accent: '18 85% 64%',
+      foreground: '12 12% 96%', accentForeground: '12 6% 62%',
+      font: 'Inter', uiScale: 1.0, uiStyle: 'solid',
+      positive: '161 50% 57%', negative: '0 70% 62%',
+      catTransport: '217 91% 68%', catBudget: '0 70% 62%', catExpense: '8 80% 66%',
+      catCompletion: '43 96% 70%', catEmployment: '173 80% 74%', catSnapshot: '199 89% 62%',
+    },
+  },
+  {
+    name: 'Sapphire',
+    settings: {
+      background: '224 30% 6%', surface: '224 24% 10%',
+      primary: '224 80% 66%', accent: '230 82% 70%',
+      foreground: '224 12% 96%', accentForeground: '224 8% 62%',
+      font: 'Inter', uiScale: 1.0, uiStyle: 'solid',
+      positive: '161 50% 57%', negative: '0 70% 62%',
+      catTransport: '224 80% 66%', catBudget: '0 70% 62%', catExpense: '25 95% 53%',
+      catCompletion: '43 96% 70%', catEmployment: '173 80% 74%', catSnapshot: '230 82% 70%',
+    },
+  },
+  {
+    name: 'Frost',
+    settings: {
+      background: '195 26% 6%', surface: '195 20% 10%',
+      primary: '190 75% 62%', accent: '185 70% 58%',
+      foreground: '195 12% 96%', accentForeground: '195 8% 62%',
+      font: 'Inter', uiScale: 1.0, uiStyle: 'solid',
+      positive: '161 50% 57%', negative: '0 70% 62%',
+      catTransport: '190 75% 62%', catBudget: '0 70% 62%', catExpense: '25 95% 53%',
+      catCompletion: '43 96% 70%', catEmployment: '173 80% 74%', catSnapshot: '199 89% 62%',
+    },
+  },
+  {
+    name: 'Mocha',
+    settings: {
+      background: '28 16% 6%', surface: '28 12% 10%',
+      primary: '30 45% 56%', accent: '24 42% 52%',
+      foreground: '30 12% 95%', accentForeground: '28 8% 62%',
+      font: 'Inter', uiScale: 1.0, uiStyle: 'solid',
+      positive: '161 50% 57%', negative: '0 70% 62%',
+      catTransport: '217 91% 68%', catBudget: '0 70% 62%', catExpense: '30 45% 56%',
+      catCompletion: '43 96% 70%', catEmployment: '173 80% 74%', catSnapshot: '199 89% 62%',
+    },
+  },
 ];
 
 // Built-in looping video backgrounds (bundled assets under /public). Selecting one

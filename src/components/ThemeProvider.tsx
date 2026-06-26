@@ -123,6 +123,10 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     root.style.setProperty('--popover', themeSettings.background);
     root.style.setProperty('--popover-foreground', themeSettings.foreground);
     root.style.setProperty('--primary', themeSettings.primary);
+    // Auto-contrast (pure black/white) text for anything sitting on the primary fill —
+    // buttons, active tabs, selected pills, calendar states, check marks. Keeps
+    // on-primary text legible on any theme (e.g. a light yellow vs a dark blue primary).
+    root.style.setProperty('--primary-foreground', autoContrast(themeSettings.primary));
     // Analogous hue family — used for the flowing progress bar gradient.
     // Each variable is a fixed hue offset from --primary, so all four update
     // together whenever the theme changes. Spread: -20° … 0° … +20° … +45°
@@ -145,6 +149,9 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     root.style.setProperty('--btn-on-secondary', autoContrast(lighten(themeSettings.surface, 4)));
     root.style.setProperty('--btn-on-accent', autoContrast(themeSettings.accent));
     root.style.setProperty('--btn-on-destructive', autoContrast('0 62.8% 30.6%'));
+    // Auto-contrast text for transparent buttons (outline/ghost) sitting on the
+    // app surface — both Dialog and AlertDialog content use --background.
+    root.style.setProperty('--btn-on-surface', autoContrast(themeSettings.background));
     root.style.setProperty('--font-family', 'var(--font-inter)');
     applyStatusColors(root, themeSettings);
     root.style.setProperty('--bg-x', `${themeSettings.bgX ?? 50}%`);

@@ -325,7 +325,6 @@ export function DebtCard({ debt }: DebtCardProps) {
               // Defer for the same reason as the celebration dialog: let this AlertDialog
               // finish closing before completeDebt unmounts the card, or the page freezes.
               onClick={() => { setTimeout(() => completeDebt(debt.id), DIALOG_CLOSE_DELAY_MS); }}
-              className="bg-primary text-primary-foreground hover:bg-primary/90"
             >
               Archive
             </AlertDialogAction>
@@ -486,9 +485,9 @@ export function DebtCard({ debt }: DebtCardProps) {
 
                                   {/* Overpayment callout */}
                                   {newAmountPaid > newTotalOwed && (
-                                    <div className="flex items-center justify-between rounded-lg border border-yellow-500/25 bg-yellow-500/8 px-3 py-2 text-xs">
+                                    <div className="flex items-center justify-between rounded-lg border border-completion/25 bg-completion/[0.08] px-3 py-2 text-xs">
                                       <span className="text-muted-foreground">Over by</span>
-                                      <span className="font-semibold text-yellow-400">{formatCurrency(newAmountPaid - newTotalOwed)}</span>
+                                      <span className="font-semibold text-completion">{formatCurrency(newAmountPaid - newTotalOwed)}</span>
                                     </div>
                                   )}
 
@@ -524,7 +523,6 @@ export function DebtCard({ debt }: DebtCardProps) {
                         <AlertDialogCancel>Back</AlertDialogCancel>
                         <AlertDialogAction
                           onClick={handleConfirmSave}
-                          className="bg-primary text-primary-foreground hover:bg-primary/90"
                         >
                           Save Changes
                         </AlertDialogAction>

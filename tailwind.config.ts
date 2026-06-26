@@ -54,6 +54,7 @@ export default {
           "on-secondary": "hsl(var(--btn-on-secondary))",
           "on-accent": "hsl(var(--btn-on-accent))",
           "on-destructive": "hsl(var(--btn-on-destructive))",
+          "on-surface": "hsl(var(--btn-on-surface))",
         },
         popover: {
           DEFAULT: "hsl(var(--popover))",

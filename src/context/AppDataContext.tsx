@@ -3,7 +3,7 @@
 import { createContext, ReactNode, useEffect, useState, useMemo, useCallback } from 'react';
 import type { AppState, Debt, HistoryEntry, AppData, ThemeSettings, TransportSettings, TransportOverrides, DayState, UberRide, UserTheme, BudgetPlan, BudgetItem, UserProfile, NotificationSettings, AppError, Expense, ExtraIncome } from '@/lib/types';
 import { isSameDay, startOfDay, startOfMonth, format } from 'date-fns';
-import { idbGet, idbSet, idbDel, setCurrencyCode } from '@/lib/utils';
+import { idbGet, idbSet, idbDel, setCurrencyCode, genId } from '@/lib/utils';
 import { calculateTransportMonth } from '@/lib/calculations';
 import { LoadingScreen } from '@/components/LoadingScreen';
 
@@ -227,7 +227,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
         );
         if (expired.length > 0) {
           const purgeEntries: HistoryEntry[] = expired.map(e => ({
-            id: crypto.randomUUID(),
+            id: genId(),
             debtTitle: e.title,
             date: new Date().toISOString(),
             amount: e.amount,
@@ -260,12 +260,12 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
           const income = loaded.monthlyIncome + totalExtra;
           const remaining = income - totalOutgoings;
           const snapshotEntry: HistoryEntry = {
-            id: crypto.randomUUID(),
+            id: genId(),
             debtTitle: `${prevMonthLabel} Summary`,
             date: new Date().toISOString(),
             amount: Math.abs(remaining),
             type: 'snapshot' as const,
-            note: `Income: ${income} · Outgoings: ${totalOutgoings} · ${remaining >= 0 ? 'Surplus' : 'Deficit'}: ${Math.abs(remaining)}`,
+            note: `Income: ${income} Â· Outgoings: ${totalOutgoings} Â· ${remaining >= 0 ? 'Surplus' : 'Deficit'}: ${Math.abs(remaining)}`,
           };
           loaded = {
             ...loaded,
@@ -280,12 +280,62 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
         setAppState(loaded);
       } catch (e) {
         console.error("Failed to parse persisted app state", e);
+        // Back up the unreadable data so it isn't lost, then start clean — otherwise
+        // the same corrupt blob would fail to parse on every launch. The user keeps
+        // defaults but can recover the raw backup from storage if needed.
+        try {
+          localStorage.setItem('appState_corrupt_backup', storedStateRaw);
+          localStorage.setItem('appState_corrupt_backup_at', new Date().toISOString());
+          localStorage.removeItem('appState');
+        } catch {
+          // storage write failed too — nothing more we can safely do here
+        }
+        queueMicrotask(() => setAppError({
+          friendly: 'Your saved data could not be read and may be corrupted. The app has reset to a clean state; a backup of the unreadable data was kept on your device.',
+          operation: "JSON.parse / migrateState('appState') in AppDataProvider load effect",
+          error: e,
+          ts: Date.now(),
+        }));
       }
     }
     setIsLoaded(true);
     idbGet<string>('profileAvatar')
       .then(v => { if (v) setAvatarDataUrl(v); })
       .catch((err) => { console.error('Failed to load profile avatar', err); });
+  }, []);
+
+  // Global safety net for errors that escape React's render tree — async callbacks,
+  // event handlers, and unhandled promise rejections. The ErrorBoundary can't catch
+  // these, so without this they'd vanish into the console. We surface them through the
+  // same ErrorModal, but guard against noise: ignore benign ResizeObserver warnings and
+  // don't clobber an error that's already showing.
+  useEffect(() => {
+    const onError = (event: ErrorEvent) => {
+      const msg = event.message || '';
+      // ResizeObserver loop warnings are benign browser noise, not real bugs.
+      if (msg.includes('ResizeObserver loop')) return;
+      setAppError(prev => prev ?? {
+        friendly: 'Something went wrong unexpectedly. The app is still running, but the last action may not have completed.',
+        operation: `window 'error' event${event.filename ? ` at ${event.filename}:${event.lineno}` : ''}`,
+        error: event.error ?? new Error(msg || 'Unknown error'),
+        ts: Date.now(),
+      });
+    };
+    const onRejection = (event: PromiseRejectionEvent) => {
+      const reason = event.reason;
+      setAppError(prev => prev ?? {
+        friendly: 'A background task failed unexpectedly. Your data is safe, but the last action may not have completed.',
+        operation: "window 'unhandledrejection' event",
+        error: reason instanceof Error ? reason : new Error(typeof reason === 'string' ? reason : 'Unhandled promise rejection'),
+        ts: Date.now(),
+      });
+    };
+    window.addEventListener('error', onError);
+    window.addEventListener('unhandledrejection', onRejection);
+    return () => {
+      window.removeEventListener('error', onError);
+      window.removeEventListener('unhandledrejection', onRejection);
+    };
   }, []);
 
   const setProfileAvatar = useCallback(async (url: string) => {
@@ -325,7 +375,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
 
   const addDebt = useCallback((debtData: Omit<Debt, 'id'>) => {
     updateStateAndSync(prev => {
-      const newDebt: Debt = { ...debtData, id: crypto.randomUUID() };
+      const newDebt: Debt = { ...debtData, id: genId() };
       const newHistoryEntry: HistoryEntry = {
         id: `${newDebt.id}-created`,
         debtId: newDebt.id,
@@ -358,7 +408,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       const debt = prev.debts.find(d => d.id === debtId);
       if (!debt) return prev;
       const completionEntry: HistoryEntry = {
-        id: crypto.randomUUID(),
+        id: genId(),
         debtId: debt.id,
         debtTitle: debt.title,
         date: new Date().toISOString(),
@@ -390,7 +440,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
           updatedHistory = prev.history.filter(h => h.id !== existingPayment.id);
       } else {
           updatedHistory = [{
-              id: crypto.randomUUID(),
+              id: genId(),
               debtId: debt.id,
               debtTitle: debt.title,
               date: dateToToggle.toISOString(),
@@ -408,7 +458,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       if (!debt) return prev;
       
       const newHistoryEntry: HistoryEntry = {
-          id: crypto.randomUUID(),
+          id: genId(),
           debtId: debt.id,
           debtTitle: debt.title,
           date: new Date().toISOString(),
@@ -425,7 +475,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       if (!debt || amount <= 0) return prev;
 
       const newHistoryEntry: HistoryEntry = {
-        id: crypto.randomUUID(),
+        id: genId(),
         debtId: debt.id,
         debtTitle: debt.title,
         date: new Date().toISOString(),
@@ -439,7 +489,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
   const logTransportPayment = (amount: number, month: string) => {
     updateStateAndSync(prev => ({
       ...prev,
-      history: [{ id: crypto.randomUUID(), debtTitle: `Transport: ${month}`, date: new Date().toISOString(), amount, type: 'transport' }, ...prev.history]
+      history: [{ id: genId(), debtTitle: `Transport: ${month}`, date: new Date().toISOString(), amount, type: 'transport' }, ...prev.history]
     }));
   };
 
@@ -460,7 +510,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
   const addUberRide = useCallback((ride: Omit<UberRide, 'id' | 'createdAt'>) => {
     updateStateAndSync(prev => ({
       ...prev,
-      uberRides: [...prev.uberRides, { ...ride, id: crypto.randomUUID(), createdAt: new Date().toISOString() }],
+      uberRides: [...prev.uberRides, { ...ride, id: genId(), createdAt: new Date().toISOString() }],
     }));
   }, [updateStateAndSync]);
 
@@ -480,9 +530,9 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
 
   const addExpense = useCallback((expenseData: Omit<Expense, 'id' | 'createdAt'>) => {
     updateStateAndSync(prev => {
-      const newExpense: Expense = { ...expenseData, id: crypto.randomUUID(), createdAt: new Date().toISOString() };
+      const newExpense: Expense = { ...expenseData, id: genId(), createdAt: new Date().toISOString() };
       const historyEntry: HistoryEntry = {
-        id: crypto.randomUUID(),
+        id: genId(),
         debtTitle: newExpense.title,
         date: newExpense.date,
         amount: newExpense.amount,
@@ -510,7 +560,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
   const addExtraIncome = useCallback((label: string, amount: number) => {
     updateStateAndSync(prev => ({
       ...prev,
-      extraIncomes: [...(prev.extraIncomes ?? []), { id: crypto.randomUUID(), label, amount, createdAt: new Date().toISOString() }],
+      extraIncomes: [...(prev.extraIncomes ?? []), { id: genId(), label, amount, createdAt: new Date().toISOString() }],
     }));
   }, [updateStateAndSync]);
 
@@ -522,17 +572,41 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
   }, [updateStateAndSync]);
 
   const addBudgetPlan = useCallback((name: string, budget: number) => {
-    updateStateAndSync(prev => ({
-      ...prev,
-      budgetPlans: [...prev.budgetPlans, { id: crypto.randomUUID(), name, budget, items: [], createdAt: new Date().toISOString() }],
-    }));
+    updateStateAndSync(prev => {
+      const newPlan = { id: genId(), name, budget, items: [], createdAt: new Date().toISOString() };
+      const historyEntry: HistoryEntry = {
+        id: genId(),
+        debtTitle: `Budget: ${name}`,
+        date: new Date().toISOString(),
+        amount: budget,
+        type: 'budget',
+        note: 'Plan created',
+      };
+      return {
+        ...prev,
+        budgetPlans: [...prev.budgetPlans, newPlan],
+        history: [historyEntry, ...prev.history],
+      };
+    });
   }, [updateStateAndSync]);
 
   const deleteBudgetPlan = useCallback((planId: string) => {
-    updateStateAndSync(prev => ({
-      ...prev,
-      budgetPlans: prev.budgetPlans.filter(p => p.id !== planId),
-    }));
+    updateStateAndSync(prev => {
+      const plan = prev.budgetPlans.find(p => p.id === planId);
+      const historyEntry: HistoryEntry | null = plan ? {
+        id: genId(),
+        debtTitle: `Budget: ${plan.name}`,
+        date: new Date().toISOString(),
+        amount: plan.items.reduce((s, i) => s + i.price, 0),
+        type: 'budget',
+        note: 'Plan deleted',
+      } : null;
+      return {
+        ...prev,
+        budgetPlans: prev.budgetPlans.filter(p => p.id !== planId),
+        history: historyEntry ? [historyEntry, ...prev.history] : prev.history,
+      };
+    });
   }, [updateStateAndSync]);
 
   const updateBudgetPlan = (planId: string, data: { name?: string; budget?: number }) => {
@@ -547,7 +621,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       ...prev,
       budgetPlans: prev.budgetPlans.map(p =>
         p.id === planId
-          ? { ...p, items: [...p.items, { ...item, id: crypto.randomUUID(), createdAt: new Date().toISOString() }] }
+          ? { ...p, items: [...p.items, { ...item, id: genId(), createdAt: new Date().toISOString() }] }
           : p
       ),
     }));
@@ -576,7 +650,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
   const addUserTheme = useCallback((name: string, settings: Omit<ThemeSettings, 'backgroundImage' | 'backgroundVideo' | 'backgroundOpacity'>) => {
     updateStateAndSync(prev => ({
       ...prev,
-      userThemes: [...prev.userThemes, { id: crypto.randomUUID(), name, settings }]
+      userThemes: [...prev.userThemes, { id: genId(), name, settings }]
     }));
   }, [updateStateAndSync]);
 
@@ -620,7 +694,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
           ? [settings.jobTitle, settings.company].filter(Boolean).join(' at ') || undefined
           : [prev.jobTitle, prev.company].filter(Boolean).join(' at ') || undefined;
         historyEntries.push({
-          id: crypto.randomUUID(),
+          id: genId(),
           debtTitle: label,
           date: new Date().toISOString(),
           amount: 0,

@@ -346,7 +346,7 @@ function PlanView({ plan }: { plan: BudgetPlan }) {
                                 className={cn(
                                   'h-6 w-6 rounded-full border flex items-center justify-center shrink-0 transition-colors',
                                   item.purchased
-                                    ? 'bg-accent border-accent text-accent-foreground'
+                                    ? 'bg-accent border-accent text-btn-on-accent'
                                     : 'border-border/60 text-transparent hover:border-accent/60'
                                 )}
                               >

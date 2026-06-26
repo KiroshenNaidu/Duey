@@ -1,14 +1,27 @@
 'use client';
 
 import { useState, useContext, useEffect, useRef } from 'react';
+import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Palette, Database, Bell, ChevronLeft, User, Pencil, History } from 'lucide-react';
-import { ThemeSettingsMenu } from '@/components/settings/ThemeSettingsMenu';
-import { DataManagementMenu } from '@/components/settings/DataManagementMenu';
-import { NotificationsMenu } from '@/components/settings/NotificationsMenu';
-import { ProfileMenu } from '@/components/settings/ProfileMenu';
+import { Skeleton } from '@/components/ui/skeleton';
 import { AppDataContext } from '@/context/AppDataContext';
+
+// Settings sub-menus are heavy (Theme + Data Management are ~1,400 lines each, and Data
+// Management pulls in jsPDF) but are only opened occasionally. Code-split them out of the
+// initial bundle so boot stays light; they're warmed in the background on idle (see
+// prefetchSettingsMenus / AppShell) so navigation still feels instant.
+const MenuFallback = () => (
+  <div className="space-y-3 pt-2">
+    <Skeleton className="h-24 w-full rounded-2xl" />
+    <Skeleton className="h-40 w-full rounded-2xl" />
+  </div>
+);
+const ProfileMenu = dynamic(() => import('@/components/settings/ProfileMenu').then(m => ({ default: m.ProfileMenu })), { ssr: false, loading: MenuFallback });
+const ThemeSettingsMenu = dynamic(() => import('@/components/settings/ThemeSettingsMenu').then(m => ({ default: m.ThemeSettingsMenu })), { ssr: false, loading: MenuFallback });
+const DataManagementMenu = dynamic(() => import('@/components/settings/DataManagementMenu').then(m => ({ default: m.DataManagementMenu })), { ssr: false, loading: MenuFallback });
+const NotificationsMenu = dynamic(() => import('@/components/settings/NotificationsMenu').then(m => ({ default: m.NotificationsMenu })), { ssr: false, loading: MenuFallback });
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 
 type ActiveMenu = 'main' | 'profile' | 'theme' | 'data' | 'notifications';

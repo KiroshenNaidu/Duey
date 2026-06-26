@@ -173,9 +173,7 @@ export function HistoryLog() {
 
   // Derived data — memoised to avoid recomputing on every render
   const { debtProfiles, transportHistory, allHistory, chronologicalByDebtId } = useMemo(() => {
-    // Newest first for display; budget deletions are not tracked in history
     const allHistory = [...history]
-      .filter(h => h.type !== 'budget')
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
     // Group debt-related entries by debt ID

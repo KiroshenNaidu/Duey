@@ -29,12 +29,20 @@ export class ErrorBoundary extends React.Component<Props, State> {
           <p className="text-sm text-muted-foreground max-w-xs">
             {this.state.error.message || 'An unexpected error occurred.'}
           </p>
-          <button
-            onClick={() => this.setState({ error: null })}
-            className="px-5 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-semibold"
-          >
-            Try again
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={() => this.setState({ error: null })}
+              className="px-5 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-semibold"
+            >
+              Try again
+            </button>
+            <button
+              onClick={() => { if (typeof window !== 'undefined') window.location.reload(); }}
+              className="px-5 py-2 rounded-xl border border-border text-foreground text-sm font-semibold"
+            >
+              Reload app
+            </button>
+          </div>
           <details className="mt-4 text-left max-w-xs w-full">
             <summary className="text-xs text-muted-foreground cursor-pointer">Technical details</summary>
             <pre className="mt-2 text-[10px] font-mono text-muted-foreground/70 whitespace-pre-wrap break-all max-h-48 overflow-y-auto">

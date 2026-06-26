@@ -266,7 +266,7 @@ export function TransportPage() {
             </div>
 
             <DialogClose asChild>
-              <Button className="w-full h-8 bg-primary text-xs font-bold text-white hover:bg-primary/90">
+              <Button className="w-full h-8 text-xs font-bold">
                 Save & Close
               </Button>
             </DialogClose>
@@ -306,7 +306,7 @@ export function TransportPage() {
               <span className={cn(isCurrentMonth ? "text-accent" : "text-foreground")}>
                 {format(currentDate, 'MMMM yyyy')}
               </span>
-              <span className="text-[10px] font-semibold flex items-center gap-1 uppercase tracking-tighter text-foreground">
+              <span className={cn("text-[10px] font-semibold flex items-center gap-1 uppercase tracking-tighter", isCurrentMonth ? "text-primary" : "text-muted-foreground")}>
                 {isCurrentMonth ? '(Current Month)' : <><Lock className="h-2 w-2" /> (Read-Only)</>}
               </span>
             </CardTitle>

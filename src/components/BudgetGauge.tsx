@@ -111,10 +111,10 @@ export function BudgetGauge({ items, budget, colors }: {
       </svg>
       {/* Center readout */}
       <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-        <span className={cn('text-[1.2rem] leading-none font-bold tabular-nums', over ? 'text-destructive' : 'text-foreground')}>
+        <span className={cn('text-[1rem] leading-none font-bold tabular-nums', over ? 'text-destructive' : 'text-foreground')}>
           {usedPct}%
         </span>
-        <span className="text-[10px] text-muted-foreground">used</span>
+        <span className="text-[10px] text-muted-foreground"></span>
       </div>
     </div>
   );

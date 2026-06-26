@@ -6,6 +6,27 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
+// Safe unique-ID generator. crypto.randomUUID is unavailable in older Android
+// WebViews and non-secure (http://) contexts; falling back prevents a hard crash
+// on every data mutation when it's missing.
+export function genId(): string {
+  try {
+    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+      return crypto.randomUUID();
+    }
+  } catch {
+    // fall through to manual generation
+  }
+  // RFC4122-ish v4 fallback — good enough for local, non-cryptographic IDs.
+  const rnd = (n: number) => Math.floor(Math.random() * n);
+  const hex = (n: number) => rnd(n).toString(16);
+  const template = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx';
+  return `${Date.now().toString(16)}-${template.replace(/[xy]/g, c => {
+    if (c === 'x') return hex(16);
+    return (8 + rnd(4)).toString(16); // y → 8..b
+  })}`;
+}
+
 // Module-level currency — set once by AppDataContext on load; all formatCurrency calls pick it up automatically.
 let _currency = 'ZAR';
 export function setCurrencyCode(code: string) { _currency = code || 'ZAR'; }

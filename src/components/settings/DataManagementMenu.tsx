@@ -8,7 +8,7 @@ import type { AppData } from '@/lib/types';
 import { idbGet, idbSet } from '@/lib/utils';
 import { FolderAccess } from '@/lib/folderAccess';
 import { subMonths, isAfter } from 'date-fns';
-import { Download, Upload, Trash2, Code, Sparkles, FileText, FileSpreadsheet, Sheet, BookOpen, Settings2, BarChart3, FolderOpen, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Download, Upload, Trash2, Code, Sparkles, FileText, FileSpreadsheet, Sheet, BookOpen, Settings2, BarChart3, FolderOpen, Loader2, CheckCircle2, AlertCircle, User, X } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Textarea } from '@/components/ui/textarea';
@@ -250,12 +250,28 @@ export function DataManagementMenu() {
   const [statsPeriod, setStatsPeriod] = useState<StatsPeriod>('all');
   const [isNative, setIsNative] = useState(false);
   const [choosingFolder, setChoosingFolder] = useState(false);
-  const [importResult, setImportResult] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  // Guarded import flow: pick a file → confirm (showing whose data it is) → importing (progress)
+  // → success (auto-dismisses, with a ✕ to close early) → reload. Errors land on the error stage.
+  type ImportStage = 'confirm' | 'importing' | 'success' | 'error';
+  const [importFlow, setImportFlow] = useState<{
+    stage: ImportStage;
+    kind: 'data' | 'config';
+    ownerName: string;
+    fileName: string;
+    avatar?: string;
+    payload?: unknown;
+    message?: string;
+  } | null>(null);
+  const importDismissRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const showImportResult = (type: 'success' | 'error', message: string) => {
-    setImportResult({ type, message });
-    if (type === 'success') setTimeout(() => setImportResult(null), 4000);
+  // Both the auto-dismiss timer and the ✕ reload, so the imported wallpaper/avatar/theme/data
+  // all fully apply (Import Config already reloaded before).
+  const finishImport = () => {
+    if (importDismissRef.current) { clearTimeout(importDismissRef.current); importDismissRef.current = null; }
+    window.location.reload();
   };
+
+  useEffect(() => () => { if (importDismissRef.current) clearTimeout(importDismissRef.current); }, []);
 
   // Single-dialog export flow (mirrors the History page): preparing → saving → success/error,
   // so every export here shows the same download popup and "File saved" confirmation.
@@ -1000,40 +1016,24 @@ export function DataManagementMenu() {
       }, null, 2)], { type: 'application/json' });
   };
 
-  const handleConfigImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  // Parse + validate only — the actual apply happens in confirmImport() after the user confirms.
+  const handleConfigImport = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = async (e) => {
+    reader.onload = (e) => {
       try {
         const raw = e.target?.result;
-        if (typeof raw !== 'string') { showImportResult('error', 'Could not read config file.'); return; }
+        if (typeof raw !== 'string') { setImportFlow({ stage: 'error', kind: 'config', ownerName: '', fileName: file.name, message: 'Could not read config file.' }); return; }
         const data = JSON.parse(raw);
         if (data.type !== 'duey-config') {
-          showImportResult('error', 'Not a valid Duey config file.');
+          setImportFlow({ stage: 'error', kind: 'config', ownerName: '', fileName: file.name, message: 'Not a valid Duey config file.' });
           return;
         }
-        const partial: AppData = {};
-        if (data.themeSettings)        partial.themeSettings        = data.themeSettings;
-        if (data.userThemes)           partial.userThemes           = data.userThemes;
-        if (data.userProfile)          partial.userProfile          = data.userProfile;
-        if (data.notificationSettings) partial.notificationSettings = data.notificationSettings;
-        if (data.currency)             partial.currency             = data.currency;
-        if (data.monthlyIncome != null) partial.monthlyIncome       = data.monthlyIncome;
-        if (data.transportSettings)    partial.transportSettings    = data.transportSettings;
-        if (data.notepadContent != null) partial.notepadContent     = data.notepadContent;
-        importData(partial);
-        try {
-          if (data.backgroundImage) await idbSet('backgroundImage', data.backgroundImage);
-          if (data.backgroundVideo) await idbSet('backgroundVideo', data.backgroundVideo);
-          if (data.avatarImage)     await idbSet('profileAvatar', data.avatarImage);
-        } catch (idbErr) {
-          setAppError({ friendly: 'Config imported but images could not be saved — storage may be full.', operation: 'idbSet in handleConfigImport in DataManagementMenu', error: idbErr, ts: Date.now() });
-        }
-        showImportResult('success', 'Config imported successfully. Reloading…');
-        setTimeout(() => window.location.reload(), 1200);
+        const ownerName = (data?.userProfile?.name ?? '').trim() || 'Unnamed profile';
+        setImportFlow({ stage: 'confirm', kind: 'config', ownerName, fileName: file.name, avatar: data.avatarImage, payload: data });
       } catch {
-        showImportResult('error', 'Failed to read config file — file may be corrupted.');
+        setImportFlow({ stage: 'error', kind: 'config', ownerName: '', fileName: file.name, message: 'Failed to read config file — file may be corrupted.' });
       }
     };
     reader.readAsText(file);
@@ -1065,34 +1065,65 @@ export function DataManagementMenu() {
 
   const handleImportClick = () => fullFileInputRef.current?.click();
 
+  // Parse + validate only — the actual apply happens in confirmImport() after the user confirms.
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = async (e) => {
-        try {
-          const raw = e.target?.result;
-          if (typeof raw !== 'string') { showImportResult('error', 'Could not read file.'); return; }
-          const data = JSON.parse(raw);
-          // Strip the _meta envelope before passing to importData
-          const { _meta: _stripped, backgroundImage, backgroundVideo, avatarImage, ...appState } = data;
-          importData(appState);
-          // Restore wallpapers and avatar if present in the backup
-          try {
-            if (backgroundImage) await idbSet('backgroundImage', backgroundImage);
-            if (backgroundVideo) await idbSet('backgroundVideo', backgroundVideo);
-            if (avatarImage)     await idbSet('profileAvatar', avatarImage);
-          } catch (idbErr) {
-            setAppError({ friendly: 'Data imported but wallpaper/avatar could not be restored — storage may be full.', operation: 'idbSet in handleFileChange in DataManagementMenu', error: idbErr, ts: Date.now() });
-          }
-          showImportResult('success', `"${file.name}" imported successfully.`);
-        } catch {
-          showImportResult('error', 'Invalid backup file — check the format and try again.');
-        }
-      };
-      reader.onerror = () => showImportResult('error', 'Failed to read file.');
-      reader.readAsText(file);
-      event.target.value = '';
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const raw = e.target?.result;
+        if (typeof raw !== 'string') { setImportFlow({ stage: 'error', kind: 'data', ownerName: '', fileName: file.name, message: 'Could not read file.' }); return; }
+        const data = JSON.parse(raw);
+        const ownerName = (data?.userProfile?.name ?? '').trim() || 'Unnamed profile';
+        setImportFlow({ stage: 'confirm', kind: 'data', ownerName, fileName: file.name, avatar: data.avatarImage, payload: data });
+      } catch {
+        setImportFlow({ stage: 'error', kind: 'data', ownerName: '', fileName: file.name, message: 'Invalid backup file — check the format and try again.' });
+      }
+    };
+    reader.onerror = () => setImportFlow({ stage: 'error', kind: 'data', ownerName: '', fileName: file.name, message: 'Failed to read file.' });
+    reader.readAsText(file);
+    event.target.value = '';
+  };
+
+  // Applies the staged file (both kinds), showing a progress bar then a self-dismissing success.
+  const confirmImport = async () => {
+    if (!importFlow || importFlow.stage !== 'confirm') return;
+    const { kind, ownerName, fileName, avatar } = importFlow;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const data = importFlow.payload as any;
+    setImportFlow({ stage: 'importing', kind, ownerName, fileName, avatar });
+    try {
+      if (kind === 'config') {
+        const partial: AppData = {};
+        if (data.themeSettings)        partial.themeSettings        = data.themeSettings;
+        if (data.userThemes)           partial.userThemes           = data.userThemes;
+        if (data.userProfile)          partial.userProfile          = data.userProfile;
+        if (data.notificationSettings) partial.notificationSettings = data.notificationSettings;
+        if (data.currency)             partial.currency             = data.currency;
+        if (data.monthlyIncome != null) partial.monthlyIncome       = data.monthlyIncome;
+        if (data.transportSettings)    partial.transportSettings    = data.transportSettings;
+        if (data.notepadContent != null) partial.notepadContent     = data.notepadContent;
+        importData(partial);
+      } else {
+        // Strip the _meta envelope and image fields before passing to importData
+        const { _meta: _m, backgroundImage: _bg, backgroundVideo: _bv, avatarImage: _av, ...appState } = data;
+        importData(appState);
+      }
+      // Restore wallpapers + avatar if present (both kinds carry the same fields).
+      try {
+        if (data.backgroundImage) await idbSet('backgroundImage', data.backgroundImage);
+        if (data.backgroundVideo) await idbSet('backgroundVideo', data.backgroundVideo);
+        if (data.avatarImage)     await idbSet('profileAvatar', data.avatarImage);
+      } catch (idbErr) {
+        setAppError({ friendly: 'Data imported but wallpaper/avatar could not be saved — storage may be full.', operation: 'idbSet in confirmImport in DataManagementMenu', error: idbErr, ts: Date.now() });
+      }
+      // Keep the progress bar on screen briefly so the importing → success transition reads clearly.
+      await new Promise(res => setTimeout(res, 600));
+      setImportFlow({ stage: 'success', kind, ownerName, fileName, avatar });
+      importDismissRef.current = setTimeout(finishImport, 2500);
+    } catch {
+      setImportFlow({ stage: 'error', kind, ownerName, fileName, message: 'Import failed — the file may be corrupted or incompatible.' });
     }
   };
 
@@ -1288,23 +1319,6 @@ export function DataManagementMenu() {
         </CardContent>
       </Card>
 
-      {importResult && (
-        <div className={cn(
-          'flex items-start gap-2.5 rounded-xl px-3 py-2.5 text-xs',
-          importResult.type === 'success'
-            ? 'bg-[hsl(var(--positive))]/10 text-[hsl(var(--positive))]'
-            : 'bg-destructive/10 text-destructive'
-        )}>
-          {importResult.type === 'success'
-            ? <CheckCircle2 className="h-4 w-4 shrink-0 mt-0.5" />
-            : <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />}
-          <span className="font-medium leading-snug">{importResult.message}</span>
-          {importResult.type === 'error' && (
-            <button onClick={() => setImportResult(null)} className="ml-auto shrink-0 opacity-60 hover:opacity-100">✕</button>
-          )}
-        </div>
-      )}
-
       {error && <p className="text-xs text-destructive px-1">{error}</p>}
 
       <div className="pt-2">
@@ -1401,6 +1415,98 @@ export function DataManagementMenu() {
               <p className="text-sm text-muted-foreground py-2">{exportResult?.error ?? 'Something went wrong while exporting.'}</p>
               <DialogFooter>
                 <Button onClick={closeExport} className="w-full">Close</Button>
+              </DialogFooter>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Guarded import dialog: confirm (whose data) → importing → self-dismissing success / error */}
+      <Dialog
+        open={!!importFlow}
+        onOpenChange={v => { if (!v && importFlow?.stage === 'confirm') setImportFlow(null); }}
+      >
+        <DialogContent
+          className="sm:max-w-sm"
+          onInteractOutside={e => { if (importFlow && importFlow.stage !== 'confirm' && importFlow.stage !== 'error') e.preventDefault(); }}
+          onEscapeKeyDown={e => { if (importFlow && importFlow.stage !== 'confirm' && importFlow.stage !== 'error') e.preventDefault(); }}
+        >
+          {importFlow?.stage === 'confirm' && (
+            <>
+              <DialogHeader>
+                <DialogTitle>{importFlow.kind === 'config' ? 'Import config?' : 'Import all data?'}</DialogTitle>
+              </DialogHeader>
+              <div className="flex items-center gap-3 rounded-2xl bg-muted/40 border border-border/40 p-3 my-1">
+                <div className="h-12 w-12 rounded-full bg-primary/15 border border-primary/25 flex items-center justify-center shrink-0 overflow-hidden">
+                  {importFlow.avatar
+                    ? <img src={importFlow.avatar} alt="" className="h-full w-full object-cover" draggable={false} />
+                    : importFlow.ownerName && importFlow.ownerName !== 'Unnamed profile'
+                      ? <span className="text-lg font-bold text-primary">{importFlow.ownerName.trim().charAt(0).toUpperCase()}</span>
+                      : <User className="h-5 w-5 text-primary/60" />}
+                </div>
+                <div className="min-w-0">
+                  <p className="text-[10px] uppercase tracking-widest text-muted-foreground">This file belongs to</p>
+                  <p className="text-base font-bold text-foreground truncate leading-tight">{importFlow.ownerName}</p>
+                  <p className="text-[11px] text-muted-foreground font-mono truncate">{importFlow.fileName}</p>
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                This will replace your current {importFlow.kind === 'config' ? 'theme & profile settings' : 'data'} on this device.
+              </p>
+              <DialogFooter className="flex-row justify-end gap-2">
+                <Button variant="outline" onClick={() => setImportFlow(null)}>Cancel</Button>
+                <Button onClick={confirmImport}>Import</Button>
+              </DialogFooter>
+            </>
+          )}
+
+          {importFlow?.stage === 'importing' && (
+            <>
+              <DialogHeader>
+                <DialogTitle>Importing…</DialogTitle>
+              </DialogHeader>
+              <div className="flex flex-col items-center gap-4 py-6">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                  <div className="loading-bar-fill h-full w-1/3 rounded-full bg-primary" />
+                </div>
+                <p className="text-xs text-muted-foreground text-center">
+                  Importing {importFlow.ownerName}&apos;s {importFlow.kind === 'config' ? 'settings' : 'data'}…
+                </p>
+              </div>
+            </>
+          )}
+
+          {importFlow?.stage === 'success' && (
+            <>
+              <button
+                onClick={finishImport}
+                className="absolute right-3 top-3 rounded-full p-1 text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
+                aria-label="Close"
+              >
+                <X className="h-4 w-4" />
+              </button>
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <CheckCircle2 className="h-5 w-5 text-[hsl(var(--positive))]" /> Imported successfully
+                </DialogTitle>
+              </DialogHeader>
+              <p className="text-sm text-muted-foreground py-1">
+                {importFlow.ownerName}&apos;s {importFlow.kind === 'config' ? 'settings have' : 'data has'} been imported. Reloading…
+              </p>
+            </>
+          )}
+
+          {importFlow?.stage === 'error' && (
+            <>
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <AlertCircle className="h-5 w-5 text-destructive" /> Import failed
+                </DialogTitle>
+              </DialogHeader>
+              <p className="text-sm text-muted-foreground py-2">{importFlow.message ?? 'Something went wrong while importing.'}</p>
+              <DialogFooter>
+                <Button onClick={() => setImportFlow(null)} className="w-full">Close</Button>
               </DialogFooter>
             </>
           )}

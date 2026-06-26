@@ -9,14 +9,17 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
+        // Filled variants: auto-contrast (pure black/white) label, chosen per theme fill so the
+        // text stays legible on any primary colour (e.g. a light yellow vs a dark blue).
         default: "bg-primary text-btn-on-primary hover:bg-primary/80 active:bg-primary/70",
         destructive:
           "bg-destructive text-btn-on-destructive hover:bg-destructive/90 active:bg-destructive/80",
+        // Transparent variants: auto-contrast label against the surface — never grey.
         outline:
-          "border border-input bg-background hover:bg-foreground/10 hover:text-foreground active:bg-foreground/15",
+          "border border-input bg-background text-btn-on-surface hover:bg-foreground/10 active:bg-foreground/15",
         secondary:
-          "bg-secondary text-btn-on-secondary hover:bg-foreground/10 hover:text-foreground active:bg-foreground/15",
-        ghost: "hover:bg-foreground/10 hover:text-foreground active:bg-foreground/15",
+          "bg-secondary text-btn-on-secondary hover:bg-foreground/10 active:bg-foreground/15",
+        ghost: "text-btn-on-surface hover:bg-foreground/10 active:bg-foreground/15",
         link: "text-primary underline-offset-4 hover:underline",
       },
       size: {

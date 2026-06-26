@@ -149,9 +149,9 @@ export function DatePicker({
       <PopoverTrigger asChild>
         <button
           className={cn(
-            'flex items-center gap-2 w-full h-9 rounded-md border border-input bg-background px-3 text-sm',
+            'flex items-center gap-2 w-full h-9 rounded-xl border border-input bg-muted/40 px-3 text-sm ring-offset-background',
             'transition-colors hover:border-ring/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
-            !parsed && 'text-muted-foreground'
+            parsed ? 'text-foreground' : 'text-muted-foreground/60'
           )}
         >
           <CalendarDays className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
