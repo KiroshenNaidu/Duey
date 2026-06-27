@@ -1,7 +1,8 @@
 # Duey
 **A personal debt and transport tracker.**
-
-[![Download APK](https://img.shields.io/badge/Download-APK-success?style=flat-square&logo=android&logoColor=white)](https://github.com/KiroshenNaidu/Duey/releases/latest/download/duey_v.2.0.apk)
+<a href="https://github.com/KiroshenNaidu/Duey/releases/latest/download/duey_v.2.0.apk">
+  <img src="https://img.shields.io/badge/Download-APK-brightgreen?style=for-the-badge&logo=android&logoColor=white" width="280">
+</a>
 > I have a pretty bad memory. I needed a simple way to keep track of what I owe and when I traveled to work without relying on scattered notes or mental math. Built this purely for myself — feel free to use it if it helps you too.
 
 ---
