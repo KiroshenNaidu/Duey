@@ -1,7 +1,7 @@
 'use client';
 
 import { createContext, ReactNode, useEffect, useState, useMemo, useCallback } from 'react';
-import type { AppState, Debt, HistoryEntry, AppData, ThemeSettings, TransportSettings, TransportOverrides, DayState, UberRide, UserTheme, BudgetPlan, BudgetItem, UserProfile, NotificationSettings, AppError, Expense, ExtraIncome } from '@/lib/types';
+import type { AppState, Debt, HistoryEntry, AppData, ThemeSettings, TransportSettings, TransportOverrides, TransportMonthlyOverrides, DayState, UberRide, UserTheme, BudgetPlan, BudgetItem, UserProfile, NotificationSettings, AppError, Expense, ExtraIncome } from '@/lib/types';
 import { isSameDay, startOfDay, startOfMonth, format } from 'date-fns';
 import { idbGet, idbSet, idbDel, setCurrencyCode, genId } from '@/lib/utils';
 import { calculateTransportMonth } from '@/lib/calculations';
@@ -32,6 +32,7 @@ function migrateState(raw: AppState): AppState {
     currency: raw.currency ?? ((raw.debts?.length ?? 0) > 0 || (raw.history?.length ?? 0) > 0 ? 'ZAR' : ''),
     transportSettings,
     transportOverrides: overrides,
+    transportMonthlyOverrides: raw.transportMonthlyOverrides ?? {},
     uberRides: raw.uberRides ?? [],
     expenses: raw.expenses ?? [],
     extraIncomes: raw.extraIncomes ?? [],
@@ -60,6 +61,7 @@ const defaultState: AppState = {
   history: [],
   transportSettings: { driverName: '', employed: true, pricingMode: 'daily', dailyFee: 0, monthlyFee: 0 },
   transportOverrides: {},
+  transportMonthlyOverrides: {},
   uberRides: [],
   expenses: [],
   extraIncomes: [],
@@ -120,6 +122,7 @@ interface AppContextType extends AppState {
   logCustomPayment: (debtId: string, amount: number) => void;
   setTransportSettings: (settings: TransportSettings) => void;
   setTransportOverrides: (overrides: TransportOverrides) => void;
+  setTransportMonthlyOverride: (monthKey: string, amount: number | null) => void;
   logTransportPayment: (amount: number, month: string) => void;
   addUberRide: (ride: Omit<UberRide, 'id' | 'createdAt'>) => void;
   deleteUberRide: (rideId: string) => void;
@@ -164,6 +167,7 @@ export const AppDataContext = createContext<AppContextType>({
   logCustomPayment: () => {},
   setTransportSettings: () => {},
   setTransportOverrides: () => {},
+  setTransportMonthlyOverride: () => {},
   logTransportPayment: () => {},
   addUberRide: () => {},
   deleteUberRide: () => {},
@@ -709,6 +713,14 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       };
     }),
     setTransportOverrides: (overrides: TransportOverrides) => updateStateAndSync(p => ({ ...p, transportOverrides: overrides })),
+    // Persist (or clear, when amount === null) the per-month flat-fee override so it
+    // survives navigating between months. Takes priority over transportSettings.monthlyFee.
+    setTransportMonthlyOverride: (monthKey: string, amount: number | null) => updateStateAndSync(p => {
+      const next: TransportMonthlyOverrides = { ...p.transportMonthlyOverrides };
+      if (amount === null) delete next[monthKey];
+      else next[monthKey] = amount;
+      return { ...p, transportMonthlyOverrides: next };
+    }),
     logTransportPayment,
     addUberRide,
     deleteUberRide,

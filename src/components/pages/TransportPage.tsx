@@ -40,6 +40,7 @@ export function TransportPage() {
   const {
     transportSettings, setTransportSettings,
     transportOverrides, setTransportOverrides,
+    transportMonthlyOverrides, setTransportMonthlyOverride,
     logTransportPayment, deleteHistoryEntry, history,
     uberRides,
   } = useContext(AppDataContext);
@@ -57,6 +58,7 @@ export function TransportPage() {
   const isCurrentMonth = isSameMonth(currentDate, today);
   const isLocked = !isCurrentMonth;
   const isFutureMonth = startOfMonth(currentDate) > startOfMonth(today) && !isSameMonth(currentDate, today);
+  const monthKey = format(currentDate, 'yyyy-MM');
 
   const { isPaidForMonth, monthStr, paymentEntryId } = useMemo(() => {
     const monthStr = format(currentDate, 'MMMM yyyy');
@@ -69,11 +71,29 @@ export function TransportPage() {
     [currentDate, transportOverrides, transportSettings, today]
   );
 
-  // Clear override when the user navigates to a different month.
+  // Load the persisted per-month override into the editable draft when the user
+  // navigates to a different month. An absent override leaves the field empty so
+  // it falls back to the default monthly fee.
   useEffect(() => {
     setIsEditingCalendar(false);
-    setMonthlyAmountOverride('');
+    const saved = transportMonthlyOverrides[monthKey];
+    setMonthlyAmountOverride(saved !== undefined ? String(saved) : '');
+    // monthKey/transportMonthlyOverrides derive from currentDate; only reload on month change.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentDate]);
+
+  // Write-through the draft to the persisted per-month override so it survives
+  // navigating away and back. Empty clears the override (revert to default fee).
+  const handleMonthlyOverrideChange = (raw: string) => {
+    setMonthlyAmountOverride(raw);
+    const trimmed = raw.trim();
+    if (trimmed === '') {
+      setTransportMonthlyOverride(monthKey, null);
+      return;
+    }
+    const parsed = parseFloat(trimmed);
+    if (!Number.isNaN(parsed)) setTransportMonthlyOverride(monthKey, parsed);
+  };
 
   const handleDayToggle = (day: Date) => {
     if (!isEditingCalendar || isLocked || isPaidForMonth) return;
@@ -105,11 +125,13 @@ export function TransportPage() {
   const uberMonthTotal = uberMonthRides.reduce((sum, r) => sum + r.price, 0);
   const pricingMode = transportSettings.pricingMode ?? 'daily';
 
-  // Flat-monthly override: a non-empty field means "use this amount for this month only".
-  // Empty field falls back to the configured monthlyFee. Used for both display and logging.
-  const hasMonthlyOverride = pricingMode === 'monthly' && monthlyAmountOverride.trim() !== '';
+  // Flat-monthly override: a persisted per-month value takes priority over the
+  // configured monthlyFee. Read from the persisted store (not the local draft) so the
+  // adjusted amount survives navigating between months. Used for display and logging.
+  const savedMonthlyOverride = transportMonthlyOverrides[monthKey];
+  const hasMonthlyOverride = pricingMode === 'monthly' && savedMonthlyOverride !== undefined;
   const effectiveMonthlyAmount = hasMonthlyOverride
-    ? (parseFloat(monthlyAmountOverride) || 0)
+    ? savedMonthlyOverride
     : transportSettings.monthlyFee;
 
   const rateStr = pricingMode === 'monthly'
@@ -342,6 +364,15 @@ export function TransportPage() {
                 checked={isEditingCalendar}
                 onCheckedChange={v => {
                   setIsEditingCalendar(v);
+                  if (!v) {
+                    // Turning edit off unmounts the override input and shrinks the
+                    // card. The keyboard may stay open here (unlike Mark as Paid),
+                    // so KeyboardInset's close-reset won't fire and <main> would be
+                    // left scrolled into the now-shorter content with the top cut
+                    // off. Blur to dismiss the keyboard and snap the scroller to top.
+                    (document.activeElement as HTMLElement | null)?.blur();
+                    document.querySelector('main')?.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
+                  }
                 }}
                 disabled={isLocked || isPaidForMonth}
                 className={cn("h-5 w-10", (isLocked || isPaidForMonth) && "opacity-50 cursor-not-allowed")}
@@ -452,13 +483,7 @@ export function TransportPage() {
                     type="number"
                     min={0}
                     value={monthlyAmountOverride}
-                    onChange={e => setMonthlyAmountOverride(e.target.value)}
-                    onFocus={e => {
-                      // Lift the field above the Android soft keyboard once it has
-                      // animated in (VisualViewport resize lags the focus event).
-                      const el = e.currentTarget;
-                      setTimeout(() => el.scrollIntoView({ block: 'center', behavior: 'smooth' }), 300);
-                    }}
+                    onChange={e => handleMonthlyOverrideChange(e.target.value)}
                     placeholder={String(transportSettings.monthlyFee)}
                     className="h-9 w-32 text-right text-sm font-bold"
                   />

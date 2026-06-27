@@ -70,13 +70,15 @@ export function DebtSemiGauge({ progress, pendingProgress = 0, paidOff, classNam
             style={{ transition: 'stroke-dasharray 0.35s ease-out' }}
           />
         )}
-        {/* Solid value: starts empty, draws itself in when ready (fill-in on mount) */}
+        {/* Solid value: starts empty, draws itself in when ready (fill-in on mount).
+            A round linecap on a zero-length dash renders as a stray dot, so at 0%
+            we drop to a butt cap — that draws nothing and keeps the gauge clean. */}
         <path
           d={ARC_PATH}
           fill="none"
           stroke="currentColor"
           strokeWidth={STROKE}
-          strokeLinecap="round"
+          strokeLinecap={p > 0 ? 'round' : 'butt'}
           pathLength={100}
           strokeDasharray={ready ? `${p} 100` : '0 100'}
           style={{ transition: 'stroke-dasharray 0.85s cubic-bezier(0.22, 1, 0.36, 1)' }}

@@ -52,6 +52,12 @@ export type TransportOverrides = {
   [key: string]: DayState;
 };
 
+// Per-month flat-fee overrides for 'monthly' pricing mode, keyed by 'yyyy-MM'.
+// A present value takes priority over TransportSettings.monthlyFee for that month.
+export type TransportMonthlyOverrides = {
+  [monthKey: string]: number;
+};
+
 export interface UberRide {
   id: string;
   date: string;      // ISO YYYY-MM-DD
@@ -146,6 +152,7 @@ export interface AppState {
   extraIncomes: ExtraIncome[];
   transportSettings: TransportSettings;
   transportOverrides: TransportOverrides;
+  transportMonthlyOverrides: TransportMonthlyOverrides;
   uberRides: UberRide[];
   budgetPlans: BudgetPlan[];
   monthlyIncome: number;

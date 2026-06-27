@@ -3,79 +3,42 @@
 import { useEffect } from "react"
 
 /**
- * Keeps the layout fixed when the on-screen keyboard opens and exposes the
- * keyboard's height as the CSS variable `--keyboard-height` on <html>. Dialogs
- * and inputs read this to lift above the keyboard instead of being hidden by it.
+ * Handles the on-screen keyboard by letting the page scroll up *normally* rather
+ * than transforming, shrinking, or panning the layout (which cut off the top of
+ * the page). Two jobs:
  *
- * Preferred path — the VirtualKeyboard API. Setting `overlaysContent = true`
- * tells the WebView to draw the keyboard *over* the page rather than resizing or
- * panning the viewport. The fixed top nav and bottom bar stay exactly where they
- * are; nothing gets shoved off-screen. We read the keyboard rect from the
- * `geometrychange` event to drive `--keyboard-height`.
+ *  1. Publish the keyboard's height as `--keyboard-height` on <html>. The main
+ *     scroll area adds this to its bottom padding, extending the maximum scroll
+ *     depth so fields near the bottom can be scrolled clear of the keyboard.
  *
- * Fallback path — the VisualViewport API, for WebViews without VirtualKeyboard
- * support. Here the WebView still resizes/pans, so we measure the visible region
- * and snap any residual scroll offset back once the keyboard closes.
+ *  2. When a field is focused, scroll it into the region above the keyboard using
+ *     ordinary scrolling of its scroll container — the page just scrolls up.
+ *
+ * Uses the VisualViewport API, which reports the visible region above the keyboard
+ * regardless of how the WebView handles soft-input.
  */
 export function KeyboardInset() {
   useEffect(() => {
-    const root = document.documentElement
-    const setKeyboard = (px: number) =>
-      root.style.setProperty("--keyboard-height", `${Math.max(0, Math.round(px))}px`)
-
-    // Preferred: VirtualKeyboard API — keyboard overlays content, layout stays put.
-    const vk = (navigator as unknown as { virtualKeyboard?: VirtualKeyboardLike }).virtualKeyboard
-    if (vk && "overlaysContent" in vk) {
-      vk.overlaysContent = true
-      const onGeometry = () => setKeyboard(vk.boundingRect?.height ?? 0)
-      onGeometry()
-      vk.addEventListener("geometrychange", onGeometry)
-
-      // In overlay mode the WebView no longer auto-reveals the focused field, so
-      // an input low on the page can sit behind the keyboard. Nudge it into the
-      // region above the keyboard. Dialogs lift themselves via --keyboard-height,
-      // so skip anything inside a fixed-position container.
-      const onFocusIn = (e: FocusEvent) => {
-        const el = e.target as HTMLElement | null
-        if (!el || !el.matches("input, textarea, [contenteditable='true']")) return
-        if (el.closest("[role='dialog'], [role='alertdialog']")) return
-        // Wait a frame for the keyboard geometry to settle before measuring.
-        requestAnimationFrame(() => {
-          const keyboardTop = window.innerHeight - (vk.boundingRect?.height ?? 0)
-          if (el.getBoundingClientRect().bottom > keyboardTop) {
-            el.scrollIntoView({ block: "center", behavior: "smooth" })
-          }
-        })
-      }
-      window.addEventListener("focusin", onFocusIn)
-
-      return () => {
-        vk.removeEventListener("geometrychange", onGeometry)
-        window.removeEventListener("focusin", onFocusIn)
-        vk.overlaysContent = false
-        setKeyboard(0)
-      }
-    }
-
-    // Fallback: VisualViewport for WebViews that resize/pan on soft-input.
     const vv = typeof window !== "undefined" ? window.visualViewport : null
     if (!vv) return
 
+    const root = document.documentElement
     let prevKeyboard = 0
+
     const update = () => {
       // Gap between the layout viewport and the visible (un-keyboarded) region.
       const overlap = window.innerHeight - vv.height - vv.offsetTop
       const keyboard = Math.max(0, Math.round(overlap))
-      setKeyboard(keyboard)
+      root.style.setProperty("--keyboard-height", `${keyboard}px`)
 
-      // On the open→closed edge, snap any residual offset back. The focus-time
-      // scrollIntoView (and some WebViews scrolling the document/body to reveal the
-      // field) can leave the layout shifted up with the fixed top nav off-screen.
-      // Resetting these once the keyboard is fully gone restores the normal layout.
+      // Once the keyboard is fully gone, snap the page's scroll container back to
+      // the top. The field was scrolled up to clear the keyboard, and the content
+      // beneath it may have changed height while editing (e.g. committing an
+      // override shrinks the card) — without this the page is left scrolled into
+      // now-empty space with the top cut off. The scroller is <main>, matching how
+      // the rest of the app resets scroll; window/body/root are NOT the scroller.
       if (prevKeyboard > 0 && keyboard === 0) {
-        window.scrollTo(0, 0)
-        root.scrollTop = 0
-        document.body.scrollTop = 0
+        document.querySelector("main")?.scrollTo({ top: 0, behavior: "instant" as ScrollBehavior })
       }
       prevKeyboard = keyboard
     }
@@ -84,17 +47,31 @@ export function KeyboardInset() {
     vv.addEventListener("resize", update)
     vv.addEventListener("scroll", update)
 
+    // Scroll a newly focused field into the area above the keyboard by scrolling
+    // its container normally. The extended bottom padding on <main> provides the
+    // extra scroll depth needed to lift bottom-of-page fields clear of the keyboard.
+    const onFocusIn = (e: FocusEvent) => {
+      const el = e.target as HTMLElement | null
+      if (!el || !el.matches("input, textarea, select, [contenteditable='true']")) return
+
+      // Defer until the keyboard has shrunk the visual viewport, then only scroll
+      // if the field actually sits behind (or right against) the keyboard.
+      window.setTimeout(() => {
+        const keyboardTop = vv.height + vv.offsetTop
+        if (el.getBoundingClientRect().bottom > keyboardTop - 16) {
+          el.scrollIntoView({ block: "center", behavior: "smooth" })
+        }
+      }, 250)
+    }
+    window.addEventListener("focusin", onFocusIn)
+
     return () => {
       vv.removeEventListener("resize", update)
       vv.removeEventListener("scroll", update)
-      setKeyboard(0)
+      window.removeEventListener("focusin", onFocusIn)
+      root.style.setProperty("--keyboard-height", "0px")
     }
   }, [])
 
   return null
-}
-
-interface VirtualKeyboardLike extends EventTarget {
-  overlaysContent: boolean
-  boundingRect?: DOMRectReadOnly
 }
