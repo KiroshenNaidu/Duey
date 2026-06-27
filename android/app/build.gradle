@@ -1,5 +1,11 @@
 apply plugin: 'com.android.application'
 
+// Single source of truth: read the app version from the project's package.json so the
+// Android build stays in sync with the web app. versionCode is derived from semver
+// (major*10000 + minor*100 + patch) so it always increases when the version is bumped.
+def pkgVersion = new groovy.json.JsonSlurper().parseText(file("../../package.json").text).version
+def (vMajor, vMinor, vPatch) = (pkgVersion =~ /^(\d+)\.(\d+)\.(\d+)/)[0][1..3].collect { it.toInteger() }
+
 android {
     namespace "com.duey.app"
     compileSdk rootProject.ext.compileSdkVersion
@@ -7,8 +13,8 @@ android {
         applicationId "com.duey.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "1.0"
+        versionCode vMajor * 10000 + vMinor * 100 + vPatch
+        versionName pkgVersion
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.

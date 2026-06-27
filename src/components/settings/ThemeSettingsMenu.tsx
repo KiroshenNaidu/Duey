@@ -9,7 +9,7 @@ import { Slider } from '@/components/ui/slider';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { hexToHsl, hslToHex, idbGet, idbSet, cn } from '@/lib/utils';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Upload, Loader2, Trash2, Check, Plus, Minus, ShieldCheck, Film, AlertTriangle } from 'lucide-react';
+import { Upload, Loader2, Trash2, Check, Plus, Minus, ShieldCheck } from 'lucide-react';
 import { AppDataContext } from '@/context/AppDataContext';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
@@ -293,14 +293,6 @@ const systemPresets: Omit<UserTheme, 'id'>[] = [
   },
 ];
 
-// Built-in looping video backgrounds (bundled assets under /public). Selecting one
-// shows a one-time performance warning, then sets it as a full-screen background.
-const videoPresets: { name: string; src: string }[] = [
-  { name: 'Aurora', src: '/loading.mp4' },
-];
-
-const VIDEO_WARNING_KEY = 'duey_video_bg_warned';
-
 // Colored status-color defaults — applied when selecting a preset that doesn't define its
 // own status colors, so switching away from a B&W preset restores the colored palette.
 const defaultStatusColors = Object.fromEntries(
@@ -338,14 +330,11 @@ export function ThemeSettingsMenu({ onCancel, onDirtyChange, onSaved }: { onCanc
   const [isClient, setIsClient] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const videoInputRef = useRef<HTMLInputElement>(null);
   const previewRef = useRef<HTMLDivElement>(null);
   const isBgDraggingRef = useRef(false);
   const lastBgPosRef = useRef({ x: 0, y: 0 });
   const [isSaveDialogOpen, setIsSaveDialogOpen] = useState(false);
   const [newThemeName, setNewThemeName] = useState('');
-  const [videoWarnOpen, setVideoWarnOpen] = useState(false);
-  const [pendingVideoSrc, setPendingVideoSrc] = useState<string | null>(null);
   // Real device aspect ratio so the preview crops exactly like the full-screen background.
   const [screenAspect, setScreenAspect] = useState('9 / 19.5');
 
@@ -489,48 +478,6 @@ export function ThemeSettingsMenu({ onCancel, onDirtyChange, onSaved }: { onCanc
   };
 
   const handleRemoveImage = () => setPreviewTheme(p => ({ ...p, backgroundImage: '', backgroundVideo: '', bgX: 50, bgY: 50, bgScale: 1, backgroundBlur: 0 }));
-
-  // Selecting a video background — gated behind a one-time performance warning.
-  const applyVideo = (src: string) =>
-    setPreviewTheme(p => ({ ...p, backgroundVideo: src, backgroundImage: '', bgX: 50, bgY: 50, bgScale: 1 }));
-
-  const requestVideo = (src: string) => {
-    if (localStorage.getItem(VIDEO_WARNING_KEY) === '1') {
-      applyVideo(src);
-    } else {
-      setPendingVideoSrc(src);
-      setVideoWarnOpen(true);
-    }
-  };
-
-  const confirmVideoWarning = () => {
-    localStorage.setItem(VIDEO_WARNING_KEY, '1');
-    if (pendingVideoSrc) applyVideo(pendingVideoSrc);
-    setPendingVideoSrc(null);
-    setVideoWarnOpen(false);
-  };
-
-  const handleVideoFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-    setIsProcessing(true);
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      setIsProcessing(false);
-      requestVideo(e.target?.result as string);
-    };
-    reader.onerror = () => {
-      setIsProcessing(false);
-      setAppError({
-        friendly: 'Could not read video — file may be corrupted or unsupported.',
-        operation: 'reader.onerror in handleVideoFileChange in ThemeSettingsMenu',
-        error: new Error('Video failed to load'),
-        ts: Date.now(),
-      });
-    };
-    reader.readAsDataURL(file);
-    event.target.value = '';
-  };
 
   const onBgPointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     if (!previewTheme.backgroundImage && !previewTheme.backgroundVideo) return;
@@ -1098,59 +1045,16 @@ export function ThemeSettingsMenu({ onCancel, onDirtyChange, onSaved }: { onCanc
               </div>
               </div>
 
-              {/* Video background presets */}
-              <div className="space-y-2">
-                <Label className="text-xs flex items-center gap-1.5"><Film className="h-3.5 w-3.5" /> Video Backgrounds</Label>
-                <div
-                  data-h-scroll="true"
-                  className="flex gap-2 overflow-x-auto snap-x snap-mandatory pb-1"
-                  style={{ scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch' } as React.CSSProperties}
-                >
-                  {videoPresets.map(preset => {
-                    const active = previewTheme.backgroundVideo === preset.src;
-                    return (
-                      <button
-                        key={preset.src}
-                        onClick={() => requestVideo(preset.src)}
-                        className={cn(
-                          'relative aspect-video rounded-xl overflow-hidden border-2 transition-all shrink-0 snap-start',
-                          'w-[44%]',
-                          active ? 'border-primary ring-2 ring-primary/30' : 'border-border hover:border-border/60'
-                        )}
-                      >
-                        <video
-                          src={preset.src}
-                          muted loop playsInline autoPlay preload="metadata"
-                          className="absolute inset-0 w-full h-full object-cover pointer-events-none"
-                        />
-                        <span className="absolute bottom-1 left-2 text-[10px] font-semibold text-white drop-shadow">{preset.name}</span>
-                        {active && (
-                          <div className="absolute top-1.5 right-1.5 h-5 w-5 rounded-full bg-primary flex items-center justify-center">
-                            <Check className="h-3 w-3 text-primary-foreground" />
-                          </div>
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Upload (image / video) + Remove */}
-              <div className="grid grid-cols-2 gap-2">
-                <Button onClick={() => fileInputRef.current?.click()} variant="outline" className="w-full" disabled={isProcessing}>
-                  {isProcessing
-                    ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Processing...</>
-                    : <><Upload className="mr-2 h-4 w-4" />Image</>}
-                </Button>
-                <Button onClick={() => videoInputRef.current?.click()} variant="outline" className="w-full" disabled={isProcessing}>
-                  <Film className="mr-2 h-4 w-4" />Video
-                </Button>
-              </div>
+              {/* Upload image + Remove */}
+              <Button onClick={() => fileInputRef.current?.click()} variant="outline" className="w-full" disabled={isProcessing}>
+                {isProcessing
+                  ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Processing...</>
+                  : <><Upload className="mr-2 h-4 w-4" />Upload</>}
+              </Button>
               <Button onClick={handleRemoveImage} variant="destructive" className="w-full" disabled={!hasBg}>
                 <Trash2 className="mr-2 h-4 w-4" />Remove background
               </Button>
               <input ref={fileInputRef} type="file" onChange={handleFileChange} accept="image/*" className="hidden" />
-              <input ref={videoInputRef} type="file" onChange={handleVideoFileChange} accept="video/*" className="hidden" />
 
               {/* Opacity */}
               <div className="space-y-3">
@@ -1300,26 +1204,6 @@ export function ThemeSettingsMenu({ onCancel, onDirtyChange, onSaved }: { onCanc
           </AnimatePresence>
         </div>
       </Tabs>
-
-      {/* One-time performance warning before enabling a video background */}
-      <AlertDialog open={videoWarnOpen} onOpenChange={(open) => { if (!open) { setVideoWarnOpen(false); setPendingVideoSrc(null); } }}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5 text-accent" /> Use a video background?
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              A looping video background may reduce performance and battery life on older
-              devices. On modern phones it should run smoothly. You can change or remove it
-              anytime. This is the only time we&apos;ll ask.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => { setVideoWarnOpen(false); setPendingVideoSrc(null); }}>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmVideoWarning}>Use video</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
 
       {/* Color editor dialog */}
       <Dialog open={!!colorEditor} onOpenChange={(open) => !open && setColorEditor(null)}>

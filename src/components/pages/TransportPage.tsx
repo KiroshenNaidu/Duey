@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useContext } from 'react';
+import { useState, useMemo, useContext, useEffect } from 'react';
 import { AppDataContext } from '@/context/AppDataContext';
 import { format, getDay, add, sub, isSameMonth, startOfMonth, startOfToday } from 'date-fns';
 import { ChevronLeft, ChevronRight, Lock, Settings2 } from 'lucide-react';
@@ -50,6 +50,8 @@ export function TransportPage() {
   const [undoOpen, setUndoOpen] = useState(false);
   const [calendarMode, setCalendarMode] = useState<'driver' | 'uber'>('driver');
   const [uberDialogDate, setUberDialogDate] = useState<string | null>(null);
+  // Flat monthly mode only: per-month amount override, committed when Edit toggle is turned off.
+  const [monthlyAmountOverride, setMonthlyAmountOverride] = useState('');
 
   const today = startOfToday();
   const isCurrentMonth = isSameMonth(currentDate, today);
@@ -67,6 +69,12 @@ export function TransportPage() {
     [currentDate, transportOverrides, transportSettings, today]
   );
 
+  // Clear override when the user navigates to a different month.
+  useEffect(() => {
+    setIsEditingCalendar(false);
+    setMonthlyAmountOverride('');
+  }, [currentDate]);
+
   const handleDayToggle = (day: Date) => {
     if (!isEditingCalendar || isLocked || isPaidForMonth) return;
     const isoDate = day.toISOString().split('T')[0];
@@ -80,8 +88,10 @@ export function TransportPage() {
       setUndoOpen(true);
       return;
     }
-    if (totalDue <= 0 || isLocked) return;
-    logTransportPayment(totalDue, monthStr);
+    const amount = pricingMode === 'monthly' ? effectiveMonthlyAmount : totalDue;
+    if (amount <= 0 || isLocked) return;
+    logTransportPayment(amount, monthStr);
+    setIsEditingCalendar(false);
   };
 
   const handleUndoPayment = () => {
@@ -94,6 +104,13 @@ export function TransportPage() {
   const uberMonthRides = uberRides.filter(r => r.date.startsWith(uberMonthPrefix));
   const uberMonthTotal = uberMonthRides.reduce((sum, r) => sum + r.price, 0);
   const pricingMode = transportSettings.pricingMode ?? 'daily';
+
+  // Flat-monthly override: a non-empty field means "use this amount for this month only".
+  // Empty field falls back to the configured monthlyFee. Used for both display and logging.
+  const hasMonthlyOverride = pricingMode === 'monthly' && monthlyAmountOverride.trim() !== '';
+  const effectiveMonthlyAmount = hasMonthlyOverride
+    ? (parseFloat(monthlyAmountOverride) || 0)
+    : transportSettings.monthlyFee;
 
   const rateStr = pricingMode === 'monthly'
     ? `${formatCurrency(transportSettings.monthlyFee)}/mo`
@@ -317,15 +334,17 @@ export function TransportPage() {
 
           {calendarMode === 'driver' && (
             <div className="flex items-center space-x-2 mt-1 justify-end">
-              <Label htmlFor="edit-calendar" className={cn("text-[10px]", (isLocked || isPaidForMonth) && "opacity-50")}>
+              <Label htmlFor="edit-calendar" className={cn("text-xs", (isLocked || isPaidForMonth) && "opacity-50")}>
                 {isEditingCalendar ? 'Editing' : 'Edit'}
               </Label>
               <Switch
                 id="edit-calendar"
                 checked={isEditingCalendar}
-                onCheckedChange={setIsEditingCalendar}
+                onCheckedChange={v => {
+                  setIsEditingCalendar(v);
+                }}
                 disabled={isLocked || isPaidForMonth}
-                className={cn("h-4 w-8", (isLocked || isPaidForMonth) && "opacity-50 cursor-not-allowed")}
+                className={cn("h-5 w-10", (isLocked || isPaidForMonth) && "opacity-50 cursor-not-allowed")}
               />
             </div>
           )}
@@ -424,21 +443,59 @@ export function TransportPage() {
           <CardHeader className="p-3">
             <CardTitle className="text-foreground uppercase text-[10px] tracking-widest">Monthly Summary</CardTitle>
           </CardHeader>
-          <CardContent className="flex justify-between items-baseline p-3 pt-0">
-            <p className="text-xs text-foreground">
-              {!transportSettings.employed && isFutureMonth ? (
-                <span className="text-muted-foreground">Unemployed — no travel</span>
-              ) : pricingMode === 'monthly' ? (
-                <span>Flat monthly rate</span>
-              ) : (
-                <>
-                  <span className="font-bold">{fullDaysCount}</span> full
-                  {halfDaysCount > 0 && <> · <span className="font-bold">{halfDaysCount}</span> half</>}
-                  {' '}days
-                </>
-              )}
-            </p>
-            <p className="text-base font-bold whitespace-nowrap text-foreground">{formatCurrency(totalDue)}</p>
+          <CardContent className="p-3 pt-0 space-y-1.5">
+            {pricingMode === 'monthly' && isEditingCalendar && !isLocked && !isPaidForMonth ? (
+              <>
+                <div className="flex justify-between items-center">
+                  <p className="text-xs text-foreground">Flat monthly rate</p>
+                  <Input
+                    type="number"
+                    min={0}
+                    value={monthlyAmountOverride}
+                    onChange={e => setMonthlyAmountOverride(e.target.value)}
+                    onFocus={e => {
+                      // Lift the field above the Android soft keyboard once it has
+                      // animated in (VisualViewport resize lags the focus event).
+                      const el = e.currentTarget;
+                      setTimeout(() => el.scrollIntoView({ block: 'center', behavior: 'smooth' }), 300);
+                    }}
+                    placeholder={String(transportSettings.monthlyFee)}
+                    className="h-9 w-32 text-right text-sm font-bold"
+                  />
+                </div>
+                {monthlyAmountOverride !== '' && parseFloat(monthlyAmountOverride) !== transportSettings.monthlyFee && (
+                  <p className="text-[10px] text-muted-foreground text-right">
+                    Default {formatCurrency(transportSettings.monthlyFee)} · adjusted for {format(currentDate, 'MMMM')}
+                  </p>
+                )}
+              </>
+            ) : (
+              <>
+                <div className="flex justify-between items-baseline">
+                  <p className="text-xs text-foreground">
+                    {!transportSettings.employed && isFutureMonth ? (
+                      <span className="text-muted-foreground">Unemployed — no travel</span>
+                    ) : pricingMode === 'monthly' ? (
+                      <span>Flat monthly rate</span>
+                    ) : (
+                      <>
+                        <span className="font-bold">{fullDaysCount}</span> full
+                        {halfDaysCount > 0 && <> · <span className="font-bold">{halfDaysCount}</span> half</>}
+                        {' '}days
+                      </>
+                    )}
+                  </p>
+                  <p className="text-base font-bold whitespace-nowrap text-foreground">
+                    {formatCurrency(pricingMode === 'monthly' ? effectiveMonthlyAmount : totalDue)}
+                  </p>
+                </div>
+                {pricingMode === 'monthly' && hasMonthlyOverride && effectiveMonthlyAmount !== transportSettings.monthlyFee && (
+                  <p className="text-[10px] text-muted-foreground text-right">
+                    Default {formatCurrency(transportSettings.monthlyFee)} · adjusted for {format(currentDate, 'MMMM')}
+                  </p>
+                )}
+              </>
+            )}
           </CardContent>
           <CardFooter className="p-3 pt-0">
             <Button
@@ -448,7 +505,7 @@ export function TransportPage() {
               )}
               variant={isPaidForMonth ? 'outline' : 'default'}
               onClick={handleMarkAsPaid}
-              disabled={!isPaidForMonth && (isLocked || totalDue <= 0)}
+              disabled={!isPaidForMonth && (isLocked || (pricingMode === 'monthly' ? effectiveMonthlyAmount : totalDue) <= 0)}
             >
               {isPaidForMonth ? '✓ Payment Confirmed — tap to undo' : `Mark as Paid for ${format(currentDate, 'MMMM')}`}
             </Button>

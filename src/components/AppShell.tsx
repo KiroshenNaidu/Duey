@@ -129,7 +129,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   // Once the app is interactive, warm the deferred chunks in the background (Money Balance
   // first, then Profile + its sub-pages) and prefetch the History route, so navigating to
   // them later is instant without bloating the initial bundle/boot.
+  //
+  // Production only: in dev, each import()/prefetch forces an on-demand Turbopack compile of
+  // these heavy modules (the ~1,400-line settings menus, the jsPDF-pulling History route),
+  // which competes with navigation for the dev server's compiler and makes pages feel slow.
+  // Dev compiles them lazily on first visit instead.
   useEffect(() => {
+    if (process.env.NODE_ENV !== 'production') return;
     warmBackgroundChunks();
     router.prefetch?.('/history');
   }, [router]);
