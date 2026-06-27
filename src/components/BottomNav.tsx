@@ -36,8 +36,8 @@ export function BottomNav() {
         {/* Sliding highlight — moves in sync with the page carousel */}
         {onMainRoute && (
           <motion.div
-            className="absolute top-0 left-0 h-full pointer-events-none"
-            style={{ width: `${100 / navItems.length}%` }}
+            className="absolute left-0 pointer-events-none"
+            style={{ width: `${100 / navItems.length}%`, top: 'var(--top-nav-pt)', bottom: 0 }}
             initial={false}
             animate={{ x: `${activeIdx * 100}%` }}
             transition={transition}

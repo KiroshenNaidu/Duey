@@ -46,7 +46,7 @@ export default function RootLayout({
             <ThemeProvider>
               <ErrorBoundary>
                 <div className="flex flex-col min-h-dvh bg-transparent relative z-0">
-                  <main className="flex-1 overflow-y-auto px-2" style={{ paddingTop: 'var(--top-main-pt)', paddingBottom: 'calc(70px + var(--sab) + 24px)', touchAction: 'pan-y' }}>
+                  <main className="flex-1 overflow-y-auto px-2" style={{ paddingTop: 'var(--top-main-pt)', paddingBottom: 'calc(70px + var(--sab) + 24px + var(--keyboard-height))', touchAction: 'pan-y' }}>
                     <AppShell>
                       {children}
                     </AppShell>

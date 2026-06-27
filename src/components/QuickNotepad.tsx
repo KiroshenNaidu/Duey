@@ -166,7 +166,7 @@ export function QuickNotepad() {
       <Button
         variant="outline"
         size="icon"
-        className="fixed right-4 z-[60] h-12 w-12 rounded-full shadow-lg bg-card border-2 border-accent/30"
+        className="fixed right-4 z-[60] h-12 w-12 rounded-full shadow-lg bg-card/80 backdrop-blur-sm border-2 border-accent/30"
         style={{ bottom: 'calc(10px + var(--sab))' }}
         onClick={() => setIsOpen(prev => !prev)}
       >
