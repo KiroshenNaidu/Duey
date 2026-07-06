@@ -3,7 +3,7 @@
 import { useContext, useState } from 'react';
 import { AppDataContext } from '@/context/AppDataContext';
 import { formatCurrency, cn } from '@/lib/utils';
-import { calculateLiveMonthly } from '@/lib/calculations';
+import { calculateLiveMonthly, isTransportPaidForMonth } from '@/lib/calculations';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -37,6 +37,7 @@ export function MoneyOverview() {
     now,
   );
   const { transport: transportCost, uber: uberSpend, debt: debtInstallments, expenses: totalExpenses, budget: budgetSpent } = monthly;
+  const transportPaid = isTransportPaidForMonth(history, now);
   const totalExtra = (extraIncomes ?? []).reduce((s, e) => s + e.amount, 0);
   // Effective totals exclude tapped-out rows (local state only — no data is changed)
   const effectiveDeductions = [transportCost, budgetSpent, debtInstallments, totalExpenses, uberSpend]
@@ -60,7 +61,7 @@ export function MoneyOverview() {
   };
 
   const deductions = [
-    { id: 'transport', label: 'Transport (this month)', value: transportCost },
+    { id: 'transport', label: 'Transport (this month)', value: transportCost, estimate: !transportPaid },
     { id: 'uber',      label: 'Uber (this month)',       value: uberSpend },
     { id: 'budget',    label: 'Budget (confirmed)',     value: budgetSpent },
     { id: 'debts',     label: 'Debt payments (this month)', value: debtInstallments },
@@ -173,7 +174,10 @@ export function MoneyOverview() {
                 onClick={() => toggleExclude(d.id)}
                 className={cn('flex justify-between items-baseline w-full text-left transition-opacity', off && 'opacity-35')}
               >
-                <span className={cn('text-xs text-muted-foreground', off && 'line-through')}>{d.label}</span>
+                <span className={cn('text-xs text-muted-foreground', off && 'line-through')}>
+                  {d.label}
+                  {d.estimate && <span className="ml-1 text-[9px] font-medium text-muted-foreground/50">(estimate)</span>}
+                </span>
                 <span className={cn('text-sm font-semibold text-foreground tabular-nums', off && 'line-through')}>
                   {d.value > 0 ? `−${formatCurrency(d.value)}` : formatCurrency(0)}
                 </span>

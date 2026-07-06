@@ -36,6 +36,8 @@ import { buttonVariants } from '@/components/ui/button';
 
 const WEEK_DAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
+
+
 export function TransportPage() {
   const {
     transportSettings, setTransportSettings,
@@ -389,7 +391,7 @@ export function TransportPage() {
               {WEEK_DAYS.map((d, i) => <div key={i}>{d}</div>)}
             </div>
 
-            <div className="grid grid-cols-7 gap-1 mt-1">
+            <div className="grid grid-cols-7 gap-1 mt-4 justify-items-center">
               {Array.from({ length: firstDayOfMonth }).map((_, i) => <div key={`e-${i}`} />)}
 
               {calendarMode === 'driver' && daysInMonth.map(day => {

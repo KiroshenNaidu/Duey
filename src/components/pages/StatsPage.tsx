@@ -7,7 +7,7 @@ import { formatCurrency, cn } from '@/lib/utils';
 import { DebtProgressCharts } from '@/components/DebtProgressCharts';
 import { useReplayOnActive } from '@/hooks/useReplayOnActive';
 import { TransportStatusCard } from '@/components/TransportStatusCard';
-import { calculateGlobalStats, calculateLiveMonthly } from '@/lib/calculations';
+import { calculateGlobalStats, calculateLiveMonthly, isTransportPaidForMonth } from '@/lib/calculations';
 import {
   TrendingUp, Car, CreditCard, TrendingDown,
   ReceiptText, PiggyBank, ArrowUpRight, ArrowDownRight, BadgeDollarSign,
@@ -157,6 +157,7 @@ function MonthlyOverviewCard() {
      transportSettings, transportOverrides, transportMonthlyOverrides],
   );
   const positive = monthly.remaining >= 0;
+  const transportPaid = isTransportPaidForMonth(history, new Date());
 
   return (
     <div className="bg-card rounded-2xl p-4">
@@ -164,7 +165,7 @@ function MonthlyOverviewCard() {
       <StatRow label="Income"        value={formatCurrency(monthly.income)}      color="text-[hsl(var(--positive))]" />
       <StatRow label="Expenses"      value={`− ${formatCurrency(monthly.expenses)}`}  color="text-[hsl(var(--negative))]" sub={`${expenses.length} item${expenses.length !== 1 ? 's' : ''}`} />
       <StatRow label="Debt payments" value={`− ${formatCurrency(monthly.debt)}`}      color="text-[hsl(var(--cat-budget))]" sub="logged this month" />
-      <StatRow label="Transport"     value={`− ${formatCurrency(monthly.transport)}`} color="text-[hsl(var(--cat-transport))]" />
+      <StatRow label="Transport"     value={`− ${formatCurrency(monthly.transport)}`} color="text-[hsl(var(--cat-transport))]" sub={transportPaid ? undefined : 'estimate · not yet paid'} />
       {monthly.uber > 0 && (
         <StatRow label="Uber / rides" value={`− ${formatCurrency(monthly.uber)}`} color="text-[hsl(var(--cat-transport))]" />
       )}

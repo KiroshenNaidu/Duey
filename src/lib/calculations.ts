@@ -122,6 +122,13 @@ export const calculateTransportMonth = (
 /** 'yyyy-MM' month key for a date. */
 export const getMonthKey = (date: Date): string => format(date, 'yyyy-MM');
 
+/** Whether "Mark as Paid" has been logged for the given month — the transport figure
+ *  itself stays the calendar estimate either way; this only drives the "estimate" label. */
+export const isTransportPaidForMonth = (history: HistoryEntry[], date: Date): boolean => {
+  const monthLabel = format(date, 'MMMM yyyy');
+  return history.some(h => h.type === 'transport' && h.debtTitle === `Transport: ${monthLabel}`);
+};
+
 /** Fields the monthly calculators read — a subset of AppState. */
 export interface MonthlyMoneyInput {
   monthlyIncome: number;
