@@ -290,7 +290,7 @@ export function DebtCard({ debt }: DebtCardProps) {
                 <p>This removes the debt from your active list. All payment records remain in your history.</p>
                 <div className="bg-muted/50 rounded-xl p-3 border border-border/50 text-xs space-y-1">
                   <p className="font-semibold text-foreground">About overpayments</p>
-                  <p>Any amount paid beyond the debt total is labelled <span className="font-semibold text-accent">Interest</span> by default. You can rename these entries in your payment history.</p>
+                  <p>Any amount paid beyond the debt total is kept as an overpayment. You can label these entries (e.g. <span className="font-semibold text-accent">Interest</span> or <span className="font-semibold text-accent">Penalty</span>) in your payment history.</p>
                 </div>
                 <button
                   onClick={() => { setShowDeleteConfirm(false); router.push('/history'); }}

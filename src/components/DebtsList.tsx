@@ -34,7 +34,7 @@ export function DebtsList() {
           <AddDebtDialog>
             <button
               aria-label="Add new debt"
-              className="fixed left-1/2 -translate-x-1/2 h-12 w-12 bg-primary/80 backdrop-blur-sm rounded-full flex items-center justify-center text-primary-foreground shadow-lg hover:bg-primary/90 focus:outline-none transition-transform transform hover:scale-105 z-[60]"
+              className="fixed left-1/2 -translate-x-1/2 h-12 w-12 bg-primary rounded-full flex items-center justify-center text-primary-foreground shadow-lg hover:bg-primary/90 focus:outline-none transition-transform transform hover:scale-105 z-40"
               style={{ bottom: 'calc(10px + var(--sab))' }}
             >
               <Plus className="h-5 w-5" />

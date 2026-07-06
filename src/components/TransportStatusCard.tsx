@@ -9,7 +9,7 @@ import { Skeleton } from './ui/skeleton';
 import { calculateTransportMonth } from '@/lib/calculations';
 
 export function TransportStatusCard() {
-  const { transportSettings, transportOverrides, history } = useContext(AppDataContext);
+  const { transportSettings, transportOverrides, transportMonthlyOverrides, history } = useContext(AppDataContext);
   const [isClient, setIsClient] = useState(false);
   const currentDate = new Date();
 
@@ -19,18 +19,22 @@ export function TransportStatusCard() {
 
   const currentMonthStats = useMemo(() => {
     if (!isClient) return { totalDue: 0, isPaid: false };
-    
-    const { totalDue } = calculateTransportMonth(currentDate, transportOverrides, transportSettings);
+
+    // Honour the live per-month flat-fee override so this card agrees with Balance/Transport.
+    const monthKey = format(currentDate, 'yyyy-MM');
+    const { totalDue } = calculateTransportMonth(
+      currentDate, transportOverrides, transportSettings, currentDate, transportMonthlyOverrides[monthKey],
+    );
 
     const currentMonthStr = format(currentDate, 'MMMM yyyy');
-    const paymentForThisMonth = history.find(entry => 
+    const paymentForThisMonth = history.find(entry =>
       entry.type === 'transport' && entry.debtTitle === `Transport: ${currentMonthStr}`
     );
-    
+
     const isPaid = !!paymentForThisMonth;
 
     return { totalDue, isPaid };
-  }, [currentDate, transportOverrides, transportSettings.dailyFee, history, isClient]);
+  }, [currentDate, transportOverrides, transportSettings, transportMonthlyOverrides, history, isClient]);
 
   if (!isClient) {
     return (

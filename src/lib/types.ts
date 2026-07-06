@@ -32,6 +32,7 @@ export interface HistoryEntry {
   type: 'payment' | 'creation' | 'transport' | 'completion' | 'budget' | 'expense' | 'employment' | 'snapshot';
   note?: string;
   label?: string; // user-defined display label, e.g. "Interest", "Penalty Fee"
+  edited?: boolean; // true once the user has manually edited this entry (amount/date/label/note)
 }
 
 export interface TransportSettings {
@@ -83,6 +84,11 @@ export interface BudgetPlan {
   budget: number;
   items: BudgetItem[];
   createdAt: string;
+  // Budgets are NOT counted in the monthly balance until confirmed. Confirming means
+  // "I bought these items and stuck to the budget" — the plan's spent total (sum of item
+  // prices, not the budget ceiling) is then deducted, but only for the month it was confirmed.
+  confirmed?: boolean;
+  confirmedAt?: string; // ISO 8601 — when the plan was confirmed
 }
 
 export interface ThemeSettings {

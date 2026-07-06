@@ -11,13 +11,14 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import {
-  ChevronLeft, Pencil, Trash2, Check, X, Download, FolderOpen,
+  ChevronLeft, Pencil, Trash2, Check, Download, FolderOpen,
   CreditCard, PlusCircle, Trophy, Car, Wallet, Zap, Receipt,
   FileText, Sheet, Tag, Bus, CheckCircle2, Loader2, AlertCircle,
 } from 'lucide-react';
 import type { HistoryEntry, Expense, UberRide, BudgetPlan } from '@/lib/types';
 import { format } from 'date-fns';
 import { FolderAccess } from '@/lib/folderAccess';
+import { DatePickerInput } from '@/components/ui/date-picker';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -734,69 +735,143 @@ function TypeBadge({ type, label }: { type: string; label?: string }) {
   );
 }
 
+// ─── Edit entry dialog ────────────────────────────────────────────────────────
+// One consistent popup for every history entry — edit the amount, date, label and
+// note in one place (replaces the old inline label-only edit).
+
+type EntryEdit = Partial<Pick<HistoryEntry, 'label' | 'note' | 'amount' | 'date'>>;
+
+function EditEntryDialog({ entry, open, onClose, onSave }: {
+  entry: HistoryEntry;
+  open: boolean;
+  onClose: () => void;
+  onSave: (id: string, data: EntryEdit) => void;
+}) {
+  const [amount, setAmount] = useState(String(entry.amount));
+  const [dateStr, setDateStr] = useState(entry.date.slice(0, 10));
+  const [label, setLabel] = useState(entry.label ?? '');
+  const [note, setNote] = useState(entry.note ?? '');
+
+  // Re-seed the draft fields whenever the dialog is (re)opened for an entry.
+  useEffect(() => {
+    if (!open) return;
+    setAmount(String(entry.amount));
+    setDateStr(entry.date.slice(0, 10));
+    setLabel(entry.label ?? '');
+    setNote(entry.note ?? '');
+  }, [open, entry]);
+
+  const save = () => {
+    const parsed = parseFloat(amount);
+    // Anchor to local noon so the calendar day never shifts across timezones.
+    const iso = dateStr ? new Date(dateStr + 'T12:00:00').toISOString() : entry.date;
+    onSave(entry.id, {
+      amount: Number.isFinite(parsed) ? parsed : entry.amount,
+      date: iso,
+      label: label.trim() || undefined,
+      note: note.trim() || undefined,
+    });
+    onClose();
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={v => { if (!v) onClose(); }}>
+      <DialogContent className="sm:max-w-sm">
+        <DialogHeader>
+          <DialogTitle>Edit entry</DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-3">
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1">Amount (R)</p>
+            <Input
+              type="number" inputMode="decimal" value={amount}
+              onChange={e => setAmount(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') save(); }}
+              className="text-sm" autoFocus
+            />
+          </div>
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1">Date</p>
+            <DatePickerInput value={dateStr} onChange={setDateStr} />
+          </div>
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1">Label</p>
+            <Input
+              value={label} onChange={e => setLabel(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') save(); }}
+              placeholder="e.g. Interest, Penalty" className="text-sm"
+            />
+          </div>
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1">Note</p>
+            <Input
+              value={note} onChange={e => setNote(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') save(); }}
+              placeholder="Optional note" className="text-sm"
+            />
+          </div>
+        </div>
+
+        <DialogFooter className="mt-2 gap-2">
+          <Button variant="secondary" onClick={onClose}>Cancel</Button>
+          <Button onClick={save} className="gap-2"><Check className="h-4 w-4" /> Save</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // ─── Entry row (for All + Debts tabs) ─────────────────────────────────────────
 
 function EntryRow({ entry, onUpdate, onDelete, showDebt = false }: {
   entry: HistoryEntry;
-  onUpdate: (id: string, data: { label?: string; note?: string }) => void;
+  onUpdate: (id: string, data: EntryEdit) => void;
   onDelete: (id: string) => void;
   showDebt?: boolean;
 }) {
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState(entry.label ?? '');
-  const canEdit = entry.type === 'payment';
-
-  const save = () => { onUpdate(entry.id, { label: draft.trim() || undefined }); setEditing(false); };
-  const cancel = () => { setDraft(entry.label ?? ''); setEditing(false); };
+  const [editOpen, setEditOpen] = useState(false);
 
   return (
     <div className="flex items-center gap-3 py-3 border-b border-border/30 last:border-0">
       <div className="flex-1 min-w-0">
-        {editing ? (
-          <Input value={draft} onChange={e => setDraft(e.target.value)}
-            onKeyDown={e => { if (e.key === 'Enter') save(); if (e.key === 'Escape') cancel(); }}
-            className="h-8 text-sm w-44" autoFocus placeholder="e.g. Interest, Penalty" />
-        ) : (
+        <div className="flex items-center gap-1.5 flex-wrap">
           <TypeBadge type={entry.type} label={entry.label} />
-        )}
+          {entry.edited && (
+            <span className="inline-flex items-center gap-0.5 text-[9px] font-medium text-muted-foreground/60">
+              <Pencil size={8} /> edited
+            </span>
+          )}
+        </div>
         {showDebt && <p className="text-[10px] text-muted-foreground/60 mt-0.5">{entry.debtTitle}</p>}
         <p className="text-xs text-muted-foreground mt-1">{fmtDate(entry.date)}</p>
         {entry.note && <p className="text-[10px] text-muted-foreground/60 truncate mt-0.5">{entry.note}</p>}
       </div>
       <span className="text-sm font-bold tabular-nums shrink-0">{formatCurrency(entry.amount)}</span>
       <div className="flex items-center gap-0.5 shrink-0">
-        {editing ? (
-          <>
-            <button onClick={save} className="p-2.5 rounded-xl text-positive active:bg-positive/10"><Check size={15} /></button>
-            <button onClick={cancel} className="p-2.5 rounded-xl text-muted-foreground active:bg-muted"><X size={15} /></button>
-          </>
-        ) : (
-          <>
-            {canEdit && (
-              <button onClick={() => setEditing(true)} className="p-2.5 rounded-xl text-muted-foreground/50 active:bg-muted">
-                <Pencil size={13} />
-              </button>
-            )}
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <button className="p-2.5 rounded-xl text-muted-foreground/40 active:bg-destructive/10 active:text-destructive">
-                  <Trash2 size={13} />
-                </button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Delete entry?</AlertDialogTitle>
-                  <AlertDialogDescription>This will permanently remove this history entry.</AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction onClick={() => onDelete(entry.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Delete</AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          </>
-        )}
+        <button onClick={() => setEditOpen(true)} className="p-2.5 rounded-xl text-muted-foreground/50 active:bg-muted">
+          <Pencil size={13} />
+        </button>
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <button className="p-2.5 rounded-xl text-muted-foreground/40 active:bg-destructive/10 active:text-destructive">
+              <Trash2 size={13} />
+            </button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete entry?</AlertDialogTitle>
+              <AlertDialogDescription>This will permanently remove this history entry.</AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={() => onDelete(entry.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Delete</AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
+
+      <EditEntryDialog entry={entry} open={editOpen} onClose={() => setEditOpen(false)} onSave={onUpdate} />
     </div>
   );
 }
@@ -1013,6 +1088,10 @@ export default function HistoryPage() {
     }
   };
 
+  // Current month is still "live" — its entries stay editable and only finalize into a
+  // permanent monthly summary once the month ends (see the month-end seal in AppDataContext).
+  const currentMonthLabel = format(new Date(), 'MMMM yyyy');
+
   // ── Render ────────────────────────────────────────────────────────────────────
   return (
     <motion.div
@@ -1119,8 +1198,16 @@ export default function HistoryPage() {
             {monthGroups.map(([month, entries]) => (
               <Card key={month} className="overflow-hidden cv-auto">
                 <div className="px-4 pt-4 pb-1 flex items-center justify-between">
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{month}</p>
-                  <p className="text-[10px] text-muted-foreground/60 tabular-nums">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{month}</p>
+                    {month === currentMonthLabel && (
+                      <span className="inline-flex items-center gap-1 text-[9px] font-semibold text-primary shrink-0">
+                        <span className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
+                        Live · finalizes month-end
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-[10px] text-muted-foreground/60 tabular-nums shrink-0">
                     {formatCurrency(entries.filter(e => e.type === 'payment').reduce((s, e) => s + e.amount, 0))} paid
                   </p>
                 </div>

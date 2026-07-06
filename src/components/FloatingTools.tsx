@@ -32,7 +32,7 @@ export function FloatingTools() {
          <Button
           variant="outline"
           size="icon"
-          className="h-12 w-12 rounded-full shadow-lg bg-card/80 backdrop-blur-sm border-2 border-accent/30"
+          className="h-12 w-12 rounded-full shadow-lg bg-card border-2 border-accent/30"
           onClick={() => setIsCalculatorOpen(prev => !prev)}
         >
           <Calculator className="h-5 w-5" />

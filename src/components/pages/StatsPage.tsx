@@ -7,7 +7,7 @@ import { formatCurrency, cn } from '@/lib/utils';
 import { DebtProgressCharts } from '@/components/DebtProgressCharts';
 import { useReplayOnActive } from '@/hooks/useReplayOnActive';
 import { TransportStatusCard } from '@/components/TransportStatusCard';
-import { calculateGlobalStats } from '@/lib/calculations';
+import { calculateGlobalStats, calculateLiveMonthly } from '@/lib/calculations';
 import {
   TrendingUp, Car, CreditCard, TrendingDown,
   ReceiptText, PiggyBank, ArrowUpRight, ArrowDownRight, BadgeDollarSign,
@@ -141,25 +141,36 @@ function IncomeCard() {
 // ─── NEW: Monthly net overview ─────────────────────────────────────────────────
 
 function MonthlyOverviewCard() {
-  const { monthlyIncome, extraIncomes, expenses, debts, transportSettings } = useContext(AppDataContext);
+  const {
+    monthlyIncome, extraIncomes, expenses, budgetPlans, history, uberRides,
+    transportSettings, transportOverrides, transportMonthlyOverrides,
+  } = useContext(AppDataContext);
 
-  const totalIncome = monthlyIncome + extraIncomes.reduce((s, e) => s + e.amount, 0);
-  const totalExpenses = expenses.reduce((s, e) => s + e.amount, 0);
-  const monthlyDebt = debts.reduce((s, d) => s + d.installment_amount, 0);
-  const monthlyTransport = transportSettings.pricingMode === 'monthly'
-    ? transportSettings.monthlyFee
-    : transportSettings.dailyFee * 22;
-
-  const net = totalIncome - totalExpenses - monthlyDebt - monthlyTransport;
-  const positive = net >= 0;
+  // Same live actuals the Balance tab shows (shared calculator) — reacts to edits and
+  // matches the month-end seal, instead of the old planned-installment × 22-day estimate.
+  const monthly = useMemo(
+    () => calculateLiveMonthly({
+      monthlyIncome, extraIncomes, expenses, budgetPlans, history, uberRides,
+      transportSettings, transportOverrides, transportMonthlyOverrides,
+    }),
+    [monthlyIncome, extraIncomes, expenses, budgetPlans, history, uberRides,
+     transportSettings, transportOverrides, transportMonthlyOverrides],
+  );
+  const positive = monthly.remaining >= 0;
 
   return (
     <div className="bg-card rounded-2xl p-4">
       <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Monthly Snapshot</p>
-      <StatRow label="Income"             value={formatCurrency(totalIncome)}     color="text-[hsl(var(--positive))]" />
-      <StatRow label="Expenses"           value={`− ${formatCurrency(totalExpenses)}`}   color="text-[hsl(var(--negative))]" sub={`${expenses.length} item${expenses.length !== 1 ? 's' : ''}`} />
-      <StatRow label="Debt installments"  value={`− ${formatCurrency(monthlyDebt)}`}     color="text-[hsl(var(--cat-budget))]" sub={`${debts.length} debt${debts.length !== 1 ? 's' : ''}`} />
-      <StatRow label="Transport"          value={`− ${formatCurrency(monthlyTransport)}`} color="text-[hsl(var(--cat-transport))]" />
+      <StatRow label="Income"        value={formatCurrency(monthly.income)}      color="text-[hsl(var(--positive))]" />
+      <StatRow label="Expenses"      value={`− ${formatCurrency(monthly.expenses)}`}  color="text-[hsl(var(--negative))]" sub={`${expenses.length} item${expenses.length !== 1 ? 's' : ''}`} />
+      <StatRow label="Debt payments" value={`− ${formatCurrency(monthly.debt)}`}      color="text-[hsl(var(--cat-budget))]" sub="logged this month" />
+      <StatRow label="Transport"     value={`− ${formatCurrency(monthly.transport)}`} color="text-[hsl(var(--cat-transport))]" />
+      {monthly.uber > 0 && (
+        <StatRow label="Uber / rides" value={`− ${formatCurrency(monthly.uber)}`} color="text-[hsl(var(--cat-transport))]" />
+      )}
+      {monthly.budget > 0 && (
+        <StatRow label="Budget" value={`− ${formatCurrency(monthly.budget)}`} color="text-[hsl(var(--cat-completion))]" />
+      )}
       <div className="flex items-center justify-between pt-2 mt-1 border-t border-border/40">
         <div className="flex items-center gap-1.5">
           {positive
@@ -168,7 +179,7 @@ function MonthlyOverviewCard() {
           <p className="text-sm font-bold text-foreground">Net</p>
         </div>
         <p className={cn('text-base font-bold', positive ? 'text-[hsl(var(--positive))]' : 'text-[hsl(var(--negative))]')}>
-          {formatCurrency(net)}
+          {formatCurrency(monthly.remaining)}
         </p>
       </div>
     </div>

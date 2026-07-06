@@ -3,7 +3,7 @@
 import { useContext, useState } from 'react';
 import { AppDataContext } from '@/context/AppDataContext';
 import { formatCurrency, cn } from '@/lib/utils';
-import { calculateTransportMonth } from '@/lib/calculations';
+import { calculateLiveMonthly } from '@/lib/calculations';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -11,8 +11,8 @@ import { Pencil, Check, Plus, Trash2, X } from 'lucide-react';
 
 export function MoneyOverview() {
   const {
-    monthlyIncome, debts, budgetPlans, expenses, extraIncomes, history, uberRides,
-    transportSettings, transportOverrides,
+    monthlyIncome, budgetPlans, expenses, extraIncomes, history, uberRides,
+    transportSettings, transportOverrides, transportMonthlyOverrides,
     setMonthlyIncome, addExtraIncome, deleteExtraIncome,
   } = useContext(AppDataContext);
 
@@ -29,22 +29,15 @@ export function MoneyOverview() {
   const [extraError, setExtraError] = useState('');
 
   const now = new Date();
-  const transportCost = calculateTransportMonth(now, transportOverrides, transportSettings).totalDue;
-  const budgetSpent = budgetPlans.flatMap(p => p.items).reduce((s, i) => s + i.price, 0);
-  // Only count debt money actually logged as a payment THIS month — never the planned
-  // installment_amount. Nothing is deducted until the user logs a payment.
-  const debtInstallments = history.reduce((s, h) => {
-    if (h.type !== 'payment' || !h.debtId) return s;
-    const d = new Date(h.date);
-    return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear() ? s + h.amount : s;
-  }, 0);
-  const totalExpenses = expenses.reduce((s, e) => s + e.amount, 0);
-  const uberSpend = (uberRides ?? []).reduce((s, r) => {
-    const d = new Date(r.date);
-    return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear() ? s + r.price : s;
-  }, 0);
+  // Single shared calculator (also drives Stats + the month-end seal) so every screen
+  // agrees. It honours the live per-month transport override and counts only debt money
+  // actually logged as a payment this month — nothing is deducted until you log a payment.
+  const monthly = calculateLiveMonthly(
+    { monthlyIncome, extraIncomes, expenses, budgetPlans, history, uberRides, transportSettings, transportOverrides, transportMonthlyOverrides },
+    now,
+  );
+  const { transport: transportCost, uber: uberSpend, debt: debtInstallments, expenses: totalExpenses, budget: budgetSpent } = monthly;
   const totalExtra = (extraIncomes ?? []).reduce((s, e) => s + e.amount, 0);
-  const totalDeductions = transportCost + budgetSpent + debtInstallments + totalExpenses + uberSpend;
   // Effective totals exclude tapped-out rows (local state only — no data is changed)
   const effectiveDeductions = [transportCost, budgetSpent, debtInstallments, totalExpenses, uberSpend]
     .filter((_, i) => !excludedIds.has(['transport', 'budget', 'debts', 'expenses', 'uber'][i]))
@@ -69,7 +62,7 @@ export function MoneyOverview() {
   const deductions = [
     { id: 'transport', label: 'Transport (this month)', value: transportCost },
     { id: 'uber',      label: 'Uber (this month)',       value: uberSpend },
-    { id: 'budget',    label: 'Budget (all plans)',     value: budgetSpent },
+    { id: 'budget',    label: 'Budget (confirmed)',     value: budgetSpent },
     { id: 'debts',     label: 'Debt payments (this month)', value: debtInstallments },
     { id: 'expenses',  label: 'Expenses (active)',       value: totalExpenses },
   ];

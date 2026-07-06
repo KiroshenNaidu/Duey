@@ -149,12 +149,18 @@ function HistoryItem({ entry }: { entry: ProcessedHistoryEntry }) {
 // Sticky month header used in the "All" tab
 // ─────────────────────────────────────────────────────────────────────────────
 
-function MonthHeader({ label }: { label: string }) {
+function MonthHeader({ label, isCurrent }: { label: string; isCurrent?: boolean }) {
   return (
-    <div className="sticky top-0 z-10 bg-background/90 backdrop-blur-sm px-2 py-1 border-b border-border">
+    <div className="sticky top-0 z-10 bg-background/90 backdrop-blur-sm px-2 py-1 border-b border-border flex items-center justify-between gap-2">
       <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
         {label}
       </p>
+      {isCurrent && (
+        <span className="inline-flex items-center gap-1 text-[9px] font-semibold text-primary shrink-0">
+          <span className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
+          Live · finalizes month-end
+        </span>
+      )}
     </div>
   );
 }
@@ -368,7 +374,7 @@ export function HistoryLog() {
               <div>
                 {monthGroups.map(group => (
                   <div key={group.monthLabel}>
-                    <MonthHeader label={group.monthLabel} />
+                    <MonthHeader label={group.monthLabel} isCurrent={group.monthLabel === format(new Date(), 'MMMM yyyy')} />
                     <div className="p-2 space-y-2">
                       {group.entries.map(entry => <HistoryItem key={entry.id} entry={entry} />)}
                     </div>

@@ -2,6 +2,7 @@
 
 import { useContext, useState, useMemo } from 'react';
 import { usePathname } from 'next/navigation';
+import { format } from 'date-fns';
 import { AppDataContext } from '@/context/AppDataContext';
 import type { BudgetPlan, BudgetItem } from '@/lib/types';
 import { formatCurrency, cn } from '@/lib/utils';
@@ -280,7 +281,7 @@ function AddItemDialog({ plan, onAdd }: { plan: BudgetPlan; onAdd: (item: Omit<B
 }
 
 function PlanView({ plan }: { plan: BudgetPlan }) {
-  const { deleteBudgetPlan, addBudgetItem, deleteBudgetItem, toggleBudgetItemPurchased, updateBudgetPlan, themeSettings } = useContext(AppDataContext);
+  const { deleteBudgetPlan, addBudgetItem, deleteBudgetItem, toggleBudgetItemPurchased, updateBudgetPlan, toggleBudgetPlanConfirmed, themeSettings } = useContext(AppDataContext);
   // Largest item first so it maps to the outer ring; colours match by index.
   const sortedItems = useMemo(
     () => [...plan.items].sort((a, b) => b.price - a.price),
@@ -425,6 +426,36 @@ function PlanView({ plan }: { plan: BudgetPlan }) {
           ) : (
             <Progress value={progress} className={cn('h-2', progress >= 100 ? '[&>*]:bg-destructive' : '[&>*]:bg-accent')} />
           )}
+
+          {/* Confirm purchase — budgets are NOT in the balance until confirmed. Confirming
+              deducts the spent total (Σ items), not the budget ceiling, for the current month. */}
+          {spent > 0 && (
+            <div className="pt-2 border-t border-border/40 space-y-1">
+              <button
+                onClick={() => toggleBudgetPlanConfirmed(plan.id)}
+                className={cn(
+                  'w-full rounded-xl border px-3 py-2.5 text-xs font-semibold transition-colors flex items-center justify-center gap-1.5',
+                  plan.confirmed
+                    ? 'border-accent/40 bg-accent/10 text-accent'
+                    : 'border-border text-foreground hover:border-accent/50 hover:bg-accent/5'
+                )}
+              >
+                {plan.confirmed ? (
+                  <>
+                    <Check className="h-3.5 w-3.5 shrink-0" />
+                    Purchased · {formatCurrency(spent)} counted{plan.confirmedAt ? ` (${format(new Date(plan.confirmedAt), 'MMM')})` : ''} — tap to undo
+                  </>
+                ) : (
+                  <>Confirm purchase — add {formatCurrency(spent)} to balance</>
+                )}
+              </button>
+              <p className="text-[10px] text-muted-foreground text-center">
+                {plan.confirmed
+                  ? `Stuck to budget: ${formatCurrency(spent)} of ${formatCurrency(plan.budget)}${spent < plan.budget ? ` · ${formatCurrency(plan.budget - spent)} under` : ''}`
+                  : 'Not counted in your balance yet'}
+              </p>
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -498,7 +529,7 @@ export function BudgetPlanner() {
             <DialogTrigger asChild>
               <button
                 aria-label="New budget plan"
-                className="fixed left-1/2 -translate-x-1/2 h-12 w-12 bg-primary/80 backdrop-blur-sm rounded-full flex items-center justify-center text-primary-foreground shadow-lg hover:bg-primary/90 focus:outline-none transition-transform transform hover:scale-105 z-[60]"
+                className="fixed left-1/2 -translate-x-1/2 h-12 w-12 bg-primary rounded-full flex items-center justify-center text-primary-foreground shadow-lg hover:bg-primary/90 focus:outline-none transition-transform transform hover:scale-105 z-40"
                 style={{ bottom: 'calc(10px + var(--sab))' }}
               >
                 <Plus className="h-5 w-5" />

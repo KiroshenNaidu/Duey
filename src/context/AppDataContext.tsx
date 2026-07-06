@@ -2,9 +2,9 @@
 
 import { createContext, ReactNode, useEffect, useState, useMemo, useCallback } from 'react';
 import type { AppState, Debt, HistoryEntry, AppData, ThemeSettings, TransportSettings, TransportOverrides, TransportMonthlyOverrides, DayState, UberRide, UserTheme, BudgetPlan, BudgetItem, UserProfile, NotificationSettings, AppError, Expense, ExtraIncome } from '@/lib/types';
-import { isSameDay, startOfDay, startOfMonth, format } from 'date-fns';
+import { isSameDay, startOfDay, startOfMonth, format, add, endOfMonth } from 'date-fns';
 import { idbGet, idbSet, idbDel, setCurrencyCode, genId } from '@/lib/utils';
-import { calculateTransportMonth } from '@/lib/calculations';
+import { calculateSealedMonthSummary } from '@/lib/calculations';
 import { LoadingScreen } from '@/components/LoadingScreen';
 
 const CURRENT_SCHEMA_VERSION = 8;
@@ -138,6 +138,7 @@ interface AppContextType extends AppState {
   addBudgetItem: (planId: string, item: Omit<BudgetItem, 'id' | 'createdAt'>) => void;
   deleteBudgetItem: (planId: string, itemId: string) => void;
   toggleBudgetItemPurchased: (planId: string, itemId: string) => void;
+  toggleBudgetPlanConfirmed: (planId: string) => void;
   setMonthlyIncome: (income: number) => void;
   setUserProfile: (profile: UserProfile) => void;
   setNotificationSettings: (settings: NotificationSettings) => void;
@@ -147,7 +148,7 @@ interface AppContextType extends AppState {
   deleteUserTheme: (themeId: string) => void;
   importData: (data: AppData) => void;
   deleteHistoryEntry: (entryId: string) => void;
-  updateHistoryEntry: (entryId: string, data: Partial<Pick<HistoryEntry, 'label' | 'note'>>) => void;
+  updateHistoryEntry: (entryId: string, data: Partial<Pick<HistoryEntry, 'label' | 'note' | 'amount' | 'date'>>) => void;
   setCurrency: (code: string) => void;
   setExportFolder: (uri: string, name: string) => void;
   clearData: () => void; // fire-and-forget async
@@ -183,6 +184,7 @@ export const AppDataContext = createContext<AppContextType>({
   addBudgetItem: () => {},
   deleteBudgetItem: () => {},
   toggleBudgetItemPurchased: () => {},
+  toggleBudgetPlanConfirmed: () => {},
   setMonthlyIncome: () => {},
   setUserProfile: () => {},
   setNotificationSettings: () => {},
@@ -224,60 +226,50 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       try {
         let loaded = migrateState(JSON.parse(storedStateRaw));
 
-        // Auto-purge non-recurring expenses from previous months
+        // Auto-purge non-recurring expenses from previous months. The original one-time
+        // `expense` history entry (written when the expense was added) stays as the permanent
+        // record — we deliberately do NOT write a second "Auto-removed" entry, which used to
+        // duplicate every one-time expense in history and double-count it in monthly totals.
         const firstOfThisMonth = startOfMonth(new Date());
-        const expired = loaded.expenses.filter(
-          e => !e.recurring && new Date(e.createdAt) < firstOfThisMonth
-        );
-        if (expired.length > 0) {
-          const purgeEntries: HistoryEntry[] = expired.map(e => ({
-            id: genId(),
-            debtTitle: e.title,
-            date: new Date().toISOString(),
-            amount: e.amount,
-            type: 'expense' as const,
-            note: 'Auto-removed (one-time expense)',
-          }));
+        const hasExpired = loaded.expenses.some(e => !e.recurring && new Date(e.createdAt) < firstOfThisMonth);
+        if (hasExpired) {
           loaded = {
             ...loaded,
             expenses: loaded.expenses.filter(e => e.recurring || new Date(e.createdAt) >= firstOfThisMonth),
-            history: [...purgeEntries, ...loaded.history],
           };
         }
 
-        // Monthly balance snapshot — logs once per month on first load of a new month.
+        // Month-end seal — finalize every month that has fully ended since we last sealed,
+        // writing one permanent summary per month. The loop catches up multi-month gaps
+        // (app not opened for a while), which the old single-month version got wrong.
         // lastSnapshotMonth === '' means fresh install; skip to avoid a noisy first entry.
         const currentMonthKey = format(new Date(), 'yyyy-MM');
         if (loaded.lastSnapshotMonth && loaded.lastSnapshotMonth !== currentMonthKey) {
-          const prevMonthLabel = format(firstOfThisMonth, 'MMMM yyyy');
-          const transportCost = calculateTransportMonth(new Date(), loaded.transportOverrides, loaded.transportSettings).totalDue;
-          const budgetSpent = loaded.budgetPlans.flatMap(p => p.items).reduce((s, i) => s + i.price, 0);
-          // Debt outgoings = payments actually logged against the month that just ended,
-          // not the planned installment_amount.
-          const snapshotMonthKey = format(firstOfThisMonth, 'yyyy-MM');
-          const debtTotal = loaded.history.reduce((s, h) =>
-            h.type === 'payment' && h.debtId && format(new Date(h.date), 'yyyy-MM') === snapshotMonthKey
-              ? s + h.amount : s, 0);
-          const expenseTotal = loaded.expenses.reduce((s, e) => s + e.amount, 0);
-          const totalExtra = (loaded.extraIncomes ?? []).reduce((s, e) => s + e.amount, 0);
-          const totalOutgoings = transportCost + budgetSpent + debtTotal + expenseTotal;
-          const income = loaded.monthlyIncome + totalExtra;
-          const remaining = income - totalOutgoings;
-          const snapshotEntry: HistoryEntry = {
-            id: genId(),
-            debtTitle: `${prevMonthLabel} Summary`,
-            date: new Date().toISOString(),
-            amount: Math.abs(remaining),
-            type: 'snapshot' as const,
-            note: `Income: ${income} Â· Outgoings: ${totalOutgoings} Â· ${remaining >= 0 ? 'Surplus' : 'Deficit'}: ${Math.abs(remaining)}`,
-          };
+          const currentMonthStart = startOfMonth(new Date());
+          const snapshots: HistoryEntry[] = [];
+          // Start at the month AFTER the last sealed one; seal up to (not incl.) the current month.
+          let cursor = startOfMonth(add(new Date(`${loaded.lastSnapshotMonth}-01T00:00:00`), { months: 1 }));
+          // Safety bound against a corrupt lastSnapshotMonth producing a runaway loop.
+          for (let guard = 0; cursor < currentMonthStart && guard < 120; guard++) {
+            const mk = format(cursor, 'yyyy-MM');
+            const s = calculateSealedMonthSummary(loaded, mk);
+            snapshots.push({
+              id: genId(),
+              debtTitle: `${format(cursor, 'MMMM yyyy')} Summary`,
+              date: endOfMonth(cursor).toISOString(),
+              amount: Math.abs(s.remaining),
+              type: 'snapshot',
+              note: `Income: ${Math.round(s.income)} | Outgoings: ${Math.round(s.totalOutgoings)} | ${s.remaining >= 0 ? 'Surplus' : 'Deficit'}: ${Math.round(Math.abs(s.remaining))}`,
+            });
+            cursor = add(cursor, { months: 1 });
+          }
           loaded = {
             ...loaded,
-            history: [snapshotEntry, ...loaded.history],
+            history: [...snapshots, ...loaded.history],
             lastSnapshotMonth: currentMonthKey,
           };
         } else if (!loaded.lastSnapshotMonth) {
-          // Fresh install — just record the month so the next month-turn creates a real snapshot.
+          // Fresh install — record the month so the next month-turn seals a real summary.
           loaded = { ...loaded, lastSnapshotMonth: currentMonthKey };
         }
 
@@ -504,10 +496,11 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     }));
   };
 
-  const updateHistoryEntry = (entryId: string, data: Partial<Pick<HistoryEntry, 'label' | 'note'>>) => {
+  const updateHistoryEntry = (entryId: string, data: Partial<Pick<HistoryEntry, 'label' | 'note' | 'amount' | 'date'>>) => {
+    // Any manual edit flags the entry as edited so the UI can surface a small badge.
     updateStateAndSync(prev => ({
       ...prev,
-      history: prev.history.map(h => h.id === entryId ? { ...h, ...data } : h),
+      history: prev.history.map(h => h.id === entryId ? { ...h, ...data, edited: true } : h),
     }));
   };
 
@@ -651,6 +644,19 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     }));
   };
 
+  // Confirm/unconfirm a plan's purchase. Confirming stamps `confirmedAt` to now so the plan's
+  // spent total counts toward that month's balance; unconfirming clears it and removes it again.
+  const toggleBudgetPlanConfirmed = (planId: string) => {
+    updateStateAndSync(prev => ({
+      ...prev,
+      budgetPlans: prev.budgetPlans.map(p => {
+        if (p.id !== planId) return p;
+        const confirmed = !p.confirmed;
+        return { ...p, confirmed, confirmedAt: confirmed ? new Date().toISOString() : undefined };
+      }),
+    }));
+  };
+
   const addUserTheme = useCallback((name: string, settings: Omit<ThemeSettings, 'backgroundImage' | 'backgroundVideo' | 'backgroundOpacity'>) => {
     updateStateAndSync(prev => ({
       ...prev,
@@ -736,6 +742,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     addBudgetItem,
     deleteBudgetItem,
     toggleBudgetItemPurchased,
+    toggleBudgetPlanConfirmed,
     setMonthlyIncome: (income: number) => updateStateAndSync(p => ({ ...p, monthlyIncome: income })),
     setUserProfile: (profile: UserProfile) => updateStateAndSync(p => ({ ...p, userProfile: profile })),
     setNotificationSettings: (settings: NotificationSettings) => updateStateAndSync(p => ({ ...p, notificationSettings: settings })),
