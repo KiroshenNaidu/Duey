@@ -8,6 +8,7 @@ import { calculateSealedMonthSummary } from '@/lib/calculations';
 import { syncDebtReminders } from '@/lib/debtReminders';
 import { systemPresets } from '@/lib/systemThemes';
 import { DEFAULT_RADIAL_FX_ID } from '@/lib/radialFx';
+import { DEFAULT_PAGE_TRANSITION_ID } from '@/lib/pageTransitions';
 import { DEFAULT_QUICK_SHORTCUTS, sanitizeShortcuts } from '@/lib/quickShortcuts';
 import { LoadingScreen } from '@/components/LoadingScreen';
 
@@ -59,6 +60,8 @@ function migrateState(raw: AppState): AppState {
     hiddenSystemPresets: raw.hiddenSystemPresets ?? [],
     quickAddFxId: raw.quickAddFxId ?? DEFAULT_RADIAL_FX_ID,
     quickAddShortcuts: sanitizeShortcuts(raw.quickAddShortcuts),
+    pageTransitionId: raw.pageTransitionId ?? DEFAULT_PAGE_TRANSITION_ID,
+    swipeActionsEnabled: raw.swipeActionsEnabled ?? true,
     schemaVersion: CURRENT_SCHEMA_VERSION,
   };
 }
@@ -114,6 +117,8 @@ const defaultState: AppState = {
   hiddenSystemPresets: [],
   quickAddFxId: DEFAULT_RADIAL_FX_ID,
   quickAddShortcuts: [...DEFAULT_QUICK_SHORTCUTS],
+  pageTransitionId: DEFAULT_PAGE_TRANSITION_ID,
+  swipeActionsEnabled: true,
 };
 
 type NavGuard = { onAttempt: (href: string) => void } | null;
@@ -168,6 +173,8 @@ interface AppContextType extends AppState {
   setHiddenSystemPresets: (names: string[]) => void;
   setQuickAddFxId: (id: string) => void;
   setQuickAddShortcuts: (ids: string[]) => void;
+  setPageTransitionId: (id: string) => void;
+  setSwipeActionsEnabled: (on: boolean) => void;
   importData: (data: AppData) => void;
   deleteHistoryEntry: (entryId: string) => void;
   updateHistoryEntry: (entryId: string, data: Partial<Pick<HistoryEntry, 'label' | 'note' | 'amount' | 'date'>>) => void;
@@ -222,6 +229,8 @@ export const AppDataContext = createContext<AppContextType>({
   setHiddenSystemPresets: () => {},
   setQuickAddFxId: () => {},
   setQuickAddShortcuts: () => {},
+  setPageTransitionId: () => {},
+  setSwipeActionsEnabled: () => {},
   importData: () => {},
   deleteHistoryEntry: () => {},
   updateHistoryEntry: () => {},
@@ -842,6 +851,8 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     setQuickAddFxId: (id: string) => updateStateAndSync(p => ({ ...p, quickAddFxId: id })),
     // sanitize enforces known ids, dedupe, and the 1–7 count bounds.
     setQuickAddShortcuts: (ids: string[]) => updateStateAndSync(p => ({ ...p, quickAddShortcuts: sanitizeShortcuts(ids) })),
+    setPageTransitionId: (id: string) => updateStateAndSync(p => ({ ...p, pageTransitionId: id })),
+    setSwipeActionsEnabled: (on: boolean) => updateStateAndSync(p => ({ ...p, swipeActionsEnabled: on })),
     deleteHistoryEntry,
     updateHistoryEntry,
     importData,

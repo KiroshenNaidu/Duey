@@ -3,9 +3,10 @@
 import { useContext, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
 import { FolderAccess } from '@/lib/folderAccess';
 import { usePathname, useRouter } from 'next/navigation';
-import { motion } from 'framer-motion';
+import { animate, motion, useMotionValue, useReducedMotion } from 'framer-motion';
 import { AppDataContext } from '@/context/AppDataContext';
 import { warmBackgroundChunks } from '@/lib/prefetch';
+import { pageProgress, getPageTransition, type PageTransitionPreset } from '@/lib/pageTransitions';
 import { MoneyPage } from '@/components/pages/MoneyPage';
 import { TransportPage } from '@/components/pages/TransportPage';
 import { StatsPage } from '@/components/pages/StatsPage';
@@ -28,17 +29,39 @@ const ROUTE_ORDER: Record<string, number> = {
 const ROUTES = ['/transport', '/', '/stats', '/settings'];
 const MAIN_ROUTES = new Set(ROUTES);
 
-const transition = {
-  type: 'tween' as const,
-  ease: [0.22, 1, 0.36, 1] as [number, number, number, number],
-  duration: 0.22,
-};
+// Swipe feel tuning — modeled on the platform pagers (UIScrollView / ViewPager2):
+// - release velocity is measured over the last ~90ms only, so pausing mid-drag kills
+//   the fling exactly like a native pager (a whole-gesture average gets this wrong),
+// - the commit decision PROJECTS ~180ms of that momentum past the finger: a slow drag
+//   needs half a page, a flick commits from almost anywhere,
+// - the settle is a velocity-seeded, critically-damped spring — motion continues
+//   seamlessly from the finger instead of restarting on a fixed duration curve,
+// - edge overshoot follows the iOS rubber-band curve (progressive resistance,
+//   asymptoting at half a page) instead of a linear damp.
+// stiffness 700 / damping 52 ≈ critically damped, settles in ~250ms — native-pager
+// pace. Softer values read as "floaty" and were reported as slow.
+const SETTLE_SPRING = { type: 'spring', stiffness: 700, damping: 52 } as const;
+const PROJECTION_MS = 180;     // momentum lookahead for the commit decision
+const COMMIT_FRACTION = 0.5;   // projected position past half a page → commit
+const VELOCITY_WINDOW_MS = 90; // trailing window for instantaneous release velocity
+const MIN_COMMIT_PX = 12;      // ignore micro-twitches regardless of projection
+const FLING_VELOCITY = 0.8;    // px/ms — a definite fling commits regardless of distance
+                               // (ViewPager's minimumFlingVelocity shortcut; projection
+                               // alone under-serves medium flicks over short distances)
+
+/** iOS-style rubber band in page-fraction units: f(0.5) ≈ 0.18, asymptote 0.5. */
+const rubberBand = (overshoot: number) => 0.5 * (1 - 1 / (overshoot * 1.1 + 1));
+
+// A page renders only while some part of it can be on screen (|idx − progress| < 1).
+const VISIBLE_RANGE = 0.999;
 
 function isInHorizontalScroller(el: EventTarget | null): boolean {
   let node = el as Element | null;
   while (node && node !== document.body) {
     const role = node.getAttribute('role');
     if (role === 'slider') return true; // Radix Slider thumb
+    // Swipeable list cards (SwipeableRow) own their horizontal gesture.
+    if (node.hasAttribute('data-swipe-row')) return true;
     // Radix Slider root carries data-orientation="horizontal" AND contains a slider thumb.
     // Match only that — NOT Radix Tabs root, which also has data-orientation="horizontal"
     // but no slider descendant (otherwise page-swipe is blocked over tab strips).
@@ -63,7 +86,8 @@ function isInDialog(el: EventTarget | null): boolean {
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { navGuard, pageSwipeLocked } = useContext(AppDataContext);
+  const { navGuard, pageSwipeLocked, pageTransitionId } = useContext(AppDataContext);
+  const reduceMotion = useReducedMotion();
 
   const pathnameRef = useRef(pathname);
   const navGuardRef = useRef(navGuard);
@@ -73,7 +97,40 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   pageSwipeLockedRef.current = pageSwipeLocked;
 
   const isMainRoute = MAIN_ROUTES.has(pathname);
-  const activeIdx = ROUTE_ORDER[pathname] ?? 1;
+  // On non-main routes (History), keep the LAST main index instead of falling back to
+  // Money — otherwise the carousel (and nav pill) would animate to Money behind
+  // History's back and slide visibly on return.
+  const idxFromPath: number | undefined = ROUTE_ORDER[pathname];
+  const lastMainIdxRef = useRef(idxFromPath ?? 1);
+  if (idxFromPath !== undefined) lastMainIdxRef.current = idxFromPath;
+  const activeIdx = idxFromPath ?? lastMainIdxRef.current;
+
+  // Under reduced motion the pages still track the finger (direct manipulation, not an
+  // animation), but the transition style stays a plain flat slide.
+  const preset = getPageTransition(reduceMotion ? 'slide' : pageTransitionId);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+
+  // Drive the shared carousel progress toward the active page. First sync jumps
+  // (no boot animation when deep-linking to /stats etc.); after that every route
+  // change — tab tap or committed swipe — settles there with the shared spring, so
+  // the pages and the BottomNav pill move as one unit from wherever they are.
+  const progressSyncedRef = useRef(false);
+  // A committed swipe starts its velocity-seeded settle BEFORE navigating; when the
+  // route change lands, this ref tells the sync effect the spring is already running
+  // so it must not restart it (that would drop the finger's momentum).
+  const pendingSettleRef = useRef<number | null>(null);
+  useLayoutEffect(() => {
+    if (!progressSyncedRef.current) {
+      progressSyncedRef.current = true;
+      pageProgress.jump(activeIdx);
+      return;
+    }
+    if (pendingSettleRef.current === activeIdx) {
+      pendingSettleRef.current = null;
+      return;
+    }
+    if (pageProgress.get() !== activeIdx) animate(pageProgress, activeIdx, SETTLE_SPRING);
+  }, [activeIdx]);
 
   // Reset scroll to top before paint on every route change (covers main tabs,
   // non-main routes like /history, and navigating back from them)
@@ -158,13 +215,17 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
-    const start = { x: 0, y: 0, time: 0 };
+    // start.progress is the carousel position at the moment the drag is classified —
+    // NOT the route index. Grabbing mid-settle therefore catches the pages exactly
+    // where they are (native-pager feel) instead of teleporting them to the route.
+    const start = { x: 0, y: 0, progress: 1, routeIdx: 1, width: 1 };
+    // Recent (time, x) samples for instantaneous release velocity.
+    const samples: { t: number; x: number }[] = [];
     let tracking: 'none' | 'h' | 'v' = 'none';
 
     const onStart = (e: TouchEvent) => {
       start.x = e.touches[0].clientX;
       start.y = e.touches[0].clientY;
-      start.time = Date.now();
       // Touches inside a modal dialog must never trigger page swipes
       tracking = isInDialog(e.target) ? 'v' : 'none';
     };
@@ -173,9 +234,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       if (tracking === 'v') return;
       const dx = e.touches[0].clientX - start.x;
       const dy = e.touches[0].clientY - start.y;
-      if (Math.abs(dx) < 4 && Math.abs(dy) < 4) return;
-
       if (tracking === 'none') {
+        if (Math.abs(dx) < 4 && Math.abs(dy) < 4) return;
         if (Math.abs(dy) > Math.abs(dx)) {
           tracking = 'v';
           return;
@@ -184,45 +244,113 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           tracking = 'v';
           return;
         }
+        // Guards that used to run at release now gate the LIVE drag: a sub-view (e.g.
+        // Theme menu) may own horizontal swipes, and non-main routes (History) never
+        // page-swipe. Bail before the pages ever move.
+        if (pageSwipeLockedRef.current || !MAIN_ROUTES.has(pathnameRef.current)) {
+          tracking = 'v';
+          return;
+        }
         tracking = 'h';
+        pageProgress.stop(); // take over from any running commit/cancel animation
+        start.progress = pageProgress.get();
+        start.routeIdx = ROUTE_ORDER[pathnameRef.current] ?? 1;
+        start.width = containerRef.current?.clientWidth || window.innerWidth;
+        samples.length = 0;
       }
+
+      samples.push({ t: Date.now(), x: e.touches[0].clientX });
+      if (samples.length > 8) samples.shift();
+
+      // Finger-following: progress = the position the finger implies right now,
+      // rubber-banded past the first/last page so the edges resist progressively.
+      let target = start.progress - dx / start.width;
+      const last = ROUTES.length - 1;
+      if (target < 0) target = -rubberBand(-target);
+      else if (target > last) target = last + rubberBand(target - last);
+      pageProgress.set(target);
     };
 
     const onEnd = (e: TouchEvent) => {
       if (tracking !== 'h') return;
       tracking = 'none';
 
-      // A sub-view (e.g. Theme menu) may own horizontal swipes for its own sub-tabs.
-      if (pageSwipeLockedRef.current) return;
+      const endX = e.changedTouches[0].clientX;
+      const endT = Date.now();
 
-      // Don't swipe-navigate when on a non-main route (e.g. History)
-      if (!MAIN_ROUTES.has(pathnameRef.current)) return;
+      // Instantaneous velocity: earliest sample inside the trailing window. Holding
+      // still before release leaves no fresh samples → 0 → the fling dies, exactly
+      // like a native pager (a whole-gesture average would wrongly keep it alive).
+      let vx = 0; // px/ms
+      for (const s of samples) {
+        const dt = endT - s.t;
+        if (dt <= VELOCITY_WINDOW_MS) {
+          if (dt > 0) vx = (endX - s.x) / dt;
+          break;
+        }
+      }
 
-      const dx = e.changedTouches[0].clientX - start.x;
-      const velocity = Math.abs(dx) / Math.max(Date.now() - start.time, 1);
-      const threshold = velocity > 0.4 ? 28 : 55;
-      if (Math.abs(dx) < threshold) return;
+      const dx = endX - start.x;
+      const currIdx = start.routeIdx;
+      // Project ~180ms of momentum past the finger, then commit if the projected
+      // position crossed half a page in either direction (clamped to one page/gesture).
+      const projected = start.progress - dx / start.width + (-vx / start.width) * PROJECTION_MS;
+      let nextIdx = currIdx;
+      if (Math.abs(dx) >= MIN_COMMIT_PX) {
+        // Fling checks require the velocity and the drag to agree on direction, so a
+        // drag-left-then-flick-right release reads as "throw it back", not a commit.
+        if (projected > currIdx + COMMIT_FRACTION || (vx < -FLING_VELOCITY && dx < 0)) nextIdx = currIdx + 1;
+        else if (projected < currIdx - COMMIT_FRACTION || (vx > FLING_VELOCITY && dx > 0)) nextIdx = currIdx - 1;
+      }
+      nextIdx = Math.max(0, Math.min(ROUTES.length - 1, nextIdx));
 
-      const currIdx = ROUTE_ORDER[pathnameRef.current] ?? 1;
-      const nextIdx = dx < 0 ? currIdx + 1 : currIdx - 1;
-      if (nextIdx < 0 || nextIdx >= ROUTES.length) return;
+      // Seed the settle spring with the finger's velocity (progress units/second) so
+      // the pages keep moving seamlessly from under the finger — no restart, no jump.
+      const progressVelocity = (-vx / start.width) * 1000;
+
+      if (nextIdx === currIdx) {
+        animate(pageProgress, currIdx, { ...SETTLE_SPRING, velocity: progressVelocity });
+        return;
+      }
+
+      if (navGuardRef.current) {
+        // The guard may veto (it shows its own dialog), so return the pages home now;
+        // if the user confirms, the route change animates the carousel from rest.
+        animate(pageProgress, currIdx, { ...SETTLE_SPRING, velocity: progressVelocity });
+        navGuardRef.current.onAttempt(ROUTES[nextIdx]);
+        return;
+      }
 
       // Reset scroll synchronously here so the incoming page is never seen at
       // a scroll position inherited from the page being swiped away from.
       // The useLayoutEffect below is a safety net for tab-tap navigation.
       document.querySelector('main')?.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
 
+      // Start the velocity-seeded settle BEFORE navigating and tell the progress-sync
+      // effect it's already running (pendingSettleRef) so it doesn't restart it.
+      pendingSettleRef.current = nextIdx;
+      animate(pageProgress, nextIdx, { ...SETTLE_SPRING, velocity: progressVelocity });
       navigate(ROUTES[nextIdx]);
+    };
+
+    // Android fires touchcancel when the WebView/browser steals the gesture (e.g. an
+    // incoming notification shade drag) — without this the pages would freeze mid-drag.
+    const onCancel = () => {
+      if (tracking !== 'h') return;
+      tracking = 'none';
+      animate(pageProgress, start.routeIdx, SETTLE_SPRING);
     };
 
     document.addEventListener('touchstart', onStart, { passive: true });
     document.addEventListener('touchmove', onMove, { passive: true });
     document.addEventListener('touchend', onEnd, { passive: true });
+    document.addEventListener('touchcancel', onCancel, { passive: true });
 
     return () => {
       document.removeEventListener('touchstart', onStart);
       document.removeEventListener('touchmove', onMove);
       document.removeEventListener('touchend', onEnd);
+      document.removeEventListener('touchcancel', onCancel);
     };
   }, [navigate]);
 
@@ -230,6 +358,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     <>
       {/* Always-mounted carousel — all 4 pages live in the DOM permanently */}
       <div
+        ref={containerRef}
         style={{
           position: 'relative',
           overflow: 'hidden',
@@ -238,26 +367,76 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         }}
       >
         {PAGES.map(({ href, Component }, i) => (
-          <motion.div
-            key={href}
-            animate={{ x: `${(i - activeIdx) * 100}%` }}
-            transition={transition}
-            style={{
-              position: i === activeIdx ? 'relative' : 'absolute',
-              top: 0,
-              left: 0,
-              width: '100%',
-              pointerEvents: i === activeIdx ? 'auto' : 'none',
-              visibility: i === activeIdx ? 'visible' : 'hidden',
-            }}
-          >
+          <CarouselPage key={href} index={i} active={i === activeIdx} preset={preset}>
             <Component />
-          </motion.div>
+          </CarouselPage>
         ))}
       </div>
 
       {/* Non-main routes (History, etc.) render children normally */}
       {!isMainRoute && children}
     </>
+  );
+}
+
+/**
+ * One always-mounted page of the carousel. Position/scale/opacity/rotation are all pure
+ * functions of the shared pageProgress MotionValue (see lib/pageTransitions.ts), applied
+ * per-frame OUTSIDE React — dragging never re-renders the pages. Only `active` (position
+ * relative vs absolute, pointer events) changes through React, on commit.
+ */
+function CarouselPage({ index, active, preset, children }: {
+  index: number;
+  active: boolean;
+  preset: PageTransitionPreset;
+  children: React.ReactNode;
+}) {
+  const first = preset.frame(index - pageProgress.get());
+  const x = useMotionValue<string>(first.x);
+  const scale = useMotionValue(first.scale);
+  const opacity = useMotionValue(first.opacity);
+  const rotateY = useMotionValue(first.rotateY);
+  const visibility = useMotionValue<'visible' | 'hidden'>(
+    Math.abs(index - pageProgress.get()) < VISIBLE_RANGE ? 'visible' : 'hidden'
+  );
+
+  useEffect(() => {
+    const update = (p: number) => {
+      const f = preset.frame(index - p);
+      x.set(f.x);
+      scale.set(f.scale);
+      opacity.set(f.opacity);
+      rotateY.set(f.rotateY);
+      visibility.set(Math.abs(index - p) < VISIBLE_RANGE ? 'visible' : 'hidden');
+    };
+    update(pageProgress.get()); // re-style immediately when the preset changes
+    return pageProgress.on('change', update);
+  }, [index, preset, x, scale, opacity, rotateY, visibility]);
+
+  return (
+    <motion.div
+      style={{
+        x,
+        scale,
+        opacity,
+        rotateY,
+        visibility,
+        // perspective() composes into this element's own transform — only 3D presets need it
+        transformPerspective: preset.threeD ? 1100 : undefined,
+        // Keep the pages permanently promoted to their own GPU layers: promoting them
+        // lazily at drag-start costs a visible first-frame hitch on Android WebViews.
+        willChange: 'transform',
+        position: active ? 'relative' : 'absolute',
+        top: 0,
+        left: 0,
+        width: '100%',
+        // Higher routes stack above lower ones so the parallax preset covers/uncovers
+        // correctly; harmless for the side-by-side presets (pages never overlap there).
+        zIndex: index,
+        pointerEvents: active ? 'auto' : 'none',
+      }}
+    >
+      {children}
+    </motion.div>
   );
 }

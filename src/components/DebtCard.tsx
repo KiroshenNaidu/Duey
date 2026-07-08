@@ -8,7 +8,8 @@ import { DebtSemiGauge } from '@/components/DebtSemiGauge';
 import { AppDataContext } from '@/context/AppDataContext';
 import { formatCurrency, cn, hslToHex } from '@/lib/utils';
 import type { Debt } from '@/lib/types';
-import { Pencil, Trash2, CalendarDays, CheckCircle2, XCircle, X, Archive } from 'lucide-react';
+import { Pencil, Trash2, CalendarDays, CheckCircle2, XCircle, X, Archive, CreditCard } from 'lucide-react';
+import { SwipeableRow } from '@/components/SwipeableRow';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import {
@@ -348,7 +349,23 @@ export function DebtCard({ debt }: DebtCardProps) {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Card */}
+      {/* Card — swipe left for Edit / Pay (or Archive when paid off) / Delete.
+          Handlers reuse the exact state the edit dialog's own buttons drive; the Pay
+          action opens the edit dialog first, then its nested payment sheet (the payment
+          dialog only exists inside the edit DialogContent), with the same settle delay
+          the dialog's internal transitions use. */}
+      <SwipeableRow
+        rightActions={[
+          { icon: Pencil, label: 'Edit', onAction: () => setIsDialogOpen(true) },
+          isPaidOff
+            ? { icon: Archive, label: 'Archive', tone: 'accent', onAction: () => setShowArchiveConfirm(true) }
+            : {
+                icon: CreditCard, label: 'Pay', tone: 'accent',
+                onAction: () => { setIsDialogOpen(true); setTimeout(openPaymentDialog, 180); },
+              },
+          { icon: Trash2, label: 'Delete', tone: 'destructive', onAction: () => setShowDeleteConfirm(true) },
+        ]}
+      >
       <Card className="overflow-hidden transition-all duration-300">
         <CardHeader>
           <div className="flex justify-between items-center gap-2">
@@ -727,6 +744,7 @@ export function DebtCard({ debt }: DebtCardProps) {
           </div>
         </CardContent>
       </Card>
+      </SwipeableRow>
     </>
   );
 }

@@ -2,10 +2,11 @@
 
 import { usePathname, useRouter } from 'next/navigation';
 import { Wallet, BarChart3, User, Car } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { motion, useTransform } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { useContext } from 'react';
 import { AppDataContext } from '@/context/AppDataContext';
+import { pageProgress } from '@/lib/pageTransitions';
 
 const navItems = [
   { href: '/transport', label: 'Transport', icon: Car },
@@ -13,14 +14,6 @@ const navItems = [
   { href: '/stats', label: 'Stats', icon: BarChart3 },
   { href: '/settings', label: 'Profile', icon: User },
 ];
-
-// Mirrors the page carousel transition in AppShell so the nav pill glides in
-// lockstep with the page as it swipes/animates between tabs.
-const transition = {
-  type: 'tween' as const,
-  ease: [0.22, 1, 0.36, 1] as [number, number, number, number],
-  duration: 0.22,
-};
 
 export function BottomNav() {
   const pathname = usePathname();
@@ -30,17 +23,20 @@ export function BottomNav() {
   const activeIdx = navItems.findIndex((item) => item.href === pathname);
   const onMainRoute = activeIdx >= 0;
 
+  // The pill is a pure function of the SAME live progress the page carousel runs on
+  // (AppShell writes it during drags and commit/cancel animations), so it glides under
+  // the finger in lockstep with the pages — including the rubber-band at the ends,
+  // which the clamp pins to the first/last tab.
+  const pillX = useTransform(pageProgress, (p) => `${Math.min(Math.max(p, 0), navItems.length - 1) * 100}%`);
+
   return (
     <nav className="fixed top-0 left-0 right-0 bg-card border-b border-border z-50 transition-colors duration-300" style={{ height: 'var(--top-nav-h)' }}>
       <div className="relative flex items-stretch h-full max-w-md mx-auto" style={{ paddingTop: 'var(--top-nav-pt)' }}>
-        {/* Sliding highlight — moves in sync with the page carousel */}
+        {/* Sliding highlight — driven by the live carousel progress, not route state */}
         {onMainRoute && (
           <motion.div
             className="absolute left-0 pointer-events-none"
-            style={{ width: `${100 / navItems.length}%`, top: 'var(--top-nav-pt)', bottom: 0 }}
-            initial={false}
-            animate={{ x: `${activeIdx * 100}%` }}
-            transition={transition}
+            style={{ width: `${100 / navItems.length}%`, top: 'var(--top-nav-pt)', bottom: 0, x: pillX }}
           >
             <span className="absolute inset-1.5 rounded-xl bg-primary/10" />
           </motion.div>

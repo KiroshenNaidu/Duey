@@ -44,6 +44,61 @@ export function AimSparkles({ count }: { count: number }) {
   );
 }
 
+// Shockwave rings that burst outward from an aimed radial item ("Shockwave" preset).
+// Two staggered rings loop while the aim is held. Rendered inside the item circle
+// (which is position:relative), so inset-0 hugs the button exactly. Like AimSparkles,
+// it must only ever live inside NON-exiting AnimatePresence children (the radial items
+// have no exit prop by design — see the QuickAdd comments).
+export function RippleBurst() {
+  const reduce = useReducedMotion();
+  if (reduce) return null;
+  return (
+    <>
+      {[0, 1].map(i => (
+        <motion.span
+          key={i}
+          className="absolute inset-0 rounded-full border-2 border-accent pointer-events-none"
+          initial={{ opacity: 0 }}
+          animate={{ scale: [1, 2.2], opacity: [0.7, 0] }}
+          transition={{ duration: 0.9, repeat: Infinity, delay: i * 0.45, ease: 'easeOut' }}
+        />
+      ))}
+    </>
+  );
+}
+
+// Sparks that stream DOWN the aim beam, from the finger end back toward the FAB centre
+// ("Comet" preset). Rendered inside the beam element itself: the beam is a rotated div
+// whose width = beam length, so `left` percentages travel along the beam no matter how
+// it is angled or how long it currently is. Deterministic offsets, self-looping.
+export function CometTrail() {
+  const reduce = useReducedMotion();
+  if (reduce) return null;
+  return (
+    <>
+      {[0, 1, 2, 3].map(i => {
+        const size = 4 - (i % 2);
+        return (
+          <motion.span
+            key={i}
+            className="absolute rounded-full bg-accent pointer-events-none"
+            style={{
+              width: size,
+              height: size,
+              top: '50%',
+              marginTop: -size / 2,
+              boxShadow: '0 0 6px 1px hsl(var(--accent) / 0.6)',
+            }}
+            initial={{ opacity: 0 }}
+            animate={{ left: ['96%', `${28 + i * 9}%`], opacity: [0.9, 0], scale: [1.1, 0.4] }}
+            transition={{ duration: 0.55 + i * 0.12, repeat: Infinity, delay: i * 0.11, ease: 'easeOut' }}
+          />
+        );
+      })}
+    </>
+  );
+}
+
 // Curved label that hugs the outer edge of a radial item's circle. The text SLOWLY ORBITS
 // its own button (each at a desynced pace/phase) and gently shimmers through the analogous
 // primary palette, cascading 1→2→3→4 like the budget gauge (see .radial-label-shimmer).

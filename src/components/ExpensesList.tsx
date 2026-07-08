@@ -13,6 +13,7 @@ import { Switch } from '@/components/ui/switch';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose, DialogDescription } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
 import { useFabLongPress, FAB_TOUCH_STYLE, FabPulse } from '@/components/QuickAdd';
+import { SwipeableRow } from '@/components/SwipeableRow';
 import { showUndoToast } from '@/components/ui/undo-toast';
 
 function AddExpenseDialog({ children }: { children: React.ReactNode }) {
@@ -238,6 +239,14 @@ function ExpenseRow({ expense, onDelete }: { expense: import('@/lib/types').Expe
 
   return (
     <>
+      {/* Swipe left → Edit / Delete tray; a full swipe deletes directly (undo toast
+          gives the 5s recovery window, same as the inline trash button). */}
+      <SwipeableRow
+        rightActions={[
+          { icon: Pencil, label: 'Edit', onAction: () => setEditOpen(true) },
+          { icon: Trash2, label: 'Delete', tone: 'destructive', onAction: () => onDelete(expense.id) },
+        ]}
+      >
       <Card>
         <CardContent className="p-3 flex items-center gap-3">
           <div className="flex-1 min-w-0">
@@ -269,6 +278,7 @@ function ExpenseRow({ expense, onDelete }: { expense: import('@/lib/types').Expe
           </div>
         </CardContent>
       </Card>
+      </SwipeableRow>
       <EditExpenseDialog expense={expense} open={editOpen} onClose={() => setEditOpen(false)} />
     </>
   );

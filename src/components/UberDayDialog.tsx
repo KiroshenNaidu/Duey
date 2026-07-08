@@ -16,6 +16,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { SwipeableRow } from '@/components/SwipeableRow';
 
 interface UberDayDialogProps {
   date: string; // ISO YYYY-MM-DD
@@ -67,24 +68,30 @@ export function UberDayDialog({ date, rides, open, onOpenChange }: UberDayDialog
         {rides.length > 0 && (
           <div className="space-y-1.5 max-h-40 overflow-y-auto">
             {rides.map(ride => (
-              <div key={ride.id} className="flex items-center justify-between gap-2 bg-muted/40 rounded-lg px-3 py-2">
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs font-semibold">{formatCurrency(ride.price)}</p>
-                  <p className="text-[10px] text-muted-foreground truncate">
-                    {ride.distance ? `${ride.distance} km` : ''}
-                    {ride.distance && (ride.from || ride.to) ? ' · ' : ''}
-                    {ride.from && ride.to ? `${ride.from} → ${ride.to}` : ride.from || ride.to || ''}
-                  </p>
+              // Swipe left → delete (same as the trash button; full swipe fires it too)
+              <SwipeableRow
+                key={ride.id}
+                rightActions={[{ icon: Trash2, label: 'Delete', tone: 'destructive', onAction: () => deleteUberRide(ride.id) }]}
+              >
+                <div className="flex items-center justify-between gap-2 bg-muted/40 rounded-lg px-3 py-2">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-semibold">{formatCurrency(ride.price)}</p>
+                    <p className="text-[10px] text-muted-foreground truncate">
+                      {ride.distance ? `${ride.distance} km` : ''}
+                      {ride.distance && (ride.from || ride.to) ? ' · ' : ''}
+                      {ride.from && ride.to ? `${ride.from} → ${ride.to}` : ride.from || ride.to || ''}
+                    </p>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 flex-shrink-0 text-destructive hover:text-destructive"
+                    onClick={() => deleteUberRide(ride.id)}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
                 </div>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-7 w-7 flex-shrink-0 text-destructive hover:text-destructive"
-                  onClick={() => deleteUberRide(ride.id)}
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </Button>
-              </div>
+              </SwipeableRow>
             ))}
           </div>
         )}

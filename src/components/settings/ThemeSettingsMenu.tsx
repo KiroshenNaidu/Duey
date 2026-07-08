@@ -4,6 +4,8 @@ import type { ThemeSettings, UserTheme } from '@/lib/types';
 import { systemPresets } from '@/lib/systemThemes';
 import { RadialFxDemo } from '@/components/settings/RadialFxDemo';
 import { QuickMenuConfig } from '@/components/settings/QuickMenuConfig';
+import { PageTransitionDemo } from '@/components/settings/PageTransitionDemo';
+import { Switch } from '@/components/ui/switch';
 import { STATUS_COLOR_VARS, applyStatusColors } from '@/components/ThemeProvider';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
@@ -119,6 +121,7 @@ export function ThemeSettingsMenu({ onCancel, onDirtyChange, onSaved }: { onCanc
     themeSettings, setThemeSettings, userThemes, addUserTheme, deleteUserTheme, setAppError,
     favouriteThemes, hiddenSystemPresets, setFavouriteThemes, setHiddenSystemPresets,
     quickAddFxId, setQuickAddFxId, quickAddShortcuts, setQuickAddShortcuts,
+    pageTransitionId, setPageTransitionId, swipeActionsEnabled, setSwipeActionsEnabled,
   } = useContext(AppDataContext);
 
   // Quick-add + preset drafts — same save-then-apply contract as the theme itself: edits
@@ -127,6 +130,8 @@ export function ThemeSettingsMenu({ onCancel, onDirtyChange, onSaved }: { onCanc
   const [draftShortcuts, setDraftShortcuts] = useState<string[]>([...quickAddShortcuts]);
   const [draftFavourites, setDraftFavourites] = useState<string[]>([...favouriteThemes]);
   const [draftHidden, setDraftHidden] = useState<string[]>([...hiddenSystemPresets]);
+  const [draftPageTransitionId, setDraftPageTransitionId] = useState(pageTransitionId);
+  const [draftSwipeActions, setDraftSwipeActions] = useState(swipeActionsEnabled);
 
   const toggleDraftFavourite = (id: string) =>
     setDraftFavourites(f => f.includes(id) ? f.filter(x => x !== id) : [...f, id]);
@@ -323,6 +328,8 @@ export function ThemeSettingsMenu({ onCancel, onDirtyChange, onSaved }: { onCanc
       // Quick-add + preset drafts commit together with the theme — never before.
       setQuickAddFxId(draftFxId);
       setQuickAddShortcuts(draftShortcuts);
+      setPageTransitionId(draftPageTransitionId);
+      setSwipeActionsEnabled(draftSwipeActions);
       // Hidden first (it prunes favourites for hidden presets), then favourites.
       setHiddenSystemPresets(draftHidden);
       setFavouriteThemes(draftFavourites);
@@ -362,10 +369,13 @@ export function ThemeSettingsMenu({ onCancel, onDirtyChange, onSaved }: { onCanc
       draftFxId !== quickAddFxId ||
       JSON.stringify(draftShortcuts) !== JSON.stringify(quickAddShortcuts) ||
       JSON.stringify(draftFavourites) !== JSON.stringify(favouriteThemes) ||
-      JSON.stringify(draftHidden) !== JSON.stringify(hiddenSystemPresets)
+      JSON.stringify(draftHidden) !== JSON.stringify(hiddenSystemPresets) ||
+      draftPageTransitionId !== pageTransitionId ||
+      draftSwipeActions !== swipeActionsEnabled
     );
   }, [previewTheme, draftFxId, quickAddFxId, draftShortcuts, quickAddShortcuts,
-      draftFavourites, favouriteThemes, draftHidden, hiddenSystemPresets]);
+      draftFavourites, favouriteThemes, draftHidden, hiddenSystemPresets,
+      draftPageTransitionId, pageTransitionId, draftSwipeActions, swipeActionsEnabled]);
 
   useEffect(() => { onDirtyChange?.(isDirty); }, [isDirty, onDirtyChange]);
 
@@ -799,6 +809,34 @@ export function ThemeSettingsMenu({ onCancel, onDirtyChange, onSaved }: { onCanc
             </CardHeader>
             <CardContent>
               <QuickMenuConfig value={draftShortcuts} onChange={setDraftShortcuts} />
+            </CardContent>
+          </Card>
+
+          {/* How the page carousel animates when swiping between the 4 main tabs */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm">Page Transition</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <PageTransitionDemo value={draftPageTransitionId} onChange={setDraftPageTransitionId} />
+            </CardContent>
+          </Card>
+
+          {/* Swipe-to-reveal action trays on list cards (SwipeableRow) */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm">Gestures</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center justify-between bg-muted/30 rounded-xl px-3 py-2.5">
+                <div className="flex-1 min-w-0 pr-3">
+                  <p className="text-xs font-semibold text-foreground">Swipe actions on cards</p>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">
+                    Swipe expenses, debts and rides left to reveal edit / pay / delete
+                  </p>
+                </div>
+                <Switch checked={draftSwipeActions} onCheckedChange={setDraftSwipeActions} />
+              </div>
             </CardContent>
           </Card>
         </div>

@@ -1,9 +1,10 @@
 'use client';
 
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, motion, useMotionValue } from 'framer-motion';
 import { RADIAL_FX_PRESETS, getRadialFx } from '@/lib/radialFx';
-import { AimSparkles } from '@/components/RadialAimFx';
+import { AimSparkles, RippleBurst, CometTrail } from '@/components/RadialAimFx';
+import { hapticTick } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
 import { Zap, CreditCard, Receipt, BadgeDollarSign, Car, Check } from 'lucide-react';
 
@@ -49,8 +50,14 @@ export function RadialFxDemo({ value, onChange }: {
   const [open, setOpen] = useState(false);
   const [hovered, setHovered] = useState<string | null>(null);
   const [flash, setFlash] = useState<string | null>(null); // item that was just "selected"
-  const [pointerPos, setPointerPos] = useState<{ x: number; y: number } | null>(null);
-  const [beam, setBeam] = useState<{ angleDeg: number; length: number } | null>(null);
+  // Ring + beam are MotionValue-driven, mirroring QuickAdd: pointermove writes styles
+  // directly instead of re-rendering the animated demo subtree on every move.
+  const ringX = useMotionValue(0);
+  const ringY = useMotionValue(0);
+  const ringOpacity = useMotionValue(0);
+  const beamLen = useMotionValue(0);
+  const beamRotate = useMotionValue(0);
+  const beamOpacity = useMotionValue(0);
   const hoveredRef = useRef<string | null>(null);
   const anchorRef = useRef<HTMLDivElement | null>(null);
   const boxRef = useRef<HTMLDivElement | null>(null);
@@ -62,9 +69,9 @@ export function RadialFxDemo({ value, onChange }: {
     setOpen(false);
     setHovered(null);
     hoveredRef.current = null;
-    setPointerPos(null);
-    setBeam(null);
-  }, []);
+    ringOpacity.set(0);
+    beamOpacity.set(0);
+  }, [ringOpacity, beamOpacity]);
 
   const startGesture = (e: React.PointerEvent) => {
     e.preventDefault();
@@ -88,14 +95,24 @@ export function RadialFxDemo({ value, onChange }: {
           const diff = angleDelta(angle, item.angleDeg);
           if (diff <= best) { aimed = item.id; best = diff; }
         }
-        if (fxRef.current.aimBeam) setBeam({ angleDeg: angle, length: Math.min(dist, DEMO_RADIUS - 14) });
+        if (fxRef.current.aimBeam) {
+          beamLen.set(Math.min(dist, DEMO_RADIUS - 14));
+          beamRotate.set(-angle);
+          beamOpacity.set(1);
+        }
       } else if (fxRef.current.aimBeam) {
-        setBeam(null);
+        beamOpacity.set(0);
       }
+      // Same selection haptic as the real menu, so the preset previews true to feel.
+      if (aimed && aimed !== hoveredRef.current) hapticTick();
       hoveredRef.current = aimed;
-      setHovered(aimed);
+      setHovered(aimed); // bails out when unchanged — no re-render per move
       // Ring position relative to the demo box (it renders inside the box, not fixed).
-      if (fxRef.current.pointerRing) setPointerPos({ x: ev.clientX - box.left, y: ev.clientY - box.top });
+      if (fxRef.current.pointerRing) {
+        ringX.set(ev.clientX - box.left - 18);
+        ringY.set(ev.clientY - box.top - 18);
+        ringOpacity.set(1);
+      }
     };
 
     const onUp = () => {
@@ -106,8 +123,8 @@ export function RadialFxDemo({ value, onChange }: {
         setFlash(target);
         setHovered(null);
         hoveredRef.current = null;
-        setPointerPos(null);
-        setBeam(null);
+        ringOpacity.set(0);
+        beamOpacity.set(0);
         flashTimer.current = setTimeout(() => { setFlash(null); setOpen(false); }, 650);
       } else {
         reset();
@@ -157,18 +174,21 @@ export function RadialFxDemo({ value, onChange }: {
 
         {/* Anchor point where the dummy FAB sits */}
         <div ref={anchorRef} className="absolute left-1/2 bottom-9 w-0 h-0">
-          {/* Beam sits OUTSIDE AnimatePresence (gated on its own state) so it clears the
-              instant you release — never frozen into the items' fold-back exit snapshot. */}
-          {open && fx.aimBeam && beam && (
-            <div
+          {/* Beam sits OUTSIDE AnimatePresence and follows the pointer via MotionValues
+              (opacity zeroed synchronously on release) so it clears the instant you let
+              go — never frozen into the items' fold-back exit snapshot. */}
+          {open && fx.aimBeam && (
+            <motion.div
               className="absolute pointer-events-none rounded-full"
               style={{
-                left: 0, top: 0, width: beam.length, height: fx.beamWidth,
-                transform: `rotate(${-beam.angleDeg}deg)`, transformOrigin: '0 50%',
+                left: 0, top: 0, width: beamLen, height: fx.beamWidth,
+                rotate: beamRotate, opacity: beamOpacity, transformOrigin: '0 50%',
                 background: 'linear-gradient(90deg, hsl(var(--accent) / 0), hsl(var(--accent) / 0.9) 55%, hsl(var(--accent) / 0))',
                 filter: 'drop-shadow(0 0 6px hsl(var(--accent) / 0.45))',
               }}
-            />
+            >
+              {fx.cometTrail && <CometTrail />}
+            </motion.div>
           )}
           {/* Items array = valid keyed AnimatePresence children (no Fragment wrapper). */}
           <AnimatePresence>
@@ -185,9 +205,9 @@ export function RadialFxDemo({ value, onChange }: {
                       animate={{ x: item.x, y: item.y, scale: 1, opacity: somethingAimed && !isAimed ? fx.dimOthers : 1 }}
                       exit={{ x: 0, y: 0, scale: 0.2, opacity: 0 }}
                       transition={{
-                        x: { type: 'spring', stiffness: 420, damping: 26, delay: i * 0.045 },
-                        y: { type: 'spring', stiffness: 420, damping: 26, delay: i * 0.045 },
-                        scale: { type: 'spring', stiffness: 420, damping: 26, delay: i * 0.045 },
+                        x: { type: 'spring', ...(fx.elasticFan ? { stiffness: 500, damping: 15 } : { stiffness: 550, damping: 30 }), delay: i * 0.028 },
+                        y: { type: 'spring', ...(fx.elasticFan ? { stiffness: 500, damping: 15 } : { stiffness: 550, damping: 30 }), delay: i * 0.028 },
+                        scale: { type: 'spring', ...(fx.elasticFan ? { stiffness: 500, damping: 15 } : { stiffness: 550, damping: 30 }), delay: i * 0.028 },
                         opacity: { duration: 0.12 },
                       }}
                       className="absolute"
@@ -214,6 +234,7 @@ export function RadialFxDemo({ value, onChange }: {
                       >
                         {isFlash ? <Check className="h-4 w-4" /> : <item.icon className="h-4 w-4" />}
                         {isAimed && <AimSparkles count={fx.sparkles} />}
+                        {isAimed && fx.rippleBurst && <RippleBurst />}
                       </motion.span>
                     </motion.div>
                   );
@@ -232,23 +253,21 @@ export function RadialFxDemo({ value, onChange }: {
           </button>
         </div>
 
-        {/* Finger ring, positioned inside the demo box */}
-        <AnimatePresence>
-          {fx.pointerRing && pointerPos && (
-            <motion.div
-              initial={{ scale: 0.5, opacity: 0 }}
-              animate={fx.ringPulse ? { scale: [1, 1.18, 1], opacity: 1 } : { scale: 1, opacity: 1 }}
-              transition={fx.ringPulse ? { scale: { duration: 0.9, repeat: Infinity, ease: 'easeInOut' } } : undefined}
-              exit={{ scale: 0.5, opacity: 0 }}
-              className="absolute pointer-events-none h-9 w-9 rounded-full border-2 border-accent/70"
-              style={{
-                left: pointerPos.x - 18,
-                top: pointerPos.y - 18,
-                boxShadow: '0 0 12px 2px hsl(var(--accent) / 0.35)',
-              }}
-            />
-          )}
-        </AnimatePresence>
+        {/* Finger ring, positioned inside the demo box — MotionValue-driven like the
+            real menu, so dragging in the demo never re-renders it per move. */}
+        {open && fx.pointerRing && (
+          <motion.div
+            animate={fx.ringPulse ? { scale: [1, 1.18, 1] } : { scale: 1 }}
+            transition={fx.ringPulse ? { scale: { duration: 0.9, repeat: Infinity, ease: 'easeInOut' } } : undefined}
+            className="absolute left-0 top-0 pointer-events-none h-9 w-9 rounded-full border-2 border-accent/70"
+            style={{
+              x: ringX,
+              y: ringY,
+              opacity: ringOpacity,
+              boxShadow: '0 0 12px 2px hsl(var(--accent) / 0.35)',
+            }}
+          />
+        )}
       </div>
     </div>
   );

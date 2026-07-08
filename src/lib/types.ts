@@ -204,6 +204,10 @@ export interface AppState {
   /** Ordered shortcut ids shown in the quick-add radial (see lib/quickShortcuts.ts).
    *  Order = position along the arc. Min 1, max 7 (enforced in AppDataContext). */
   quickAddShortcuts: string[];
+  /** Selected page-swipe transition preset (see lib/pageTransitions.ts). */
+  pageTransitionId: string;
+  /** Swipe-to-reveal action trays on list cards (see components/SwipeableRow.tsx). */
+  swipeActionsEnabled: boolean;
 }
 
 export interface DayNightSettings {

@@ -411,14 +411,18 @@ nav.fixed,
    app root with a real element filter instead of backdrop-filter on the overlay.
    backdrop-filter sampled page layers inconsistently (page titles stayed readable while
    card text went mushy); a filter on the content itself blurs every layer identically.
-   Overlays portal to <body>, outside #app-root, so they stay sharp. */
+   Overlays portal to <body>, outside #app-root, so they stay sharp.
+   PERF: every frame of the transition re-rasterizes the whole app through the filter —
+   on Android WebView this competed with the radial's fan-out springs and made opening
+   feel laggy. Keep the transition SHORT and the radius modest (visually equivalent
+   under the dark backdrop that always sits on top). */
 #app-root,
 .fab-blurable {
-  transition: filter 0.18s ease;
+  transition: filter 0.12s ease-out;
 }
 body.overlay-blur #app-root,
 body.overlay-blur .fab-blurable {
-  filter: blur(10px);
+  filter: blur(8px);
 }
 /* .fab-blurable: for position:fixed elements portaled OUTSIDE #app-root (FixedPortal
    FABs, the quick-add FAB) so they blur in step with the app instead of floating

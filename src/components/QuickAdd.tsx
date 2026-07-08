@@ -4,7 +4,7 @@ import { useContext, useEffect, useState, useRef, useCallback, useMemo } from 'r
 import { usePathname, useRouter } from 'next/navigation';
 import type { AppRouterInstance } from 'next/dist/shared/lib/app-router-context.shared-runtime';
 import { format, startOfDay } from 'date-fns';
-import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
+import { AnimatePresence, motion, useMotionValue, useReducedMotion } from 'framer-motion';
 import { AppDataContext } from '@/context/AppDataContext';
 import { formatCurrency, cn } from '@/lib/utils';
 import { calculateTransportMonth, isTransportPaidForMonth } from '@/lib/calculations';
@@ -14,8 +14,9 @@ import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Zap, X, Check } from 'lucide-react';
 import { acquireOverlayBlur, releaseOverlayBlur } from '@/lib/overlayBlur';
+import { hapticTick } from '@/lib/haptics';
 import { getRadialFx } from '@/lib/radialFx';
-import { AimSparkles, CurvedLabel } from '@/components/RadialAimFx';
+import { AimSparkles, CurvedLabel, RippleBurst, CometTrail } from '@/components/RadialAimFx';
 import { getShortcut, type QuickShortcut } from '@/lib/quickShortcuts';
 
 // Global quick-add: log a debt payment, expense, extra income or Uber ride from anywhere.
@@ -172,12 +173,20 @@ export function QuickAdd() {
   radialRef.current = radial;
 
   // ── Flick/slide-to-select gesture state ──
-  // hoveredId: item currently aimed at while the finger is down; pointerPos feeds the
-  // finger-following ring; beam is the centre→finger aim indicator. Refs mirror state
-  // for the window-level listeners.
+  // hoveredId: item currently aimed at while the finger is down — real state because it
+  // drives conditional renders, but it only changes when the aim crosses a sector edge.
+  // The finger ring and aim beam are MotionValue-driven: pointermove writes their
+  // styles straight on the compositor path with ZERO React re-renders. (The old
+  // per-move setState re-rendered the whole animated radial subtree on every move —
+  // that was the radial's lag on Android.) gestureOn just mounts them per gesture.
   const [hoveredId, setHoveredId] = useState<string | null>(null);
-  const [pointerPos, setPointerPos] = useState<{ x: number; y: number } | null>(null);
-  const [beam, setBeam] = useState<{ angleDeg: number; length: number } | null>(null);
+  const [gestureOn, setGestureOn] = useState(false);
+  const ringX = useMotionValue(0);
+  const ringY = useMotionValue(0);
+  const ringOpacity = useMotionValue(0);
+  const beamLen = useMotionValue(0);
+  const beamRotate = useMotionValue(0);
+  const beamOpacity = useMotionValue(0);
   const hoveredRef = useRef<string | null>(null);
   const pendingGestureRef = useRef(false);
   const anchorRef = useRef<HTMLDivElement | null>(null);
@@ -203,23 +212,30 @@ export function QuickAdd() {
     setRadialOpen(false);
     setHoveredId(null);
     hoveredRef.current = null;
-    setPointerPos(null);
-    setBeam(null);
+    setGestureOn(false);
+    ringOpacity.set(0);
+    beamOpacity.set(0);
     // Nav shortcuts open a tool / navigate instead of opening a logging form.
     if (getShortcut(id)?.kind === 'nav') {
       runNavShortcut(id, router);
       return;
     }
     setAction(id);
-  }, [router]);
+  }, [router, ringOpacity, beamOpacity]);
 
   const closeRadial = useCallback(() => {
     setRadialOpen(false);
     setHoveredId(null);
     hoveredRef.current = null;
-    setPointerPos(null);
-    setBeam(null);
-  }, []);
+    setGestureOn(false);
+    ringOpacity.set(0);
+    beamOpacity.set(0);
+  }, [ringOpacity, beamOpacity]);
+
+  // Fan-out spring: the Elastic preset overshoots and settles; everything else is snappy.
+  const fanSpring = fx.elasticFan
+    ? { stiffness: 500, damping: 15 }
+    : { stiffness: 550, damping: 30 };
 
   // Gesture engine: while the opening pointer is still down, track it globally.
   // Selection is DIRECTIONAL — once the finger leaves the AIM_MIN_DIST dead-zone, the
@@ -229,12 +245,14 @@ export function QuickAdd() {
   useEffect(() => {
     if (!radialOpen || !pendingGestureRef.current) return;
     pendingGestureRef.current = false;
+    setGestureOn(true);
 
     const endVisuals = () => {
       setHoveredId(null);
       hoveredRef.current = null;
-      setPointerPos(null);
-      setBeam(null);
+      setGestureOn(false);
+      ringOpacity.set(0);
+      beamOpacity.set(0);
     };
 
     const onMove = (e: PointerEvent) => {
@@ -255,14 +273,25 @@ export function QuickAdd() {
           const diff = angleDelta(angle, item.angleDeg);
           if (diff <= best) { aimed = item.id; best = diff; }
         }
-        if (fxRef.current.aimBeam) setBeam({ angleDeg: angle, length: Math.min(dist, radialRef.current.radius - 18) });
+        if (fxRef.current.aimBeam) {
+          beamLen.set(Math.min(dist, radialRef.current.radius - 18));
+          beamRotate.set(-angle);
+          beamOpacity.set(1);
+        }
       } else if (fxRef.current.aimBeam) {
-        setBeam(null);
+        beamOpacity.set(0);
       }
 
+      // Selection-style haptic when the aim lands on a (new) item — standard for
+      // radial/hold-select controls; no tick when the aim merely clears.
+      if (aimed && aimed !== hoveredRef.current) hapticTick();
       hoveredRef.current = aimed;
-      setHoveredId(aimed);
-      if (fxRef.current.pointerRing) setPointerPos({ x: e.clientX, y: e.clientY });
+      setHoveredId(aimed); // bails out when unchanged — no re-render per move
+      if (fxRef.current.pointerRing) {
+        ringX.set(e.clientX - 20);
+        ringY.set(e.clientY - 20);
+        ringOpacity.set(1);
+      }
     };
 
     const onUp = () => {
@@ -284,7 +313,7 @@ export function QuickAdd() {
     window.addEventListener('pointerup', onUp);
     window.addEventListener('pointercancel', onCancel);
     return cleanup;
-  }, [radialOpen, pick]);
+  }, [radialOpen, pick, ringX, ringY, ringOpacity, beamLen, beamRotate, beamOpacity]);
 
   return (
     <>
@@ -358,9 +387,9 @@ export function QuickAdd() {
                     // that lingering invisible backdrop was the app-freeze bug.
                     // Stagger only the fly-out (x/y); opacity reacts instantly.
                     transition={{
-                      x: { type: 'spring', stiffness: 420, damping: 26, delay: i * 0.045 },
-                      y: { type: 'spring', stiffness: 420, damping: 26, delay: i * 0.045 },
-                      scale: { type: 'spring', stiffness: 420, damping: 26, delay: i * 0.045 },
+                      x: { type: 'spring', ...fanSpring, delay: i * 0.028 },
+                      y: { type: 'spring', ...fanSpring, delay: i * 0.028 },
+                      scale: { type: 'spring', ...fanSpring, delay: i * 0.028 },
                       opacity: { duration: 0.12 },
                     }}
                     className="absolute"
@@ -391,6 +420,7 @@ export function QuickAdd() {
                       >
                         <a.icon className="h-5 w-5" />
                         {isAimed && <AimSparkles count={fx.sparkles} />}
+                        {isAimed && fx.rippleBurst && <RippleBurst />}
                       </span>
                       {/* Label curves around the button, slowly orbiting + shimmering (primary) */}
                       <CurvedLabel id={a.id} index={i} text={a.label} />
@@ -404,7 +434,7 @@ export function QuickAdd() {
                 onClick={closeRadial}
                 initial={{ rotate: -90, scale: 0.6, opacity: 0 }}
                 animate={{ rotate: 0, scale: 1, opacity: 1 }}
-                transition={{ type: 'spring', stiffness: 380, damping: 24 }}
+                transition={{ type: 'spring', stiffness: 520, damping: 30 }}
                 className="absolute h-12 w-12 rounded-full bg-primary text-primary-foreground shadow-lg flex items-center justify-center"
                 style={{ left: 0, top: 0, translateX: '-50%', translateY: '-50%' }}
                 aria-label="Close quick add"
@@ -416,36 +446,42 @@ export function QuickAdd() {
         )}
       </AnimatePresence>
 
-      {/* Aim beam + finger ring render OUTSIDE the radial container, gated purely on their
-          own state (nulled synchronously on select/close). Keeping them out of the
-          AnimatePresence subtree means they disappear the instant you select — they can't
-          be frozen into the backdrop's exit snapshot (the "line lingers after selecting" bug). */}
-      {radialOpen && fx.aimBeam && beam && (
+      {/* Aim beam + finger ring render OUTSIDE the radial container and follow the
+          pointer through MotionValues — zero React re-renders while aiming. Their
+          opacity MVs are zeroed synchronously on select/close so they can never be
+          frozen into the backdrop's exit snapshot (the "line lingers after selecting"
+          bug), and staying out of AnimatePresence keeps that guarantee. */}
+      {radialOpen && gestureOn && fx.aimBeam && (
         <div className="fixed left-1/2 z-[73] w-0 h-0 pointer-events-none" style={{ bottom: 'calc(34px + var(--sab))' }}>
-          <div
+          <motion.div
             className="absolute rounded-full"
             style={{
               left: 0,
               top: 0,
-              width: beam.length,
+              width: beamLen,
               height: fx.beamWidth,
-              transform: `rotate(${-beam.angleDeg}deg)`,
+              rotate: beamRotate,
+              opacity: beamOpacity,
               transformOrigin: '0 50%',
               // Fade out at BOTH ends so the tip dissolves instead of a harsh cutoff.
               background: 'linear-gradient(90deg, hsl(var(--accent) / 0), hsl(var(--accent) / 0.9) 55%, hsl(var(--accent) / 0))',
               filter: 'drop-shadow(0 0 6px hsl(var(--accent) / 0.45))',
             }}
-          />
+          >
+            {/* Comet preset: sparks stream down the beam toward the FAB centre */}
+            {fx.cometTrail && <CometTrail />}
+          </motion.div>
         </div>
       )}
-      {radialOpen && fx.pointerRing && pointerPos && (
+      {radialOpen && gestureOn && fx.pointerRing && (
         <motion.div
           animate={fx.ringPulse ? { scale: [1, 1.18, 1] } : { scale: 1 }}
           transition={fx.ringPulse ? { scale: { duration: 0.9, repeat: Infinity, ease: 'easeInOut' } } : undefined}
-          className="fixed z-[74] pointer-events-none h-10 w-10 rounded-full border-2 border-accent/70"
+          className="fixed left-0 top-0 z-[74] pointer-events-none h-10 w-10 rounded-full border-2 border-accent/70"
           style={{
-            left: pointerPos.x - 20,
-            top: pointerPos.y - 20,
+            x: ringX,
+            y: ringY,
+            opacity: ringOpacity,
             boxShadow: '0 0 12px 2px hsl(var(--accent) / 0.35)',
           }}
         />
