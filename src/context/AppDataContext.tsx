@@ -284,6 +284,9 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
               amount: Math.abs(s.remaining),
               type: 'snapshot',
               note: `Income: ${Math.round(s.income)} | Outgoings: ${Math.round(s.totalOutgoings)} | ${s.remaining >= 0 ? 'Surplus' : 'Deficit'}: ${Math.round(Math.abs(s.remaining))}`,
+              // Persist the exact sealed breakdown so the History detail sheet never drifts
+              // once one-time extras/expenses are purged (recompute is only a fallback).
+              snapshot: s,
             });
             cursor = add(cursor, { months: 1 });
           }

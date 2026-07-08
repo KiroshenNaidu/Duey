@@ -1550,8 +1550,11 @@ export default function HistoryPage() {
           {snapshotEntry && (() => {
             const monthKey = format(new Date(snapshotEntry.date), 'yyyy-MM');
             const monthLabel = format(new Date(snapshotEntry.date), 'MMMM yyyy');
-            // Recomputed live from month-dated stored data — same math that sealed the month.
-            const s = calculateSealedMonthSummary(
+            // Prefer the exact figures captured when the month was sealed. Only fall back to
+            // a live recompute for older snapshots saved before the breakdown was persisted —
+            // recomputing drifts once one-time extra incomes/expenses have been purged.
+            const recomputed = !snapshotEntry.snapshot;
+            const s = snapshotEntry.snapshot ?? calculateSealedMonthSummary(
               { monthlyIncome, extraIncomes, expenses, budgetPlans, history, uberRides, transportSettings, transportOverrides, transportMonthlyOverrides },
               monthKey,
             );
@@ -1585,9 +1588,11 @@ export default function HistoryPage() {
                       {formatCurrency(Math.abs(s.remaining))}
                     </span>
                   </div>
-                  <p className="text-[10px] text-muted-foreground/60 pt-2">
-                    Recomputed from this month&apos;s stored entries. Salary uses your current monthly income.
-                  </p>
+                  {recomputed && (
+                    <p className="text-[10px] text-muted-foreground/60 pt-2">
+                      Recomputed from this month&apos;s stored entries. Salary uses your current monthly income.
+                    </p>
+                  )}
                 </div>
               </>
             );

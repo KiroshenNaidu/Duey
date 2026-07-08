@@ -37,6 +37,20 @@ export interface HistoryEntry {
   note?: string;
   label?: string; // user-defined display label, e.g. "Interest", "Penalty Fee"
   edited?: boolean; // true once the user has manually edited this entry (amount/date/label/note)
+  // Full sealed month breakdown, captured at seal time (type 'snapshot' only) so the
+  // History → snapshot breakdown shows the exact figures that were sealed. Recomputing
+  // later drifts once one-time extra incomes are purged, so we persist them here. Older
+  // snapshots created before this field existed have no value → the sheet recomputes.
+  snapshot?: {
+    income: number;
+    transport: number;
+    uber: number;
+    debt: number;
+    expenses: number;
+    budget: number;
+    totalOutgoings: number;
+    remaining: number;
+  };
 }
 
 export interface TransportSettings {
