@@ -1,6 +1,9 @@
 'use client';
 import { useState, useEffect, useRef, useContext, useMemo, useCallback } from 'react';
 import type { ThemeSettings, UserTheme } from '@/lib/types';
+import { systemPresets } from '@/lib/systemThemes';
+import { RadialFxDemo } from '@/components/settings/RadialFxDemo';
+import { QuickMenuConfig } from '@/components/settings/QuickMenuConfig';
 import { STATUS_COLOR_VARS, applyStatusColors } from '@/components/ThemeProvider';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
@@ -9,7 +12,7 @@ import { Slider } from '@/components/ui/slider';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { hexToHsl, hslToHex, idbGet, idbSet, cn } from '@/lib/utils';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Upload, Loader2, Trash2, Check, Plus, Minus, ShieldCheck } from 'lucide-react';
+import { Upload, Loader2, Trash2, Check, Plus, Minus, ShieldCheck, Star, RotateCcw } from 'lucide-react';
 import { AppDataContext } from '@/context/AppDataContext';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
@@ -85,213 +88,6 @@ const defaultThemeSettings: Omit<ThemeSettings, 'backgroundImage' | 'backgroundV
   catSnapshot: '199 89% 62%',
 };
 
-const systemPresets: Omit<UserTheme, 'id'>[] = [
-  {
-    name: 'Duey',
-    settings: {
-      background: '240 6% 7%', surface: '240 4% 11%',
-      primary: '96 65% 64%', accent: '103 77% 59%',
-      foreground: '60 8% 95%', accentForeground: '240 3% 62%',
-      font: 'Inter', uiScale: 1.0, uiStyle: 'solid',
-      positive: '161 50% 57%', negative: '0 70% 62%',
-      catTransport: '217 91% 68%', catBudget: '0 70% 62%',
-      catExpense: '25 95% 53%', catCompletion: '43 96% 70%',
-      catEmployment: '173 80% 74%', catSnapshot: '199 89% 62%',
-    },
-  },
-  {
-    name: 'Noir',
-    settings: {
-      background: '0 0% 7%', surface: '0 0% 12%',
-      primary: '0 0% 88%', accent: '0 0% 72%',
-      foreground: '0 0% 98%', accentForeground: '0 0% 65%',
-      font: 'Inter', uiScale: 1.0, uiStyle: 'solid',
-      positive: '0 0% 82%', negative: '0 0% 52%',
-      catTransport: '0 0% 68%', catBudget: '0 0% 74%', catExpense: '0 0% 60%',
-      catCompletion: '0 0% 88%', catEmployment: '0 0% 70%', catSnapshot: '0 0% 78%',
-    },
-  },
-  {
-    name: 'Crimson',
-    settings: {
-      background: '0 12% 6%', surface: '0 10% 10%',
-      primary: '0 72% 62%', accent: '15 80% 60%',
-      foreground: '0 10% 95%', accentForeground: '0 5% 60%',
-      font: 'Inter', uiScale: 1.0, uiStyle: 'solid',
-      positive: '161 50% 57%', negative: '0 70% 62%',
-      catTransport: '217 91% 68%', catBudget: '0 70% 62%', catExpense: '25 95% 53%',
-      catCompletion: '43 96% 70%', catEmployment: '173 80% 74%', catSnapshot: '199 89% 62%',
-    },
-  },
-  {
-    name: 'Ocean',
-    settings: {
-      background: '220 28% 7%', surface: '220 22% 11%',
-      primary: '199 80% 60%', accent: '212 85% 65%',
-      foreground: '210 10% 95%', accentForeground: '210 8% 62%',
-      font: 'Inter', uiScale: 1.0, uiStyle: 'solid',
-      positive: '161 50% 57%', negative: '0 70% 62%',
-      catTransport: '199 80% 60%', catBudget: '0 70% 62%', catExpense: '25 95% 53%',
-      catCompletion: '43 96% 70%', catEmployment: '173 80% 74%', catSnapshot: '199 89% 62%',
-    },
-  },
-  {
-    name: 'Amber',
-    settings: {
-      background: '30 14% 6%', surface: '30 11% 10%',
-      primary: '38 90% 60%', accent: '28 92% 58%',
-      foreground: '35 10% 96%', accentForeground: '30 6% 62%',
-      font: 'Inter', uiScale: 1.0, uiStyle: 'solid',
-      positive: '161 50% 57%', negative: '0 70% 62%',
-      catTransport: '217 91% 68%', catBudget: '0 70% 62%', catExpense: '38 90% 60%',
-      catCompletion: '43 96% 70%', catEmployment: '173 80% 74%', catSnapshot: '199 89% 62%',
-    },
-  },
-  {
-    name: 'Violet',
-    settings: {
-      background: '268 18% 7%', surface: '268 14% 11%',
-      primary: '268 65% 70%', accent: '285 68% 67%',
-      foreground: '270 10% 95%', accentForeground: '268 6% 62%',
-      font: 'Inter', uiScale: 1.0, uiStyle: 'solid',
-      positive: '161 50% 57%', negative: '0 70% 62%',
-      catTransport: '217 91% 68%', catBudget: '0 70% 62%', catExpense: '25 95% 53%',
-      catCompletion: '43 96% 70%', catEmployment: '268 65% 70%', catSnapshot: '199 89% 62%',
-    },
-  },
-  {
-    name: 'Slate',
-    settings: {
-      background: '215 22% 7%', surface: '215 18% 11%',
-      primary: '213 62% 65%', accent: '220 65% 68%',
-      foreground: '215 10% 96%', accentForeground: '215 7% 62%',
-      font: 'Inter', uiScale: 1.0, uiStyle: 'solid',
-      positive: '161 50% 57%', negative: '0 70% 62%',
-      catTransport: '213 62% 65%', catBudget: '0 70% 62%', catExpense: '25 95% 53%',
-      catCompletion: '43 96% 70%', catEmployment: '173 80% 74%', catSnapshot: '199 89% 62%',
-    },
-  },
-  {
-    name: 'Rose',
-    settings: {
-      background: '338 14% 6%', surface: '338 11% 10%',
-      primary: '338 62% 65%', accent: '320 65% 62%',
-      foreground: '338 10% 95%', accentForeground: '338 5% 62%',
-      font: 'Inter', uiScale: 1.0, uiStyle: 'solid',
-      positive: '161 50% 57%', negative: '338 62% 65%',
-      catTransport: '217 91% 68%', catBudget: '338 62% 65%', catExpense: '25 95% 53%',
-      catCompletion: '43 96% 70%', catEmployment: '173 80% 74%', catSnapshot: '199 89% 62%',
-    },
-  },
-  {
-    name: 'Jade',
-    settings: {
-      background: '168 20% 6%', surface: '168 16% 10%',
-      primary: '158 52% 58%', accent: '172 56% 55%',
-      foreground: '160 8% 95%', accentForeground: '165 6% 62%',
-      font: 'Inter', uiScale: 1.0, uiStyle: 'solid',
-      positive: '158 52% 58%', negative: '0 70% 62%',
-      catTransport: '217 91% 68%', catBudget: '0 70% 62%', catExpense: '25 95% 53%',
-      catCompletion: '43 96% 70%', catEmployment: '172 56% 55%', catSnapshot: '199 89% 62%',
-    },
-  },
-  {
-    name: 'Solar',
-    settings: {
-      background: '42 16% 6%', surface: '42 12% 10%',
-      primary: '44 88% 62%', accent: '38 88% 58%',
-      foreground: '44 10% 96%', accentForeground: '44 8% 62%',
-      font: 'Inter', uiScale: 1.0, uiStyle: 'solid',
-      positive: '161 50% 57%', negative: '0 70% 62%',
-      catTransport: '217 91% 68%', catBudget: '0 70% 62%', catExpense: '44 88% 62%',
-      catCompletion: '43 96% 70%', catEmployment: '173 80% 74%', catSnapshot: '199 89% 62%',
-    },
-  },
-  {
-    name: 'Copper',
-    settings: {
-      background: '22 16% 6%', surface: '22 13% 10%',
-      primary: '22 70% 58%', accent: '32 72% 56%',
-      foreground: '22 10% 95%', accentForeground: '22 6% 62%',
-      font: 'Inter', uiScale: 1.0, uiStyle: 'solid',
-      positive: '161 50% 57%', negative: '0 70% 62%',
-      catTransport: '217 91% 68%', catBudget: '0 70% 62%', catExpense: '22 70% 58%',
-      catCompletion: '43 96% 70%', catEmployment: '173 80% 74%', catSnapshot: '199 89% 62%',
-    },
-  },
-  {
-    name: 'Midnight',
-    settings: {
-      background: '240 32% 5%', surface: '240 26% 9%',
-      primary: '240 60% 70%', accent: '255 62% 72%',
-      foreground: '240 10% 96%', accentForeground: '240 8% 62%',
-      font: 'Inter', uiScale: 1.0, uiStyle: 'solid',
-      positive: '161 50% 57%', negative: '0 70% 62%',
-      catTransport: '240 60% 70%', catBudget: '0 70% 62%', catExpense: '25 95% 53%',
-      catCompletion: '43 96% 70%', catEmployment: '173 80% 74%', catSnapshot: '255 62% 72%',
-    },
-  },
-  {
-    name: 'Emerald',
-    settings: {
-      background: '150 22% 6%', surface: '150 16% 10%',
-      primary: '152 60% 50%', accent: '160 64% 52%',
-      foreground: '150 10% 96%', accentForeground: '150 6% 62%',
-      font: 'Inter', uiScale: 1.0, uiStyle: 'solid',
-      positive: '152 60% 50%', negative: '0 70% 62%',
-      catTransport: '217 91% 68%', catBudget: '0 70% 62%', catExpense: '25 95% 53%',
-      catCompletion: '43 96% 70%', catEmployment: '160 64% 52%', catSnapshot: '199 89% 62%',
-    },
-  },
-  {
-    name: 'Coral',
-    settings: {
-      background: '12 18% 6%', surface: '12 14% 10%',
-      primary: '8 80% 66%', accent: '18 85% 64%',
-      foreground: '12 12% 96%', accentForeground: '12 6% 62%',
-      font: 'Inter', uiScale: 1.0, uiStyle: 'solid',
-      positive: '161 50% 57%', negative: '0 70% 62%',
-      catTransport: '217 91% 68%', catBudget: '0 70% 62%', catExpense: '8 80% 66%',
-      catCompletion: '43 96% 70%', catEmployment: '173 80% 74%', catSnapshot: '199 89% 62%',
-    },
-  },
-  {
-    name: 'Sapphire',
-    settings: {
-      background: '224 30% 6%', surface: '224 24% 10%',
-      primary: '224 80% 66%', accent: '230 82% 70%',
-      foreground: '224 12% 96%', accentForeground: '224 8% 62%',
-      font: 'Inter', uiScale: 1.0, uiStyle: 'solid',
-      positive: '161 50% 57%', negative: '0 70% 62%',
-      catTransport: '224 80% 66%', catBudget: '0 70% 62%', catExpense: '25 95% 53%',
-      catCompletion: '43 96% 70%', catEmployment: '173 80% 74%', catSnapshot: '230 82% 70%',
-    },
-  },
-  {
-    name: 'Frost',
-    settings: {
-      background: '195 26% 6%', surface: '195 20% 10%',
-      primary: '190 75% 62%', accent: '185 70% 58%',
-      foreground: '195 12% 96%', accentForeground: '195 8% 62%',
-      font: 'Inter', uiScale: 1.0, uiStyle: 'solid',
-      positive: '161 50% 57%', negative: '0 70% 62%',
-      catTransport: '190 75% 62%', catBudget: '0 70% 62%', catExpense: '25 95% 53%',
-      catCompletion: '43 96% 70%', catEmployment: '173 80% 74%', catSnapshot: '199 89% 62%',
-    },
-  },
-  {
-    name: 'Mocha',
-    settings: {
-      background: '28 16% 6%', surface: '28 12% 10%',
-      primary: '30 45% 56%', accent: '24 42% 52%',
-      foreground: '30 12% 95%', accentForeground: '28 8% 62%',
-      font: 'Inter', uiScale: 1.0, uiStyle: 'solid',
-      positive: '161 50% 57%', negative: '0 70% 62%',
-      catTransport: '217 91% 68%', catBudget: '0 70% 62%', catExpense: '30 45% 56%',
-      catCompletion: '43 96% 70%', catEmployment: '173 80% 74%', catSnapshot: '199 89% 62%',
-    },
-  },
-];
 
 // Colored status-color defaults — applied when selecting a preset that doesn't define its
 // own status colors, so switching away from a B&W preset restores the colored palette.
@@ -319,7 +115,24 @@ const areThemeSettingsEqual = (
   (s1.bgY ?? 50) === (s2.bgY ?? 50);
 
 export function ThemeSettingsMenu({ onCancel, onDirtyChange, onSaved }: { onCancel?: () => void; onDirtyChange?: (dirty: boolean) => void; onSaved?: (msg: string) => void }) {
-  const { themeSettings, setThemeSettings, userThemes, addUserTheme, deleteUserTheme, setAppError } = useContext(AppDataContext);
+  const {
+    themeSettings, setThemeSettings, userThemes, addUserTheme, deleteUserTheme, setAppError,
+    favouriteThemes, hiddenSystemPresets, setFavouriteThemes, setHiddenSystemPresets,
+    quickAddFxId, setQuickAddFxId, quickAddShortcuts, setQuickAddShortcuts,
+  } = useContext(AppDataContext);
+
+  // Quick-add + preset drafts — same save-then-apply contract as the theme itself: edits
+  // live here (and drive the previews) but only reach app state on Save.
+  const [draftFxId, setDraftFxId] = useState(quickAddFxId);
+  const [draftShortcuts, setDraftShortcuts] = useState<string[]>([...quickAddShortcuts]);
+  const [draftFavourites, setDraftFavourites] = useState<string[]>([...favouriteThemes]);
+  const [draftHidden, setDraftHidden] = useState<string[]>([...hiddenSystemPresets]);
+
+  const toggleDraftFavourite = (id: string) =>
+    setDraftFavourites(f => f.includes(id) ? f.filter(x => x !== id) : [...f, id]);
+  const hideDraftPreset = (name: string) =>
+    setDraftHidden(h => h.includes(name) ? h : [...h, name]);
+  const restoreDraftPresets = () => setDraftHidden([]);
 
   const [previewTheme, setPreviewTheme] = useState<ThemeSettings>(() => ({
     ...defaultThemeSettings,
@@ -507,6 +320,12 @@ export function ThemeSettingsMenu({ onCancel, onDirtyChange, onSaved }: { onCanc
       await idbSet('backgroundImage', backgroundImage);
       await idbSet('backgroundVideo', backgroundVideo);
       setThemeSettings(settingsToSave);
+      // Quick-add + preset drafts commit together with the theme — never before.
+      setQuickAddFxId(draftFxId);
+      setQuickAddShortcuts(draftShortcuts);
+      // Hidden first (it prunes favourites for hidden presets), then favourites.
+      setHiddenSystemPresets(draftHidden);
+      setFavouriteThemes(draftFavourites);
       onDirtyChange?.(false);
       onSaved?.('Theme saved!');
       document.documentElement.classList.add('page-fading-out');
@@ -538,8 +357,15 @@ export function ThemeSettingsMenu({ onCancel, onDirtyChange, onSaved }: { onCanc
 
   const isDirty = useMemo(() => {
     if (!initialThemeRef.current) return false;
-    return JSON.stringify(previewTheme) !== JSON.stringify(initialThemeRef.current);
-  }, [previewTheme]);
+    return (
+      JSON.stringify(previewTheme) !== JSON.stringify(initialThemeRef.current) ||
+      draftFxId !== quickAddFxId ||
+      JSON.stringify(draftShortcuts) !== JSON.stringify(quickAddShortcuts) ||
+      JSON.stringify(draftFavourites) !== JSON.stringify(favouriteThemes) ||
+      JSON.stringify(draftHidden) !== JSON.stringify(hiddenSystemPresets)
+    );
+  }, [previewTheme, draftFxId, quickAddFxId, draftShortcuts, quickAddShortcuts,
+      draftFavourites, favouriteThemes, draftHidden, hiddenSystemPresets]);
 
   useEffect(() => { onDirtyChange?.(isDirty); }, [isDirty, onDirtyChange]);
 
@@ -688,21 +514,27 @@ export function ThemeSettingsMenu({ onCancel, onDirtyChange, onSaved }: { onCanc
     name,
     settings,
     onDelete,
+    deleteDescription = 'This custom preset will be permanently removed.',
     isActive,
     isDefault,
+    isFavourite,
+    onToggleFavourite,
   }: {
     name: string;
     settings: Omit<ThemeSettings, 'backgroundImage' | 'backgroundVideo' | 'backgroundOpacity'>;
     onDelete?: () => void;
+    deleteDescription?: string;
     isActive: boolean;
     isDefault?: boolean;
+    isFavourite: boolean;
+    onToggleFavourite: () => void;
   }) => (
     <div className="space-y-2">
       <button
         onClick={() => setPreviewTheme(p => ({ ...p, ...defaultStatusColors, ...settings }))}
         className={cn(
           'w-full aspect-square rounded-2xl border-2 flex flex-col items-center justify-center relative transition-all gap-2 p-3',
-          isActive ? 'border-primary ring-2 ring-primary/30' : 'border-border hover:border-border/60'
+          isActive ? 'border-primary sel-glow' : 'border-border hover:border-border/60'
         )}
         style={{ backgroundColor: hslToHex(...parseHsl(settings.background)) }}
       >
@@ -738,8 +570,16 @@ export function ThemeSettingsMenu({ onCancel, onDirtyChange, onSaved }: { onCanc
           </span>
         )}
       </button>
-      <div className="flex items-center justify-between px-0.5">
-        <p className="text-xs font-medium truncate">{name}</p>
+      <div className="flex items-center justify-between px-0.5 gap-1">
+        <p className="text-xs font-medium truncate flex-1">{name}</p>
+        {/* Favourite star — starred themes are what the Day/Night quick-switch offers */}
+        <button
+          onClick={onToggleFavourite}
+          aria-label={isFavourite ? `Unfavourite ${name}` : `Favourite ${name}`}
+          className="h-6 w-6 shrink-0 flex items-center justify-center rounded-lg active:bg-muted"
+        >
+          <Star className={cn('h-3.5 w-3.5', isFavourite ? 'fill-yellow-400 text-yellow-400' : 'text-muted-foreground/40')} />
+        </button>
         {onDelete && (
           <AlertDialog>
             <AlertDialogTrigger asChild>
@@ -750,7 +590,7 @@ export function ThemeSettingsMenu({ onCancel, onDirtyChange, onSaved }: { onCanc
             <AlertDialogContent>
               <AlertDialogHeader>
                 <AlertDialogTitle>Delete &quot;{name}&quot;?</AlertDialogTitle>
-                <AlertDialogDescription>This custom preset will be permanently removed.</AlertDialogDescription>
+                <AlertDialogDescription>{deleteDescription}</AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
                 <AlertDialogCancel>Cancel</AlertDialogCancel>
@@ -836,7 +676,7 @@ export function ThemeSettingsMenu({ onCancel, onDirtyChange, onSaved }: { onCanc
                   className={cn(
                     'relative flex flex-col items-center gap-3 p-4 rounded-2xl border-2 transition-all',
                     previewTheme.uiStyle === 'solid'
-                      ? 'border-primary bg-primary/5'
+                      ? 'border-primary bg-primary/5 sel-glow'
                       : 'border-border hover:border-muted-foreground/30'
                   )}
                 >
@@ -858,7 +698,7 @@ export function ThemeSettingsMenu({ onCancel, onDirtyChange, onSaved }: { onCanc
                   className={cn(
                     'relative flex flex-col items-center gap-3 p-4 rounded-2xl border-2 transition-all',
                     previewTheme.uiStyle === 'glass'
-                      ? 'border-primary bg-primary/5'
+                      ? 'border-primary bg-primary/5 sel-glow'
                       : 'border-border hover:border-muted-foreground/30'
                   )}
                 >
@@ -882,7 +722,7 @@ export function ThemeSettingsMenu({ onCancel, onDirtyChange, onSaved }: { onCanc
                   className={cn(
                     'relative flex flex-col items-center gap-3 p-4 rounded-2xl border-2 transition-all',
                     previewTheme.uiStyle === 'minimal'
-                      ? 'border-primary bg-primary/5'
+                      ? 'border-primary bg-primary/5 sel-glow'
                       : 'border-border hover:border-muted-foreground/30'
                   )}
                 >
@@ -903,7 +743,7 @@ export function ThemeSettingsMenu({ onCancel, onDirtyChange, onSaved }: { onCanc
                   className={cn(
                     'relative flex flex-col items-center gap-3 p-4 rounded-2xl border-2 transition-all',
                     previewTheme.uiStyle === 'elevated'
-                      ? 'border-primary bg-primary/5'
+                      ? 'border-primary bg-primary/5 sel-glow'
                       : 'border-border hover:border-muted-foreground/30'
                   )}
                 >
@@ -939,6 +779,26 @@ export function ThemeSettingsMenu({ onCancel, onDirtyChange, onSaved }: { onCanc
                   <p className="text-[10px] text-muted-foreground">Higher = more see-through</p>
                 </div>
               )}
+            </CardContent>
+          </Card>
+
+          {/* Quick-add radial gesture effects — applies immediately (not part of theme save) */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm">Quick Add Effects</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <RadialFxDemo value={draftFxId} onChange={setDraftFxId} />
+            </CardContent>
+          </Card>
+
+          {/* Which shortcuts live in the quick-add radial + their arc order */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm">Quick Menu</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <QuickMenuConfig value={draftShortcuts} onChange={setDraftShortcuts} />
             </CardContent>
           </Card>
         </div>
@@ -1159,16 +1019,34 @@ export function ThemeSettingsMenu({ onCancel, onDirtyChange, onSaved }: { onCanc
           <div>
             <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">System</h3>
             <div className="grid grid-cols-2 gap-x-3 gap-y-5">
-              {systemPresets.map(preset => (
-                <PresetCard
-                  key={preset.name}
-                  name={preset.name}
-                  settings={preset.settings}
-                  isActive={areThemeSettingsEqual(currentActiveSettings, preset.settings)}
-                  isDefault={preset.name === 'Duey'}
-                />
-              ))}
+              {systemPresets
+                .filter(preset => !draftHidden.includes(preset.name))
+                .map(preset => (
+                  <PresetCard
+                    key={preset.name}
+                    name={preset.name}
+                    settings={preset.settings}
+                    isActive={areThemeSettingsEqual(currentActiveSettings, preset.settings)}
+                    isDefault={preset.name === 'Duey'}
+                    isFavourite={draftFavourites.includes(`preset:${preset.name}`)}
+                    onToggleFavourite={() => toggleDraftFavourite(`preset:${preset.name}`)}
+                    // Deleting a built-in just hides it (restorable, drafted until Save).
+                    // Withheld on the last visible one — one system preset must always remain.
+                    onDelete={
+                      systemPresets.length - draftHidden.length > 1
+                        ? () => { hideDraftPreset(preset.name); setDraftFavourites(f => f.filter(id => id !== `preset:${preset.name}`)); }
+                        : undefined
+                    }
+                    deleteDescription="This built-in preset will be removed from your list on Save. You can restore hidden presets anytime."
+                  />
+                ))}
             </div>
+            {draftHidden.length > 0 && (
+              <Button variant="ghost" size="sm" className="mt-3 w-full text-xs gap-1.5" onClick={restoreDraftPresets}>
+                <RotateCcw className="h-3 w-3" />
+                Restore {draftHidden.length} hidden preset{draftHidden.length !== 1 ? 's' : ''}
+              </Button>
+            )}
           </div>
 
           {userThemes.length > 0 && (
@@ -1181,8 +1059,12 @@ export function ThemeSettingsMenu({ onCancel, onDirtyChange, onSaved }: { onCanc
                       key={theme.id}
                       name={theme.name}
                       settings={theme.settings}
-                      onDelete={() => deleteUserTheme(theme.id)}
+                      // Deleting a saved theme is immediate + destructive (not drafted);
+                      // also drop it from the favourites draft so Save can't resurrect it.
+                      onDelete={() => { deleteUserTheme(theme.id); setDraftFavourites(f => f.filter(id => id !== theme.id)); }}
                       isActive={areThemeSettingsEqual(currentActiveSettings, theme.settings)}
+                      isFavourite={draftFavourites.includes(theme.id)}
+                      onToggleFavourite={() => toggleDraftFavourite(theme.id)}
                     />
                   ))}
                 </div>

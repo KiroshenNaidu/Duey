@@ -11,6 +11,8 @@ import { AppShell } from '@/components/AppShell';
 import { CurrencyPickerDialog } from '@/components/CurrencyPickerDialog';
 import { HardwareBackButton } from '@/components/HardwareBackButton';
 import { KeyboardInset } from '@/components/KeyboardInset';
+import { UndoToastHost } from '@/components/ui/undo-toast';
+import { QuickAdd } from '@/components/QuickAdd';
 
 export const metadata: Metadata = {
   title: 'Duey',
@@ -45,7 +47,7 @@ export default function RootLayout({
           <AppDataProvider>
             <ThemeProvider>
               <ErrorBoundary>
-                <div className="flex flex-col min-h-dvh bg-transparent relative z-0">
+                <div id="app-root" className="flex flex-col min-h-dvh bg-transparent relative z-0">
                   <main className="flex-1 overflow-y-auto px-2" style={{ paddingTop: 'var(--top-main-pt)', paddingBottom: 'calc(70px + var(--sab) + 24px + var(--keyboard-height))', touchAction: 'pan-y' }}>
                     <AppShell>
                       {children}
@@ -59,6 +61,8 @@ export default function RootLayout({
                 <CurrencyPickerDialog />
                 <HardwareBackButton />
                 <KeyboardInset />
+                <UndoToastHost />
+                <QuickAdd />
               </ErrorBoundary>
             </ThemeProvider>
           </AppDataProvider>

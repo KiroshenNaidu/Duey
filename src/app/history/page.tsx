@@ -9,12 +9,14 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import {
   ChevronLeft, Pencil, Trash2, Check, Download, FolderOpen,
   CreditCard, PlusCircle, Trophy, Car, Wallet, Zap, Receipt,
   FileText, Sheet, Tag, Bus, CheckCircle2, Loader2, AlertCircle,
+  Search, X,
 } from 'lucide-react';
+import { showUndoToast } from '@/components/ui/undo-toast';
+import { calculateSealedMonthSummary } from '@/lib/calculations';
 import type { HistoryEntry, Expense, UberRide, BudgetPlan } from '@/lib/types';
 import { format } from 'date-fns';
 import { FolderAccess } from '@/lib/folderAccess';
@@ -824,17 +826,24 @@ function EditEntryDialog({ entry, open, onClose, onSave }: {
 
 // ─── Entry row (for All + Debts tabs) ─────────────────────────────────────────
 
-function EntryRow({ entry, onUpdate, onDelete, showDebt = false }: {
+function EntryRow({ entry, onUpdate, onDelete, showDebt = false, onSnapshotTap }: {
   entry: HistoryEntry;
   onUpdate: (id: string, data: EntryEdit) => void;
   onDelete: (id: string) => void;
   showDebt?: boolean;
+  onSnapshotTap?: (entry: HistoryEntry) => void;
 }) {
   const [editOpen, setEditOpen] = useState(false);
+  const isSnapshot = entry.type === 'snapshot' && !!onSnapshotTap;
 
   return (
     <div className="flex items-center gap-3 py-3 border-b border-border/30 last:border-0">
-      <div className="flex-1 min-w-0">
+      {/* Snapshot rows open the month breakdown sheet on tap */}
+      <button
+        className={cn('flex-1 min-w-0 text-left', !isSnapshot && 'cursor-default')}
+        onClick={isSnapshot ? () => onSnapshotTap(entry) : undefined}
+        disabled={!isSnapshot}
+      >
         <div className="flex items-center gap-1.5 flex-wrap">
           <TypeBadge type={entry.type} label={entry.label} />
           {entry.edited && (
@@ -842,33 +851,26 @@ function EntryRow({ entry, onUpdate, onDelete, showDebt = false }: {
               <Pencil size={8} /> edited
             </span>
           )}
+          {isSnapshot && (
+            <span className="text-[9px] font-semibold text-accent">View breakdown ›</span>
+          )}
         </div>
         {showDebt && <p className="text-[10px] text-muted-foreground/60 mt-0.5">{entry.debtTitle}</p>}
         <p className="text-xs text-muted-foreground mt-1">{fmtDate(entry.date)}</p>
         {entry.note && <p className="text-[10px] text-muted-foreground/60 truncate mt-0.5">{entry.note}</p>}
-      </div>
+      </button>
       <span className="text-sm font-bold tabular-nums shrink-0">{formatCurrency(entry.amount)}</span>
       <div className="flex items-center gap-0.5 shrink-0">
         <button onClick={() => setEditOpen(true)} className="p-2.5 rounded-xl text-muted-foreground/50 active:bg-muted">
           <Pencil size={13} />
         </button>
-        <AlertDialog>
-          <AlertDialogTrigger asChild>
-            <button className="p-2.5 rounded-xl text-muted-foreground/40 active:bg-destructive/10 active:text-destructive">
-              <Trash2 size={13} />
-            </button>
-          </AlertDialogTrigger>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Delete entry?</AlertDialogTitle>
-              <AlertDialogDescription>This will permanently remove this history entry.</AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction onClick={() => onDelete(entry.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Delete</AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+        {/* Immediate delete — the global undo toast gives a 5s recovery window */}
+        <button
+          onClick={() => onDelete(entry.id)}
+          className="p-2.5 rounded-xl text-muted-foreground/40 active:bg-destructive/10 active:text-destructive"
+        >
+          <Trash2 size={13} />
+        </button>
       </div>
 
       <EditEntryDialog entry={entry} open={editOpen} onClose={() => setEditOpen(false)} onSave={onUpdate} />
@@ -882,11 +884,29 @@ export default function HistoryPage() {
   const router = useRouter();
   const {
     history, debts, expenses, uberRides, budgetPlans,
-    updateHistoryEntry, deleteHistoryEntry,
+    updateHistoryEntry, deleteHistoryEntry, restoreHistoryEntry,
+    monthlyIncome, extraIncomes, transportSettings, transportOverrides, transportMonthlyOverrides,
     userProfile, exportFolderUri, exportFolderName, setExportFolder, setAppError,
   } = useContext(AppDataContext);
 
   const [activeTab, setActiveTab] = useState<TabId>('all');
+
+  // All-tab search + quick filters
+  const [query, setQuery] = useState('');
+  const [filterThisMonth, setFilterThisMonth] = useState(false);
+  const [filterBig, setFilterBig] = useState(false);     // amount ≥ 500
+  const [filterEdited, setFilterEdited] = useState(false);
+
+  // Snapshot breakdown sheet
+  const [snapshotEntry, setSnapshotEntry] = useState<HistoryEntry | null>(null);
+
+  // Delete immediately with a 5s undo window (replaces the old confirm dialog).
+  const handleDeleteEntry = (id: string) => {
+    const entry = history.find(h => h.id === id);
+    if (!entry) return;
+    deleteHistoryEntry(id);
+    showUndoToast(`Deleted ${entry.debtTitle}`, () => restoreHistoryEntry(entry));
+  };
   const [exportOpen, setExportOpen] = useState(false);
   const [choosingFolder, setChoosingFolder] = useState(false);
   // Single-dialog export flow: 'idle' shows the picker, then preparing→saving→success/error.
@@ -950,14 +970,29 @@ export default function HistoryPage() {
   }, [history]);
 
   const monthGroups = useMemo(() => {
+    // Apply All-tab search + quick filters before grouping by month.
+    const q = query.trim().toLowerCase();
+    const thisMonthKey = format(new Date(), 'yyyy-MM');
+    const filtered = allSorted.filter(e => {
+      if (filterThisMonth && format(new Date(e.date), 'yyyy-MM') !== thisMonthKey) return false;
+      if (filterBig && e.amount < 500) return false;
+      if (filterEdited && !e.edited) return false;
+      if (q) {
+        const haystack = `${e.debtTitle} ${e.label ?? ''} ${e.note ?? ''} ${e.amount}`.toLowerCase();
+        if (!haystack.includes(q)) return false;
+      }
+      return true;
+    });
     const map = new Map<string, HistoryEntry[]>();
-    for (const e of allSorted) {
+    for (const e of filtered) {
       const key = format(new Date(e.date), 'MMMM yyyy');
       if (!map.has(key)) map.set(key, []);
       map.get(key)!.push(e);
     }
     return Array.from(map.entries());
-  }, [allSorted]);
+  }, [allSorted, query, filterThisMonth, filterBig, filterEdited]);
+
+  const hasActiveFilter = !!query.trim() || filterThisMonth || filterBig || filterEdited;
 
   const sortedUber = useMemo(() => [...uberRides].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()), [uberRides]);
   const sortedExpenses = useMemo(() => [...expenses].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()), [expenses]);
@@ -1189,10 +1224,49 @@ export default function HistoryPage() {
         {/* ALL TAB */}
         {activeTab === 'all' && (
           <div className="space-y-3">
+            {/* Search + quick filters */}
+            <div className="space-y-2">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/50" />
+                <Input
+                  value={query}
+                  onChange={e => setQuery(e.target.value)}
+                  placeholder="Search title, note, amount…"
+                  className="pl-9 pr-8 h-9 text-xs rounded-2xl"
+                />
+                {query && (
+                  <button
+                    onClick={() => setQuery('')}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-full text-muted-foreground/50 active:bg-muted"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                )}
+              </div>
+              <div className="flex gap-1.5 flex-wrap">
+                {([
+                  { label: 'This month', on: filterThisMonth, toggle: () => setFilterThisMonth(v => !v) },
+                  { label: 'R500+', on: filterBig, toggle: () => setFilterBig(v => !v) },
+                  { label: 'Edited', on: filterEdited, toggle: () => setFilterEdited(v => !v) },
+                ] as const).map(chip => (
+                  <button
+                    key={chip.label}
+                    onClick={chip.toggle}
+                    className={cn(
+                      'px-3 py-1.5 rounded-full text-[10px] font-semibold transition-colors',
+                      chip.on ? 'bg-primary text-primary-foreground' : 'bg-muted/50 text-muted-foreground'
+                    )}
+                  >
+                    {chip.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
             {monthGroups.length === 0 && (
               <div className="flex flex-col items-center justify-center mt-24 gap-3 text-muted-foreground">
                 <Receipt size={48} className="opacity-20" />
-                <p className="text-sm">No history yet</p>
+                <p className="text-sm">{hasActiveFilter ? 'Nothing matches your search' : 'No history yet'}</p>
               </div>
             )}
             {monthGroups.map(([month, entries]) => (
@@ -1213,7 +1287,7 @@ export default function HistoryPage() {
                 </div>
                 <CardContent className="px-4 pb-2 pt-0">
                   {entries.map(entry => (
-                    <EntryRow key={entry.id} entry={entry} onUpdate={updateHistoryEntry} onDelete={deleteHistoryEntry} showDebt />
+                    <EntryRow key={entry.id} entry={entry} onUpdate={updateHistoryEntry} onDelete={handleDeleteEntry} showDebt onSnapshotTap={setSnapshotEntry} />
                   ))}
                 </CardContent>
               </Card>
@@ -1244,7 +1318,7 @@ export default function HistoryPage() {
                   </div>
                   <CardContent className="px-4 pb-2 pt-0">
                     {items.map(entry => (
-                      <EntryRow key={entry.id} entry={entry} onUpdate={updateHistoryEntry} onDelete={deleteHistoryEntry} />
+                      <EntryRow key={entry.id} entry={entry} onUpdate={updateHistoryEntry} onDelete={handleDeleteEntry} />
                     ))}
                   </CardContent>
                 </Card>
@@ -1469,6 +1543,57 @@ export default function HistoryPage() {
         transportFilter={transportExportFilter}
         onTransportFilterChange={setTransportExportFilter}
       />
+
+      {/* Snapshot breakdown — tap a monthly Summary row to see the full income/outgoings split */}
+      <Dialog open={!!snapshotEntry} onOpenChange={v => { if (!v) setSnapshotEntry(null); }}>
+        <DialogContent className="sm:max-w-sm">
+          {snapshotEntry && (() => {
+            const monthKey = format(new Date(snapshotEntry.date), 'yyyy-MM');
+            const monthLabel = format(new Date(snapshotEntry.date), 'MMMM yyyy');
+            // Recomputed live from month-dated stored data — same math that sealed the month.
+            const s = calculateSealedMonthSummary(
+              { monthlyIncome, extraIncomes, expenses, budgetPlans, history, uberRides, transportSettings, transportOverrides, transportMonthlyOverrides },
+              monthKey,
+            );
+            const rows: { label: string; value: number; negative?: boolean }[] = [
+              { label: 'Income', value: s.income },
+              { label: 'Transport', value: s.transport, negative: true },
+              { label: 'Uber / rides', value: s.uber, negative: true },
+              { label: 'Debt payments', value: s.debt, negative: true },
+              { label: 'Expenses', value: s.expenses, negative: true },
+              { label: 'Budget (confirmed)', value: s.budget, negative: true },
+            ];
+            return (
+              <>
+                <DialogHeader>
+                  <DialogTitle>{monthLabel} breakdown</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-0.5">
+                  {rows.filter(r => r.value > 0 || r.label === 'Income').map(r => (
+                    <div key={r.label} className="flex justify-between items-baseline py-2 border-b border-border/30 last:border-0">
+                      <span className="text-xs text-muted-foreground">{r.label}</span>
+                      <span className={cn('text-sm font-semibold tabular-nums', r.negative ? 'text-destructive' : 'text-positive')}>
+                        {r.negative ? '−' : ''}{formatCurrency(r.value)}
+                      </span>
+                    </div>
+                  ))}
+                  <div className="flex justify-between items-baseline pt-3">
+                    <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+                      {s.remaining >= 0 ? 'Surplus' : 'Deficit'}
+                    </span>
+                    <span className={cn('text-lg font-bold tabular-nums', s.remaining >= 0 ? 'text-positive' : 'text-destructive')}>
+                      {formatCurrency(Math.abs(s.remaining))}
+                    </span>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground/60 pt-2">
+                    Recomputed from this month&apos;s stored entries. Salary uses your current monthly income.
+                  </p>
+                </div>
+              </>
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
     </motion.div>
   );
 }

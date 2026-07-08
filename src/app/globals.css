@@ -238,6 +238,18 @@ nav.fixed,
     fill: var(--active-color);
 }
 
+/* Day/Night switch variant — the track always shows the CURRENT theme's primary in
+   BOTH positions (the knob still flips sun/moon). Because toggling swaps the theme,
+   the track colour re-tints to the new theme automatically (green theme → green,
+   purple theme → purple). Used only by the Day/Night card in Settings. */
+.daynight-switch {
+  --inactive-color: hsl(var(--primary));
+}
+/* No I/O glyphs on this switch — the sun/moon context makes them redundant. */
+.daynight-switch .toggle-icon {
+  display: none;
+}
+
 /* Arc / gauge colour flow — cycles through the analogous palette.
    arc-flow animates CSS `color` (picked up by stroke="currentColor" paths).
    stroke-flow animates SVG `stroke` directly for paths with explicit stroke classes.
@@ -275,6 +287,26 @@ nav.fixed,
 @media (prefers-reduced-motion: no-preference) {
   .ring-pulse { animation: ring-glow 2s ease-in-out infinite; }
   .bar-glow   { animation: bar-glow  2s ease-in-out infinite; }
+}
+
+/* Quick-add radial labels. Colour is a FIXED primary (no colour animation) so it snaps
+   instantly to the active theme the moment a theme is saved — no slow real-time morph.
+   The shimmer animates OPACITY only, so it still cascades 1→2→3→4 (per-label
+   animationDelay in JSX, like the budget rings) without ever cycling the hue. */
+.radial-label-shimmer { color: hsl(var(--primary)); opacity: 0.95; }
+@keyframes radial-label-shimmer {
+  0%, 100% { opacity: 0.5; }
+  50%      { opacity: 1; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .radial-label-shimmer { animation: radial-label-shimmer 1.9s ease-in-out infinite; }
+}
+
+/* Consistent "selected" glow — a soft primary halo used on every selectable control in
+   Theme settings (preset cards, UI-style cards, effect + shortcut chips) so selection
+   reads the same everywhere, matching the primary FAB. Re-tints with the theme. */
+.sel-glow {
+  box-shadow: 0 0 0 1px hsl(var(--primary) / 0.5), 0 0 15px 2px hsl(var(--primary) / 0.4);
 }
 
 /* Progress bar flowing gradient — animates background-position on a repeating gradient
@@ -381,6 +413,24 @@ nav.fixed,
   backdrop-filter: blur(6px) !important;
   -webkit-backdrop-filter: blur(6px) !important;
 }
+
+/* Overlay blur — while any overlay (dialog, radial quick-add) is open, blur the whole
+   app root with a real element filter instead of backdrop-filter on the overlay.
+   backdrop-filter sampled page layers inconsistently (page titles stayed readable while
+   card text went mushy); a filter on the content itself blurs every layer identically.
+   Overlays portal to <body>, outside #app-root, so they stay sharp. */
+#app-root,
+.fab-blurable {
+  transition: filter 0.18s ease;
+}
+body.overlay-blur #app-root,
+body.overlay-blur .fab-blurable {
+  filter: blur(10px);
+}
+/* .fab-blurable: for position:fixed elements portaled OUTSIDE #app-root (FixedPortal
+   FABs, the quick-add FAB) so they blur in step with the app instead of floating
+   sharp above it. Applied to the fixed element itself — filtering a wrapper would
+   re-anchor its fixed positioning. */
 
 /* Skip layout/paint for off-screen rows in long history lists. `auto` caches the
    real size after first render, so output is pixel-identical with far less work. */

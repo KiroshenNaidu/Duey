@@ -5,6 +5,7 @@ import * as DialogPrimitive from "@radix-ui/react-dialog"
 import { X } from "lucide-react"
 
 import { cn } from "@/lib/utils"
+import { acquireOverlayBlur, releaseOverlayBlur } from "@/lib/overlayBlur"
 
 const Dialog = DialogPrimitive.Root
 
@@ -21,13 +22,26 @@ const DialogOverlay = React.forwardRef<
   <DialogPrimitive.Overlay
     ref={ref}
     className={cn(
-      "fixed inset-0 z-50 bg-black/40 backdrop-blur-sm data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
+      // Dim only — the blur behind overlays is a real filter on #app-root (see overlayBlur.ts),
+      // because backdrop-filter blurred page layers inconsistently.
+      "fixed inset-0 z-50 bg-black/40 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
       className
     )}
     {...props}
   />
 ))
 DialogOverlay.displayName = DialogPrimitive.Overlay.displayName
+
+// Holds the app-blur token only while actually rendered. MUST live INSIDE the Radix
+// Content element: the wrapper component below mounts even when the dialog is closed
+// (Radix nulls out the portal internally), but Content children only mount when open.
+function BlurWhileOpen() {
+  React.useEffect(() => {
+    const token = acquireOverlayBlur()
+    return () => releaseOverlayBlur(token)
+  }, [])
+  return null
+}
 
 const DialogContent = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Content>,
@@ -43,6 +57,7 @@ const DialogContent = React.forwardRef<
       )}
       {...props}
     >
+      <BlurWhileOpen />
       {children}
       <DialogPrimitive.Close className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground">
         <X className="h-4 w-4" />
@@ -51,7 +66,7 @@ const DialogContent = React.forwardRef<
     </DialogPrimitive.Content>
   </DialogPortal>
 ))
-DialogContent.displayName = DialogContent.displayName
+DialogContent.displayName = "DialogContent"
 
 const DialogHeader = ({
   className,

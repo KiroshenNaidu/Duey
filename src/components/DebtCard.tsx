@@ -52,6 +52,13 @@ interface ToastState {
 // the body pointer-events lock stuck. Both completeDebt call sites use this delay.
 const DIALOG_CLOSE_DELAY_MS = 220;
 
+// 15 → "15th", 21 → "21st"
+function ordinal(n: number): string {
+  const rem10 = n % 10, rem100 = n % 100;
+  const suffix = rem100 >= 11 && rem100 <= 13 ? 'th' : rem10 === 1 ? 'st' : rem10 === 2 ? 'nd' : rem10 === 3 ? 'rd' : 'th';
+  return `${n}${suffix}`;
+}
+
 // canvas-confetti only understands hex colours (strips every non-hex char, which
 // silently mangled the old HSL strings), so everything is converted to hex via hslToHex.
 function getConfettiColors(): string[] {
@@ -82,6 +89,8 @@ export function DebtCard({ debt }: DebtCardProps) {
   const [editedTitle, setEditedTitle] = useState(debt.title);
   const [editedTotalOwed, setEditedTotalOwed] = useState(debt.total_owed.toString());
   const [editedInstallmentAmount, setEditedInstallmentAmount] = useState(debt.installment_amount.toString());
+  // '' = no due day (reminders off for this debt) — the field is purely optional.
+  const [editedDueDay, setEditedDueDay] = useState(debt.dueDay != null ? String(debt.dueDay) : '');
 
   // Payment dialog (nested inside edit dialog)
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
@@ -104,6 +113,7 @@ export function DebtCard({ debt }: DebtCardProps) {
       setEditedTitle(debt.title);
       setEditedTotalOwed(debt.total_owed.toString());
       setEditedInstallmentAmount(debt.installment_amount.toString());
+      setEditedDueDay(debt.dueDay != null ? String(debt.dueDay) : '');
     }
   }, [debt, isDialogOpen]);
 
@@ -142,6 +152,7 @@ export function DebtCard({ debt }: DebtCardProps) {
     setEditedTitle(debt.title);
     setEditedTotalOwed(debt.total_owed.toString());
     setEditedInstallmentAmount(debt.installment_amount.toString());
+    setEditedDueDay(debt.dueDay != null ? String(debt.dueDay) : '');
     setPendingPayment(null);
     setCustomAmount('');
     setPaymentMode('installment');
@@ -169,9 +180,12 @@ export function DebtCard({ debt }: DebtCardProps) {
       changes.push({ field: 'Total Owed', from: formatCurrency(debt.total_owed), to: formatCurrency(totalOwedNum) });
     if (installmentAmountNum !== debt.installment_amount)
       changes.push({ field: 'Installment', from: formatCurrency(debt.installment_amount), to: formatCurrency(installmentAmountNum) });
+    const dueDayNum = editedDueDay.trim() === '' ? null : parseInt(editedDueDay, 10);
+    if (dueDayNum !== (debt.dueDay ?? null))
+      changes.push({ field: 'Due Day', from: debt.dueDay != null ? `Day ${debt.dueDay}` : 'None', to: dueDayNum != null ? `Day ${dueDayNum}` : 'None' });
 
     return changes;
-  }, [editedTitle, editedTotalOwed, editedInstallmentAmount, debt]);
+  }, [editedTitle, editedTotalOwed, editedInstallmentAmount, editedDueDay, debt]);
 
   const hasChanges = pendingChanges.length > 0 || pendingPayment !== null;
 
@@ -181,10 +195,12 @@ export function DebtCard({ debt }: DebtCardProps) {
       const installmentAmountNum = parseFloat(editedInstallmentAmount) || 1;
 
       if (pendingChanges.length > 0) {
+        const dueDayNum = editedDueDay.trim() === '' ? null : parseInt(editedDueDay, 10);
         updateDebt(debt.id, {
           title: editedTitle.trim(),
           total_owed: totalOwedNum,
           installment_amount: installmentAmountNum,
+          dueDay: dueDayNum != null && dueDayNum >= 1 && dueDayNum <= 31 ? dueDayNum : null,
         });
       }
 
@@ -204,7 +220,7 @@ export function DebtCard({ debt }: DebtCardProps) {
       setShowSaveConfirm(false);
       showToast('Failed to save — please try again', 'error');
     }
-  }, [editedTitle, editedTotalOwed, editedInstallmentAmount, pendingChanges, pendingPayment, debt.id, updateDebt, logCustomPayment, showToast]);
+  }, [editedTitle, editedTotalOwed, editedInstallmentAmount, editedDueDay, pendingChanges, pendingPayment, debt.id, updateDebt, logCustomPayment, showToast]);
 
   const openPaymentDialog = useCallback(() => {
     // Pre-fill from existing staged payment so user sees they're replacing, not adding
@@ -341,6 +357,11 @@ export function DebtCard({ debt }: DebtCardProps) {
               style={isPaidOff ? { color: 'hsl(var(--primary-complete))' } : undefined}
             >{debt.title}</CardTitle>
             <div className="flex items-center gap-2">
+              {debt.dueDay != null && !isPaidOff && (
+                <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-muted-foreground whitespace-nowrap">
+                  <CalendarDays className="h-3 w-3" /> Due {ordinal(debt.dueDay)}
+                </span>
+              )}
               <span className="text-xs text-muted-foreground whitespace-nowrap">
                 {paymentCount} of {totalInstallments} ({Math.round(progress)}%)
               </span>
@@ -604,6 +625,21 @@ export function DebtCard({ debt }: DebtCardProps) {
                           onChange={(e) => setEditedInstallmentAmount(e.target.value)}
                         />
                       </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor={`dueday-${debt.id}`} className="text-xs">
+                        Due Day <span className="text-muted-foreground font-normal">(optional — empty = no reminder)</span>
+                      </Label>
+                      <Input
+                        id={`dueday-${debt.id}`}
+                        type="number"
+                        min={1}
+                        max={31}
+                        placeholder="e.g., 15"
+                        value={editedDueDay}
+                        onChange={(e) => setEditedDueDay(e.target.value)}
+                      />
                     </div>
 
                     <div className="flex justify-between items-center pt-3 border-t">

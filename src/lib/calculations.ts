@@ -211,7 +211,14 @@ export function calculateSealedMonthSummary(input: MonthlyMoneyInput, monthKey: 
   const expenses = oneTimeExpenses + recurringExpenses;
   const uber = input.uberRides.reduce((s, r) => (r.date.slice(0, 7) === monthKey ? s + r.price : s), 0);
   const budget = confirmedBudgetForMonth(input.budgetPlans, monthKey);
-  const extra = sumInMonth(input.extraIncomes, monthKey, e => e.createdAt, e => e.amount);
+  // Recurring extras count for every month from creation onward; one-time extras only for
+  // their creation month. Relies on the seal running BEFORE the monthly purge removes
+  // expired one-time extras (see load order in AppDataContext).
+  const extra = input.extraIncomes.reduce((s, e) => {
+    const created = getMonthKey(new Date(e.createdAt));
+    if (e.recurring) return created <= monthKey ? s + e.amount : s;
+    return created === monthKey ? s + e.amount : s;
+  }, 0);
   const income = input.monthlyIncome + extra;
   const totalOutgoings = transport + uber + debt + expenses + budget;
   return { income, transport, uber, debt, expenses, budget, totalOutgoings, remaining: income - totalOutgoings };

@@ -1,10 +1,14 @@
 'use client';
 
 import { createContext, ReactNode, useEffect, useState, useMemo, useCallback } from 'react';
-import type { AppState, Debt, HistoryEntry, AppData, ThemeSettings, TransportSettings, TransportOverrides, TransportMonthlyOverrides, DayState, UberRide, UserTheme, BudgetPlan, BudgetItem, UserProfile, NotificationSettings, AppError, Expense, ExtraIncome } from '@/lib/types';
+import type { AppState, Debt, HistoryEntry, AppData, ThemeSettings, TransportSettings, TransportOverrides, TransportMonthlyOverrides, DayState, UberRide, UserTheme, BudgetPlan, BudgetItem, UserProfile, NotificationSettings, AppError, Expense, ExtraIncome, DayNightSettings } from '@/lib/types';
 import { isSameDay, startOfDay, startOfMonth, format, add, endOfMonth } from 'date-fns';
 import { idbGet, idbSet, idbDel, setCurrencyCode, genId } from '@/lib/utils';
 import { calculateSealedMonthSummary } from '@/lib/calculations';
+import { syncDebtReminders } from '@/lib/debtReminders';
+import { systemPresets } from '@/lib/systemThemes';
+import { DEFAULT_RADIAL_FX_ID } from '@/lib/radialFx';
+import { DEFAULT_QUICK_SHORTCUTS, sanitizeShortcuts } from '@/lib/quickShortcuts';
 import { LoadingScreen } from '@/components/LoadingScreen';
 
 const CURRENT_SCHEMA_VERSION = 8;
@@ -50,6 +54,11 @@ function migrateState(raw: AppState): AppState {
     exportFolderUri: raw.exportFolderUri ?? '',
     exportFolderName: raw.exportFolderName ?? '',
     lastSnapshotMonth: raw.lastSnapshotMonth ?? '',
+    dayNight: raw.dayNight ?? { dayThemeId: '', nightThemeId: '', mode: 'night' },
+    favouriteThemes: raw.favouriteThemes ?? [],
+    hiddenSystemPresets: raw.hiddenSystemPresets ?? [],
+    quickAddFxId: raw.quickAddFxId ?? DEFAULT_RADIAL_FX_ID,
+    quickAddShortcuts: sanitizeShortcuts(raw.quickAddShortcuts),
     schemaVersion: CURRENT_SCHEMA_VERSION,
   };
 }
@@ -100,6 +109,11 @@ const defaultState: AppState = {
   exportFolderUri: '',
   exportFolderName: '',
   lastSnapshotMonth: '',
+  dayNight: { dayThemeId: '', nightThemeId: '', mode: 'night' },
+  favouriteThemes: [],
+  hiddenSystemPresets: [],
+  quickAddFxId: DEFAULT_RADIAL_FX_ID,
+  quickAddShortcuts: [...DEFAULT_QUICK_SHORTCUTS],
 };
 
 type NavGuard = { onAttempt: (href: string) => void } | null;
@@ -130,8 +144,12 @@ interface AppContextType extends AppState {
   addExpense: (expense: Omit<Expense, 'id' | 'createdAt'>) => void;
   deleteExpense: (expenseId: string) => void;
   updateExpense: (expenseId: string, data: Partial<Omit<Expense, 'id' | 'createdAt'>>) => void;
-  addExtraIncome: (label: string, amount: number) => void;
+  addExtraIncome: (label: string, amount: number, recurring?: boolean) => void;
   deleteExtraIncome: (id: string) => void;
+  restoreExtraIncome: (item: ExtraIncome) => void;
+  restoreExpense: (item: Expense) => void;
+  restoreHistoryEntry: (entry: HistoryEntry) => void;
+  setDayNight: (dayNight: DayNightSettings) => void;
   addBudgetPlan: (name: string, budget: number) => void;
   deleteBudgetPlan: (planId: string) => void;
   updateBudgetPlan: (planId: string, data: { name?: string; budget?: number }) => void;
@@ -146,6 +164,10 @@ interface AppContextType extends AppState {
   setNotepadContent: (content: string) => void;
   addUserTheme: (name: string, settings: Omit<ThemeSettings, 'backgroundImage' | 'backgroundVideo' | 'backgroundOpacity'>) => void;
   deleteUserTheme: (themeId: string) => void;
+  setFavouriteThemes: (ids: string[]) => void;
+  setHiddenSystemPresets: (names: string[]) => void;
+  setQuickAddFxId: (id: string) => void;
+  setQuickAddShortcuts: (ids: string[]) => void;
   importData: (data: AppData) => void;
   deleteHistoryEntry: (entryId: string) => void;
   updateHistoryEntry: (entryId: string, data: Partial<Pick<HistoryEntry, 'label' | 'note' | 'amount' | 'date'>>) => void;
@@ -178,6 +200,10 @@ export const AppDataContext = createContext<AppContextType>({
   updateExpense: () => {},
   addExtraIncome: () => {},
   deleteExtraIncome: () => {},
+  restoreExtraIncome: () => {},
+  restoreExpense: () => {},
+  restoreHistoryEntry: () => {},
+  setDayNight: () => {},
   addBudgetPlan: () => {},
   deleteBudgetPlan: () => {},
   updateBudgetPlan: () => {},
@@ -192,6 +218,10 @@ export const AppDataContext = createContext<AppContextType>({
   setNotepadContent: () => {},
   addUserTheme: () => {},
   deleteUserTheme: () => {},
+  setFavouriteThemes: () => {},
+  setHiddenSystemPresets: () => {},
+  setQuickAddFxId: () => {},
+  setQuickAddShortcuts: () => {},
   importData: () => {},
   deleteHistoryEntry: () => {},
   updateHistoryEntry: () => {},
@@ -220,24 +250,18 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
   // Keep module-level currency in sync with state so formatCurrency() picks it up everywhere.
   useEffect(() => { setCurrencyCode(appState.currency); }, [appState.currency]);
 
+  // Keep per-debt due-date reminders in sync with the debt list (native only, best-effort).
+  // Debts without a dueDay are simply never scheduled.
+  useEffect(() => {
+    if (!isLoaded) return;
+    void syncDebtReminders(appState.debts);
+  }, [isLoaded, appState.debts]);
+
   useEffect(() => {
     const storedStateRaw = localStorage.getItem('appState');
     if (storedStateRaw) {
       try {
         let loaded = migrateState(JSON.parse(storedStateRaw));
-
-        // Auto-purge non-recurring expenses from previous months. The original one-time
-        // `expense` history entry (written when the expense was added) stays as the permanent
-        // record — we deliberately do NOT write a second "Auto-removed" entry, which used to
-        // duplicate every one-time expense in history and double-count it in monthly totals.
-        const firstOfThisMonth = startOfMonth(new Date());
-        const hasExpired = loaded.expenses.some(e => !e.recurring && new Date(e.createdAt) < firstOfThisMonth);
-        if (hasExpired) {
-          loaded = {
-            ...loaded,
-            expenses: loaded.expenses.filter(e => e.recurring || new Date(e.createdAt) >= firstOfThisMonth),
-          };
-        }
 
         // Month-end seal — finalize every month that has fully ended since we last sealed,
         // writing one permanent summary per month. The loop catches up multi-month gaps
@@ -272,6 +296,17 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
           // Fresh install — record the month so the next month-turn seals a real summary.
           loaded = { ...loaded, lastSnapshotMonth: currentMonthKey };
         }
+
+        // Auto-purge non-recurring expenses AND one-time extra incomes from previous months.
+        // Runs AFTER the seal so sealed summaries still see them. One-time expenses keep
+        // their original `expense` history entry as the permanent record; one-time extras
+        // were captured in the sealed month's income.
+        const firstOfThisMonth = startOfMonth(new Date());
+        loaded = {
+          ...loaded,
+          expenses: loaded.expenses.filter(e => e.recurring || new Date(e.createdAt) >= firstOfThisMonth),
+          extraIncomes: (loaded.extraIncomes ?? []).filter(e => e.recurring || new Date(e.createdAt) >= firstOfThisMonth),
+        };
 
         setAppState(loaded);
       } catch (e) {
@@ -554,10 +589,10 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     }));
   }, [updateStateAndSync]);
 
-  const addExtraIncome = useCallback((label: string, amount: number) => {
+  const addExtraIncome = useCallback((label: string, amount: number, recurring = false) => {
     updateStateAndSync(prev => ({
       ...prev,
-      extraIncomes: [...(prev.extraIncomes ?? []), { id: genId(), label, amount, createdAt: new Date().toISOString() }],
+      extraIncomes: [...(prev.extraIncomes ?? []), { id: genId(), label, amount, createdAt: new Date().toISOString(), recurring }],
     }));
   }, [updateStateAndSync]);
 
@@ -565,6 +600,28 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     updateStateAndSync(prev => ({
       ...prev,
       extraIncomes: (prev.extraIncomes ?? []).filter(e => e.id !== id),
+    }));
+  }, [updateStateAndSync]);
+
+  // Undo support — reinsert an item exactly as it was before a delete.
+  const restoreExtraIncome = useCallback((item: ExtraIncome) => {
+    updateStateAndSync(prev => ({
+      ...prev,
+      extraIncomes: [...(prev.extraIncomes ?? []), item],
+    }));
+  }, [updateStateAndSync]);
+
+  const restoreExpense = useCallback((item: Expense) => {
+    updateStateAndSync(prev => ({
+      ...prev,
+      expenses: [...prev.expenses, item],
+    }));
+  }, [updateStateAndSync]);
+
+  const restoreHistoryEntry = useCallback((entry: HistoryEntry) => {
+    updateStateAndSync(prev => ({
+      ...prev,
+      history: [entry, ...prev.history],
     }));
   }, [updateStateAndSync]);
 
@@ -667,8 +724,29 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
   const deleteUserTheme = useCallback((themeId: string) => {
     updateStateAndSync(prev => ({
       ...prev,
-      userThemes: prev.userThemes.filter(t => t.id !== themeId)
+      userThemes: prev.userThemes.filter(t => t.id !== themeId),
+      // A deleted theme can't stay a favourite (it feeds the Day/Night quick-switch).
+      favouriteThemes: (prev.favouriteThemes ?? []).filter(id => id !== themeId),
     }));
+  }, [updateStateAndSync]);
+
+  // Bulk setters — the Theme editor drafts favourites + hidden presets locally and commits
+  // the whole arrays on Save (never auto-apply), matching the theme's save/cancel contract.
+  const setFavouriteThemes = useCallback((ids: string[]) => {
+    updateStateAndSync(prev => ({ ...prev, favouriteThemes: [...new Set(ids)] }));
+  }, [updateStateAndSync]);
+
+  const setHiddenSystemPresets = useCallback((names: string[]) => {
+    updateStateAndSync(prev => {
+      // Guard: at least one system preset must always remain visible.
+      const clamped = [...new Set(names)].slice(0, Math.max(0, systemPresets.length - 1));
+      return {
+        ...prev,
+        hiddenSystemPresets: clamped,
+        // A hidden preset can't stay a favourite (it feeds the Day/Night quick-switch).
+        favouriteThemes: (prev.favouriteThemes ?? []).filter(id => !clamped.includes(id.replace(/^preset:/, ''))),
+      };
+    });
   }, [updateStateAndSync]);
 
   const importData = (data: AppData) => {
@@ -736,6 +814,10 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     updateExpense,
     addExtraIncome,
     deleteExtraIncome,
+    restoreExtraIncome,
+    restoreExpense,
+    restoreHistoryEntry,
+    setDayNight: (dayNight: DayNightSettings) => updateStateAndSync(p => ({ ...p, dayNight })),
     addBudgetPlan,
     deleteBudgetPlan,
     updateBudgetPlan,
@@ -752,6 +834,11 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     setExportFolder: (uri: string, name: string) => updateStateAndSync(p => ({ ...p, exportFolderUri: uri, exportFolderName: name })),
     addUserTheme,
     deleteUserTheme,
+    setFavouriteThemes,
+    setHiddenSystemPresets,
+    setQuickAddFxId: (id: string) => updateStateAndSync(p => ({ ...p, quickAddFxId: id })),
+    // sanitize enforces known ids, dedupe, and the 1–7 count bounds.
+    setQuickAddShortcuts: (ids: string[]) => updateStateAndSync(p => ({ ...p, quickAddShortcuts: sanitizeShortcuts(ids) })),
     deleteHistoryEntry,
     updateHistoryEntry,
     importData,

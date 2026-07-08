@@ -7,13 +7,15 @@ import { calculateLiveMonthly, isTransportPaidForMonth } from '@/lib/calculation
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Pencil, Check, Plus, Trash2, X } from 'lucide-react';
+import { Pencil, Check, Plus, Trash2, X, RefreshCw } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
+import { showUndoToast } from '@/components/ui/undo-toast';
 
 export function MoneyOverview() {
   const {
     monthlyIncome, budgetPlans, expenses, extraIncomes, history, uberRides,
     transportSettings, transportOverrides, transportMonthlyOverrides,
-    setMonthlyIncome, addExtraIncome, deleteExtraIncome,
+    setMonthlyIncome, addExtraIncome, deleteExtraIncome, restoreExtraIncome,
   } = useContext(AppDataContext);
 
   const [editingIncome, setEditingIncome] = useState(false);
@@ -26,6 +28,7 @@ export function MoneyOverview() {
   const [addingExtra, setAddingExtra] = useState(false);
   const [extraLabel, setExtraLabel] = useState('');
   const [extraAmount, setExtraAmount] = useState('');
+  const [extraRecurring, setExtraRecurring] = useState(false);
   const [extraError, setExtraError] = useState('');
 
   const now = new Date();
@@ -56,8 +59,16 @@ export function MoneyOverview() {
     if (!extraLabel.trim()) { setExtraError('Label is required.'); return; }
     const amt = parseFloat(extraAmount);
     if (isNaN(amt) || amt <= 0) { setExtraError('Enter a valid positive amount.'); return; }
-    addExtraIncome(extraLabel.trim(), amt);
-    setExtraLabel(''); setExtraAmount(''); setExtraError(''); setAddingExtra(false);
+    addExtraIncome(extraLabel.trim(), amt, extraRecurring);
+    setExtraLabel(''); setExtraAmount(''); setExtraRecurring(false); setExtraError(''); setAddingExtra(false);
+  };
+
+  // Delete immediately with a 5s undo window.
+  const handleDeleteExtra = (id: string) => {
+    const item = (extraIncomes ?? []).find(e => e.id === id);
+    if (!item) return;
+    deleteExtraIncome(id);
+    showUndoToast(`Removed "${item.label}"`, () => restoreExtraIncome(item));
   };
 
   const deductions = [
@@ -118,10 +129,17 @@ export function MoneyOverview() {
 
           {(extraIncomes ?? []).map(item => (
             <div key={item.id} className="flex items-center justify-between gap-2">
-              <span className="text-xs text-foreground truncate flex-1">{item.label}</span>
+              <span className="text-xs text-foreground truncate flex-1 flex items-center gap-1.5">
+                {item.label}
+                {item.recurring && (
+                  <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-semibold bg-primary/15 text-primary shrink-0">
+                    <RefreshCw className="h-2 w-2" /> monthly
+                  </span>
+                )}
+              </span>
               <span className="text-xs font-semibold text-primary tabular-nums shrink-0">+{formatCurrency(item.amount)}</span>
               <button
-                onClick={() => deleteExtraIncome(item.id)}
+                onClick={() => handleDeleteExtra(item.id)}
                 className="p-1 rounded text-muted-foreground/40 hover:text-destructive hover:bg-destructive/10 transition-colors shrink-0"
               >
                 <Trash2 className="h-3 w-3" />
@@ -143,10 +161,19 @@ export function MoneyOverview() {
                 onKeyDown={e => e.key === 'Enter' && submitExtra()}
                 className="h-8 text-xs"
               />
+              <div className="flex items-center justify-between bg-muted/30 rounded-xl px-3 py-2">
+                <div>
+                  <p className="text-xs font-semibold text-foreground">Monthly</p>
+                  <p className="text-[9px] text-muted-foreground">
+                    {extraRecurring ? 'Counts every month until removed' : 'This month only — clears on the 1st'}
+                  </p>
+                </div>
+                <Switch checked={extraRecurring} onCheckedChange={setExtraRecurring} />
+              </div>
               {extraError && <p className="text-[10px] text-destructive">{extraError}</p>}
               <div className="flex gap-2">
                 <Button size="sm" onClick={submitExtra} className="flex-1 h-7 text-xs">Add</Button>
-                <Button size="sm" variant="ghost" onClick={() => { setAddingExtra(false); setExtraLabel(''); setExtraAmount(''); setExtraError(''); }} className="h-7 text-xs px-2">
+                <Button size="sm" variant="ghost" onClick={() => { setAddingExtra(false); setExtraLabel(''); setExtraAmount(''); setExtraRecurring(false); setExtraError(''); }} className="h-7 text-xs px-2">
                   <X className="h-3.5 w-3.5" />
                 </Button>
               </div>
@@ -159,6 +186,14 @@ export function MoneyOverview() {
               <span className="text-sm font-bold text-primary tabular-nums">+{formatCurrency(totalExtra)}</span>
             </div>
           )}
+        </CardContent>
+      </Card>
+
+      {/* Total income (salary + extras) */}
+      <Card>
+        <CardContent className="p-3 flex justify-between items-baseline">
+          <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Total Income</span>
+          <span className="text-lg font-bold text-primary tabular-nums">+{formatCurrency(monthlyIncome + totalExtra)}</span>
         </CardContent>
       </Card>
 

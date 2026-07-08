@@ -22,6 +22,7 @@ const ProfileMenu = dynamic(() => import('@/components/settings/ProfileMenu').th
 const ThemeSettingsMenu = dynamic(() => import('@/components/settings/ThemeSettingsMenu').then(m => ({ default: m.ThemeSettingsMenu })), { ssr: false, loading: MenuFallback });
 const DataManagementMenu = dynamic(() => import('@/components/settings/DataManagementMenu').then(m => ({ default: m.DataManagementMenu })), { ssr: false, loading: MenuFallback });
 const NotificationsMenu = dynamic(() => import('@/components/settings/NotificationsMenu').then(m => ({ default: m.NotificationsMenu })), { ssr: false, loading: MenuFallback });
+import { DayNightToggle } from '@/components/settings/DayNightToggle';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 
 type ActiveMenu = 'main' | 'profile' | 'theme' | 'data' | 'notifications';
@@ -124,6 +125,15 @@ export function SettingsPage() {
   const [activeMenu, setActiveMenu] = useState<ActiveMenu>('main');
   const menuDirectionRef = useRef(1);
   const [menuIsDirty, setMenuIsDirty] = useState(false);
+
+  // The quick-add "Theme" shortcut opens the theme sub-menu directly. SettingsPage stays
+  // mounted (AppShell carousel), so this listener is live even from other pages; QuickAdd
+  // navigates to /settings alongside dispatching the event.
+  useEffect(() => {
+    const onOpenTheme = () => { menuDirectionRef.current = 1; setActiveMenu('theme'); };
+    window.addEventListener('duey:open-theme', onOpenTheme);
+    return () => window.removeEventListener('duey:open-theme', onOpenTheme);
+  }, []);
   const [pendingNav, setPendingNav] = useState<ActiveMenu | null>(null);
   const [pendingHref, setPendingHref] = useState<string | null>(null);
   const [showDiscardDialog, setShowDiscardDialog] = useState(false);
@@ -293,6 +303,7 @@ export function SettingsPage() {
             <>
               <ProfileHeroCard onEdit={() => tryNavigate('profile')} />
               <div className="space-y-3">
+                <DayNightToggle />
                 {menuItems.map((item) => (
                   <button
                     key={item.id}

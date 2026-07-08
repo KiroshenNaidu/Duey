@@ -4,6 +4,7 @@ import { useContext, useState, useMemo } from 'react';
 import { usePathname } from 'next/navigation';
 import { format } from 'date-fns';
 import { AppDataContext } from '@/context/AppDataContext';
+import { useFabLongPress, FAB_TOUCH_STYLE, FabPulse } from '@/components/QuickAdd';
 import type { BudgetPlan, BudgetItem } from '@/lib/types';
 import { formatCurrency, cn } from '@/lib/utils';
 import { Plus, Trash2, ExternalLink, Edit2, Check } from 'lucide-react';
@@ -473,6 +474,7 @@ function PlanView({ plan }: { plan: BudgetPlan }) {
 export function BudgetPlanner() {
   const { budgetPlans, addBudgetPlan } = useContext(AppDataContext);
   const pathname = usePathname();
+  const fabLongPress = useFabLongPress();
   const [newPlanOpen, setNewPlanOpen] = useState(false);
   const [planName, setPlanName] = useState('');
   const [planBudget, setPlanBudget] = useState('');
@@ -529,10 +531,11 @@ export function BudgetPlanner() {
             <DialogTrigger asChild>
               <button
                 aria-label="New budget plan"
-                className="fixed left-1/2 -translate-x-1/2 h-12 w-12 bg-primary rounded-full flex items-center justify-center text-primary-foreground shadow-lg hover:bg-primary/90 focus:outline-none transition-transform transform hover:scale-105 z-40"
-                style={{ bottom: 'calc(10px + var(--sab))' }}
+                className="fab-blurable fixed left-1/2 -translate-x-1/2 h-12 w-12 rounded-full focus:outline-none transition-transform hover:scale-105 z-40"
+                style={{ bottom: 'calc(10px + var(--sab))', ...FAB_TOUCH_STYLE }}
+                {...fabLongPress}
               >
-                <Plus className="h-5 w-5" />
+                <FabPulse><Plus className="h-5 w-5" /></FabPulse>
               </button>
             </DialogTrigger>
           </FixedPortal>

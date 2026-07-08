@@ -24,6 +24,8 @@ const debtSchema = z.object({
   title: z.string().min(1, 'Title is required'),
   total_owed: z.coerce.number().positive('Total amount must be positive'),
   installment_amount: z.coerce.number().positive('Installment amount must be positive'),
+  // PURELY optional — empty means no due date and no reminder for this debt.
+  dueDay: z.union([z.coerce.number().int().min(1, 'Day must be 1–31').max(31, 'Day must be 1–31'), z.literal('')]).optional(),
 });
 
 type DebtFormValues = z.infer<typeof debtSchema>;
@@ -40,6 +42,7 @@ export function AddDebtDialog({ children }: { children: ReactNode }) {
       title: '',
       total_owed: '' as unknown as number,
       installment_amount: '' as unknown as number,
+      dueDay: '',
     },
   });
 
@@ -77,7 +80,8 @@ export function AddDebtDialog({ children }: { children: ReactNode }) {
   };
 
   const onSubmit = (data: DebtFormValues) => {
-    addDebt(data);
+    const { dueDay, ...rest } = data;
+    addDebt({ ...rest, dueDay: typeof dueDay === 'number' ? dueDay : null });
     form.reset();
     setTitleInput('');
     setIsOpen(false);
@@ -163,6 +167,20 @@ export function AddDebtDialog({ children }: { children: ReactNode }) {
                   <FormControl>
                     <Input type="number" placeholder="e.g., 500" {...field} value={field.value ?? ''} />
                   </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="dueDay"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Due Day <span className="text-muted-foreground font-normal">(optional)</span></FormLabel>
+                  <FormControl>
+                    <Input type="number" min={1} max={31} placeholder="e.g., 15 — leave empty for none" {...field} value={field.value ?? ''} />
+                  </FormControl>
+                  <p className="text-[10px] text-muted-foreground">Day of the month this payment is due. Sets an Android reminder — leave empty to skip.</p>
                   <FormMessage />
                 </FormItem>
               )}

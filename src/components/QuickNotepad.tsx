@@ -133,11 +133,18 @@ const DraggableNotepadBox = ({
   );
 };
 
-export function QuickNotepad() {
+export function QuickNotepad({ showButton = true }: { showButton?: boolean }) {
   const { notepadContent, setNotepadContent } = useContext(AppDataContext);
   const [isOpen, setIsOpen] = useState(false);
   const [localContent, setLocalContent] = useState(notepadContent);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+
+  // The quick-add "Notes" shortcut opens the notepad from any page.
+  useEffect(() => {
+    const onOpen = () => setIsOpen(true);
+    window.addEventListener('duey:open-notes', onOpen);
+    return () => window.removeEventListener('duey:open-notes', onOpen);
+  }, []);
 
   // Sync local content when the notepad opens so it reflects persisted state.
   // notepadContent intentionally omitted from deps — including it would reset mid-edit content on every keystroke.
@@ -163,15 +170,17 @@ export function QuickNotepad() {
 
   return (
     <>
-      <Button
-        variant="outline"
-        size="icon"
-        className="fixed right-4 z-[60] h-12 w-12 rounded-full shadow-lg bg-card border-2 border-accent/30"
-        style={{ bottom: 'calc(10px + var(--sab))' }}
-        onClick={() => setIsOpen(prev => !prev)}
-      >
-        <StickyNote className="h-5 w-5" />
-      </Button>
+      {showButton && (
+        <Button
+          variant="outline"
+          size="icon"
+          className="fixed right-4 z-[60] h-12 w-12 rounded-full shadow-lg bg-card border-2 border-accent/30"
+          style={{ bottom: 'calc(10px + var(--sab))' }}
+          onClick={() => setIsOpen(prev => !prev)}
+        >
+          <StickyNote className="h-5 w-5" />
+        </Button>
+      )}
 
       <AnimatePresence>
         {isOpen && (

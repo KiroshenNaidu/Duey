@@ -3,6 +3,9 @@ export interface Debt {
   title: string;
   total_owed: number;
   installment_amount: number;
+  // Day of month (1–31) a payment is due. PURELY optional — null/undefined means no due
+  // date and no reminder is ever scheduled for this debt.
+  dueDay?: number | null;
 }
 
 export interface Expense {
@@ -21,6 +24,7 @@ export interface ExtraIncome {
   label: string;
   amount: number;
   createdAt: string; // ISO 8601
+  recurring?: boolean; // true = counts every month; false/undefined = auto-removed on 1st of next month (mirrors Expense)
 }
 
 export interface HistoryEntry {
@@ -173,6 +177,25 @@ export interface AppState {
   exportFolderName: string;
   /** 'yyyy-MM' of the last month we already pushed a balance snapshot to history. */
   lastSnapshotMonth: string;
+  /** Day/Night quick-switch: which saved theme preset each mode applies, and the active mode. */
+  dayNight: DayNightSettings;
+  /** Starred theme ids ('preset:<name>' for system presets, UserTheme id for user themes).
+   *  Only these are offered in the Day/Night quick-switch. */
+  favouriteThemes: string[];
+  /** System preset names the user has removed from their preset list. At least one system
+   *  preset must always remain visible (enforced in AppDataContext). Restorable anytime. */
+  hiddenSystemPresets: string[];
+  /** Selected quick-add radial gesture effect preset (see lib/radialFx.ts). */
+  quickAddFxId: string;
+  /** Ordered shortcut ids shown in the quick-add radial (see lib/quickShortcuts.ts).
+   *  Order = position along the arc. Min 1, max 7 (enforced in AppDataContext). */
+  quickAddShortcuts: string[];
+}
+
+export interface DayNightSettings {
+  dayThemeId: string;   // UserTheme id or 'preset:<name>' for a system preset; '' = not configured
+  nightThemeId: string;
+  mode: 'day' | 'night';
 }
 
 // For Import/Export, which might not have all fields.
