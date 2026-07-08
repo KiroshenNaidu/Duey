@@ -58,11 +58,10 @@ export function CurvedLabel({ id, index, text }: { id: string; index: number; te
   const d = `M ${cx - CURVED_ARC_R} ${cx} A ${CURVED_ARC_R} ${CURVED_ARC_R} 0 0 0 ${cx + CURVED_ARC_R} ${cx}`;
 
   // Heavy desync: each label spins at a different pace, phase, AND direction (alternating
-  // CW/CCW) so they never sync up. Shimmer is staggered separately for the 1→2→3→4 cascade.
+  // CW/CCW) so they never sync up.
   const dir = index % 2 === 0 ? 1 : -1;               // alternate spin direction
-  const rotDuration = 9 + ((index * 5.3) % 9);        // 9–18s, non-linear spread
+  const rotDuration = 6 + ((index * 3.7) % 6);        // 6–12s, non-linear spread (faster)
   const startAngle = (index * 67) % 360;              // starting phase
-  const shimmerDelay = index * 0.32;                  // cascade
 
   // Variable-speed spin (loading-screen feel): two FAST bursts per revolution separated by
   // slow crawls. Keyframe angles are unevenly paced against `times`, so equal time slices
@@ -93,7 +92,7 @@ export function CurvedLabel({ id, index, text }: { id: string; index: number; te
         fontWeight="800"
         stroke="rgba(0,0,0,0.7)"
         strokeWidth="2.5"
-        style={{ paintOrder: 'stroke', letterSpacing: '0.03em', animationDelay: `${shimmerDelay}s` }}
+        style={{ paintOrder: 'stroke', letterSpacing: '0.03em' }}
       >
         <textPath href={`#${pathId}`} startOffset="50%" textAnchor="middle">{text}</textPath>
       </text>

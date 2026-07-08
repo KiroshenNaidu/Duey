@@ -291,16 +291,9 @@ nav.fixed,
 
 /* Quick-add radial labels. Colour is a FIXED primary (no colour animation) so it snaps
    instantly to the active theme the moment a theme is saved — no slow real-time morph.
-   The shimmer animates OPACITY only, so it still cascades 1→2→3→4 (per-label
-   animationDelay in JSX, like the budget rings) without ever cycling the hue. */
-.radial-label-shimmer { color: hsl(var(--primary)); opacity: 0.95; }
-@keyframes radial-label-shimmer {
-  0%, 100% { opacity: 0.5; }
-  50%      { opacity: 1; }
-}
-@media (prefers-reduced-motion: no-preference) {
-  .radial-label-shimmer { animation: radial-label-shimmer 1.9s ease-in-out infinite; }
-}
+   Solid, fully-opaque fill: no opacity shimmer, so the label stays one steady colour while
+   only its position (the spin, in JSX) animates. */
+.radial-label-shimmer { color: hsl(var(--primary)); opacity: 1; }
 
 /* Consistent "selected" glow — a soft primary halo used on every selectable control in
    Theme settings (preset cards, UI-style cards, effect + shortcut chips) so selection

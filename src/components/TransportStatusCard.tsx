@@ -2,7 +2,6 @@
 import { useContext, useMemo, useState, useEffect } from 'react';
 import { AppDataContext } from '@/context/AppDataContext';
 import { format } from 'date-fns';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Car } from 'lucide-react';
 import { formatCurrency, cn } from '@/lib/utils';
 import { Skeleton } from './ui/skeleton';
@@ -36,36 +35,48 @@ export function TransportStatusCard() {
     return { totalDue, isPaid };
   }, [currentDate, transportOverrides, transportSettings, transportMonthlyOverrides, history, isClient]);
 
+  // Same card shell as the other Stats cards: bg-card rounded-2xl p-4, left category-colour
+  // icon + uppercase muted title, and a muted label / bold coloured value row.
   if (!isClient) {
     return (
-        <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <Skeleton className="h-4 w-2/4" />
-                <Car className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-                <Skeleton className="h-8 w-3/4 mb-1" />
-                <Skeleton className="h-3 w-1/4" />
-            </CardContent>
-        </Card>
-    )
+      <div className="bg-card rounded-2xl p-4">
+        <div className="flex items-center gap-2 mb-2">
+          <Car className="h-4 w-4 text-[hsl(var(--cat-transport))]" />
+          <Skeleton className="h-3 w-28" />
+        </div>
+        <div className="flex items-center justify-between pt-1">
+          <Skeleton className="h-4 w-24" />
+          <Skeleton className="h-5 w-16" />
+        </div>
+      </div>
+    );
   }
-  
-  const statusText = currentMonthStats.isPaid ? 'Paid' : 'Pending';
-  const statusColor = currentMonthStats.isPaid ? 'text-green-500' : 'text-red-500';
+
+  const isPaid = currentMonthStats.isPaid;
+  const statusText = isPaid ? 'Paid' : 'Pending';
 
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-sm font-medium text-foreground">Monthly Transport</CardTitle>
-        <Car className="h-4 w-4 text-muted-foreground" />
-      </CardHeader>
-      <CardContent>
-        <div className="text-2xl font-bold text-foreground">{formatCurrency(currentMonthStats.totalDue)}</div>
-        <p className={cn('text-xs font-semibold', statusColor)}>
-          Status: {statusText} for {format(currentDate, 'MMMM')}
+    <div className="bg-card rounded-2xl p-4">
+      <div className="flex items-center gap-2 mb-2">
+        <Car className="h-4 w-4 text-[hsl(var(--cat-transport))]" />
+        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Monthly Transport</p>
+        <span
+          className={cn(
+            'ml-auto text-[10px] font-semibold px-2 py-0.5 rounded-full',
+            isPaid
+              ? 'bg-[hsl(var(--positive))]/15 text-[hsl(var(--positive))]'
+              : 'bg-[hsl(var(--negative))]/15 text-[hsl(var(--negative))]',
+          )}
+        >
+          {statusText}
+        </span>
+      </div>
+      <div className="flex items-center justify-between pt-1">
+        <p className="text-sm text-muted-foreground">{format(currentDate, 'MMMM yyyy')}</p>
+        <p className="text-base font-bold text-[hsl(var(--cat-transport))] tabular-nums">
+          {formatCurrency(currentMonthStats.totalDue)}
         </p>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }

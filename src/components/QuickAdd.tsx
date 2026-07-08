@@ -103,8 +103,10 @@ export function FabPulse({ children }: { children: React.ReactNode }) {
       {!reduce && (
         <motion.span
           className="absolute inset-0 rounded-full bg-primary/50"
-          animate={{ scale: [1, 1.55], opacity: [0.55, 0] }}
-          transition={{ duration: 2.2, repeat: Infinity, ease: 'easeOut' }}
+          // Both ends of the loop sit at opacity 0 so the repeat has nothing visible to
+          // snap back to: the ring fades in small, then expands outward as it fades out.
+          animate={{ scale: [1, 1.12, 1.55], opacity: [0, 0.55, 0] }}
+          transition={{ duration: 2.2, repeat: Infinity, ease: 'easeOut', times: [0, 0.18, 1] }}
         />
       )}
       <span className="absolute inset-0 rounded-full bg-primary shadow-lg flex items-center justify-center text-primary-foreground">
