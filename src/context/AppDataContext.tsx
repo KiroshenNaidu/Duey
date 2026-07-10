@@ -9,6 +9,7 @@ import { syncDebtReminders } from '@/lib/debtReminders';
 import { systemPresets } from '@/lib/systemThemes';
 import { DEFAULT_RADIAL_FX_ID } from '@/lib/radialFx';
 import { DEFAULT_PAGE_TRANSITION_ID } from '@/lib/pageTransitions';
+import { DEFAULT_HAPTIC_STRENGTH, setHapticStrength, type HapticStrength } from '@/lib/haptics';
 import { DEFAULT_QUICK_SHORTCUTS, sanitizeShortcuts } from '@/lib/quickShortcuts';
 import { LoadingScreen } from '@/components/LoadingScreen';
 
@@ -62,6 +63,7 @@ function migrateState(raw: AppState): AppState {
     quickAddShortcuts: sanitizeShortcuts(raw.quickAddShortcuts),
     pageTransitionId: raw.pageTransitionId ?? DEFAULT_PAGE_TRANSITION_ID,
     swipeActionsEnabled: raw.swipeActionsEnabled ?? true,
+    hapticsStrength: raw.hapticsStrength ?? DEFAULT_HAPTIC_STRENGTH,
     schemaVersion: CURRENT_SCHEMA_VERSION,
   };
 }
@@ -119,6 +121,7 @@ const defaultState: AppState = {
   quickAddShortcuts: [...DEFAULT_QUICK_SHORTCUTS],
   pageTransitionId: DEFAULT_PAGE_TRANSITION_ID,
   swipeActionsEnabled: true,
+  hapticsStrength: DEFAULT_HAPTIC_STRENGTH,
 };
 
 type NavGuard = { onAttempt: (href: string) => void } | null;
@@ -175,6 +178,7 @@ interface AppContextType extends AppState {
   setQuickAddShortcuts: (ids: string[]) => void;
   setPageTransitionId: (id: string) => void;
   setSwipeActionsEnabled: (on: boolean) => void;
+  setHapticsStrength: (s: HapticStrength) => void;
   importData: (data: AppData) => void;
   deleteHistoryEntry: (entryId: string) => void;
   updateHistoryEntry: (entryId: string, data: Partial<Pick<HistoryEntry, 'label' | 'note' | 'amount' | 'date'>>) => void;
@@ -231,6 +235,7 @@ export const AppDataContext = createContext<AppContextType>({
   setQuickAddShortcuts: () => {},
   setPageTransitionId: () => {},
   setSwipeActionsEnabled: () => {},
+  setHapticsStrength: () => {},
   importData: () => {},
   deleteHistoryEntry: () => {},
   updateHistoryEntry: () => {},
@@ -258,6 +263,10 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
 
   // Keep module-level currency in sync with state so formatCurrency() picks it up everywhere.
   useEffect(() => { setCurrencyCode(appState.currency); }, [appState.currency]);
+
+  // Keep the module-level haptic strength in sync so hapticTick/hapticTap read the saved
+  // setting without needing context access from lib code.
+  useEffect(() => { setHapticStrength(appState.hapticsStrength); }, [appState.hapticsStrength]);
 
   // Keep per-debt due-date reminders in sync with the debt list (native only, best-effort).
   // Debts without a dueDay are simply never scheduled.
@@ -853,6 +862,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     setQuickAddShortcuts: (ids: string[]) => updateStateAndSync(p => ({ ...p, quickAddShortcuts: sanitizeShortcuts(ids) })),
     setPageTransitionId: (id: string) => updateStateAndSync(p => ({ ...p, pageTransitionId: id })),
     setSwipeActionsEnabled: (on: boolean) => updateStateAndSync(p => ({ ...p, swipeActionsEnabled: on })),
+    setHapticsStrength: (s: HapticStrength) => updateStateAndSync(p => ({ ...p, hapticsStrength: s })),
     deleteHistoryEntry,
     updateHistoryEntry,
     importData,

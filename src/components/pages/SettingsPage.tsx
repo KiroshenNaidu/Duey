@@ -2,9 +2,9 @@
 
 import { useState, useContext, useEffect, useRef } from 'react';
 import dynamic from 'next/dynamic';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Palette, Database, Bell, ChevronLeft, User, Pencil, History } from 'lucide-react';
+import { Database, Bell, ChevronLeft, User, Pencil, History, SlidersHorizontal } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { AppDataContext } from '@/context/AppDataContext';
 
@@ -25,7 +25,7 @@ const NotificationsMenu = dynamic(() => import('@/components/settings/Notificati
 import { DayNightToggle } from '@/components/settings/DayNightToggle';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 
-type ActiveMenu = 'main' | 'profile' | 'theme' | 'data' | 'notifications';
+type ActiveMenu = 'main' | 'profile' | 'settings' | 'data' | 'notifications';
 
 type MenuItem = {
   id: Exclude<ActiveMenu, 'main' | 'profile'>;
@@ -34,11 +34,21 @@ type MenuItem = {
   icon: React.ElementType;
 };
 
+// Top-level Profile menu. Vibration + Theme both live together inside "Settings".
 const menuItems: MenuItem[] = [
-  { id: 'theme',         title: 'Theme',           description: 'Customize colors, fonts, and background', icon: Palette },
-  { id: 'data',          title: 'Data Management', description: 'Backup, restore, or reset your data',      icon: Database },
-  { id: 'notifications', title: 'Notifications',   description: 'Payment reminders on Android',             icon: Bell },
+  { id: 'settings',      title: 'Settings',        description: 'Vibration and appearance',            icon: SlidersHorizontal },
+  { id: 'data',          title: 'Data Management', description: 'Backup, restore, or reset your data', icon: Database },
+  { id: 'notifications', title: 'Notifications',   description: 'Payment reminders on Android',         icon: Bell },
 ];
+
+// Menu tree: depth drives the slide direction (deeper = forward) and each sub-menu's
+// parent is where its back button / hardware-back returns to (all sub-menus → main).
+const MENU_DEPTH: Record<ActiveMenu, number> = {
+  main: 0, profile: 1, settings: 1, data: 1, notifications: 1,
+};
+const MENU_PARENT: Record<Exclude<ActiveMenu, 'main'>, ActiveMenu> = {
+  profile: 'main', settings: 'main', data: 'main', notifications: 'main',
+};
 
 const ordinal = (n: number) => {
   const s = ['th', 'st', 'nd', 'rd'];
@@ -121,16 +131,17 @@ const menuTransition = { type: 'tween' as const, ease: [0.25, 0.46, 0.45, 0.94] 
 
 export function SettingsPage() {
   const router = useRouter();
+  const pathname = usePathname();
   const { setNavGuard, setPageSwipeLocked } = useContext(AppDataContext);
   const [activeMenu, setActiveMenu] = useState<ActiveMenu>('main');
   const menuDirectionRef = useRef(1);
   const [menuIsDirty, setMenuIsDirty] = useState(false);
 
-  // The quick-add "Theme" shortcut opens the theme sub-menu directly. SettingsPage stays
-  // mounted (AppShell carousel), so this listener is live even from other pages; QuickAdd
-  // navigates to /settings alongside dispatching the event.
+  // The quick-add "Theme" shortcut opens the Settings sub-menu (Theme now lives inside it).
+  // SettingsPage stays mounted (AppShell carousel), so this listener is live even from other
+  // pages; QuickAdd navigates to /settings alongside dispatching the event.
   useEffect(() => {
-    const onOpenTheme = () => { menuDirectionRef.current = 1; setActiveMenu('theme'); };
+    const onOpenTheme = () => { menuDirectionRef.current = 1; setActiveMenu('settings'); };
     window.addEventListener('duey:open-theme', onOpenTheme);
     return () => window.removeEventListener('duey:open-theme', onOpenTheme);
   }, []);
@@ -167,46 +178,56 @@ export function SettingsPage() {
     setTimeout(() => setToast(null), 2500);
   };
 
+  // Commit a menu change. Direction is depth-based (descend = slide forward, ascend =
+  // slide back) so nested menus animate the right way. Descending pushes a dummy history
+  // entry so the Android hardware back button pops one level (handled in the popstate
+  // effect) instead of exiting the app; the URL stays at /settings throughout.
+  const navigateTo = (target: ActiveMenu) => {
+    menuDirectionRef.current = MENU_DEPTH[target] >= MENU_DEPTH[activeMenu] ? 1 : -1;
+    const descending = MENU_DEPTH[target] > MENU_DEPTH[activeMenu];
+    setActiveMenu(target);
+    setMenuIsDirty(false);
+    document.querySelector('main')?.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
+    if (descending) {
+      window.history.pushState({ __duey_settings: target }, '', window.location.href);
+    }
+  };
+
   const tryNavigate = (target: ActiveMenu) => {
     if (menuIsDirty) {
       setPendingNav(target);
       setShowDiscardDialog(true);
     } else {
-      menuDirectionRef.current = target === 'main' ? -1 : 1;
-      setActiveMenu(target);
-      setMenuIsDirty(false);
-      document.querySelector('main')?.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
-      // Push a dummy history entry so the Android hardware back button can pop
-      // back to the settings main menu instead of exiting the app or jumping to
-      // the previous route. The URL stays at /settings; we handle the pop below.
-      if (target !== 'main') {
-        window.history.pushState({ __duey_settings: target }, '', window.location.href);
-      }
+      navigateTo(target);
     }
   };
 
   // While inside a sub-menu, that menu owns horizontal swipes (its own sub-tabs), so
   // suppress the page-level swipe nav that would otherwise jump to Transport/Stats/etc.
+  // Gated to /settings: this page stays mounted in the AppShell carousel, and a sub-menu
+  // left open must not keep page swipes dead on Transport/Money/Stats.
   useEffect(() => {
-    setPageSwipeLocked(activeMenu !== 'main');
+    setPageSwipeLocked(activeMenu !== 'main' && pathname === '/settings');
     return () => setPageSwipeLocked(false);
-  }, [activeMenu, setPageSwipeLocked]);
+  }, [activeMenu, pathname, setPageSwipeLocked]);
 
-  const handleBack = () => tryNavigate('main');
+  // On-screen back always steps up one level (Theme → Settings → main).
+  const handleBack = () => tryNavigate(activeMenu === 'main' ? 'main' : MENU_PARENT[activeMenu]);
 
   // Intercept Android hardware back button while inside a sub-menu.
   useEffect(() => {
     const onPop = () => {
       if (activeMenu !== 'main') {
-        // Re-push so the entry is restored, then animate to main.
+        // Re-push so the popped entry is restored, then animate up one level to the
+        // current menu's parent (Theme → Settings → main), not straight to main.
         window.history.pushState({ __duey_settings: activeMenu }, '', window.location.href);
-        tryNavigate('main');
+        tryNavigate(MENU_PARENT[activeMenu]);
       }
     };
     window.addEventListener('popstate', onPop);
     return () => window.removeEventListener('popstate', onPop);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeMenu]);
+  }, [activeMenu, menuIsDirty]);
 
   const confirmDiscard = () => {
     setMenuIsDirty(false);
@@ -217,17 +238,14 @@ export function SettingsPage() {
       setPendingNav(null);
       router.push(href);
     } else if (pendingNav !== null) {
-      menuDirectionRef.current = pendingNav === 'main' ? -1 : 1;
-      setActiveMenu(pendingNav);
+      navigateTo(pendingNav);
       setPendingNav(null);
     }
   };
 
   const handleSaved = (msg: string) => {
     showToast(msg);
-    setMenuIsDirty(false);
-    menuDirectionRef.current = -1;
-    setActiveMenu('main');
+    navigateTo('main');
   };
 
   const handleThemeSaved = (msg: string) => {
@@ -278,12 +296,15 @@ export function SettingsPage() {
           {activeMenu === 'profile' && (
             <>
               <PageHeader title="Profile" onBack={handleBack} />
-              <ProfileMenu onDirtyChange={setMenuIsDirty} onSaved={handleSaved} onCancel={() => { menuDirectionRef.current = -1; setActiveMenu('main'); }} />
+              <ProfileMenu onDirtyChange={setMenuIsDirty} onSaved={handleSaved} onCancel={() => navigateTo('main')} />
             </>
           )}
-          {activeMenu === 'theme' && (
+          {activeMenu === 'settings' && (
             <>
-              <PageHeader title="Theme" onBack={handleBack} />
+              <PageHeader title="Settings" onBack={handleBack} />
+              {/* One editor governs the whole page: Vibration + all appearance settings are
+                  drafts committed together by its Cancel/Save bar — nothing applies until
+                  Save. See ThemeSettingsMenu. */}
               <ThemeSettingsMenu onCancel={handleBack} onDirtyChange={setMenuIsDirty} onSaved={handleThemeSaved} />
             </>
           )}
@@ -296,7 +317,7 @@ export function SettingsPage() {
           {activeMenu === 'notifications' && (
             <>
               <PageHeader title="Notifications" onBack={handleBack} />
-              <NotificationsMenu onDirtyChange={setMenuIsDirty} onSaved={handleSaved} onCancel={() => { menuDirectionRef.current = -1; setActiveMenu('main'); }} />
+              <NotificationsMenu onDirtyChange={setMenuIsDirty} onSaved={handleSaved} onCancel={() => navigateTo('main')} />
             </>
           )}
           {activeMenu === 'main' && (

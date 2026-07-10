@@ -2,11 +2,11 @@
 
 import { usePathname, useRouter } from 'next/navigation';
 import { Wallet, BarChart3, User, Car } from 'lucide-react';
-import { motion, useTransform } from 'framer-motion';
 import { cn } from '@/lib/utils';
-import { useContext } from 'react';
+import { useContext, useLayoutEffect, useRef } from 'react';
 import { AppDataContext } from '@/context/AppDataContext';
 import { pageProgress } from '@/lib/pageTransitions';
+import { hapticTap } from '@/lib/haptics';
 
 const navItems = [
   { href: '/transport', label: 'Transport', icon: Car },
@@ -26,20 +26,39 @@ export function BottomNav() {
   // The pill is a pure function of the SAME live progress the page carousel runs on
   // (AppShell writes it during drags and commit/cancel animations), so it glides under
   // the finger in lockstep with the pages — including the rubber-band at the ends,
-  // which the clamp pins to the first/last tab.
-  const pillX = useTransform(pageProgress, (p) => `${Math.min(Math.max(p, 0), navItems.length - 1) * 100}%`);
+  // which the clamp pins to the first/last tab. Written straight to el.style from the
+  // synchronous progress subscription (no MotionValue → rAF hop) so the pill moves in
+  // the exact same frame as the pages, not one behind.
+  const pillRef = useRef<HTMLDivElement | null>(null);
+  useLayoutEffect(() => {
+    const apply = (p: number) => {
+      const el = pillRef.current;
+      if (!el) return;
+      const clamped = Math.min(Math.max(p, 0), navItems.length - 1);
+      el.style.transform = `translateX(${clamped * 100}%)`;
+    };
+    apply(pageProgress.get());
+    return pageProgress.on('change', apply);
+  }, [onMainRoute]);
 
   return (
     <nav className="fixed top-0 left-0 right-0 bg-card border-b border-border z-50 transition-colors duration-300" style={{ height: 'var(--top-nav-h)' }}>
       <div className="relative flex items-stretch h-full max-w-md mx-auto" style={{ paddingTop: 'var(--top-nav-pt)' }}>
         {/* Sliding highlight — driven by the live carousel progress, not route state */}
         {onMainRoute && (
-          <motion.div
+          <div
+            ref={pillRef}
             className="absolute left-0 pointer-events-none"
-            style={{ width: `${100 / navItems.length}%`, top: 'var(--top-nav-pt)', bottom: 0, x: pillX }}
+            style={{
+              width: `${100 / navItems.length}%`,
+              top: 'var(--top-nav-pt)',
+              bottom: 0,
+              transform: `translateX(${Math.min(Math.max(pageProgress.get(), 0), navItems.length - 1) * 100}%)`,
+              willChange: 'transform',
+            }}
           >
             <span className="absolute inset-1.5 rounded-xl bg-primary/10" />
-          </motion.div>
+          </div>
         )}
 
         {navItems.map((item) => {
@@ -50,6 +69,7 @@ export function BottomNav() {
               role="link"
               aria-current={isActive ? 'page' : undefined}
               onClick={() => {
+                hapticTap();
                 if (navGuard && !isActive) {
                   navGuard.onAttempt(item.href);
                 } else {

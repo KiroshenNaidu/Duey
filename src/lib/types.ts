@@ -1,3 +1,5 @@
+import type { HapticStrength } from './haptics';
+
 export interface Debt {
   id: string;
   title: string;
@@ -208,6 +210,8 @@ export interface AppState {
   pageTransitionId: string;
   /** Swipe-to-reveal action trays on list cards (see components/SwipeableRow.tsx). */
   swipeActionsEnabled: boolean;
+  /** Vibration feedback strength for buttons/gestures (see lib/haptics.ts). */
+  hapticsStrength: HapticStrength;
 }
 
 export interface DayNightSettings {

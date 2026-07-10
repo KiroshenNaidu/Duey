@@ -5,6 +5,8 @@ import { Button } from './ui/button';
 import { Card, CardContent, CardHeader } from './ui/card';
 import { X } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { acquireOverlayBlur, releaseOverlayBlur } from '@/lib/overlayBlur';
+import { FixedPortal } from '@/components/FixedPortal';
 
 function safeCalculate(raw: string): number {
   const expr = raw.replace(/\s+/g, '');
@@ -69,6 +71,14 @@ const DraggableCard = ({ children, onClose }: { children: React.ReactNode; onClo
     }
   }, []);
 
+  // Blur the whole app uniformly while open (same mechanism dialogs/quick-add use).
+  // The old backdrop-filter blur sampled page layers inconsistently — big page titles
+  // stayed sharp while card text went mushy — and the + FAB floated unblurred on top.
+  useEffect(() => {
+    const token = acquireOverlayBlur();
+    return () => releaseOverlayBlur(token);
+  }, []);
+
   const onDragStart = useCallback((e: React.MouseEvent<HTMLDivElement> | React.TouchEvent<HTMLDivElement>) => {
     isDraggingRef.current = true;
     const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
@@ -102,10 +112,13 @@ const DraggableCard = ({ children, onClose }: { children: React.ReactNode; onClo
     };
   }, [onDrag, onDragEnd]);
 
+  // Portaled to <body>: the panel lives inside #app-root's subtree, and the overlay
+  // blur puts a CSS filter on #app-root — which would blur the calculator itself AND
+  // re-anchor its position:fixed. On body it floats sharp above the blurred app.
   return (
-    <>
+    <FixedPortal>
       <motion.div
-        className="fixed inset-0 z-[95] bg-black/5 backdrop-blur-[1.5px]"
+        className="fixed inset-0 z-[95] bg-black/40"
         onClick={onClose}
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
@@ -142,7 +155,7 @@ const DraggableCard = ({ children, onClose }: { children: React.ReactNode; onClo
           </CardContent>
         </Card>
       </motion.div>
-    </>
+    </FixedPortal>
   );
 };
 

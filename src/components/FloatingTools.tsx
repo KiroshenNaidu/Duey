@@ -6,6 +6,7 @@ import { Button } from './ui/button';
 import { Calculator } from 'lucide-react';
 import { QuickNotepad } from './QuickNotepad';
 import { FloatingCalculator } from './FloatingCalculator';
+import { hapticTap } from '@/lib/haptics';
 
 export function FloatingTools() {
   const pathname = usePathname();
@@ -42,7 +43,7 @@ export function FloatingTools() {
             variant="outline"
             size="icon"
             className="h-12 w-12 rounded-full shadow-lg bg-card border-2 border-accent/30"
-            onClick={() => setIsCalculatorOpen(prev => !prev)}
+            onClick={() => { hapticTap(); setIsCalculatorOpen(prev => !prev); }}
           >
             <Calculator className="h-5 w-5" />
           </Button>

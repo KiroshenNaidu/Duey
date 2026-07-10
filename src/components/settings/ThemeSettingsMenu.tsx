@@ -19,49 +19,18 @@ import { AppDataContext } from '@/context/AppDataContext';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { AnimatePresence, motion } from 'framer-motion';
+import { SwipeTabView } from '@/components/SwipeTabView';
+import { HapticsCard } from '@/components/settings/HapticsCard';
+import { setHapticStrength } from '@/lib/haptics';
+import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 
 const TAB_ORDER = ['style', 'colors', 'background', 'presets'] as const;
 type TabKey = (typeof TAB_ORDER)[number];
 
-// Match the page-level carousel transition (AppShell) so sub-tab swipes feel identical.
-const tabTransition = { type: 'tween' as const, ease: [0.22, 1, 0.36, 1] as [number, number, number, number], duration: 0.22 };
-const tabVariants = {
-  enter: (dir: number) => ({ x: dir >= 0 ? '40%' : '-40%', opacity: 0 }),
-  center: { x: 0, opacity: 1 },
-  exit: (dir: number) => ({ x: dir >= 0 ? '-40%' : '40%', opacity: 0 }),
-};
-
-// Width of the left/right edge band whose swipes always change tabs (bypassing the
-// slider guard) — keeps slider-heavy tabs like Background swipeable.
+// Width of the left/right edge band whose swipes always change tabs (bypassing
+// SwipeTabView's slider guard) — keeps slider-heavy tabs like Background swipeable.
 const EDGE_ZONE = 28;
-// Distance a horizontal swipe must travel to commit a tab change.
-const SWIPE_THRESHOLD = 45;
-
-// A horizontal swipe that starts inside a slider or horizontal scroller adjusts that
-// control instead of changing tabs.
-function isInHScroller(el: EventTarget | null): boolean {
-  let node = el as Element | null;
-  while (node && node !== document.body) {
-    if (node.getAttribute('role') === 'slider') return true;
-    if (node.getAttribute('data-orientation') === 'horizontal' && node.querySelector('[role="slider"]')) return true;
-    if (node.getAttribute('data-h-scroll') === 'true') return true;
-    const ox = window.getComputedStyle(node).overflowX;
-    if ((ox === 'scroll' || ox === 'auto') && node.scrollWidth > node.clientWidth) return true;
-    node = node.parentElement;
-  }
-  return false;
-}
-
-function isInDialog(el: EventTarget | null): boolean {
-  let node = el as Element | null;
-  while (node && node !== document.body) {
-    if (node.getAttribute('role') === 'dialog') return true;
-    node = node.parentElement;
-  }
-  return false;
-}
 
 const defaultThemeSettings: Omit<ThemeSettings, 'backgroundImage' | 'backgroundVideo'> = {
   background: '240 6% 7%',
@@ -122,16 +91,18 @@ export function ThemeSettingsMenu({ onCancel, onDirtyChange, onSaved }: { onCanc
     favouriteThemes, hiddenSystemPresets, setFavouriteThemes, setHiddenSystemPresets,
     quickAddFxId, setQuickAddFxId, quickAddShortcuts, setQuickAddShortcuts,
     pageTransitionId, setPageTransitionId, swipeActionsEnabled, setSwipeActionsEnabled,
+    hapticsStrength, setHapticsStrength,
   } = useContext(AppDataContext);
 
-  // Quick-add + preset drafts — same save-then-apply contract as the theme itself: edits
-  // live here (and drive the previews) but only reach app state on Save.
+  // Quick-add + preset + vibration drafts — same save-then-apply contract as the theme
+  // itself: edits live here (and drive the previews) but only reach app state on Save.
   const [draftFxId, setDraftFxId] = useState(quickAddFxId);
   const [draftShortcuts, setDraftShortcuts] = useState<string[]>([...quickAddShortcuts]);
   const [draftFavourites, setDraftFavourites] = useState<string[]>([...favouriteThemes]);
   const [draftHidden, setDraftHidden] = useState<string[]>([...hiddenSystemPresets]);
   const [draftPageTransitionId, setDraftPageTransitionId] = useState(pageTransitionId);
   const [draftSwipeActions, setDraftSwipeActions] = useState(swipeActionsEnabled);
+  const [draftHaptics, setDraftHaptics] = useState(hapticsStrength);
 
   const toggleDraftFavourite = (id: string) =>
     setDraftFavourites(f => f.includes(id) ? f.filter(x => x !== id) : [...f, id]);
@@ -330,11 +301,15 @@ export function ThemeSettingsMenu({ onCancel, onDirtyChange, onSaved }: { onCanc
       setQuickAddShortcuts(draftShortcuts);
       setPageTransitionId(draftPageTransitionId);
       setSwipeActionsEnabled(draftSwipeActions);
+      // Vibration commits with everything else — persist it AND push it to the haptics
+      // module now so the very next tick (and post-reload app) uses the saved strength.
+      setHapticsStrength(draftHaptics);
+      setHapticStrength(draftHaptics);
       // Hidden first (it prunes favourites for hidden presets), then favourites.
       setHiddenSystemPresets(draftHidden);
       setFavouriteThemes(draftFavourites);
       onDirtyChange?.(false);
-      onSaved?.('Theme saved!');
+      onSaved?.('Settings saved!');
       document.documentElement.classList.add('page-fading-out');
       setTimeout(() => { window.location.href = '/'; }, 130);
     } catch (err) {
@@ -371,11 +346,13 @@ export function ThemeSettingsMenu({ onCancel, onDirtyChange, onSaved }: { onCanc
       JSON.stringify(draftFavourites) !== JSON.stringify(favouriteThemes) ||
       JSON.stringify(draftHidden) !== JSON.stringify(hiddenSystemPresets) ||
       draftPageTransitionId !== pageTransitionId ||
-      draftSwipeActions !== swipeActionsEnabled
+      draftSwipeActions !== swipeActionsEnabled ||
+      draftHaptics !== hapticsStrength
     );
   }, [previewTheme, draftFxId, quickAddFxId, draftShortcuts, quickAddShortcuts,
       draftFavourites, favouriteThemes, draftHidden, hiddenSystemPresets,
-      draftPageTransitionId, pageTransitionId, draftSwipeActions, swipeActionsEnabled]);
+      draftPageTransitionId, pageTransitionId, draftSwipeActions, swipeActionsEnabled,
+      draftHaptics, hapticsStrength]);
 
   useEffect(() => { onDirtyChange?.(isDirty); }, [isDirty, onDirtyChange]);
 
@@ -436,65 +413,13 @@ export function ThemeSettingsMenu({ onCancel, onDirtyChange, onSaved }: { onCanc
     }
   };
 
-  // ── Sub-tab navigation (swipeable) ──
+  // ── Sub-tab navigation (swipeable via SwipeTabView) ──
   const [tab, setTab] = useState<TabKey>('style');
-  const tabDirRef = useRef(0);
-  const tabRef = useRef(tab);
-  tabRef.current = tab;
+  const pathname = usePathname();
   const goToTab = useCallback((next: TabKey) => {
     document.querySelector('main')?.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
-    setTab(prev => {
-      tabDirRef.current = TAB_ORDER.indexOf(next) - TAB_ORDER.indexOf(prev);
-      return next;
-    });
+    setTab(next);
   }, []);
-
-  // Listen at the document level (not on a child element) so swipes that start in the
-  // page's side gutters — and the left/right edge band — are caught across the full
-  // screen width. SettingsPage locks AppShell's page-swipe nav while this menu is open,
-  // so these gestures only ever change sub-tabs.
-  useEffect(() => {
-    const s = { x: 0, y: 0, mode: 'none' as 'none' | 'h' | 'v', edge: false };
-    const onStart = (e: TouchEvent) => {
-      if (isInDialog(e.target)) { s.mode = 'v'; return; }
-      const x = e.touches[0].clientX;
-      s.x = x;
-      s.y = e.touches[0].clientY;
-      s.mode = 'none';
-      // Edge swipes always change tabs (bypass the slider guard); interior swipes yield
-      // to sliders / the drag-to-position preview.
-      s.edge = x <= EDGE_ZONE || x >= window.innerWidth - EDGE_ZONE;
-    };
-    const onMove = (e: TouchEvent) => {
-      if (s.mode === 'v') return;
-      const dx = e.touches[0].clientX - s.x;
-      const dy = e.touches[0].clientY - s.y;
-      if (Math.abs(dx) < 4 && Math.abs(dy) < 4) return;
-      if (s.mode === 'none') {
-        if (Math.abs(dy) > Math.abs(dx)) { s.mode = 'v'; return; }
-        if (!s.edge && isInHScroller(e.target)) { s.mode = 'v'; return; }
-        s.mode = 'h';
-      }
-    };
-    const onEnd = (e: TouchEvent) => {
-      if (s.mode !== 'h') { s.mode = 'none'; return; }
-      s.mode = 'none';
-      const dx = e.changedTouches[0].clientX - s.x;
-      if (Math.abs(dx) < SWIPE_THRESHOLD) return;
-      const idx = TAB_ORDER.indexOf(tabRef.current);
-      const next = dx < 0 ? idx + 1 : idx - 1;
-      if (next < 0 || next >= TAB_ORDER.length) return;
-      goToTab(TAB_ORDER[next]);
-    };
-    document.addEventListener('touchstart', onStart, { passive: true });
-    document.addEventListener('touchmove', onMove, { passive: true });
-    document.addEventListener('touchend', onEnd, { passive: true });
-    return () => {
-      document.removeEventListener('touchstart', onStart);
-      document.removeEventListener('touchmove', onMove);
-      document.removeEventListener('touchend', onEnd);
-    };
-  }, [goToTab]);
 
   if (!isClient) return null;
 
@@ -632,6 +557,9 @@ export function ThemeSettingsMenu({ onCancel, onDirtyChange, onSaved }: { onCanc
         </Button>
       </div>
 
+      {/* Vibration — drafted like everything else here; the Save bar above commits it. */}
+      <HapticsCard value={draftHaptics} onChange={setDraftHaptics} />
+
       <Tabs value={tab} onValueChange={(v) => goToTab(v as TabKey)} className="w-full">
         <TabsList className="grid w-full grid-cols-4 h-9">
           <TabsTrigger value="style" className="text-[11px]">Style</TabsTrigger>
@@ -640,21 +568,20 @@ export function ThemeSettingsMenu({ onCancel, onDirtyChange, onSaved }: { onCanc
           <TabsTrigger value="presets" className="text-[11px]">Presets</TabsTrigger>
         </TabsList>
 
-        {/* Sub-tab carousel — same easing/timing as the page-level carousel. Swipes are
-            handled by a document-level listener so the whole screen (incl. edges) works. */}
-        <div className="relative overflow-hidden">
-          <AnimatePresence mode="popLayout" custom={tabDirRef.current} initial={false}>
-            <motion.div
-              key={tab}
-              custom={tabDirRef.current}
-              variants={tabVariants}
-              initial="enter"
-              animate="center"
-              exit="exit"
-              transition={tabTransition}
-            >
+        {/* Sub-tab carousel — the SAME finger-tracked pager the main pages use (shared
+            tuning + the user's transition preset). Listens at the document level so the
+            whole screen works; `enabled` gates it to /settings since SettingsPage stays
+            mounted in the page carousel even while other routes are showing. */}
+        <SwipeTabView
+          tabs={TAB_ORDER}
+          active={tab}
+          onChange={goToTab}
+          edgeZone={EDGE_ZONE}
+          enabled={pathname === '/settings'}
+          renderTab={t => (
+            <div>
         {/* ── Tab 1: Style ── */}
-        {tab === 'style' && (
+        {t === 'style' && (
         <div className="mt-4 space-y-4">
           <Card>
             <CardHeader className="pb-2"><CardTitle className="text-sm">UI Size</CardTitle></CardHeader>
@@ -843,7 +770,7 @@ export function ThemeSettingsMenu({ onCancel, onDirtyChange, onSaved }: { onCanc
         )}
 
         {/* ── Tab 2: Colors ── */}
-        {tab === 'colors' && (
+        {t === 'colors' && (
         <div className="mt-4 space-y-4">
           <Card>
             <CardHeader className="pb-2"><CardTitle className="text-sm">Color Palette</CardTitle></CardHeader>
@@ -885,7 +812,7 @@ export function ThemeSettingsMenu({ onCancel, onDirtyChange, onSaved }: { onCanc
         )}
 
         {/* ── Tab 3: Background ── */}
-        {tab === 'background' && (
+        {t === 'background' && (
         <div className="mt-4 space-y-4">
           <Card>
             <CardHeader className="pb-2"><CardTitle className="text-sm">Background</CardTitle></CardHeader>
@@ -1052,7 +979,7 @@ export function ThemeSettingsMenu({ onCancel, onDirtyChange, onSaved }: { onCanc
         )}
 
         {/* ── Tab 4: Presets ── */}
-        {tab === 'presets' && (
+        {t === 'presets' && (
         <div className="mt-4 space-y-5">
           <div>
             <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">System</h3>
@@ -1120,9 +1047,9 @@ export function ThemeSettingsMenu({ onCancel, onDirtyChange, onSaved }: { onCanc
           </Button>
         </div>
         )}
-            </motion.div>
-          </AnimatePresence>
-        </div>
+            </div>
+          )}
+        />
       </Tabs>
 
       {/* Color editor dialog */}

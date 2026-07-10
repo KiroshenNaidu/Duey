@@ -1,9 +1,10 @@
 'use client';
 
-import { useContext, useState, useMemo, useRef, useEffect, useLayoutEffect } from 'react';
+import { useContext, useState, useMemo, useEffect, useLayoutEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { AppDataContext } from '@/context/AppDataContext';
+import { SwipeTabView } from '@/components/SwipeTabView';
 import { formatCurrency, cn } from '@/lib/utils';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -12,7 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import {
   ChevronLeft, Pencil, Trash2, Check, Download, FolderOpen,
   CreditCard, PlusCircle, Trophy, Car, Wallet, Zap, Receipt,
-  FileText, Sheet, Tag, Bus, CheckCircle2, Loader2, AlertCircle,
+  FileText, Tag, Bus, CheckCircle2, Loader2, AlertCircle,
   Search, X,
 } from 'lucide-react';
 import { showUndoToast } from '@/components/ui/undo-toast';
@@ -25,7 +26,10 @@ import { DatePickerInput } from '@/components/ui/date-picker';
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 type TabId = 'all' | 'debts' | 'transport' | 'expenses' | 'budget';
-type ExportFormat = 'pdf' | 'csv' | 'txt';
+// Reports only — PDF for a polished document, TXT for plain text. Data recovery lives in
+// Settings → Data Management as JSON (CSV was dropped: it was neither a good report nor
+// a reliable backup format).
+type ExportFormat = 'pdf' | 'txt';
 
 const TAB_ORDER: TabId[] = ['all', 'debts', 'transport', 'expenses', 'budget'];
 
@@ -89,6 +93,15 @@ async function getLogoBase64(): Promise<string> {
 }
 
 // ─── PDF table helper ─────────────────────────────────────────────────────────
+// Modern report styling shared by every tab's PDF: charcoal header band with the brand
+// accent strip, minimal tables (hairline row separators instead of full cell grids),
+// accent-tinted total rows, and a timestamped footer.
+
+const PDF_INK = [26, 28, 32] as const;          // near-black body text
+const PDF_CHARCOAL = [40, 44, 52] as const;     // header band / table head
+const PDF_ACCENT = [151, 223, 104] as const;    // Duey primary (lime) as RGB
+const PDF_ACCENT_DARK = [86, 140, 50] as const; // readable accent for text on white
+const PDF_ACCENT_TINT = [239, 249, 231] as const; // faint lime fill for total rows
 
 type ColDef = { header: string; width: number; align?: 'left' | 'right' };
 type RowData = (string | number)[];
@@ -101,12 +114,12 @@ function drawTable(doc: any, startY: number, cols: ColDef[], rows: RowData[], to
   let y = startY;
 
   const drawHeader = () => {
-    doc.setFillColor(40, 44, 52); doc.rect(LEFT, y, totalWidth, HDR_H, 'F');
+    doc.setFillColor(...PDF_CHARCOAL); doc.rect(LEFT, y, totalWidth, HDR_H, 'F');
     doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold'); doc.setFontSize(FS);
     let x = LEFT;
     for (const col of cols) {
-      if (col.align === 'right') doc.text(col.header, x + col.width - 1.5, y + HDR_H - 2, { align: 'right' });
-      else doc.text(col.header, x + 1.5, y + HDR_H - 2);
+      if (col.align === 'right') doc.text(col.header, x + col.width - 2, y + HDR_H - 2.5, { align: 'right' });
+      else doc.text(col.header, x + 2, y + HDR_H - 2.5);
       x += col.width;
     }
     y += HDR_H;
@@ -117,14 +130,16 @@ function drawTable(doc: any, startY: number, cols: ColDef[], rows: RowData[], to
 
   for (let i = 0; i < rows.length; i++) {
     if (y + ROW_H > PB) { doc.addPage(); y = 15; drawHeader(); }
-    if (i % 2 === 1) { doc.setFillColor(245, 246, 248); doc.rect(LEFT, y, totalWidth, ROW_H, 'F'); }
-    doc.setDrawColor(200, 205, 212); doc.setLineWidth(0.1); doc.rect(LEFT, y, totalWidth, ROW_H, 'S');
-    doc.setTextColor(30, 30, 30); doc.setFont('helvetica', 'normal'); doc.setFontSize(FS);
+    if (i % 2 === 1) { doc.setFillColor(246, 247, 249); doc.rect(LEFT, y, totalWidth, ROW_H, 'F'); }
+    // Hairline separator under each row — lighter than the old full cell grid.
+    doc.setDrawColor(226, 229, 234); doc.setLineWidth(0.1);
+    doc.line(LEFT, y + ROW_H, LEFT + totalWidth, y + ROW_H);
+    doc.setTextColor(...PDF_INK); doc.setFont('helvetica', 'normal'); doc.setFontSize(FS);
     let x = LEFT;
     for (let c = 0; c < cols.length; c++) {
       const cell = String(rows[i][c] ?? '');
-      if (cols[c].align === 'right') doc.text(cell, x + cols[c].width - 1.5, y + ROW_H - 2, { align: 'right' });
-      else doc.text(cell, x + 1.5, y + ROW_H - 2);
+      if (cols[c].align === 'right') doc.text(cell, x + cols[c].width - 2, y + ROW_H - 2, { align: 'right' });
+      else doc.text(cell, x + 2, y + ROW_H - 2);
       x += cols[c].width;
     }
     y += ROW_H;
@@ -132,13 +147,15 @@ function drawTable(doc: any, startY: number, cols: ColDef[], rows: RowData[], to
 
   if (totalRow) {
     if (y + HDR_H > PB) { doc.addPage(); y = 15; }
-    doc.setFillColor(210, 218, 230); doc.rect(LEFT, y, totalWidth, HDR_H, 'F');
-    doc.setTextColor(20, 20, 20); doc.setFont('helvetica', 'bold'); doc.setFontSize(FS);
+    doc.setFillColor(...PDF_ACCENT_TINT); doc.rect(LEFT, y, totalWidth, HDR_H, 'F');
+    doc.setDrawColor(...PDF_ACCENT); doc.setLineWidth(0.5);
+    doc.line(LEFT, y, LEFT + totalWidth, y);
+    doc.setTextColor(...PDF_ACCENT_DARK); doc.setFont('helvetica', 'bold'); doc.setFontSize(FS);
     let x = LEFT;
     for (let c = 0; c < cols.length; c++) {
       const cell = String(totalRow[c] ?? '');
-      if (cols[c].align === 'right') doc.text(cell, x + cols[c].width - 1.5, y + HDR_H - 2, { align: 'right' });
-      else doc.text(cell, x + 1.5, y + HDR_H - 2);
+      if (cols[c].align === 'right') doc.text(cell, x + cols[c].width - 2, y + HDR_H - 2.5, { align: 'right' });
+      else doc.text(cell, x + 2, y + HDR_H - 2.5);
       x += cols[c].width;
     }
     y += HDR_H;
@@ -151,8 +168,11 @@ function pdfHeader(doc: any, title: string, subtitle: string, name: string, logo
   const W = doc.internal.pageSize.getWidth();
   const dateStr = format(new Date(), 'd MMM yyyy');
   let y = 15;
-  doc.setFillColor(40, 44, 52);
+  doc.setFillColor(...PDF_CHARCOAL);
   doc.rect(0, 0, W, 28, 'F');
+  // Brand accent strip under the band — the report's one splash of Duey colour.
+  doc.setFillColor(...PDF_ACCENT);
+  doc.rect(0, 28, W, 1.2, 'F');
   // The logo (stark.png) is the full brand wordmark — show it large and skip the "DUEY" text.
   // Falls back to the text wordmark only if the logo file is missing.
   if (logoBase64) {
@@ -163,39 +183,38 @@ function pdfHeader(doc: any, title: string, subtitle: string, name: string, logo
   }
   doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(255, 255, 255);
   doc.text(dateStr, W - 10, 17, { align: 'right' });
-  y = 34;
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(13); doc.setTextColor(30, 30, 30);
+  y = 37;
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(14); doc.setTextColor(...PDF_INK);
   doc.text(title, 10, y); y += 6;
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(90, 90, 90);
-  doc.text(subtitle, 10, y); y += 4;
-  if (name) { doc.text(`Prepared for: ${name}`, 10, y); y += 4; }
-  doc.setDrawColor(180, 185, 192); doc.setLineWidth(0.4);
-  doc.line(10, y, W - 10, y); y += 6;
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(105, 110, 118);
+  doc.text(subtitle + (name ? `  ·  Prepared for ${name}` : ''), 10, y); y += 8;
   return y;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function pdfFooter(doc: any) {
   const total = doc.getNumberOfPages();
+  const stamp = format(new Date(), "d MMM yyyy 'at' HH:mm");
   for (let i = 1; i <= total; i++) {
     doc.setPage(i);
     const W = doc.internal.pageSize.getWidth();
     const H = doc.internal.pageSize.getHeight();
-    doc.setDrawColor(180, 185, 192); doc.setLineWidth(0.3);
+    doc.setDrawColor(210, 214, 220); doc.setLineWidth(0.3);
     doc.line(10, H - 10, W - 10, H - 10);
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(120, 120, 120);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(130, 134, 140);
     doc.text(`Page ${i} of ${total}`, 10, H - 6);
-    doc.text('Duey Report', W - 10, H - 6, { align: 'right' });
+    doc.text(`Generated by Duey · ${stamp}`, W - 10, H - 6, { align: 'right' });
   }
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function pdfSection(doc: any, title: string, y: number): number {
   if (y + 10 > 270) { doc.addPage(); y = 15; }
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.setTextColor(40, 44, 52);
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.setTextColor(...PDF_CHARCOAL);
   doc.text(title.toUpperCase(), 10, y);
-  doc.setDrawColor(40, 44, 52); doc.setLineWidth(0.3);
-  doc.line(10, y + 1.5, 10 + doc.getTextWidth(title.toUpperCase()), y + 1.5);
+  // Accent underline keyed to the title width — section markers share the brand colour.
+  doc.setDrawColor(...PDF_ACCENT); doc.setLineWidth(0.7);
+  doc.line(10, y + 1.7, 10 + doc.getTextWidth(title.toUpperCase()), y + 1.7);
   return y + 6;
 }
 
@@ -416,44 +435,6 @@ async function buildPdf(args: ExportBuilderArgs): Promise<Blob> {
   return doc.output('blob') as Blob;
 }
 
-function buildCsv(args: ExportBuilderArgs): Blob {
-  const { history, expenses, uberRides, budgetPlans, tab } = args;
-  const rows: string[][] = [];
-
-  if (tab === 'all') {
-    rows.push(['Date', 'Type', 'Description', 'Label', 'Note', 'Amount (R)']);
-    const sorted = [...history].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-    sorted.forEach(e => rows.push([fmtDate(e.date), e.type, e.debtTitle, e.label ?? '', e.note ?? '', e.amount.toFixed(2)]));
-    rows.push([]);
-    rows.push(['Date', 'Type', 'Title', 'Category', 'Note', 'Amount (R)']);
-    expenses.forEach(e => rows.push([fmtDate(e.date), 'expense', e.title, e.category ?? '', e.note ?? '', e.amount.toFixed(2)]));
-    rows.push([]);
-    rows.push(['Date', 'Type', 'From', 'To', 'km', 'Price (R)']);
-    uberRides.forEach(r => rows.push([fmtDate(r.date), 'uber', r.from ?? '', r.to ?? '', r.distance?.toString() ?? '', r.price.toFixed(2)]));
-  } else if (tab === 'debts') {
-    rows.push(['Date', 'Debt', 'Event', 'Label', 'Note', 'Amount (R)']);
-    const debtEntries = [...history.filter(h => ['payment', 'creation', 'completion'].includes(h.type))]
-      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-    debtEntries.forEach(e => rows.push([fmtDate(e.date), e.debtTitle, e.type, e.label ?? '', e.note ?? '', e.amount.toFixed(2)]));
-  } else if (tab === 'transport') {
-    rows.push(['Date', 'Description', 'Amount (R)']);
-    history.filter(h => h.type === 'transport').forEach(e => rows.push([fmtDate(e.date), e.debtTitle, e.amount.toFixed(2)]));
-    rows.push([]);
-    rows.push(['Date', 'From', 'To', 'Distance (km)', 'Price (R)']);
-    uberRides.forEach(r => rows.push([fmtDate(r.date), r.from ?? '', r.to ?? '', r.distance?.toString() ?? '', r.price.toFixed(2)]));
-  } else if (tab === 'expenses') {
-    rows.push(['Date', 'Title', 'Category', 'Note', 'Amount (R)']);
-    [...expenses].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-      .forEach(e => rows.push([fmtDate(e.date), e.title, e.category ?? '', e.note ?? '', e.amount.toFixed(2)]));
-  } else if (tab === 'budget') {
-    rows.push(['Plan', 'Budget (R)', 'Item', 'Price (R)', 'Link']);
-    budgetPlans.forEach(p => p.items.forEach(i => rows.push([p.name, p.budget.toFixed(2), i.name, i.price.toFixed(2), i.link ?? ''])));
-  }
-
-  const csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n');
-  return new Blob([csv], { type: 'text/csv' });
-}
-
 function buildTxt(args: ExportBuilderArgs): Blob {
   const { history, expenses, uberRides, budgetPlans, tab } = args;
   const lines: string[] = [];
@@ -578,11 +559,12 @@ function ExportDialog({
             </DialogHeader>
 
             <div className="space-y-4">
-              {/* Format picker */}
+              {/* Format picker — PDF (polished document) or TXT (plain text). JSON data
+                  recovery lives in Settings → Data Management. */}
               <div>
                 <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2">Format</p>
-                <div className="grid grid-cols-3 gap-2">
-                  {(['pdf', 'csv', 'txt'] as ExportFormat[]).map(f => (
+                <div className="grid grid-cols-2 gap-2">
+                  {(['pdf', 'txt'] as ExportFormat[]).map(f => (
                     <button
                       key={f}
                       onClick={() => setFmt(f)}
@@ -593,10 +575,8 @@ function ExportDialog({
                           : 'bg-transparent text-muted-foreground border-border hover:border-muted-foreground/40'
                       )}
                     >
-                      {f === 'pdf' && <FileText className="h-4 w-4" />}
-                      {f === 'csv' && <Sheet className="h-4 w-4" />}
-                      {f === 'txt' && <FileText className="h-4 w-4" />}
-                      {f.toUpperCase()}
+                      <FileText className="h-4 w-4" />
+                      {f === 'pdf' ? 'PDF Report' : 'Plain Text'}
                     </button>
                   ))}
                 </div>
@@ -921,36 +901,13 @@ export default function HistoryPage() {
 
   const initials = getInitials(userProfile.name);
 
-  // ── Swipe detection ─────────────────────────────────────────────────────────
-  const touchStart = useRef<{ x: number; y: number } | null>(null);
-  const swipeDir = useRef<number>(1);
-
-  // Reset scroll synchronously after every tab change, before paint
+  // Reset scroll synchronously after every tab change, before paint. Swipe gestures are
+  // owned by SwipeTabView (the same finger-tracked carousel the main pages use).
   useLayoutEffect(() => {
     document.querySelector('main')?.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
   }, [activeTab]);
 
-  const changeTab = (tab: TabId) => {
-    const cur = TAB_ORDER.indexOf(activeTab);
-    const next = TAB_ORDER.indexOf(tab);
-    swipeDir.current = next >= cur ? 1 : -1;
-    setActiveTab(tab);
-  };
-
-  const handleTouchStart = (e: React.TouchEvent) => {
-    touchStart.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-  };
-  const handleTouchEnd = (e: React.TouchEvent) => {
-    if (!touchStart.current) return;
-    const dx = touchStart.current.x - e.changedTouches[0].clientX;
-    const dy = touchStart.current.y - e.changedTouches[0].clientY;
-    touchStart.current = null;
-    // Must be clearly horizontal: min 75px AND horizontal travel > 2.5× vertical travel
-    if (Math.abs(dx) < 75 || Math.abs(dx) < Math.abs(dy) * 2.5) return;
-    const idx = TAB_ORDER.indexOf(activeTab);
-    if (dx > 0 && idx < TAB_ORDER.length - 1) { swipeDir.current = 1; setActiveTab(TAB_ORDER[idx + 1]); }
-    if (dx < 0 && idx > 0) { swipeDir.current = -1; setActiveTab(TAB_ORDER[idx - 1]); }
-  };
+  const changeTab = (tab: TabId) => setActiveTab(tab);
 
   // ── Derived data ─────────────────────────────────────────────────────────────
   const { allSorted, debtGroups, transportEntries, totalPaid, paymentCount } = useMemo(() => {
@@ -1084,7 +1041,6 @@ export default function HistoryPage() {
     try {
       let blob: Blob;
       if (fmt === 'pdf') blob = await buildPdf(args);
-      else if (fmt === 'csv') blob = buildCsv(args);
       else blob = buildTxt(args);
 
       setExportStatus('saving');
@@ -1134,8 +1090,6 @@ export default function HistoryPage() {
       animate={{ x: 0 }}
       transition={{ type: 'tween', ease: [0.22, 1, 0.36, 1], duration: 0.22 }}
       className="container mx-auto max-w-md pt-12 pb-10 px-4 min-h-screen"
-      onTouchStart={handleTouchStart}
-      onTouchEnd={handleTouchEnd}
     >
       {/* Header */}
       <div className="relative flex items-center justify-center pb-4">
@@ -1207,22 +1161,17 @@ export default function HistoryPage() {
         </div>
       )}
 
-      {/* Content */}
-      <AnimatePresence mode="popLayout" custom={swipeDir.current}>
-      <motion.div
-        key={activeTab}
-        custom={swipeDir.current}
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        initial={((dir: number) => ({ x: dir > 0 ? '60%' : '-60%', opacity: 0 })) as any}
-        animate={{ x: 0, opacity: 1 }}
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        exit={((dir: number) => ({ x: dir > 0 ? '-60%' : '60%', opacity: 0 })) as any}
-        transition={{ type: 'tween', ease: [0.22, 1, 0.36, 1], duration: 0.22 }}
-      >
+      {/* Content — the same finger-tracked carousel the main pages use: panels follow
+          the finger 1:1, rubber-band at the ends, and commit with velocity projection. */}
+      <SwipeTabView
+        tabs={TAB_ORDER}
+        active={activeTab}
+        onChange={changeTab}
+        renderTab={tab => (
       <div>
 
         {/* ALL TAB */}
-        {activeTab === 'all' && (
+        {tab === 'all' && (
           <div className="space-y-3">
             {/* Search + quick filters */}
             <div className="space-y-2">
@@ -1296,7 +1245,7 @@ export default function HistoryPage() {
         )}
 
         {/* DEBTS TAB */}
-        {activeTab === 'debts' && (
+        {tab === 'debts' && (
           <div className="space-y-3">
             {debtGroups.length === 0 && (
               <div className="flex flex-col items-center justify-center mt-24 gap-3 text-muted-foreground">
@@ -1328,7 +1277,7 @@ export default function HistoryPage() {
         )}
 
         {/* TRANSPORT TAB */}
-        {activeTab === 'transport' && (
+        {tab === 'transport' && (
           <div className="space-y-3">
 
             {/* Month picker — stopPropagation prevents horizontal scroll from triggering the page swipe handler */}
@@ -1447,7 +1396,7 @@ export default function HistoryPage() {
         )}
 
         {/* EXPENSES TAB */}
-        {activeTab === 'expenses' && (
+        {tab === 'expenses' && (
           <div className="space-y-3">
             {sortedExpenses.length === 0 ? (
               <div className="flex flex-col items-center justify-center mt-24 gap-3 text-muted-foreground">
@@ -1482,7 +1431,7 @@ export default function HistoryPage() {
         )}
 
         {/* BUDGET TAB */}
-        {activeTab === 'budget' && (
+        {tab === 'budget' && (
           <div className="space-y-3">
             {budgetPlans.length === 0 ? (
               <div className="flex flex-col items-center justify-center mt-24 gap-3 text-muted-foreground">
@@ -1524,8 +1473,8 @@ export default function HistoryPage() {
           </div>
         )}
       </div>
-      </motion.div>
-      </AnimatePresence>
+        )}
+      />
 
       {/* Export — single dialog: pick format/folder, then live progress, then result */}
       <ExportDialog

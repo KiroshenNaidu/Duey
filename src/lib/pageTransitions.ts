@@ -52,7 +52,7 @@ export const PAGE_TRANSITION_PRESETS: PageTransitionPreset[] = [
   {
     id: 'parallax',
     name: 'Parallax',
-    description: 'New pages glide in over the old one like a stack of cards',
+    description: 'New page slides over the top as the old one lags behind and dims',
     frame: o => {
       // Left neighbours crawl (30%) and dim UNDER; right neighbours slide full-speed on
       // top (pages are z-ordered by index, so higher routes cover lower ones mid-swipe).
@@ -80,3 +80,29 @@ export const DEFAULT_PAGE_TRANSITION_ID = 'depth';
 export function getPageTransition(id: string | undefined): PageTransitionPreset {
   return PAGE_TRANSITION_PRESETS.find(p => p.id === id) ?? PAGE_TRANSITION_PRESETS[0];
 }
+
+// ── Shared swipe-gesture tuning ────────────────────────────────────────────────
+// One source of truth for every finger-tracked carousel in the app (the AppShell page
+// carousel, History tabs, Theme sub-tabs), modeled on the platform pagers
+// (UIScrollView / ViewPager2):
+// - release velocity is measured over the last ~90ms only, so pausing mid-drag kills
+//   the fling exactly like a native pager (a whole-gesture average gets this wrong),
+// - the commit decision PROJECTS ~180ms of that momentum past the finger: a slow drag
+//   needs half a page, a flick commits from almost anywhere,
+// - the settle is a velocity-seeded, critically-damped spring — motion continues
+//   seamlessly from the finger instead of restarting on a fixed duration curve,
+// - edge overshoot follows the iOS rubber-band curve (progressive resistance,
+//   asymptoting at half a page) instead of a linear damp.
+// stiffness 700 / damping 52 ≈ critically damped, settles in ~250ms — native-pager
+// pace. Softer values read as "floaty" and were reported as slow.
+export const SWIPE_SETTLE_SPRING = { type: 'spring', stiffness: 700, damping: 52 } as const;
+export const SWIPE_PROJECTION_MS = 180;     // momentum lookahead for the commit decision
+export const SWIPE_COMMIT_FRACTION = 0.5;   // projected position past half a page → commit
+export const SWIPE_VELOCITY_WINDOW_MS = 90; // trailing window for instantaneous release velocity
+export const SWIPE_MIN_COMMIT_PX = 12;      // ignore micro-twitches regardless of projection
+export const SWIPE_FLING_VELOCITY = 0.8;    // px/ms — a definite fling commits regardless of distance
+                                            // (ViewPager's minimumFlingVelocity shortcut; projection
+                                            // alone under-serves medium flicks over short distances)
+
+/** iOS-style rubber band in page-fraction units: f(0.5) ≈ 0.18, asymptote 0.5. */
+export const swipeRubberBand = (overshoot: number) => 0.5 * (1 - 1 / (overshoot * 1.1 + 1));

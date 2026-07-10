@@ -1,9 +1,9 @@
 'use client';
 
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { AnimatePresence, motion, useMotionValue } from 'framer-motion';
+import { AnimatePresence, animate, motion, useMotionValue } from 'framer-motion';
 import { RADIAL_FX_PRESETS, getRadialFx } from '@/lib/radialFx';
-import { AimSparkles, RippleBurst, CometTrail } from '@/components/RadialAimFx';
+import { AimSparkles, RippleBurst, CometTrail, TrailFlow } from '@/components/RadialAimFx';
 import { hapticTick } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
 import { Zap, CreditCard, Receipt, BadgeDollarSign, Car, Check } from 'lucide-react';
@@ -20,7 +20,7 @@ import { Zap, CreditCard, Receipt, BadgeDollarSign, Car, Check } from 'lucide-re
 const DEMO_RADIUS = 78;
 const DEMO_ARC_FROM = 160;
 const DEMO_ARC_TO = 20;
-const AIM_MIN_DIST = 35;
+const AIM_MIN_DIST = 24;
 const SECTOR_TOLERANCE_DEG = 42;
 
 const DEMO_ITEMS = [
@@ -58,6 +58,10 @@ export function RadialFxDemo({ value, onChange }: {
   const beamLen = useMotionValue(0);
   const beamRotate = useMotionValue(0);
   const beamOpacity = useMotionValue(0);
+  const trailRotate = useMotionValue(0);
+  const trailOpacity = useMotionValue(0);
+  const trailPulseX = useMotionValue(0);
+  const trailEnvelope = useMotionValue(0);
   const hoveredRef = useRef<string | null>(null);
   const anchorRef = useRef<HTMLDivElement | null>(null);
   const boxRef = useRef<HTMLDivElement | null>(null);
@@ -71,7 +75,10 @@ export function RadialFxDemo({ value, onChange }: {
     hoveredRef.current = null;
     ringOpacity.set(0);
     beamOpacity.set(0);
-  }, [ringOpacity, beamOpacity]);
+    trailOpacity.stop();
+    trailOpacity.set(0);
+    trailEnvelope.set(0);
+  }, [ringOpacity, beamOpacity, trailOpacity, trailEnvelope]);
 
   const startGesture = (e: React.PointerEvent) => {
     e.preventDefault();
@@ -100,8 +107,26 @@ export function RadialFxDemo({ value, onChange }: {
           beamRotate.set(-angle);
           beamOpacity.set(1);
         }
-      } else if (fxRef.current.aimBeam) {
-        beamOpacity.set(0);
+        // Trail bar STICKS to the aimed item, exactly like the real menu — first lock
+        // snaps in place, re-aiming glides, losing aim fades out. The pulse orb rides
+        // the track at the thumb's distance (updated every move).
+        if (fxRef.current.aimTrail) {
+          trailPulseX.set(Math.min(dist, DEMO_RADIUS));
+          trailEnvelope.set(aimed ? Math.max(0, Math.min(1, (dist - (DEMO_RADIUS - 40)) / 40)) : 0);
+          if (aimed !== hoveredRef.current) {
+            const item = aimed ? DEMO_ITEMS.find(it => it.id === aimed) : undefined;
+            if (item) {
+              if (hoveredRef.current === null) trailRotate.jump(-item.angleDeg);
+              else animate(trailRotate, -item.angleDeg, { type: 'spring', stiffness: 700, damping: 42 });
+              animate(trailOpacity, 1, { duration: 0.1 });
+            } else {
+              animate(trailOpacity, 0, { duration: 0.15 });
+            }
+          }
+        }
+      } else {
+        if (fxRef.current.aimBeam) beamOpacity.set(0);
+        if (fxRef.current.aimTrail) { trailOpacity.stop(); trailOpacity.set(0); trailEnvelope.set(0); }
       }
       // Same selection haptic as the real menu, so the preset previews true to feel.
       if (aimed && aimed !== hoveredRef.current) hapticTick();
@@ -125,6 +150,9 @@ export function RadialFxDemo({ value, onChange }: {
         hoveredRef.current = null;
         ringOpacity.set(0);
         beamOpacity.set(0);
+        trailOpacity.stop();
+        trailOpacity.set(0);
+        trailEnvelope.set(0);
         flashTimer.current = setTimeout(() => { setFlash(null); setOpen(false); }, 650);
       } else {
         reset();
@@ -188,6 +216,57 @@ export function RadialFxDemo({ value, onChange }: {
               }}
             >
               {fx.cometTrail && <CometTrail />}
+            </motion.div>
+          )}
+          {/* Aim trail: low-opacity primary bar growing from BEHIND the demo FAB (the FAB
+              button is a later sibling → paints over it) and sticking to the aimed icon,
+              with accent chevrons streaming outward — mirrors the real menu. */}
+          {open && fx.aimTrail && (
+            <motion.div
+              className="absolute pointer-events-none overflow-hidden"
+              style={{
+                left: 0, top: 0, width: Math.max(0, DEMO_RADIUS + 6), height: 44, marginTop: -22,
+                borderRadius: 11,
+                rotate: trailRotate, opacity: trailOpacity, transformOrigin: '0 50%',
+                background: 'linear-gradient(90deg, hsl(var(--primary) / 0.55) 0%, hsl(var(--primary) / 0.3) 50%, hsl(var(--primary) / 0) 86%)',
+                filter: 'drop-shadow(0 0 9px hsl(var(--primary) / 0.22))',
+              }}
+            >
+              <TrailFlow />
+              {/* Pulse orb riding the track at the thumb's distance, like the real menu. */}
+              <motion.span
+                className="absolute pointer-events-none rounded-full"
+                animate={{ scale: [1, 1.35, 1], opacity: [0.7, 1, 0.7] }}
+                transition={{ duration: 0.8, repeat: Infinity, ease: 'easeInOut' }}
+                style={{
+                  x: trailPulseX,
+                  left: -13,
+                  top: '50%',
+                  width: 26,
+                  height: 26,
+                  marginTop: -13,
+                  background: 'radial-gradient(circle, hsl(var(--accent) / 0.8), hsl(var(--accent) / 0.25) 55%, hsl(var(--accent) / 0) 75%)',
+                  filter: 'drop-shadow(0 0 7px hsl(var(--accent) / 0.6))',
+                }}
+              />
+            </motion.div>
+          )}
+          {/* Destination envelope glow, mirroring the real menu. */}
+          {open && fx.aimTrail && (
+            <motion.div
+              className="absolute pointer-events-none"
+              style={{ left: 0, top: 0, rotate: trailRotate, opacity: trailEnvelope, transformOrigin: '0 50%' }}
+            >
+              <motion.span
+                className="absolute rounded-full"
+                animate={{ scale: [1, 1.12, 1] }}
+                transition={{ duration: 0.9, repeat: Infinity, ease: 'easeInOut' }}
+                style={{
+                  left: DEMO_RADIUS - 32, top: -32, width: 64, height: 64,
+                  background: 'radial-gradient(circle, hsl(var(--primary) / 0.55), hsl(var(--primary) / 0.18) 55%, hsl(var(--primary) / 0) 72%)',
+                  filter: 'drop-shadow(0 0 12px hsl(var(--primary) / 0.5))',
+                }}
+              />
             </motion.div>
           )}
           {/* Items array = valid keyed AnimatePresence children (no Fragment wrapper). */}
@@ -268,6 +347,7 @@ export function RadialFxDemo({ value, onChange }: {
             }}
           />
         )}
+
       </div>
     </div>
   );

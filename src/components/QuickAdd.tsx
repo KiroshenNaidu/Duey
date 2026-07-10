@@ -4,7 +4,7 @@ import { useContext, useEffect, useState, useRef, useCallback, useMemo } from 'r
 import { usePathname, useRouter } from 'next/navigation';
 import type { AppRouterInstance } from 'next/dist/shared/lib/app-router-context.shared-runtime';
 import { format, startOfDay } from 'date-fns';
-import { AnimatePresence, motion, useMotionValue, useReducedMotion } from 'framer-motion';
+import { AnimatePresence, animate, motion, useMotionValue, useReducedMotion } from 'framer-motion';
 import { AppDataContext } from '@/context/AppDataContext';
 import { formatCurrency, cn } from '@/lib/utils';
 import { calculateTransportMonth, isTransportPaidForMonth } from '@/lib/calculations';
@@ -14,9 +14,9 @@ import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Zap, X, Check } from 'lucide-react';
 import { acquireOverlayBlur, releaseOverlayBlur } from '@/lib/overlayBlur';
-import { hapticTick } from '@/lib/haptics';
+import { hapticTick, hapticTap } from '@/lib/haptics';
 import { getRadialFx } from '@/lib/radialFx';
-import { AimSparkles, CurvedLabel, RippleBurst, CometTrail } from '@/components/RadialAimFx';
+import { AimSparkles, CurvedLabel, RippleBurst, CometTrail, TrailFlow } from '@/components/RadialAimFx';
 import { getShortcut, type QuickShortcut } from '@/lib/quickShortcuts';
 
 // Global quick-add: log a debt payment, expense, extra income or Uber ride from anywhere.
@@ -41,7 +41,12 @@ const ARC_TO_DEG = 20;       // rightmost item angle
 // Flick/aim selection: DIRECTION-based, not distance-based — the moment the finger moves
 // AIM_MIN_DIST px away from the FAB centre, the item whose direction best matches the
 // finger's direction is aimed. A short flick toward an item is enough; releasing selects.
-const AIM_MIN_DIST = 35;          // dead-zone radius around the FAB centre (px) — smaller = aims sooner
+const AIM_MIN_DIST = 24;          // dead-zone radius around the FAB centre (px) — the FAB's own
+                                  // radius, so aiming engages the moment the finger crosses its rim
+const TRAIL_THICKNESS = 48;       // aim-trail bar thickness = the FAB circle's diameter (h-12)
+// Quick snap for the bar re-aiming between neighbouring options — fast enough to feel
+// locked to the finger, springy enough to read as a glide rather than a teleport.
+const TRAIL_SNAP = { type: 'spring', stiffness: 700, damping: 42 } as const;
 const AIM_MAX_DIST = 240;         // "safe area" radius — flick BEYOND this (e.g. up to the top
                                   // of the screen) aims at nothing, so releasing there CANCELS.
 const SECTOR_TOLERANCE_DEG = 42;  // max angular distance from an item that still aims it
@@ -81,6 +86,9 @@ export function useFabLongPress() {
         e.preventDefault();
         e.stopPropagation();
         firedRef.current = false;
+      } else {
+        // Plain tap on the + FAB — the hold path vibrates when the radial appears instead.
+        hapticTap();
       }
     },
     onContextMenu: (e: React.MouseEvent) => e.preventDefault(), // suppress mobile long-press menu
@@ -187,6 +195,10 @@ export function QuickAdd() {
   const beamLen = useMotionValue(0);
   const beamRotate = useMotionValue(0);
   const beamOpacity = useMotionValue(0);
+  const trailRotate = useMotionValue(0);
+  const trailOpacity = useMotionValue(0);
+  const trailPulseX = useMotionValue(0);
+  const trailEnvelope = useMotionValue(0);
   const hoveredRef = useRef<string | null>(null);
   const pendingGestureRef = useRef(false);
   const anchorRef = useRef<HTMLDivElement | null>(null);
@@ -196,6 +208,9 @@ export function QuickAdd() {
       pendingGestureRef.current = !!(e as CustomEvent<{ gesture?: boolean }>).detail?.gesture;
       setAction(null);
       setRadialOpen(true);
+      // Confirm the quick-nav radial appearing — this is the hold gesture's vibration
+      // (and the lightning FAB's press feedback, which opens the radial immediately).
+      hapticTap();
     };
     window.addEventListener(OPEN_EVENT, onOpen);
     return () => window.removeEventListener(OPEN_EVENT, onOpen);
@@ -215,13 +230,16 @@ export function QuickAdd() {
     setGestureOn(false);
     ringOpacity.set(0);
     beamOpacity.set(0);
+    trailOpacity.stop(); // may be mid fade-in — stop it or it would keep writing frames
+    trailOpacity.set(0);
+    trailEnvelope.set(0);
     // Nav shortcuts open a tool / navigate instead of opening a logging form.
     if (getShortcut(id)?.kind === 'nav') {
       runNavShortcut(id, router);
       return;
     }
     setAction(id);
-  }, [router, ringOpacity, beamOpacity]);
+  }, [router, ringOpacity, beamOpacity, trailOpacity]);
 
   const closeRadial = useCallback(() => {
     setRadialOpen(false);
@@ -230,12 +248,16 @@ export function QuickAdd() {
     setGestureOn(false);
     ringOpacity.set(0);
     beamOpacity.set(0);
-  }, [ringOpacity, beamOpacity]);
+    trailOpacity.stop();
+    trailOpacity.set(0);
+    trailEnvelope.set(0);
+  }, [ringOpacity, beamOpacity, trailOpacity, trailEnvelope]);
 
   // Fan-out spring: the Elastic preset overshoots and settles; everything else is snappy.
   const fanSpring = fx.elasticFan
     ? { stiffness: 500, damping: 15 }
     : { stiffness: 550, damping: 30 };
+
 
   // Gesture engine: while the opening pointer is still down, track it globally.
   // Selection is DIRECTIONAL — once the finger leaves the AIM_MIN_DIST dead-zone, the
@@ -253,33 +275,77 @@ export function QuickAdd() {
       setGestureOn(false);
       ringOpacity.set(0);
       beamOpacity.set(0);
+      trailOpacity.stop();
+      trailOpacity.set(0);
+      trailEnvelope.set(0);
     };
 
+    // Cache the FAB-centre anchor ONCE for the whole gesture. It's a fixed-position, 0×0
+    // point that never moves while the finger is down, so re-reading it per pointermove
+    // only forced a synchronous layout reflow on every move — the drag's main-thread jank
+    // on Android. Read it lazily (the radial's own mount is settling this same tick) and
+    // reuse it for the rest of the slide.
+    let anchor: DOMRect | null = anchorRef.current?.getBoundingClientRect() ?? null;
+
     const onMove = (e: PointerEvent) => {
-      const anchor = anchorRef.current?.getBoundingClientRect();
+      if (!anchor) anchor = anchorRef.current?.getBoundingClientRect() ?? null;
       if (!anchor) return;
       const dx = e.clientX - anchor.left;
       const dy = e.clientY - anchor.top;
       const dist = Math.hypot(dx, dy);
 
       let aimed: string | null = null;
-      // Aim only inside the "safe area" ring [AIM_MIN_DIST, AIM_MAX_DIST]. Too close = dead
-      // zone; too far (flicked up toward the top) = nothing aimed, so releasing CANCELS.
-      if (dist >= AIM_MIN_DIST && dist <= AIM_MAX_DIST) {
+      if (dist >= AIM_MIN_DIST) {
         // Screen y grows downward, our angles are up-positive → negate dy.
         const angle = (Math.atan2(-dy, dx) * 180) / Math.PI;
-        let best = SECTOR_TOLERANCE_DEG;
-        for (const item of radialRef.current.items) {
-          const diff = angleDelta(angle, item.angleDeg);
-          if (diff <= best) { aimed = item.id; best = diff; }
+        // Aim only inside the "safe area" ring [AIM_MIN_DIST, AIM_MAX_DIST]. Too close =
+        // dead zone; too far (flicked up toward the top) = nothing aimed → release CANCELS.
+        if (dist <= AIM_MAX_DIST) {
+          let best = SECTOR_TOLERANCE_DEG;
+          for (const item of radialRef.current.items) {
+            const diff = angleDelta(angle, item.angleDeg);
+            if (diff <= best) { aimed = item.id; best = diff; }
+          }
         }
         if (fxRef.current.aimBeam) {
-          beamLen.set(Math.min(dist, radialRef.current.radius - 18));
-          beamRotate.set(-angle);
-          beamOpacity.set(1);
+          if (dist <= AIM_MAX_DIST) {
+            beamLen.set(Math.min(dist, radialRef.current.radius - 18));
+            beamRotate.set(-angle);
+            beamOpacity.set(1);
+          } else {
+            beamOpacity.set(0);
+          }
         }
-      } else if (fxRef.current.aimBeam) {
-        beamOpacity.set(0);
+        // Trail bar: STICKS to the aimed option (its exact angle), not the raw finger
+        // direction — it always connects the FAB to a button. Angle/opacity updates only
+        // fire when the aim CHANGES (checked against hoveredRef before it's updated
+        // below), so nothing restarts per-move: first lock appears in place instantly,
+        // re-aiming glides the bar to the neighbour with a quick snap spring, losing aim
+        // fades it out. The pulse orb's position DOES update every move — it rides the
+        // track at the thumb's distance from the centre (charge-up feel as you flick out).
+        if (fxRef.current.aimTrail) {
+          const R = radialRef.current.radius;
+          // Let the orb run right up to the option centre so it slides behind the button
+          // and absorbs, tracking the thumb the whole way (no early clamp/block).
+          trailPulseX.set(Math.min(dist, R));
+          // Envelope glow ramps over the last ~46px to the option and is FULL once the
+          // thumb is on the button — the trail wraps the destination while you're on it.
+          trailEnvelope.set(aimed ? Math.max(0, Math.min(1, (dist - (R - 46)) / 46)) : 0);
+          if (aimed !== hoveredRef.current) {
+            const item = aimed ? radialRef.current.items.find(it => it.id === aimed) : undefined;
+            if (item) {
+              if (hoveredRef.current === null) trailRotate.jump(-item.angleDeg);
+              else animate(trailRotate, -item.angleDeg, TRAIL_SNAP);
+              animate(trailOpacity, 1, { duration: 0.1 });
+            } else {
+              animate(trailOpacity, 0, { duration: 0.15 });
+            }
+          }
+        }
+      } else {
+        // Dead zone around the FAB — nothing to point at yet.
+        if (fxRef.current.aimBeam) beamOpacity.set(0);
+        if (fxRef.current.aimTrail) { trailOpacity.stop(); trailOpacity.set(0); trailEnvelope.set(0); }
       }
 
       // Selection-style haptic when the aim lands on a (new) item — standard for
@@ -313,7 +379,7 @@ export function QuickAdd() {
     window.addEventListener('pointerup', onUp);
     window.addEventListener('pointercancel', onCancel);
     return cleanup;
-  }, [radialOpen, pick, ringX, ringY, ringOpacity, beamLen, beamRotate, beamOpacity]);
+  }, [radialOpen, pick, ringX, ringY, ringOpacity, beamLen, beamRotate, beamOpacity, trailRotate, trailOpacity, trailPulseX, trailEnvelope]);
 
   return (
     <>
@@ -368,6 +434,86 @@ export function QuickAdd() {
               style={{ bottom: 'calc(34px + var(--sab))' }}
               onClick={e => e.stopPropagation()}
             >
+              {/* Aim trail: FAB-thick bar growing from BEHIND the ✕ button (first child
+                  → items and the ✕ paint over it) out to whichever option is aimed. It
+                  sticks to the option's angle, not the raw finger direction: first lock
+                  appears in place, re-aiming glides with a snap spring, losing aim fades
+                  out (all driven from the pointermove handler via MotionValues — the
+                  opacity is stopped + zeroed synchronously on select/close so it can't
+                  freeze into the backdrop's exit). Low-opacity primary so it reads as a
+                  glow under the buttons; the accent chevrons are the loud part. */}
+              {gestureOn && fx.aimTrail && (
+                <motion.div
+                  className="absolute pointer-events-none overflow-hidden"
+                  style={{
+                    left: 0,
+                    top: 0,
+                    // Runs PAST the option centre so its far end tucks behind the button
+                    // (the button paints over it), and the gradient fades it to nothing
+                    // before then — a rectangle track that dissolves smoothly under the
+                    // destination instead of ending in a hard pill cap.
+                    width: Math.max(0, radial.radius + 8),
+                    height: TRAIL_THICKNESS,
+                    marginTop: -TRAIL_THICKNESS / 2,
+                    borderRadius: 12, // rectangular, only lightly softened corners
+                    rotate: trailRotate,
+                    opacity: trailOpacity,
+                    transformOrigin: '0 50%',
+                    background: 'linear-gradient(90deg, hsl(var(--primary) / 0.55) 0%, hsl(var(--primary) / 0.3) 50%, hsl(var(--primary) / 0) 86%)',
+                    filter: 'drop-shadow(0 0 10px hsl(var(--primary) / 0.22))',
+                  }}
+                >
+                  <TrailFlow />
+                  {/* Pulse orb: an accent "charge" that rides the track AT THE THUMB's
+                      distance from the centre — position is a per-move MotionValue write
+                      (x), so it's glued to the finger; the scale/opacity pulse loops on
+                      top while held. It runs all the way to the option and slides behind
+                      the button (which paints over the bar), so it ABSORBS into the
+                      destination as the thumb reaches it — the arcade charge→release. */}
+                  <motion.span
+                    className="absolute pointer-events-none rounded-full"
+                    animate={{ scale: [1, 1.35, 1], opacity: [0.7, 1, 0.7] }}
+                    transition={{ duration: 0.8, repeat: Infinity, ease: 'easeInOut' }}
+                    style={{
+                      x: trailPulseX,
+                      left: -15,
+                      top: '50%',
+                      width: 30,
+                      height: 30,
+                      marginTop: -15,
+                      background: 'radial-gradient(circle, hsl(var(--accent) / 0.8), hsl(var(--accent) / 0.25) 55%, hsl(var(--accent) / 0) 75%)',
+                      filter: 'drop-shadow(0 0 8px hsl(var(--accent) / 0.6))',
+                    }}
+                  />
+                </motion.div>
+              )}
+
+              {/* Destination envelope: a soft primary glow pooled at the aimed option that
+                  ramps up as the thumb reaches it (trailEnvelope) and is FULL while you're
+                  on the button. The button paints over its centre, so only the halo shows —
+                  the trail visibly WRAPS the button. Its own rotated wrapper (NOT the
+                  overflow-clipped track) so the halo isn't cut to the bar's height. */}
+              {gestureOn && fx.aimTrail && (
+                <motion.div
+                  className="absolute pointer-events-none"
+                  style={{ left: 0, top: 0, rotate: trailRotate, opacity: trailEnvelope, transformOrigin: '0 50%' }}
+                >
+                  <motion.span
+                    className="absolute rounded-full"
+                    animate={{ scale: [1, 1.12, 1] }}
+                    transition={{ duration: 0.9, repeat: Infinity, ease: 'easeInOut' }}
+                    style={{
+                      left: radial.radius - 38,
+                      top: -38,
+                      width: 76,
+                      height: 76,
+                      background: 'radial-gradient(circle, hsl(var(--primary) / 0.55), hsl(var(--primary) / 0.18) 55%, hsl(var(--primary) / 0) 72%)',
+                      filter: 'drop-shadow(0 0 14px hsl(var(--primary) / 0.5))',
+                    }}
+                  />
+                </motion.div>
+              )}
+
               {radial.items.map((a, i) => {
                 const isAimed = hoveredId === a.id;
                 const somethingAimed = hoveredId !== null;

@@ -7,6 +7,9 @@ import { StickyNote, X, Trash2 } from 'lucide-react';
 import { AppDataContext } from '@/context/AppDataContext';
 import { cn } from '@/lib/utils';
 import { Card, CardContent, CardHeader } from './ui/card';
+import { acquireOverlayBlur, releaseOverlayBlur } from '@/lib/overlayBlur';
+import { hapticTap } from '@/lib/haptics';
+import { FixedPortal } from '@/components/FixedPortal';
 
 const DraggableNotepadBox = ({ 
   children, 
@@ -33,6 +36,14 @@ const DraggableNotepadBox = ({
         y: innerHeight - offsetHeight - 100,
       });
     }
+  }, []);
+
+  // Blur the whole app uniformly while open (same mechanism dialogs/quick-add use).
+  // The old backdrop-filter blur sampled page layers inconsistently — big page titles
+  // stayed sharp while card text went mushy — and left the FABs floating unblurred.
+  useEffect(() => {
+    const token = acquireOverlayBlur();
+    return () => releaseOverlayBlur(token);
   }, []);
 
   const onDragStart = useCallback((e: React.MouseEvent<HTMLDivElement> | React.TouchEvent<HTMLDivElement>) => {
@@ -79,10 +90,12 @@ const DraggableNotepadBox = ({
     };
   }, [onDrag, onDragEnd]);
 
+  // Portaled to <body>: the overlay blur filters #app-root, which would blur the
+  // notepad itself and re-anchor its position:fixed if it stayed in the subtree.
   return (
-    <>
+    <FixedPortal>
       <motion.div
-        className="fixed inset-0 z-[105] bg-black/5 backdrop-blur-[1px]"
+        className="fixed inset-0 z-[105] bg-black/40"
         onClick={onClose}
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
@@ -129,7 +142,7 @@ const DraggableNotepadBox = ({
            </CardContent>
         </Card>
       </motion.div>
-    </>
+    </FixedPortal>
   );
 };
 
@@ -176,7 +189,7 @@ export function QuickNotepad({ showButton = true }: { showButton?: boolean }) {
           size="icon"
           className="fixed right-4 z-[60] h-12 w-12 rounded-full shadow-lg bg-card border-2 border-accent/30"
           style={{ bottom: 'calc(10px + var(--sab))' }}
-          onClick={() => setIsOpen(prev => !prev)}
+          onClick={() => { hapticTap(); setIsOpen(prev => !prev); }}
         >
           <StickyNote className="h-5 w-5" />
         </Button>

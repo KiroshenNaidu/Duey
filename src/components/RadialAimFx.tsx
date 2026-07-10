@@ -1,6 +1,7 @@
 'use client';
 
 import { motion, useReducedMotion } from 'framer-motion';
+import { ChevronRight } from 'lucide-react';
 
 // Tiny sparkle particles that twinkle around an aimed radial item. Shared by the real
 // quick-add menu and the Theme→Style demo. Deterministic offsets (no Math.random) so
@@ -62,6 +63,32 @@ export function RippleBurst() {
           animate={{ scale: [1, 2.2], opacity: [0.7, 0] }}
           transition={{ duration: 0.9, repeat: Infinity, delay: i * 0.45, ease: 'easeOut' }}
         />
+      ))}
+    </>
+  );
+}
+
+// Chevrons that stream OUTWARD along the aim-trail bar, from the FAB centre toward the
+// locked option — racing-game "boost" arrows. Rendered inside the bar element itself:
+// the bar's width is its length and its x-axis points at the option, so `left`
+// percentages travel toward the option no matter how the bar is rotated. Accent-coloured
+// so the flow doubles as the bar's highlight on the primary base. Deterministic, self-looping.
+export function TrailFlow() {
+  const reduce = useReducedMotion();
+  if (reduce) return null;
+  return (
+    <>
+      {[0, 1, 2].map(i => (
+        <motion.span
+          key={i}
+          className="absolute pointer-events-none text-accent"
+          style={{ top: '50%', marginTop: -9 }}
+          initial={{ opacity: 0 }}
+          animate={{ left: ['2%', '70%'], opacity: [0, 0.9, 0] }}
+          transition={{ duration: 1.0, repeat: Infinity, delay: i * 0.33, ease: 'easeInOut' }}
+        >
+          <ChevronRight className="h-[18px] w-[18px]" strokeWidth={3} />
+        </motion.span>
       ))}
     </>
   );

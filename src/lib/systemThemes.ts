@@ -17,6 +17,22 @@ export const systemPresets: Omit<UserTheme, 'id'>[] = [
     },
   },
   {
+    // Curated recommendation: a deep slate-indigo base with a soft violet primary and a
+    // mint accent — tuned to the app's card-heavy dark layout (violet carries the FABs
+    // and progress bars without glare; mint keeps positive amounts/actions legible).
+    name: 'System Rec',
+    settings: {
+      background: '230 18% 6%', surface: '230 14% 10%',
+      primary: '252 84% 72%', accent: '168 62% 56%',
+      foreground: '228 14% 96%', accentForeground: '230 8% 63%',
+      font: 'Inter', uiScale: 1.0, uiStyle: 'solid',
+      positive: '158 55% 56%', negative: '354 72% 62%',
+      catTransport: '213 90% 68%', catBudget: '340 68% 64%',
+      catExpense: '25 92% 60%', catCompletion: '43 96% 70%',
+      catEmployment: '168 62% 56%', catSnapshot: '199 89% 66%',
+    },
+  },
+  {
     name: 'Noir',
     settings: {
       background: '0 0% 7%', surface: '0 0% 12%',
