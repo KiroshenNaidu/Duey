@@ -27,25 +27,28 @@ nav.fixed,
 
 @layer base {
   :root {
-    --background: 240 6% 7%;
-    --foreground: 60 8% 95%;
-    --card: 240 4% 11%;
-    --card-foreground: 60 8% 95%;
-    --popover: 240 6% 7%;
-    --popover-foreground: 60 8% 95%;
-    --primary: 96 65% 64%;
-    --primary-foreground: 0 0% 5%;
-    --secondary: 240 4% 15%;
-    --secondary-foreground: 60 8% 95%;
-    --muted: 240 4% 15%;
-    --muted-foreground: 240 3% 62%;
-    --accent: 103 77% 59%;
-    --accent-foreground: 240 3% 62%;
+    /* Default = "System Rec" preset. Keep in sync with defaultState.themeSettings
+       (AppDataContext) and the 'System Rec' entry in systemThemes.ts. Derived vars
+       (secondary/muted/border/input) mirror ThemeProvider's surface derivations. */
+    --background: 230 18% 6%;
+    --foreground: 228 14% 96%;
+    --card: 230 14% 10%;
+    --card-foreground: 228 14% 96%;
+    --popover: 230 18% 6%;
+    --popover-foreground: 228 14% 96%;
+    --primary: 252 84% 72%;
+    --primary-foreground: 0 0% 0%;
+    --secondary: 230 14% 14%;
+    --secondary-foreground: 228 14% 96%;
+    --muted: 230 14% 14%;
+    --muted-foreground: 230 8% 63%;
+    --accent: 168 62% 56%;
+    --accent-foreground: 230 8% 63%;
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 0 0% 98%;
-    --border: 240 4% 20%;
-    --input: 240 4% 17%;
-    --ring: 103 77% 59%;
+    --border: 230 14% 19%;
+    --input: 230 14% 16%;
+    --ring: 168 62% 56%;
     --radius: 0.5rem;
 
     /* Auto-contrast button text (white/black) — recomputed per theme in ThemeProvider */
@@ -55,15 +58,16 @@ nav.fixed,
     --btn-on-destructive: 0 0% 100%;
     --btn-on-surface: 0 0% 100%;
 
-    /* Status / category colors — themeable (overridable per-theme via ThemeProvider) */
-    --positive: 161 50% 57%;
-    --negative: 0 70% 62%;
-    --cat-transport: 217 91% 68%;
-    --cat-budget: 0 70% 62%;
-    --cat-expense: 25 95% 53%;
+    /* Status / category colors — themeable (overridable per-theme via ThemeProvider).
+       Defaults match the "System Rec" preset. */
+    --positive: 158 55% 56%;
+    --negative: 354 72% 62%;
+    --cat-transport: 213 90% 68%;
+    --cat-budget: 340 68% 64%;
+    --cat-expense: 25 92% 60%;
     --cat-completion: 43 96% 70%;
-    --cat-employment: 173 80% 74%;
-    --cat-snapshot: 199 89% 62%;
+    --cat-employment: 168 62% 56%;
+    --cat-snapshot: 199 89% 66%;
 
     --font-family: var(--font-inter);
   }

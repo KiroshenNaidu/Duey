@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { AppDataContext } from '@/context/AppDataContext';
 import { SwipeTabView } from '@/components/SwipeTabView';
-import { formatCurrency, cn } from '@/lib/utils';
+import { formatCurrency, getCurrencySymbol, cn } from '@/lib/utils';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -14,7 +14,7 @@ import {
   ChevronLeft, Pencil, Trash2, Check, Download, FolderOpen,
   CreditCard, PlusCircle, Trophy, Car, Wallet, Zap, Receipt,
   FileText, Tag, Bus, CheckCircle2, Loader2, AlertCircle,
-  Search, X,
+  Search, X, Eye,
 } from 'lucide-react';
 import { showUndoToast } from '@/components/ui/undo-toast';
 import { calculateSealedMonthSummary } from '@/lib/calculations';
@@ -22,6 +22,7 @@ import type { HistoryEntry, Expense, UberRide, BudgetPlan } from '@/lib/types';
 import { format } from 'date-fns';
 import { FolderAccess } from '@/lib/folderAccess';
 import { DatePickerInput } from '@/components/ui/date-picker';
+import { PeopleManagerDialog, usePeople } from '@/components/PeopleManager';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -234,6 +235,7 @@ type ExportBuilderArgs = {
 async function buildPdf(args: ExportBuilderArgs): Promise<Blob> {
   const [{ jsPDF }, logoBase64] = await Promise.all([import('jspdf'), getLogoBase64()]);
   const { history, expenses, uberRides, budgetPlans, debts, userName, tab } = args;
+  const CUR = getCurrencySymbol(); // active currency symbol — reports follow the app's currency
   const doc = new jsPDF({ unit: 'mm', format: 'a4' });
 
   if (tab === 'all') {
@@ -252,7 +254,7 @@ async function buildPdf(args: ExportBuilderArgs): Promise<Blob> {
       { header: 'Date', width: 28 },
       { header: 'Type', width: 24 },
       { header: 'Description', width: 90 },
-      { header: 'Amount (R)', width: 48, align: 'right' },
+      { header: `Amount (${CUR})`, width: 48, align: 'right' },
     ];
 
     for (const [month, entries] of monthMap) {
@@ -261,30 +263,30 @@ async function buildPdf(args: ExportBuilderArgs): Promise<Blob> {
         fmtDate(e.date),
         e.type.charAt(0).toUpperCase() + e.type.slice(1),
         e.debtTitle + (e.label ? ` — ${e.label}` : '') + (e.note ? ` (${e.note})` : ''),
-        `R ${e.amount.toFixed(2)}`,
+        `${CUR} ${e.amount.toFixed(2)}`,
       ]);
       const monthTotal = entries.filter(e => e.type === 'payment').reduce((s, e) => s + e.amount, 0);
-      y = drawTable(doc, y, COLS, rows, monthTotal > 0 ? ['', '', 'Month Payments Total', `R ${monthTotal.toFixed(2)}`] : undefined);
+      y = drawTable(doc, y, COLS, rows, monthTotal > 0 ? ['', '', 'Month Payments Total', `${CUR} ${monthTotal.toFixed(2)}`] : undefined);
       y += 5;
     }
 
     // Expenses section
     if (expenses.length > 0) {
       y = pdfSection(doc, 'Expenses', y);
-      const ECOLS: ColDef[] = [{ header: 'Date', width: 28 }, { header: 'Title', width: 70 }, { header: 'Category', width: 40 }, { header: 'Amount (R)', width: 52, align: 'right' }];
-      const eRows: RowData[] = expenses.map(e => [fmtDate(e.date), e.title, e.category ?? '—', `R ${e.amount.toFixed(2)}`]);
+      const ECOLS: ColDef[] = [{ header: 'Date', width: 28 }, { header: 'Title', width: 70 }, { header: 'Category', width: 40 }, { header: `Amount (${CUR})`, width: 52, align: 'right' }];
+      const eRows: RowData[] = expenses.map(e => [fmtDate(e.date), e.title, e.category ?? '—', `${CUR} ${e.amount.toFixed(2)}`]);
       const eTotal = expenses.reduce((s, e) => s + e.amount, 0);
-      y = drawTable(doc, y, ECOLS, eRows, ['', '', 'Total', `R ${eTotal.toFixed(2)}`]);
+      y = drawTable(doc, y, ECOLS, eRows, ['', '', 'Total', `${CUR} ${eTotal.toFixed(2)}`]);
       y += 5;
     }
 
     // Uber rides section
     if (uberRides.length > 0) {
       y = pdfSection(doc, 'Uber Rides', y);
-      const UCOLS: ColDef[] = [{ header: 'Date', width: 28 }, { header: 'Route', width: 90 }, { header: 'km', width: 20, align: 'right' }, { header: 'Amount (R)', width: 52, align: 'right' }];
-      const uRows: RowData[] = uberRides.map(r => [fmtDate(r.date), r.from && r.to ? `${r.from} → ${r.to}` : (r.from ?? r.to ?? '—'), r.distance ?? '—', `R ${r.price.toFixed(2)}`]);
+      const UCOLS: ColDef[] = [{ header: 'Date', width: 28 }, { header: 'Route', width: 90 }, { header: 'km', width: 20, align: 'right' }, { header: `Amount (${CUR})`, width: 52, align: 'right' }];
+      const uRows: RowData[] = uberRides.map(r => [fmtDate(r.date), r.from && r.to ? `${r.from} → ${r.to}` : (r.from ?? r.to ?? '—'), r.distance ?? '—', `${CUR} ${r.price.toFixed(2)}`]);
       const uTotal = uberRides.reduce((s, r) => s + r.price, 0);
-      y = drawTable(doc, y, UCOLS, uRows, ['', '', '', `R ${uTotal.toFixed(2)}`]);
+      y = drawTable(doc, y, UCOLS, uRows, ['', '', '', `${CUR} ${uTotal.toFixed(2)}`]);
     }
 
   } else if (tab === 'debts') {
@@ -300,7 +302,7 @@ async function buildPdf(args: ExportBuilderArgs): Promise<Blob> {
       { header: 'Date', width: 30 },
       { header: 'Event', width: 30 },
       { header: 'Label / Note', width: 72 },
-      { header: 'Amount (R)', width: 58, align: 'right' },
+      { header: `Amount (${CUR})`, width: 58, align: 'right' },
     ];
 
     for (const [debtName, entries] of groups) {
@@ -312,7 +314,7 @@ async function buildPdf(args: ExportBuilderArgs): Promise<Blob> {
       y = pdfSection(doc, debtName, y);
       // Debt summary line
       doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(80, 80, 80);
-      const summaryLine = `Total: R ${totalOwed.toFixed(2)}  ·  Paid: R ${totalPaid.toFixed(2)}  ·  Remaining: R ${Math.max(0, totalOwed - totalPaid).toFixed(2)}  ·  ${isComplete ? 'COMPLETED' : 'Active'}`;
+      const summaryLine = `Total: ${CUR} ${totalOwed.toFixed(2)}  ·  Paid: ${CUR} ${totalPaid.toFixed(2)}  ·  Remaining: ${CUR} ${Math.max(0, totalOwed - totalPaid).toFixed(2)}  ·  ${isComplete ? 'COMPLETED' : 'Active'}`;
       doc.text(summaryLine, 10, y); y += 5;
 
       // Running balance
@@ -320,16 +322,16 @@ async function buildPdf(args: ExportBuilderArgs): Promise<Blob> {
       let balance = totalOwed;
       const rows: RowData[] = sorted.map(e => {
         let balStr = '';
-        if (e.type === 'payment') { balance = Math.max(0, balance - e.amount); balStr = `R ${balance.toFixed(2)} left`; }
+        if (e.type === 'payment') { balance = Math.max(0, balance - e.amount); balStr = `${CUR} ${balance.toFixed(2)} left`; }
         if (e.type === 'creation') { balance = e.amount; }
         return [
           fmtDate(e.date),
           e.type === 'payment' ? 'Payment' : e.type === 'creation' ? 'Created' : 'Completed',
-          (e.label ?? e.note ?? (e.type === 'creation' ? `Opened at R ${e.amount.toFixed(2)}` : '')),
-          e.type === 'payment' ? `-R ${e.amount.toFixed(2)}  (${balStr})` : `R ${e.amount.toFixed(2)}`,
+          (e.label ?? e.note ?? (e.type === 'creation' ? `Opened at ${CUR} ${e.amount.toFixed(2)}` : '')),
+          e.type === 'payment' ? `-${CUR} ${e.amount.toFixed(2)}  (${balStr})` : `${CUR} ${e.amount.toFixed(2)}`,
         ];
       });
-      y = drawTable(doc, y, COLS, rows, ['', '', 'Total Paid', `R ${totalPaid.toFixed(2)}`]);
+      y = drawTable(doc, y, COLS, rows, ['', '', 'Total Paid', `${CUR} ${totalPaid.toFixed(2)}`]);
       y += 7;
     }
 
@@ -340,10 +342,10 @@ async function buildPdf(args: ExportBuilderArgs): Promise<Blob> {
 
     if (transportEntries.length > 0) {
       y = pdfSection(doc, 'Monthly Transport Payments', y);
-      const COLS: ColDef[] = [{ header: 'Month', width: 60 }, { header: 'Date Paid', width: 40 }, { header: 'Amount (R)', width: 90, align: 'right' }];
-      const rows: RowData[] = transportEntries.map(e => [e.debtTitle.replace('Transport: ', ''), fmtDate(e.date), `R ${e.amount.toFixed(2)}`]);
+      const COLS: ColDef[] = [{ header: 'Month', width: 60 }, { header: 'Date Paid', width: 40 }, { header: `Amount (${CUR})`, width: 90, align: 'right' }];
+      const rows: RowData[] = transportEntries.map(e => [e.debtTitle.replace('Transport: ', ''), fmtDate(e.date), `${CUR} ${e.amount.toFixed(2)}`]);
       const total = transportEntries.reduce((s, e) => s + e.amount, 0);
-      y = drawTable(doc, y, COLS, rows, ['', 'Total', `R ${total.toFixed(2)}`]);
+      y = drawTable(doc, y, COLS, rows, ['', 'Total', `${CUR} ${total.toFixed(2)}`]);
       y += 7;
     }
 
@@ -354,12 +356,12 @@ async function buildPdf(args: ExportBuilderArgs): Promise<Blob> {
         { header: 'From', width: 45 },
         { header: 'To', width: 45 },
         { header: 'km', width: 18, align: 'right' },
-        { header: 'Amount (R)', width: 54, align: 'right' },
+        { header: `Amount (${CUR})`, width: 54, align: 'right' },
       ];
-      const uRows: RowData[] = sortedUber.map(r => [fmtDate(r.date), r.from ?? '—', r.to ?? '—', r.distance ?? '—', `R ${r.price.toFixed(2)}`]);
+      const uRows: RowData[] = sortedUber.map(r => [fmtDate(r.date), r.from ?? '—', r.to ?? '—', r.distance ?? '—', `${CUR} ${r.price.toFixed(2)}`]);
       const uTotal = sortedUber.reduce((s, r) => s + r.price, 0);
       const avgPrice = sortedUber.length > 0 ? uTotal / sortedUber.length : 0;
-      y = drawTable(doc, y, UCOLS, uRows, ['', `${sortedUber.length} rides · avg R ${avgPrice.toFixed(2)}`, '', '', `R ${uTotal.toFixed(2)}`]);
+      y = drawTable(doc, y, UCOLS, uRows, ['', `${sortedUber.length} rides · avg ${CUR} ${avgPrice.toFixed(2)}`, '', '', `${CUR} ${uTotal.toFixed(2)}`]);
       y += 7;
     }
 
@@ -383,18 +385,18 @@ async function buildPdf(args: ExportBuilderArgs): Promise<Blob> {
 
     // Summary table first
     y = pdfSection(doc, 'Summary by Category', y);
-    const SCOLS: ColDef[] = [{ header: 'Category', width: 140 }, { header: 'Total (R)', width: 50, align: 'right' }];
+    const SCOLS: ColDef[] = [{ header: 'Category', width: 140 }, { header: `Total (${CUR})`, width: 50, align: 'right' }];
     const catEntries = Array.from(catMap.entries()).filter(([k]) => k !== 'All');
-    const sRows: RowData[] = catEntries.map(([cat, items]) => [cat, `R ${items.reduce((s, e) => s + e.amount, 0).toFixed(2)}`]);
+    const sRows: RowData[] = catEntries.map(([cat, items]) => [cat, `${CUR} ${items.reduce((s, e) => s + e.amount, 0).toFixed(2)}`]);
     const grandTotal = sorted.reduce((s, e) => s + e.amount, 0);
-    y = drawTable(doc, y, SCOLS, sRows, ['Grand Total', `R ${grandTotal.toFixed(2)}`]);
+    y = drawTable(doc, y, SCOLS, sRows, ['Grand Total', `${CUR} ${grandTotal.toFixed(2)}`]);
     y += 8;
 
     // Full list
     y = pdfSection(doc, 'All Expenses', y);
-    const COLS: ColDef[] = [{ header: 'Date', width: 28 }, { header: 'Title', width: 70 }, { header: 'Category', width: 40 }, { header: 'Note', width: 30 }, { header: 'Amount (R)', width: 22, align: 'right' }];
-    const rows: RowData[] = sorted.map(e => [fmtDate(e.date), e.title, e.category ?? '—', e.note ?? '', `R ${e.amount.toFixed(2)}`]);
-    y = drawTable(doc, y, COLS, rows, ['', '', '', 'Total', `R ${grandTotal.toFixed(2)}`]);
+    const COLS: ColDef[] = [{ header: 'Date', width: 28 }, { header: 'Title', width: 70 }, { header: 'Category', width: 40 }, { header: 'Note', width: 30 }, { header: `Amount (${CUR})`, width: 22, align: 'right' }];
+    const rows: RowData[] = sorted.map(e => [fmtDate(e.date), e.title, e.category ?? '—', e.note ?? '', `${CUR} ${e.amount.toFixed(2)}`]);
+    y = drawTable(doc, y, COLS, rows, ['', '', '', 'Total', `${CUR} ${grandTotal.toFixed(2)}`]);
 
   } else if (tab === 'budget') {
     let y = pdfHeader(doc, 'Budget Plans Report', 'All budget plans with items and spending', userName, logoBase64);
@@ -405,10 +407,10 @@ async function buildPdf(args: ExportBuilderArgs): Promise<Blob> {
     } else {
       // Summary
       y = pdfSection(doc, 'Plans Summary', y);
-      const SCOLS: ColDef[] = [{ header: 'Plan Name', width: 80 }, { header: 'Budget (R)', width: 40, align: 'right' }, { header: 'Spent (R)', width: 40, align: 'right' }, { header: 'Remaining (R)', width: 30, align: 'right' }];
+      const SCOLS: ColDef[] = [{ header: 'Plan Name', width: 80 }, { header: `Budget (${CUR})`, width: 40, align: 'right' }, { header: `Spent (${CUR})`, width: 40, align: 'right' }, { header: `Remaining (${CUR})`, width: 30, align: 'right' }];
       const sRows: RowData[] = budgetPlans.map(p => {
         const spent = p.items.reduce((s, i) => s + i.price, 0);
-        return [p.name, `R ${p.budget.toFixed(2)}`, `R ${spent.toFixed(2)}`, `R ${Math.max(0, p.budget - spent).toFixed(2)}`];
+        return [p.name, `${CUR} ${p.budget.toFixed(2)}`, `${CUR} ${spent.toFixed(2)}`, `${CUR} ${Math.max(0, p.budget - spent).toFixed(2)}`];
       });
       y = drawTable(doc, y, SCOLS, sRows);
       y += 8;
@@ -419,12 +421,12 @@ async function buildPdf(args: ExportBuilderArgs): Promise<Blob> {
         const rem = Math.max(0, plan.budget - spent);
         y = pdfSection(doc, plan.name, y);
         doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(80, 80, 80);
-        doc.text(`Budget: R ${plan.budget.toFixed(2)}  ·  Spent: R ${spent.toFixed(2)}  ·  Remaining: R ${rem.toFixed(2)}  (${((spent / (plan.budget || 1)) * 100).toFixed(0)}% used)`, 10, y);
+        doc.text(`Budget: ${CUR} ${plan.budget.toFixed(2)}  ·  Spent: ${CUR} ${spent.toFixed(2)}  ·  Remaining: ${CUR} ${rem.toFixed(2)}  (${((spent / (plan.budget || 1)) * 100).toFixed(0)}% used)`, 10, y);
         y += 5;
         if (plan.items.length > 0) {
-          const ICOLS: ColDef[] = [{ header: 'Item', width: 140 }, { header: 'Price (R)', width: 50, align: 'right' }];
-          const iRows: RowData[] = plan.items.map(i => [i.name + (i.link ? ` ↗` : ''), `R ${i.price.toFixed(2)}`]);
-          y = drawTable(doc, y, ICOLS, iRows, ['Total Spent', `R ${spent.toFixed(2)}`]);
+          const ICOLS: ColDef[] = [{ header: 'Item', width: 140 }, { header: `Price (${CUR})`, width: 50, align: 'right' }];
+          const iRows: RowData[] = plan.items.map(i => [i.name + (i.link ? ` ↗` : ''), `${CUR} ${i.price.toFixed(2)}`]);
+          y = drawTable(doc, y, ICOLS, iRows, ['Total Spent', `${CUR} ${spent.toFixed(2)}`]);
         }
         y += 7;
       }
@@ -437,6 +439,7 @@ async function buildPdf(args: ExportBuilderArgs): Promise<Blob> {
 
 function buildTxt(args: ExportBuilderArgs): Blob {
   const { history, expenses, uberRides, budgetPlans, tab } = args;
+  const CUR = getCurrencySymbol(); // active currency symbol — reports follow the app's currency
   const lines: string[] = [];
   const sep = '─'.repeat(60);
 
@@ -456,7 +459,7 @@ function buildTxt(args: ExportBuilderArgs): Blob {
       entries.forEach(e => {
         const label = e.label ? ` [${e.label}]` : '';
         const note = e.note ? ` (${e.note})` : '';
-        lines.push(`  ${fmtDate(e.date)}  ${e.type.padEnd(12)} ${e.debtTitle}${label}${note}  R ${e.amount.toFixed(2)}`);
+        lines.push(`  ${fmtDate(e.date)}  ${e.type.padEnd(12)} ${e.debtTitle}${label}${note}  ${CUR} ${e.amount.toFixed(2)}`);
       });
     }
   } else if (tab === 'debts') {
@@ -469,9 +472,9 @@ function buildTxt(args: ExportBuilderArgs): Blob {
     for (const [name, entries] of groups) {
       const totalPaid = entries.filter(e => e.type === 'payment').reduce((s, e) => s + e.amount, 0);
       lines.push(`\n${name}`);
-      lines.push(`  Total paid: R ${totalPaid.toFixed(2)}`);
+      lines.push(`  Total paid: ${CUR} ${totalPaid.toFixed(2)}`);
       [...entries].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-        .forEach(e => lines.push(`  ${fmtDate(e.date)}  ${e.type.padEnd(10)} R ${e.amount.toFixed(2)}${e.label ? ' — ' + e.label : ''}${e.note ? ' (' + e.note + ')' : ''}`));
+        .forEach(e => lines.push(`  ${fmtDate(e.date)}  ${e.type.padEnd(10)} ${CUR} ${e.amount.toFixed(2)}${e.label ? ' — ' + e.label : ''}${e.note ? ' (' + e.note + ')' : ''}`));
     }
   } else if (tab === 'transport') {
     lines.push('DUEY — Transport History Export');
@@ -479,21 +482,21 @@ function buildTxt(args: ExportBuilderArgs): Blob {
     lines.push(sep);
     lines.push('\nMonthly Transport Payments');
     history.filter(h => h.type === 'transport').sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-      .forEach(e => lines.push(`  ${fmtDate(e.date)}  ${e.debtTitle}  R ${e.amount.toFixed(2)}`));
+      .forEach(e => lines.push(`  ${fmtDate(e.date)}  ${e.debtTitle}  ${CUR} ${e.amount.toFixed(2)}`));
     const transTotal = history.filter(h => h.type === 'transport').reduce((s, e) => s + e.amount, 0);
-    lines.push(`  TOTAL: R ${transTotal.toFixed(2)}`);
+    lines.push(`  TOTAL: ${CUR} ${transTotal.toFixed(2)}`);
     lines.push('\nUber Rides');
     uberRides.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-      .forEach(r => lines.push(`  ${fmtDate(r.date)}  ${r.from ?? ''}${r.from && r.to ? ' → ' : ''}${r.to ?? ''}${r.distance ? ` (${r.distance}km)` : ''}  R ${r.price.toFixed(2)}`));
+      .forEach(r => lines.push(`  ${fmtDate(r.date)}  ${r.from ?? ''}${r.from && r.to ? ' → ' : ''}${r.to ?? ''}${r.distance ? ` (${r.distance}km)` : ''}  ${CUR} ${r.price.toFixed(2)}`));
     const uberTotal = uberRides.reduce((s, r) => s + r.price, 0);
-    lines.push(`  TOTAL: R ${uberTotal.toFixed(2)}`);
+    lines.push(`  TOTAL: ${CUR} ${uberTotal.toFixed(2)}`);
   } else if (tab === 'expenses') {
     lines.push('DUEY — Expenses Export');
     lines.push(`Generated: ${format(new Date(), 'd MMM yyyy')}`);
     lines.push(sep);
     const sorted = [...expenses].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-    sorted.forEach(e => lines.push(`  ${fmtDate(e.date)}  ${e.title}${e.category ? ` [${e.category}]` : ''}  R ${e.amount.toFixed(2)}${e.note ? ' — ' + e.note : ''}`));
-    lines.push(`\n  TOTAL: R ${sorted.reduce((s, e) => s + e.amount, 0).toFixed(2)}`);
+    sorted.forEach(e => lines.push(`  ${fmtDate(e.date)}  ${e.title}${e.category ? ` [${e.category}]` : ''}  ${CUR} ${e.amount.toFixed(2)}${e.note ? ' — ' + e.note : ''}`));
+    lines.push(`\n  TOTAL: ${CUR} ${sorted.reduce((s, e) => s + e.amount, 0).toFixed(2)}`);
   } else if (tab === 'budget') {
     lines.push('DUEY — Budget Plans Export');
     lines.push(`Generated: ${format(new Date(), 'd MMM yyyy')}`);
@@ -501,8 +504,8 @@ function buildTxt(args: ExportBuilderArgs): Blob {
     budgetPlans.forEach(p => {
       const spent = p.items.reduce((s, i) => s + i.price, 0);
       lines.push(`\n${p.name}`);
-      lines.push(`  Budget: R ${p.budget.toFixed(2)}  Spent: R ${spent.toFixed(2)}  Remaining: R ${Math.max(0, p.budget - spent).toFixed(2)}`);
-      p.items.forEach(i => lines.push(`    - ${i.name}: R ${i.price.toFixed(2)}${i.link ? ` (${i.link})` : ''}`));
+      lines.push(`  Budget: ${CUR} ${p.budget.toFixed(2)}  Spent: ${CUR} ${spent.toFixed(2)}  Remaining: ${CUR} ${Math.max(0, p.budget - spent).toFixed(2)}`);
+      p.items.forEach(i => lines.push(`    - ${i.name}: ${CUR} ${i.price.toFixed(2)}${i.link ? ` (${i.link})` : ''}`));
     });
   }
 
@@ -765,7 +768,7 @@ function EditEntryDialog({ entry, open, onClose, onSave }: {
 
         <div className="space-y-3">
           <div>
-            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1">Amount (R)</p>
+            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1">Amount ({getCurrencySymbol()})</p>
             <Input
               type="number" inputMode="decimal" value={amount}
               onChange={e => setAmount(e.target.value)}
@@ -879,6 +882,10 @@ export default function HistoryPage() {
 
   // Snapshot breakdown sheet
   const [snapshotEntry, setSnapshotEntry] = useState<HistoryEntry | null>(null);
+
+  // People roster popup (Debts tab). Count/active come from the same derivation the popup uses.
+  const [peopleOpen, setPeopleOpen] = useState(false);
+  const { people, activeCount } = usePeople();
 
   // Delete immediately with a 5s undo window (replaces the old confirm dialog).
   const handleDeleteEntry = (id: string) => {
@@ -1140,6 +1147,36 @@ export default function HistoryPage() {
                 Uber · {uberRides.length} ride{uberRides.length !== 1 ? 's' : ''}
               </p>
             </div>
+          </div>
+          <button
+            onClick={() => setExportOpen(true)}
+            className="w-full flex items-center justify-center gap-2 bg-card rounded-2xl py-2.5 text-xs font-semibold text-muted-foreground active:bg-muted/60 transition-colors"
+          >
+            <Download size={14} /> Export
+          </button>
+        </div>
+      ) : activeTab === 'debts' ? (
+        /* Debts summary — split like transport: total owed/paid on the left, a People card
+           on the right whose eye button opens the editable roster popup. */
+        <div className="space-y-2 mb-4">
+          <div className="grid grid-cols-2 gap-2">
+            <div className="bg-card rounded-2xl px-4 py-3.5">
+              <p className="text-lg font-black tabular-nums text-primary">{tabStats.debts.label}</p>
+              <p className="text-[10px] text-muted-foreground uppercase tracking-widest mt-0.5">{tabStats.debts.sub}</p>
+            </div>
+            <button
+              onClick={() => setPeopleOpen(true)}
+              className="relative text-left bg-card rounded-2xl px-4 py-3.5 active:bg-muted/40 transition-colors"
+              aria-label="Manage people"
+            >
+              <span className="absolute top-2.5 right-2.5 text-muted-foreground/50">
+                <Eye size={16} />
+              </span>
+              <p className="text-lg font-black tabular-nums text-primary">{people.length}</p>
+              <p className="text-[10px] text-muted-foreground uppercase tracking-widest mt-0.5">
+                {people.length === 1 ? 'Person' : 'People'}{activeCount > 0 ? ` · ${activeCount} active` : ''}
+              </p>
+            </button>
           </div>
           <button
             onClick={() => setExportOpen(true)}
@@ -1492,6 +1529,10 @@ export default function HistoryPage() {
         transportFilter={transportExportFilter}
         onTransportFilterChange={setTransportExportFilter}
       />
+
+      {/* People roster popup — opened from the Debts tab's People card. Rename here syncs
+          across debts, history, and the Add-Debt suggestions. */}
+      <PeopleManagerDialog open={peopleOpen} onClose={() => setPeopleOpen(false)} />
 
       {/* Snapshot breakdown — tap a monthly Summary row to see the full income/outgoings split */}
       <Dialog open={!!snapshotEntry} onOpenChange={v => { if (!v) setSnapshotEntry(null); }}>

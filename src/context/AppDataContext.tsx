@@ -11,6 +11,7 @@ import { DEFAULT_RADIAL_FX_ID } from '@/lib/radialFx';
 import { DEFAULT_PAGE_TRANSITION_ID } from '@/lib/pageTransitions';
 import { DEFAULT_HAPTIC_STRENGTH, setHapticStrength, type HapticStrength } from '@/lib/haptics';
 import { DEFAULT_QUICK_SHORTCUTS, sanitizeShortcuts } from '@/lib/quickShortcuts';
+import { personKey, PERSON_ENTRY_TYPES } from '@/lib/persons';
 import { LoadingScreen } from '@/components/LoadingScreen';
 
 const CURRENT_SCHEMA_VERSION = 8;
@@ -89,14 +90,17 @@ const defaultState: AppState = {
   monthlyIncome: 0,
   userProfile: { name: '', paydayDay: 26, bio: '' },
   notificationSettings: { enabled: false, paydayDay: 26, hour: 18, minute: 0, message: 'Time to log your monthly payments.' },
+  // Default theme = the "System Rec" preset (deep slate-indigo base, violet primary, mint
+  // accent). Keep these color values in sync with the 'System Rec' entry in systemThemes.ts
+  // and the :root fallback in globals.css.
   themeSettings: {
-    background: '240 6% 7%',
-    surface: '240 4% 11%',
-    primary: '96 65% 64%',
-    accent: '103 77% 59%',
+    background: '230 18% 6%',
+    surface: '230 14% 10%',
+    primary: '252 84% 72%',
+    accent: '168 62% 56%',
     font: 'Inter',
-    foreground: '60 8% 95%',
-    accentForeground: '240 3% 62%',
+    foreground: '228 14% 96%',
+    accentForeground: '230 8% 63%',
     backgroundOpacity: 0.5,
     uiScale: 1.0,
     uiStyle: 'solid',
@@ -106,14 +110,14 @@ const defaultState: AppState = {
     bgScale: 1,
     backgroundBlur: 0,
     glassOpacity: 0.55,
-    positive: '161 50% 57%',
-    negative: '0 70% 62%',
-    catTransport: '217 91% 68%',
-    catBudget: '0 70% 62%',
-    catExpense: '25 95% 53%',
+    positive: '158 55% 56%',
+    negative: '354 72% 62%',
+    catTransport: '213 90% 68%',
+    catBudget: '340 68% 64%',
+    catExpense: '25 92% 60%',
     catCompletion: '43 96% 70%',
-    catEmployment: '173 80% 74%',
-    catSnapshot: '199 89% 62%',
+    catEmployment: '168 62% 56%',
+    catSnapshot: '199 89% 66%',
   },
   userThemes: [],
   notepadContent: '',
@@ -144,6 +148,9 @@ interface AppContextType extends AppState {
   addDebt: (debt: Omit<Debt, 'id'>) => void;
   updateDebt: (debtId: string, updatedData: Partial<Omit<Debt, 'id'>>) => void;
   deleteDebt: (debtId: string) => void;
+  // Rename a person everywhere at once: every active debt owed to them AND every debt-history
+  // entry (creation/payment/completion) tied to them. `fromKey` is a canonical personKey().
+  renamePerson: (fromKey: string, newName: string) => void;
   completeDebt: (debtId: string) => void;
   togglePaymentDate: (debtId: string, date: Date) => void;
   logPaymentForToday: (debtId: string) => void;
@@ -201,6 +208,7 @@ export const AppDataContext = createContext<AppContextType>({
   addDebt: () => {},
   updateDebt: () => {},
   deleteDebt: () => {},
+  renamePerson: () => {},
   completeDebt: () => {},
   togglePaymentDate: () => {},
   logPaymentForToday: () => {},
@@ -502,6 +510,34 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       debts: prev.debts.filter(debt => debt.id !== debtId),
       history: prev.history.filter(h => h.debtId !== debtId),
     }));
+  }, [updateStateAndSync]);
+
+  // Rename a person across the whole dataset. Identity is the canonical personKey, so this
+  // catches case/whitespace variants too. We first resolve which debtIds belong to the person
+  // (from both active debts and their creation entries) so that debt-history entries written
+  // under an OLD title before a prior rename still get swept along via their debtId — keeping
+  // the debts list, the History log, and the Add-Debt suggestions perfectly in sync.
+  const renamePerson = useCallback((fromKey: string, rawNewName: string) => {
+    const newName = rawNewName.trim();
+    if (!newName || !fromKey) return;
+    updateStateAndSync(prev => {
+      const targetDebtIds = new Set<string>();
+      for (const d of prev.debts) if (personKey(d.title) === fromKey) targetDebtIds.add(d.id);
+      for (const h of prev.history) {
+        if (h.type === 'creation' && h.debtId && personKey(h.debtTitle) === fromKey) targetDebtIds.add(h.debtId);
+      }
+
+      const debts = prev.debts.map(d =>
+        personKey(d.title) === fromKey ? { ...d, title: newName } : d
+      );
+      const history = prev.history.map(h => {
+        if (!PERSON_ENTRY_TYPES.includes(h.type)) return h; // never touch transport/expense/etc.
+        const belongs = (h.debtId != null && targetDebtIds.has(h.debtId)) || personKey(h.debtTitle) === fromKey;
+        return belongs ? { ...h, debtTitle: newName } : h;
+      });
+
+      return { ...prev, debts, history };
+    });
   }, [updateStateAndSync]);
 
   const completeDebt = useCallback((debtId: string) => {
@@ -843,6 +879,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     addDebt,
     updateDebt,
     deleteDebt,
+    renamePerson,
     completeDebt,
     togglePaymentDate,
     logPaymentForToday,

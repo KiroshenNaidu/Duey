@@ -19,6 +19,7 @@ import * as z from 'zod';
 import { AppDataContext } from '@/context/AppDataContext';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from './ui/form';
 import { formatCurrency } from '@/lib/utils';
+import { personKey, derivePersonProfiles, type PersonProfile } from '@/lib/persons';
 
 const debtSchema = z.object({
   title: z.string().min(1, 'Title is required'),
@@ -46,42 +47,38 @@ export function AddDebtDialog({ children }: { children: ReactNode }) {
     },
   });
 
-  const personSuggestions = useMemo(() => {
-    const seen = new Set<string>();
-    return history
-      .filter(h => h.type === 'creation')
-      .map(h => h.debtTitle)
-      .filter(name => {
-        if (seen.has(name)) return false;
-        seen.add(name);
-        return true;
+  // Everything the dropdown shows is aggregated from history — there is no separate person
+  // store. Shared with the People manager (History page) via derivePersonProfiles.
+  const personProfiles = useMemo(() => derivePersonProfiles(history), [history]);
+
+  const filteredSuggestions = useMemo(() => {
+    const q = personKey(titleInput);
+    const ranked = [...personProfiles]
+      .filter(p => q === '' || p.key.includes(q))
+      .sort((a, b) => {
+        if (q) {
+          // Prefix matches ("jo" → "John") rank above mid-string matches ("jo" → "Major").
+          const ap = a.key.startsWith(q) ? 0 : 1;
+          const bp = b.key.startsWith(q) ? 0 : 1;
+          if (ap !== bp) return ap - bp;
+        }
+        return b.lastActivity - a.lastActivity; // otherwise most recent first
       });
-  }, [history]);
+    // Nothing to offer when the field already exactly matches the sole suggestion.
+    if (ranked.length === 1 && ranked[0].key === q) return [];
+    return ranked.slice(0, 6);
+  }, [titleInput, personProfiles]);
 
-  const filteredSuggestions = useMemo(() =>
-    titleInput.length > 0
-      ? personSuggestions.filter(s => s.toLowerCase().includes(titleInput.toLowerCase()))
-      : [],
-    [titleInput, personSuggestions]
-  );
-
-  function getPersonStats(name: string) {
-    const creations = history.filter(h => h.type === 'creation' && h.debtTitle === name);
-    const completions = history.filter(h => h.type === 'completion' && h.debtTitle === name);
-    const payments = history.filter(h => h.type === 'payment' && h.debtTitle === name);
-    const totalPaid = payments.reduce((s, h) => s + h.amount, 0);
-    return { timesInDebt: creations.length, totalPaid, completions: completions.length };
-  }
-
-  const handleSelectSuggestion = (name: string) => {
-    form.setValue('title', name);
-    setTitleInput(name);
+  const handleSelectSuggestion = (profile: PersonProfile) => {
+    form.setValue('title', profile.name);
+    setTitleInput(profile.name);
     setShowSuggestions(false);
   };
 
   const onSubmit = (data: DebtFormValues) => {
-    const { dueDay, ...rest } = data;
-    addDebt({ ...rest, dueDay: typeof dueDay === 'number' ? dueDay : null });
+    const { dueDay, title, ...rest } = data;
+    // Trim on creation so the stored title (and the person key derived from it) stays clean.
+    addDebt({ ...rest, title: title.trim(), dueDay: typeof dueDay === 'number' ? dueDay : null });
     form.reset();
     setTitleInput('');
     setIsOpen(false);
@@ -116,6 +113,7 @@ export function AddDebtDialog({ children }: { children: ReactNode }) {
                         field.onChange(e.target.value);
                         setShowSuggestions(true);
                       }}
+                      onFocus={() => setShowSuggestions(true)}
                       onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
                       autoComplete="off"
                     />
@@ -123,23 +121,20 @@ export function AddDebtDialog({ children }: { children: ReactNode }) {
                   <FormMessage />
                   {showSuggestions && filteredSuggestions.length > 0 && (
                     <div className="border border-border rounded-md bg-card shadow-lg overflow-hidden -mt-1">
-                      {filteredSuggestions.map(name => {
-                        const stats = getPersonStats(name);
-                        return (
-                          <button
-                            key={name}
-                            type="button"
-                            className="w-full text-left px-3 py-2 hover:bg-muted/50 transition-colors border-b border-border/50 last:border-0"
-                            onMouseDown={() => handleSelectSuggestion(name)}
-                          >
-                            <div className="text-sm font-medium text-foreground">{name}</div>
-                            <div className="text-[10px] text-muted-foreground">
-                              {stats.timesInDebt}× in debt · {formatCurrency(stats.totalPaid)} paid
-                              {stats.completions > 0 ? ` · ${stats.completions} completed` : ''}
-                            </div>
-                          </button>
-                        );
-                      })}
+                      {filteredSuggestions.map(profile => (
+                        <button
+                          key={profile.key}
+                          type="button"
+                          className="w-full text-left px-3 py-2 hover:bg-muted/50 transition-colors border-b border-border/50 last:border-0"
+                          onMouseDown={() => handleSelectSuggestion(profile)}
+                        >
+                          <div className="text-sm font-medium text-foreground">{profile.name}</div>
+                          <div className="text-[10px] text-muted-foreground">
+                            {profile.timesInDebt}× in debt · {formatCurrency(profile.totalPaid)} paid
+                            {profile.completions > 0 ? ` · ${profile.completions} completed` : ''}
+                          </div>
+                        </button>
+                      ))}
                     </div>
                   )}
                 </FormItem>
