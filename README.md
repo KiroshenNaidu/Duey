@@ -12,7 +12,7 @@
 ## Privacy First — 100% Offline
 
 - **No internet required.** Zero online connectivity.
-- **Local storage only.** All data is saved directly on your device via IndexedDB.
+- **Local storage only.** Everything lives on your device — app data in `localStorage`, images (background, avatar) in IndexedDB. Nothing is ever sent anywhere.
 
 ---
 
@@ -21,22 +21,29 @@
 ### Debt Management
 - Add and track balances for money owed
 - See repayment progress at a glance
-- Attach notes to individual debt entries
+- Attach notes and custom labels to individual payments in your history
+- Optional per-debt due-date reminders (Android notifications, opt-in per debt)
 
 ### Transport Calculator
-- Tap days on a custom calendar to mark days you traveled
-- Auto-calculates your total transport cost for the month
+- Tap days on a custom calendar to mark days you traveled — full days or half days
+- Auto-calculates your total transport cost for the month (daily rate or flat monthly fee)
 - Log individual Uber rides with routes, distance, and price
 
 ### Budget Planner
 - Create spending plans with a set budget and track items against it
 
+### Income & Expenses
+- Track recurring and one-off expenses alongside your monthly income
+- Add extra income sources on top of your main salary
+
 ### Stats & History
 - View payment history: what was paid, how much, and when
+- Automatic month-end balance snapshots so past months never drift
 - Dedicated history page with editing and a financial-statement export
 
 ### Utilities
 - Built-in calculator and a quick notepad so you don't have to leave the app
+- Quick-add radial menu — flick from the FAB to any action, with configurable shortcuts
 - Multi-currency support (pick your currency in settings)
 
 ### Export & Backup
@@ -46,7 +53,14 @@
 
 ### Customisation
 - Change app colors, fonts, and upload a custom background image
-- Save and switch between your own themes
+- Save and switch between your own themes, or start from a built-in preset
+- Day/Night quick-switch — assign a theme to each mode and flip between them
+- Pick your page-swipe transition and quick-add radial effect
+
+### Feel
+- Swipe pages left/right to move between Money, Stats, and Transport
+- Swipe list cards to reveal edit/delete actions
+- Haptic feedback on buttons and gestures — off / light / medium / strong
 
 ---
 
@@ -61,11 +75,12 @@
 
 | Layer | Tech |
 |---|---|
-| Frontend | Next.js 15, React 19, TypeScript |
+| Frontend | Next.js 15 (static export), React 19, TypeScript |
 | Styling | Tailwind CSS, Radix UI, shadcn/ui |
-| Mobile | Capacitor 7 (Android), custom SAF folder-access plugin |
+| Motion | Framer Motion, canvas-confetti |
+| Mobile | Capacitor 7 (Android) — haptics, local notifications, custom SAF folder-access plugin |
 | Storage | localStorage + IndexedDB (via `idb`) |
-| Charts | Recharts |
+| Charts | Hand-rolled SVG/CSS — no charting library |
 | Export | jsPDF, docx, xlsx |
 
 ---
@@ -91,7 +106,7 @@ npm run dev        # runs on port 9002
 To build and sync to Android:
 
 ```bash
-npm run sync:android   # next build && cap sync android
+npm run sync:android   # clean && next build && cap sync android
 npm run android        # opens Android Studio
 ```
 
@@ -108,7 +123,7 @@ npm install
 > Use `npm install` — not `npm run install` (that's not a script and will error).
 
 If you get an `ERESOLVE` peer dependency conflict involving `@capacitor/*` packages, it means something bumped a Capacitor package to a different major version. All Capacitor packages must be on the **same major version**. Check `package.json` and align them — this project targets **Capacitor 7** across the board:
-- `@capacitor/core`, `@capacitor/android`, `@capacitor/cli`, `@capacitor/app`, `@capacitor/local-notifications`, `@capacitor/filesystem`, `@capacitor/share` should all be `^7.x`
+- `@capacitor/core`, `@capacitor/android`, `@capacitor/cli`, `@capacitor/app`, `@capacitor/haptics`, `@capacitor/local-notifications`, `@capacitor/filesystem`, `@capacitor/share` should all be `^7.x`
 
 Once `npm install` succeeds cleanly, continue as normal.
 
@@ -121,7 +136,7 @@ Want to try the app with realistic data already loaded? A sample backup is inclu
 **[Download test-data.json](test-data.json)**
 
 It includes:
-- 4 debts (student loan, phone, dad, credit card) with 6 months of payment history
+- 7 debts (student loan, phone, credit card, plus two owed to Dad and two to John — the same-person pairs show the grouped debt cards) with 6 months of payment history
 - 5 budget plans at various stages — some fully spent, some in-progress, some just planned
 - Recurring and one-off expenses
 - 3 extra income sources

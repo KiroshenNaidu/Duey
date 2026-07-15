@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, ReactNode, useEffect, useState, useMemo, useCallback } from 'react';
+import { createContext, ReactNode, useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import type { AppState, Debt, HistoryEntry, AppData, ThemeSettings, TransportSettings, TransportOverrides, TransportMonthlyOverrides, DayState, UberRide, UserTheme, BudgetPlan, BudgetItem, UserProfile, NotificationSettings, AppError, Expense, ExtraIncome, DayNightSettings } from '@/lib/types';
 import { isSameDay, startOfDay, startOfMonth, format, add, endOfMonth } from 'date-fns';
 import { idbGet, idbSet, idbDel, setCurrencyCode, genId } from '@/lib/utils';
@@ -14,6 +14,12 @@ import { DEFAULT_QUICK_SHORTCUTS, sanitizeShortcuts } from '@/lib/quickShortcuts
 import { LoadingScreen } from '@/components/LoadingScreen';
 
 const CURRENT_SCHEMA_VERSION = 8;
+
+// How long to coalesce rapid state changes into a single localStorage write. Long enough to
+// absorb a burst (tapping calendar days, toggling budget items, notepad autosave) into one
+// serialize; short enough that a lone change is durable almost immediately. A background/
+// unload flush (see the persistence effects) guarantees nothing buffered here is ever lost.
+const PERSIST_DEBOUNCE_MS = 500;
 
 function migrateState(raw: AppState): AppState {
   const overrides: TransportOverrides = {};
@@ -408,22 +414,65 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     }
   }, [setAppError]);
 
-  const updateStateAndSync = useCallback((updater: (prev: AppState) => AppState) => {
-    setAppState(prev => {
-      const next = updater(prev);
-      try {
-        localStorage.setItem('appState', JSON.stringify(next));
-      } catch (err) {
-        queueMicrotask(() => setAppError({
-          friendly: 'Could not save — your device storage may be full. Some changes may be lost after refresh.',
-          operation: "localStorage.setItem('appState') in updateStateAndSync",
-          error: err,
-          ts: Date.now(),
-        }));
-      }
-      return next;
-    });
+  // ── Persistence ──
+  // Serializing the whole app state and writing it to localStorage is a synchronous,
+  // main-thread cost. Doing it INSIDE every setState updater (the old design) re-serialized
+  // the ENTIRE state once per mutation, so a burst of rapid changes stuttered in proportion
+  // to how much data the user had. Now mutations only touch memory (the UI stays instant)
+  // and the write is COALESCED: one debounced write, forced out the moment the app is
+  // backgrounded or unloaded — the only instants the bytes actually have to be on disk.
+  const stateRef = useRef(appState);
+  const writeTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const clearedRef = useRef(false); // set by clearData so a teardown flush can't resurrect wiped data
+  const loadedRef = useRef(false);  // false until real data is loaded — blocks a background flush
+                                    // that would otherwise write empty defaults over stored data
+
+  const persistNow = useCallback(() => {
+    clearTimeout(writeTimerRef.current);
+    writeTimerRef.current = undefined;
+    if (clearedRef.current || !loadedRef.current) return;
+    try {
+      localStorage.setItem('appState', JSON.stringify(stateRef.current));
+    } catch (err) {
+      setAppError({
+        friendly: 'Could not save — your device storage may be full. Some changes may be lost after refresh.',
+        operation: "localStorage.setItem('appState') in persistNow",
+        error: err,
+        ts: Date.now(),
+      });
+    }
   }, [setAppError]);
+
+  const updateStateAndSync = useCallback((updater: (prev: AppState) => AppState) => {
+    setAppState(updater);
+  }, []);
+
+  // Mirror the latest state into a ref and (re)arm the debounced write on every change.
+  // Gated on isLoaded so the initial default state can't overwrite real data before it
+  // loads — but the migrated/sealed state produced AT load IS persisted, which closes an
+  // old latent bug: a month-end seal computed on open used to be lost if the app closed
+  // before the next mutation, so it re-sealed (and duplicated the summary) next launch.
+  useEffect(() => {
+    stateRef.current = appState;
+    if (!isLoaded) return;
+    loadedRef.current = true;
+    clearTimeout(writeTimerRef.current);
+    writeTimerRef.current = setTimeout(persistNow, PERSIST_DEBOUNCE_MS);
+  }, [appState, isLoaded, persistNow]);
+
+  // Force any buffered write out the instant the app is hidden or torn down. On Android the
+  // 'hidden' visibility change is the dependable "user left" signal (home button, app
+  // switcher, screen off), so changes survive even if the OS later kills the backgrounded
+  // process; 'pagehide' covers reloads (config import, JSON editor) and web tab close.
+  useEffect(() => {
+    const flushIfHidden = () => { if (document.visibilityState === 'hidden') persistNow(); };
+    window.addEventListener('pagehide', persistNow);
+    document.addEventListener('visibilitychange', flushIfHidden);
+    return () => {
+      window.removeEventListener('pagehide', persistNow);
+      document.removeEventListener('visibilitychange', flushIfHidden);
+    };
+  }, [persistNow]);
 
   const addDebt = useCallback((debtData: Omit<Debt, 'id'>) => {
     updateStateAndSync(prev => {
@@ -775,6 +824,10 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
   };
 
   const clearData = () => {
+    // Disable persistence first: a pending debounced write — or the pagehide flush the
+    // reload below triggers — must not rewrite the state we're about to wipe.
+    clearedRef.current = true;
+    clearTimeout(writeTimerRef.current);
     const keysToRemove = ['appState', 'duey_device_id'];
     keysToRemove.forEach(key => localStorage.removeItem(key));
     idbDel('backgroundImage').catch(() => {});

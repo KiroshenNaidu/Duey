@@ -14,7 +14,7 @@ import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Zap, X, Check } from 'lucide-react';
 import { acquireOverlayBlur, releaseOverlayBlur } from '@/lib/overlayBlur';
-import { hapticTick, hapticTap } from '@/lib/haptics';
+import { hapticTick, hapticTap, hapticImpact } from '@/lib/haptics';
 import { getRadialFx } from '@/lib/radialFx';
 import { AimSparkles, CurvedLabel, RippleBurst, CometTrail, TrailFlow } from '@/components/RadialAimFx';
 import { getShortcut, type QuickShortcut } from '@/lib/quickShortcuts';
@@ -33,32 +33,72 @@ export function openQuickAdd(gesture = false) {
 }
 
 // ═══════════════════ Radial menu tuning — everything adjustable lives here ═══════════════════
-const LONG_PRESS_MS = 450;   // hold time on a money-page + FAB before the radial opens
+const LONG_PRESS_MS = 300;   // hold time on a money-page + FAB before the radial opens.
+                             // Android's own long-press is ~400ms, but this FAB has no
+                             // competing gesture (page-swipe is disabled on it, see
+                             // FAB_GESTURE_ATTR), so it can commit sooner and feel instant.
 const RADIUS = 104;          // fan distance (px) from the FAB centre
 const ARC_FROM_DEG = 160;    // leftmost item angle (degrees above the FAB)
 const ARC_TO_DEG = 20;       // rightmost item angle
 
-// Flick/aim selection: DIRECTION-based, not distance-based — the moment the finger moves
-// AIM_MIN_DIST px away from the FAB centre, the item whose direction best matches the
-// finger's direction is aimed. A short flick toward an item is enough; releasing selects.
-const AIM_MIN_DIST = 24;          // dead-zone radius around the FAB centre (px) — the FAB's own
-                                  // radius, so aiming engages the moment the finger crosses its rim
+// Flick/aim selection is DIRECTION-based, not distance-based: whichever item's direction
+// best matches the finger's direction from the FAB centre is aimed, and releasing selects
+// it. Distance decides only WHEN that matching starts, via three concentric bands:
+//
+//   0 ────── AIM_MIN_DIST ────── activateAt ────── AIM_MAX_DIST ──────▶
+//     dead zone      travelling            ARMED            cancel zone
+//
+//   • dead zone   — inside the FAB itself; nothing to point at yet.
+//   • travelling  — the beam and finger ring track you, but NO item is aimed. Releasing
+//                   here cancels, so a lazy half-flick can't fire a shortcut you only
+//                   glanced at. This band is the reason aiming feels deliberate.
+//   • ARMED       — the finger is close enough to the option ring that intent is
+//                   unambiguous: the item lights up, the trail locks on, release selects.
+//   • cancel zone — flicked way past the ring (e.g. up to the top of the screen);
+//                   nothing is aimed, so releasing cancels.
+const AIM_MIN_DIST = 24;          // dead-zone radius (px) — the FAB's own radius
+const AIM_ACTIVATE_INSET = 46;    // how far INSIDE the option ring the armed band begins.
+                                  // activateAt = radius − this, so it tracks the ring as the
+                                  // radius widens with item count (see computeRadial).
 const TRAIL_THICKNESS = 48;       // aim-trail bar thickness = the FAB circle's diameter (h-12)
 // Quick snap for the bar re-aiming between neighbouring options — fast enough to feel
 // locked to the finger, springy enough to read as a glide rather than a teleport.
 const TRAIL_SNAP = { type: 'spring', stiffness: 700, damping: 42 } as const;
-const AIM_MAX_DIST = 240;         // "safe area" radius — flick BEYOND this (e.g. up to the top
-                                  // of the screen) aims at nothing, so releasing there CANCELS.
+const AIM_MAX_DIST = 240;         // "safe area" radius — flick BEYOND this aims at nothing
 const SECTOR_TOLERANCE_DEG = 42;  // max angular distance from an item that still aims it
+
+/** Distance from the FAB centre at which aiming arms, for a fan of the given radius.
+ *  Exported so the Theme → Style demo arms at the same point relative to its own
+ *  (smaller) fan — a preview that engaged earlier than the real menu would mislead. */
+export const activateDist = (radius: number) => Math.max(AIM_MIN_DIST, radius - AIM_ACTIVATE_INSET);
 
 // Drag/touch visual effects live in lib/radialFx.ts as user-selectable presets
 // (Theme → Style, with a live demo). The active one comes from AppState.quickAddFxId.
 // ══════════════════════════════════════════════════════════════════════════════════════════════
 
 /**
+ * Marks an element as owning its own touch gesture. AppShell reads this on touchstart and
+ * refuses to classify the drag as a page swipe, so sliding out of a + FAB aims the radial
+ * WITHOUT the pages moving behind it.
+ *
+ * This has to be decided at touchSTART, not later: AppShell locks a drag in as horizontal
+ * the moment the finger clears 4px, which on the hold-then-slide gesture happens while the
+ * radial is still counting down and no overlay exists yet for its isOverlayOpen() guard to
+ * see. The pages would then track the finger for the whole aim — and because the radial
+ * blurs #app-root, every one of those frames re-rasterized the entire blurred app. That is
+ * what made aiming feel heavy on Android.
+ */
+export const FAB_GESTURE_ATTR = 'data-fab-gesture';
+
+/**
  * Long-press props for the money-page FABs. Spread onto the FAB button — a hold opens
  * the QuickAdd radial (with slide-to-select active) and swallows the click so the FAB's
  * normal dialog doesn't open. touchAction none keeps pointermove alive while sliding.
+ *
+ * Haptics: pressing down ticks immediately (the press registered), and the hold crossing
+ * LONG_PRESS_MS lands a firmer confirm as the radial springs out (hapticImpact, fired from
+ * the OPEN_EVENT handler). A plain tap therefore gets exactly one pulse, on touch-down
+ * rather than on click — a click tick arrives after the finger lifts, which reads as lag.
  */
 export function useFabLongPress() {
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -66,6 +106,7 @@ export function useFabLongPress() {
 
   const start = useCallback(() => {
     firedRef.current = false;
+    hapticTap(); // the press itself — the radial's own confirm comes later, if it opens
     timerRef.current = setTimeout(() => {
       firedRef.current = true;
       openQuickAdd(true); // pointer is still down → slide-select gesture
@@ -78,17 +119,16 @@ export function useFabLongPress() {
   }, []);
 
   return {
+    [FAB_GESTURE_ATTR]: '',
     onPointerDown: start,
     onPointerUp: cancel,
     onPointerLeave: cancel,
+    onPointerCancel: cancel, // WebView stole the gesture — don't open a radial behind it
     onClickCapture: (e: React.MouseEvent) => {
       if (firedRef.current) {
         e.preventDefault();
         e.stopPropagation();
         firedRef.current = false;
-      } else {
-        // Plain tap on the + FAB — the hold path vibrates when the radial appears instead.
-        hapticTap();
       }
     },
     onContextMenu: (e: React.MouseEvent) => e.preventDefault(), // suppress mobile long-press menu
@@ -189,6 +229,11 @@ export function QuickAdd() {
   // that was the radial's lag on Android.) gestureOn just mounts them per gesture.
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [gestureOn, setGestureOn] = useState(false);
+  // Bumped to re-run the gesture effect and start a FRESH slide from the centre button.
+  // Aiming is fully non-destructive: releasing without a selection only tears down the
+  // visuals, so re-arming needs no other reset — press the centre again and the track,
+  // beam and ring come straight back. Repeat as many times as you like.
+  const [gestureId, setGestureId] = useState(0);
   const ringX = useMotionValue(0);
   const ringY = useMotionValue(0);
   const ringOpacity = useMotionValue(0);
@@ -203,14 +248,28 @@ export function QuickAdd() {
   const pendingGestureRef = useRef(false);
   const anchorRef = useRef<HTMLDivElement | null>(null);
 
+  // When a slide that started ON the centre button ends anywhere else, the browser still
+  // synthesises a click on their common ancestor — the backdrop, whose job is to close the
+  // radial. That would throw the menu away the instant an aim was abandoned. Stamp the end
+  // of every travelled gesture and ignore clicks that land in its shadow. A timestamp
+  // rather than a flag because it expires on its own: no stale bit can eat a later, real tap.
+  const gestureEndRef = useRef(0);
+  const isGestureClick = () => performance.now() - gestureEndRef.current < 250;
+
+  /** Arm slide-to-select for the pointer that is down RIGHT NOW. */
+  const armGesture = useCallback(() => {
+    pendingGestureRef.current = true;
+    setGestureId(n => n + 1);
+  }, []);
+
   useEffect(() => {
     const onOpen = (e: Event) => {
       pendingGestureRef.current = !!(e as CustomEvent<{ gesture?: boolean }>).detail?.gesture;
       setAction(null);
       setRadialOpen(true);
-      // Confirm the quick-nav radial appearing — this is the hold gesture's vibration
-      // (and the lightning FAB's press feedback, which opens the radial immediately).
-      hapticTap();
+      // The radial is out: a firmer pulse than the aim ticks that follow, and unlike them
+      // it is never rate-limited away — the gesture's payoff always lands.
+      hapticImpact();
     };
     window.addEventListener(OPEN_EVENT, onOpen);
     return () => window.removeEventListener(OPEN_EVENT, onOpen);
@@ -254,9 +313,11 @@ export function QuickAdd() {
   }, [ringOpacity, beamOpacity, trailOpacity, trailEnvelope]);
 
   // Fan-out spring: the Elastic preset overshoots and settles; everything else is snappy.
+  // Light mass + high stiffness so the items are at rest within ~180ms — on Android the
+  // radial has to be aimable the instant the hold fires, not a third of a second later.
   const fanSpring = fx.elasticFan
-    ? { stiffness: 500, damping: 15 }
-    : { stiffness: 550, damping: 30 };
+    ? { stiffness: 560, damping: 15, mass: 0.7 }
+    : { stiffness: 700, damping: 32, mass: 0.6 };
 
 
   // Gesture engine: while the opening pointer is still down, track it globally.
@@ -287,20 +348,46 @@ export function QuickAdd() {
     // reuse it for the rest of the slide.
     let anchor: DOMRect | null = anchorRef.current?.getBoundingClientRect() ?? null;
 
+    // Android touchscreens sample well above the refresh rate, so pointermove can fire
+    // three or four times per painted frame. Every one of those used to run the full aim
+    // pass and write six MotionValues, and all but the last was thrown away unseen. Keep
+    // only the newest position and do the work once per frame.
+    let queuedX = 0;
+    let queuedY = 0;
+    let queued = false;
+    let raf = 0;
+    let moved = false; // finger ever left the FAB's dead zone during this gesture
+
+    const flush = () => {
+      raf = 0;
+      if (!queued) return;
+      queued = false;
+      aim(queuedX, queuedY);
+    };
+
     const onMove = (e: PointerEvent) => {
+      queuedX = e.clientX;
+      queuedY = e.clientY;
+      queued = true;
+      if (!raf) raf = requestAnimationFrame(flush);
+    };
+
+    function aim(clientX: number, clientY: number) {
       if (!anchor) anchor = anchorRef.current?.getBoundingClientRect() ?? null;
       if (!anchor) return;
-      const dx = e.clientX - anchor.left;
-      const dy = e.clientY - anchor.top;
+      const dx = clientX - anchor.left;
+      const dy = clientY - anchor.top;
       const dist = Math.hypot(dx, dy);
 
       let aimed: string | null = null;
       if (dist >= AIM_MIN_DIST) {
+        moved = true; // this gesture travelled — its release must not read as a tap
         // Screen y grows downward, our angles are up-positive → negate dy.
         const angle = (Math.atan2(-dy, dx) * 180) / Math.PI;
-        // Aim only inside the "safe area" ring [AIM_MIN_DIST, AIM_MAX_DIST]. Too close =
-        // dead zone; too far (flicked up toward the top) = nothing aimed → release CANCELS.
-        if (dist <= AIM_MAX_DIST) {
+        // Aim only inside the ARMED band [activateAt, AIM_MAX_DIST] — near the option
+        // ring. Short of it the finger is still travelling; past it the flick overshot.
+        // Either way nothing is aimed, so releasing there CANCELS.
+        if (dist >= activateDist(radialRef.current.radius) && dist <= AIM_MAX_DIST) {
           let best = SECTOR_TOLERANCE_DEG;
           for (const item of radialRef.current.items) {
             const diff = angleDelta(angle, item.angleDeg);
@@ -328,9 +415,11 @@ export function QuickAdd() {
           // Let the orb run right up to the option centre so it slides behind the button
           // and absorbs, tracking the thumb the whole way (no early clamp/block).
           trailPulseX.set(Math.min(dist, R));
-          // Envelope glow ramps over the last ~46px to the option and is FULL once the
-          // thumb is on the button — the trail wraps the destination while you're on it.
-          trailEnvelope.set(aimed ? Math.max(0, Math.min(1, (dist - (R - 46)) / 46)) : 0);
+          // Envelope glow ramps across the ARMED band — 0 the moment aiming engages, FULL
+          // once the thumb is on the button. Derived from the same distance that arms the
+          // aim, so retuning AIM_ACTIVATE_INSET can never desync the glow from the lock-on.
+          const armedAt = activateDist(R);
+          trailEnvelope.set(aimed ? Math.max(0, Math.min(1, (dist - armedAt) / (R - armedAt))) : 0);
           if (aimed !== hoveredRef.current) {
             const item = aimed ? radialRef.current.items.find(it => it.id === aimed) : undefined;
             if (item) {
@@ -354,32 +443,44 @@ export function QuickAdd() {
       hoveredRef.current = aimed;
       setHoveredId(aimed); // bails out when unchanged — no re-render per move
       if (fxRef.current.pointerRing) {
-        ringX.set(e.clientX - 20);
-        ringY.set(e.clientY - 20);
+        ringX.set(clientX - 20);
+        ringY.set(clientY - 20);
         ringOpacity.set(1);
       }
-    };
+    }
 
     const onUp = () => {
+      // A move can still be queued for a frame that will never run. Aim on it first, or a
+      // fast flick-and-release lands on whatever the previous frame saw — or on nothing.
+      if (queued) { queued = false; aim(queuedX, queuedY); }
       const target = hoveredRef.current;
+      if (moved) gestureEndRef.current = performance.now();
       cleanup();
       if (target) pick(target);
-      else endVisuals(); // released without aiming → stay open in tap mode
+      else endVisuals(); // released without aiming → stay open, ready to be armed again
     };
 
-    const onCancel = () => { cleanup(); endVisuals(); };
+    const onCancel = () => {
+      if (moved) gestureEndRef.current = performance.now();
+      cleanup();
+      endVisuals();
+    };
 
     const cleanup = () => {
+      if (raf) cancelAnimationFrame(raf);
+      raf = 0;
+      queued = false;
       window.removeEventListener('pointermove', onMove);
       window.removeEventListener('pointerup', onUp);
       window.removeEventListener('pointercancel', onCancel);
     };
 
-    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointermove', onMove, { passive: true });
     window.addEventListener('pointerup', onUp);
     window.addEventListener('pointercancel', onCancel);
     return cleanup;
-  }, [radialOpen, pick, ringX, ringY, ringOpacity, beamLen, beamRotate, beamOpacity, trailRotate, trailOpacity, trailPulseX, trailEnvelope]);
+    // gestureId re-runs this for each fresh arm from the centre button.
+  }, [radialOpen, gestureId, pick, ringX, ringY, ringOpacity, beamLen, beamRotate, beamOpacity, trailRotate, trailOpacity, trailPulseX, trailEnvelope]);
 
   return (
     <>
@@ -390,7 +491,9 @@ export function QuickAdd() {
       {(pathname === '/transport' || pathname === '/stats') && (
         <button
           aria-label="Quick add"
+          {...{ [FAB_GESTURE_ATTR]: '' }}
           onPointerDown={() => openQuickAdd(true)}
+          onContextMenu={e => e.preventDefault()}
           className="fab-blurable fixed left-1/2 -translate-x-1/2 h-12 w-12 rounded-full z-40 focus:outline-none"
           style={{ bottom: 'calc(10px + var(--sab))', ...FAB_TOUCH_STYLE }}
         >
@@ -420,10 +523,12 @@ export function QuickAdd() {
             // taps, even if the fade-out frame or unmount lags. Prevents the invisible
             // full-screen backdrop from freezing the app after close (critical on Android).
             exit={{ opacity: 0, pointerEvents: 'none' }}
-            transition={{ duration: 0.16 }}
+            transition={{ duration: 0.12 }}
             className="fixed inset-0 z-[70] bg-black/50"
             style={{ touchAction: 'none' }}
-            onClick={closeRadial}
+            // A slide that began on the centre button and ended out here synthesises a
+            // click on this backdrop. Abandoning an aim must not close the menu.
+            onClick={() => { if (!isGestureClick()) closeRadial(); }}
           >
             {/* Anchor: zero-size point at the FAB centre; items spring out from here.
                 Also the reference point the gesture engine measures aim against.
@@ -533,10 +638,10 @@ export function QuickAdd() {
                     // that lingering invisible backdrop was the app-freeze bug.
                     // Stagger only the fly-out (x/y); opacity reacts instantly.
                     transition={{
-                      x: { type: 'spring', ...fanSpring, delay: i * 0.028 },
-                      y: { type: 'spring', ...fanSpring, delay: i * 0.028 },
-                      scale: { type: 'spring', ...fanSpring, delay: i * 0.028 },
-                      opacity: { duration: 0.12 },
+                      x: { type: 'spring', ...fanSpring, delay: i * 0.016 },
+                      y: { type: 'spring', ...fanSpring, delay: i * 0.016 },
+                      scale: { type: 'spring', ...fanSpring, delay: i * 0.016 },
+                      opacity: { duration: 0.1 },
                     }}
                     className="absolute"
                     style={{ left: 0, top: 0, translateX: '-50%', translateY: '-50%' }}
@@ -569,20 +674,26 @@ export function QuickAdd() {
                         {isAimed && fx.rippleBurst && <RippleBurst />}
                       </span>
                       {/* Label curves around the button, slowly orbiting + shimmering (primary) */}
-                      <CurvedLabel id={a.id} index={i} text={a.label} />
+                      <CurvedLabel id={a.id} index={i} text={a.label} active={isAimed} />
                     </motion.span>
                   </motion.button>
                 );
               })}
 
-              {/* Centre close button sits exactly over the FAB */}
+              {/* Centre button, sitting exactly over the + FAB it replaced — and inheriting
+                  its gesture. Press and slide out to aim a shortcut, exactly as if you had
+                  never let go of the + in the first place; press and release without moving
+                  to close. So an aim you abandon costs nothing: the track fades, the menu
+                  stays, and the very next press hands you a fresh one. */}
               <motion.button
-                onClick={closeRadial}
+                onPointerDown={() => { if (!gestureOn) { hapticTap(); armGesture(); } }}
+                onClick={() => { if (!isGestureClick()) closeRadial(); }}
+                onContextMenu={e => e.preventDefault()}
                 initial={{ rotate: -90, scale: 0.6, opacity: 0 }}
                 animate={{ rotate: 0, scale: 1, opacity: 1 }}
-                transition={{ type: 'spring', stiffness: 520, damping: 30 }}
+                transition={{ type: 'spring', stiffness: 700, damping: 32, mass: 0.6 }}
                 className="absolute h-12 w-12 rounded-full bg-primary text-primary-foreground shadow-lg flex items-center justify-center"
-                style={{ left: 0, top: 0, translateX: '-50%', translateY: '-50%' }}
+                style={{ left: 0, top: 0, translateX: '-50%', translateY: '-50%', ...FAB_TOUCH_STYLE }}
                 aria-label="Close quick add"
               >
                 <X className="h-5 w-5" />

@@ -12,6 +12,9 @@
 // can request ticks many times a second, which the motor renders as one long mushy buzz
 // instead of discrete clicks. hapticTap (discrete button presses) shares the same gap —
 // a double-fire from pointer+click on one press must collapse into a single tick.
+//
+// hapticImpact is the exception: it's the "something happened" confirmation (the quick-nav
+// radial springing open) and must ALWAYS land, so it ignores the gap and re-arms it.
 
 export type HapticStrength = 'off' | 'light' | 'medium' | 'strong';
 
@@ -44,6 +47,19 @@ async function resolveNative(): Promise<HapticsModule | null> {
   }
 }
 
+/**
+ * Resolve the native plugin AHEAD of the first gesture. Without this the first haptic of
+ * the session always took the web fallback (the probe is async, so `hapticsMod` was still
+ * unresolved) — and on the Android WebView `navigator.vibrate` is a no-op, so the very
+ * first + press of every launch produced NO vibration at all. Priming at module load
+ * means the motor is ready long before a finger touches the screen.
+ */
+export function primeHaptics() {
+  if (hapticsMod !== undefined) return;
+  void resolveNative().then(m => { hapticsMod = m ?? null; });
+}
+if (typeof window !== 'undefined') primeHaptics();
+
 // navigator.vibrate durations per strength (ms) — short, distinct pulses.
 const WEB_VIBRATE_MS: Record<Exclude<HapticStrength, 'off'>, number> = {
   light: 8,
@@ -51,26 +67,30 @@ const WEB_VIBRATE_MS: Record<Exclude<HapticStrength, 'off'>, number> = {
   strong: 30,
 };
 
-function fire() {
-  if (strength === 'off') return;
+/** One step firmer than the user's setting — used for confirmations so they read as a
+ *  heavier "thunk" than the selection ticks around them, at every strength setting. */
+const FIRMER: Record<Exclude<HapticStrength, 'off'>, Exclude<HapticStrength, 'off'>> = {
+  light: 'medium',
+  medium: 'strong',
+  strong: 'strong',
+};
+
+function fire(level: Exclude<HapticStrength, 'off'>, force = false) {
   const now = Date.now();
-  if (now - lastTick < MIN_GAP_MS) return;
+  if (!force && now - lastTick < MIN_GAP_MS) return;
   lastTick = now;
 
-  if (hapticsMod === undefined) {
-    hapticsMod = null; // web until proven native — the first tick may use the fallback
-    void resolveNative().then(m => { hapticsMod = m; });
-  }
   if (hapticsMod) {
     const style =
-      strength === 'light' ? hapticsMod.ImpactStyle.Light :
-      strength === 'strong' ? hapticsMod.ImpactStyle.Heavy :
+      level === 'light' ? hapticsMod.ImpactStyle.Light :
+      level === 'strong' ? hapticsMod.ImpactStyle.Heavy :
       hapticsMod.ImpactStyle.Medium;
     void hapticsMod.Haptics.impact({ style }).catch(() => {});
     return;
   }
+  if (hapticsMod === undefined) primeHaptics(); // first-ever call raced the probe
   try {
-    navigator.vibrate?.(WEB_VIBRATE_MS[strength]);
+    navigator.vibrate?.(WEB_VIBRATE_MS[level]);
   } catch {
     // unsupported / blocked — feedback is purely optional
   }
@@ -78,12 +98,24 @@ function fire() {
 
 /** Selection-style tick for continuous gestures (radial aiming, row arming, tab commits). */
 export function hapticTick() {
-  fire();
+  if (strength === 'off') return;
+  fire(strength);
 }
 
 /** Discrete press feedback for buttons (nav bar, FABs, tool buttons). Same motor pulse
  *  as hapticTick today, but a separate entry point so tap feedback can diverge from
  *  gesture ticks without touching call sites. */
 export function hapticTap() {
-  fire();
+  if (strength === 'off') return;
+  fire(strength);
+}
+
+/**
+ * Confirmation pulse: firmer than a tick, and it always fires — no rate-limit skip. For
+ * the moment a press turns into something (the quick-nav radial opening). Re-arms the
+ * gap so the aim ticks that immediately follow don't smear into it.
+ */
+export function hapticImpact() {
+  if (strength === 'off') return;
+  fire(FIRMER[strength], true);
 }

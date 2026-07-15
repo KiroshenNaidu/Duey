@@ -2,6 +2,7 @@
 
 import { useContext, useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
+import { format } from 'date-fns';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { DebtSemiGauge } from '@/components/DebtSemiGauge';
@@ -37,6 +38,10 @@ import { useReplayOnActive } from '@/hooks/useReplayOnActive';
 
 interface DebtCardProps {
   debt: Debt;
+  // Set when this card sits inside a DebtGroup (2+ debts to the same person). The group
+  // header already shows the name, so the card swaps its now-redundant title for its
+  // creation date — which also distinguishes same-named debts from one another.
+  grouped?: boolean;
 }
 
 interface PendingPayment {
@@ -81,7 +86,7 @@ function getConfettiColors(): string[] {
   ];
 }
 
-export function DebtCard({ debt }: DebtCardProps) {
+export function DebtCard({ debt, grouped = false }: DebtCardProps) {
   const router = useRouter();
   const { history, updateDebt, deleteDebt, completeDebt, logCustomPayment } = useContext(AppDataContext);
 
@@ -127,6 +132,13 @@ export function DebtCard({ debt }: DebtCardProps) {
       : Math.min(100, (amountPaid / debt.total_owed) * 100);
     return { paymentCount, totalInstallments, amountPaid, progress, isPaidOff: progress >= 100 };
   }, [debt, history]);
+
+  // Creation date from the debt's one-time 'creation' history entry (debts store no
+  // timestamp of their own). Shown instead of the repeated title inside a same-person group.
+  const createdLabel = useMemo(() => {
+    const c = history.find(h => h.type === 'creation' && h.debtId === debt.id);
+    return c ? format(new Date(c.date), 'd MMM yyyy') : null;
+  }, [history, debt.id]);
 
   // Bar fills from 0 → progress. Replays every time the Money page (route '/') becomes
   // active — swipe or tab — not just on first mount, since the carousel keeps all pages
@@ -366,13 +378,15 @@ export function DebtCard({ debt }: DebtCardProps) {
           { icon: Trash2, label: 'Delete', tone: 'destructive', onAction: () => setShowDeleteConfirm(true) },
         ]}
       >
-      <Card className="overflow-hidden transition-all duration-300">
+      <Card className={cn("overflow-hidden transition-all duration-300", grouped ? "rounded-[0.7rem]" : "rounded-[1rem]")}>
         <CardHeader>
           <div className="flex justify-between items-center gap-2">
             <CardTitle
               className="text-base font-bold truncate pr-2"
               style={isPaidOff ? { color: 'hsl(var(--primary-complete))' } : undefined}
-            >{debt.title}</CardTitle>
+            >{grouped
+              ? <span className="text-xs font-medium text-muted-foreground">{createdLabel ? `Added ${createdLabel}` : debt.title}</span>
+              : debt.title}</CardTitle>
             <div className="flex items-center gap-2">
               {debt.dueDay != null && !isPaidOff && (
                 <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-muted-foreground whitespace-nowrap">

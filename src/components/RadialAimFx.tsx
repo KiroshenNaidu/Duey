@@ -126,30 +126,38 @@ export function CometTrail() {
   );
 }
 
-// Curved label that hugs the outer edge of a radial item's circle. The text SLOWLY ORBITS
-// its own button (each at a desynced pace/phase) and gently shimmers through the analogous
-// primary palette, cascading 1→2→3→4 like the budget gauge (see .radial-label-shimmer).
-// `id` must be unique per item (SVG textPath refs it by id); `index` drives the desync.
-// The dark stroke behind the fill keeps it readable on the blurred backdrop without a pill.
+// Curved label that hugs the outer edge of a radial item's circle. It rests upright at the
+// bottom of its button and, WHILE AIMED, slowly orbits and shimmers through the analogous
+// primary palette (see .radial-label-shimmer). `id` must be unique per item (SVG textPath
+// refs it by id); `index` drives the orbit's desynced pace/phase. The dark stroke behind
+// the fill keeps it readable on the blurred backdrop without a pill.
+//
+// PERF: the orbit is an infinite SVG-transform animation, and SVG transforms are
+// CPU-rasterized on the Android WebView (no GPU layer like a div). Running one per item
+// meant up to SEVEN continuous rasterizing animations the whole time the radial was open —
+// a large slice of the "still laggy" cost. So only the AIMED label orbits (at most one at a
+// time); the rest sit static and upright, which also reads cleaner. `active` gates it.
 const CURVED_ARC_R = 34;   // svg is 80×80, centre 40,40; button radius is 24
-export function CurvedLabel({ id, index, text }: { id: string; index: number; text: string }) {
+export function CurvedLabel({ id, index, text, active = false }: { id: string; index: number; text: string; active?: boolean }) {
   const reduce = useReducedMotion();
   const pathId = `radial-arc-${id}`;
   const cx = 40;
   // Sweep flag 0 → the arc bulges DOWNWARD so the text starts hugging the BOTTOM (upright).
   const d = `M ${cx - CURVED_ARC_R} ${cx} A ${CURVED_ARC_R} ${CURVED_ARC_R} 0 0 0 ${cx + CURVED_ARC_R} ${cx}`;
 
-  // Heavy desync: each label spins at a different pace, phase, AND direction (alternating
-  // CW/CCW) so they never sync up.
+  const spinning = active && !reduce;
+
+  // Heavy desync: each label spins at a different pace and direction (alternating CW/CCW).
+  // The orbit always starts and ends at rotate 0 (upright at the bottom) so arming/releasing
+  // aim glides in and out of the resting pose instead of snapping from a random angle.
   const dir = index % 2 === 0 ? 1 : -1;               // alternate spin direction
-  const rotDuration = 6 + ((index * 3.7) % 6);        // 6–12s, non-linear spread (faster)
-  const startAngle = (index * 67) % 360;              // starting phase
+  const rotDuration = 6 + ((index * 3.7) % 6);        // 6–12s, non-linear spread
 
   // Variable-speed spin (loading-screen feel): two FAST bursts per revolution separated by
   // slow crawls. Keyframe angles are unevenly paced against `times`, so equal time slices
   // cover unequal angle = the rotation surges and rests. easeInOut smooths each segment; the
-  // loop seam sits mid-crawl so it stays continuous. Full 360 → position loops seamlessly.
-  const spin = [0, 20, 160, 185, 205, 345, 360].map(a => startAngle + dir * a);
+  // loop seam sits at 0 so it stays continuous. Full 360 → position loops seamlessly.
+  const spin = [0, 20, 160, 185, 205, 345, 360].map(a => dir * a);
   const spinTimes = [0, 0.12, 0.24, 0.44, 0.56, 0.68, 1];
 
   return (
@@ -159,9 +167,9 @@ export function CurvedLabel({ id, index, text }: { id: string; index: number; te
       // All transforms via Framer (translate + rotate) so the Tailwind centering classes
       // can't clobber the animated rotate. Rotates around its own centre = the button centre.
       style={{ left: '50%', top: '50%', width: 80, height: 80, translateX: '-50%', translateY: '-50%' }}
-      initial={{ rotate: startAngle }}
-      animate={reduce ? { rotate: startAngle } : { rotate: spin }}
-      transition={reduce ? undefined : { duration: rotDuration, repeat: Infinity, ease: 'easeInOut', times: spinTimes }}
+      initial={{ rotate: 0 }}
+      animate={spinning ? { rotate: spin } : { rotate: 0 }}
+      transition={spinning ? { duration: rotDuration, repeat: Infinity, ease: 'easeInOut', times: spinTimes } : { duration: 0.3 }}
       aria-hidden
     >
       <defs>

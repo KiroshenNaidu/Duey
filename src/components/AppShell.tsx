@@ -72,6 +72,15 @@ function isInDialog(el: EventTarget | null): boolean {
   return false;
 }
 
+// Elements that own their whole touch gesture — the quick-add + FABs (see FAB_GESTURE_ATTR
+// in QuickAdd). Checked at touchSTART because the FAB's gesture only *becomes* an overlay
+// after its long-press fires: by then the finger has usually drifted past the 4px slop and
+// the carousel has already locked itself in as a horizontal drag, so isOverlayOpen() below
+// never gets a chance to stop it.
+function ownsGesture(el: EventTarget | null): boolean {
+  return el instanceof Element && !!el.closest('[data-fab-gesture]');
+}
+
 // True while ANY app-covering overlay is open (dialog, quick-add radial, calculator,
 // notepad) — they all hold an overlay-blur token, which toggles this single body class.
 // The page carousel must never swipe behind such an overlay: dragging to aim the radial
@@ -255,12 +264,21 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     const onStart = (e: TouchEvent) => {
       start.x = e.touches[0].clientX;
       start.y = e.touches[0].clientY;
-      // Touches inside a modal dialog must never trigger page swipes
-      tracking = isInDialog(e.target) ? 'v' : 'none';
+      // Touches inside a modal dialog, or on an element that owns its own gesture (the
+      // quick-add FABs), must never trigger page swipes.
+      tracking = isInDialog(e.target) || ownsGesture(e.target) ? 'v' : 'none';
     };
 
     const onMove = (e: TouchEvent) => {
       if (tracking === 'v') return;
+      // An overlay can appear MID-DRAG (a long-press maturing into the quick-add radial).
+      // Hand the gesture over: let go of the pages and settle them back where they were,
+      // rather than dragging the whole blurred app around behind the radial.
+      if (tracking === 'h' && isOverlayOpen()) {
+        tracking = 'v';
+        animate(pageProgress, start.routeIdx, { ...SETTLE_SPRING, onComplete: releaseContainerHeight });
+        return;
+      }
       const dx = e.touches[0].clientX - start.x;
       const dy = e.touches[0].clientY - start.y;
       if (tracking === 'none') {

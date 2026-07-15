@@ -7,7 +7,6 @@
   "schemaVersion": 8,
   "currency": "ZAR",
   "monthlyIncome": 22500,
-
   "debts": [
     {
       "id": "dddddddd-0000-0000-0000-000000000001",
@@ -32,69 +31,454 @@
       "title": "Standard Bank Credit Card",
       "total_owed": 9400,
       "installment_amount": 1800
+    },
+    {
+      "id": "dddddddd-0000-0000-0000-000000000005",
+      "title": "Owed to Dad",
+      "total_owed": 800,
+      "installment_amount": 200
+    },
+    {
+      "id": "dddddddd-0000-0000-0000-000000000006",
+      "title": "John",
+      "total_owed": 1500,
+      "installment_amount": 300,
+      "dueDay": 25
+    },
+    {
+      "id": "dddddddd-0000-0000-0000-000000000007",
+      "title": "John",
+      "total_owed": 600,
+      "installment_amount": 150
     }
   ],
-
   "history": [
-    { "id": "hhhhhhhh-0000-0000-0000-000000000001", "debtId": "dddddddd-0000-0000-0000-000000000001", "debtTitle": "Student Loan", "date": "2025-01-20T09:00:00.000Z", "amount": 45000, "type": "creation" },
-    { "id": "hhhhhhhh-0000-0000-0000-000000000002", "debtId": "dddddddd-0000-0000-0000-000000000002", "debtTitle": "Samsung Galaxy S24", "date": "2025-08-01T13:00:00.000Z", "amount": 11400, "type": "creation" },
-    { "id": "hhhhhhhh-0000-0000-0000-000000000003", "debtId": "dddddddd-0000-0000-0000-000000000004", "debtTitle": "Standard Bank Credit Card", "date": "2025-10-01T10:00:00.000Z", "amount": 18000, "type": "creation" },
-    { "id": "hhhhhhhh-0000-0000-0000-000000000004", "debtId": "dddddddd-0000-0000-0000-000000000003", "debtTitle": "Owed to Dad", "date": "2026-01-10T11:00:00.000Z", "amount": 3700, "type": "creation", "note": "Borrowed for laptop repairs" },
-
-    { "id": "hhhhhhhh-0000-0000-0000-000000000010", "debtTitle": "Started at Ephemeral Tech", "date": "2025-01-06T07:30:00.000Z", "amount": 0, "type": "employment" },
-
-    { "id": "hhhhhhhh-0000-0000-0000-000000000020", "debtTitle": "Transport — January 2026", "date": "2026-01-30T17:00:00.000Z", "amount": 1628, "type": "transport" },
-    { "id": "hhhhhhhh-0000-0000-0000-000000000021", "debtTitle": "Transport — February 2026", "date": "2026-02-27T17:00:00.000Z", "amount": 1628, "type": "transport" },
-    { "id": "hhhhhhhh-0000-0000-0000-000000000022", "debtTitle": "Transport — March 2026", "date": "2026-03-31T17:00:00.000Z", "amount": 1760, "type": "transport" },
-    { "id": "hhhhhhhh-0000-0000-0000-000000000023", "debtTitle": "Transport — April 2026", "date": "2026-04-30T17:00:00.000Z", "amount": 1628, "type": "transport" },
-    { "id": "hhhhhhhh-0000-0000-0000-000000000024", "debtTitle": "Transport — May 2026", "date": "2026-05-29T17:00:00.000Z", "amount": 1716, "type": "transport" },
-
-    { "id": "hhhhhhhh-0000-0000-0000-000000000030", "debtId": "dddddddd-0000-0000-0000-000000000001", "debtTitle": "Student Loan", "date": "2026-01-26T09:00:00.000Z", "amount": 1200, "type": "payment" },
-    { "id": "hhhhhhhh-0000-0000-0000-000000000031", "debtId": "dddddddd-0000-0000-0000-000000000002", "debtTitle": "Samsung Galaxy S24", "date": "2026-01-26T09:05:00.000Z", "amount": 600, "type": "payment" },
-    { "id": "hhhhhhhh-0000-0000-0000-000000000032", "debtId": "dddddddd-0000-0000-0000-000000000003", "debtTitle": "Owed to Dad", "date": "2026-01-26T09:10:00.000Z", "amount": 500, "type": "payment" },
-    { "id": "hhhhhhhh-0000-0000-0000-000000000033", "debtId": "dddddddd-0000-0000-0000-000000000004", "debtTitle": "Standard Bank Credit Card", "date": "2026-01-26T09:15:00.000Z", "amount": 1800, "type": "payment" },
-
-    { "id": "hhhhhhhh-0000-0000-0000-000000000040", "debtId": "dddddddd-0000-0000-0000-000000000001", "debtTitle": "Student Loan", "date": "2026-02-26T09:00:00.000Z", "amount": 1200, "type": "payment" },
-    { "id": "hhhhhhhh-0000-0000-0000-000000000041", "debtId": "dddddddd-0000-0000-0000-000000000002", "debtTitle": "Samsung Galaxy S24", "date": "2026-02-26T09:05:00.000Z", "amount": 600, "type": "payment" },
-    { "id": "hhhhhhhh-0000-0000-0000-000000000042", "debtId": "dddddddd-0000-0000-0000-000000000003", "debtTitle": "Owed to Dad", "date": "2026-02-26T09:10:00.000Z", "amount": 500, "type": "payment" },
-    { "id": "hhhhhhhh-0000-0000-0000-000000000043", "debtId": "dddddddd-0000-0000-0000-000000000004", "debtTitle": "Standard Bank Credit Card", "date": "2026-02-26T09:15:00.000Z", "amount": 1800, "type": "payment" },
-
-    { "id": "hhhhhhhh-0000-0000-0000-000000000050", "debtId": "dddddddd-0000-0000-0000-000000000001", "debtTitle": "Student Loan", "date": "2026-03-26T09:00:00.000Z", "amount": 1200, "type": "payment" },
-    { "id": "hhhhhhhh-0000-0000-0000-000000000051", "debtId": "dddddddd-0000-0000-0000-000000000002", "debtTitle": "Samsung Galaxy S24", "date": "2026-03-26T09:05:00.000Z", "amount": 600, "type": "payment" },
-    { "id": "hhhhhhhh-0000-0000-0000-000000000052", "debtId": "dddddddd-0000-0000-0000-000000000003", "debtTitle": "Owed to Dad", "date": "2026-03-26T09:10:00.000Z", "amount": 500, "type": "payment" },
-    { "id": "hhhhhhhh-0000-0000-0000-000000000053", "debtId": "dddddddd-0000-0000-0000-000000000004", "debtTitle": "Standard Bank Credit Card", "date": "2026-03-26T09:15:00.000Z", "amount": 1800, "type": "payment" },
-
-    { "id": "hhhhhhhh-0000-0000-0000-000000000060", "debtId": "dddddddd-0000-0000-0000-000000000001", "debtTitle": "Student Loan", "date": "2026-04-27T09:00:00.000Z", "amount": 1200, "type": "payment" },
-    { "id": "hhhhhhhh-0000-0000-0000-000000000061", "debtId": "dddddddd-0000-0000-0000-000000000002", "debtTitle": "Samsung Galaxy S24", "date": "2026-04-27T09:05:00.000Z", "amount": 600, "type": "payment" },
-    { "id": "hhhhhhhh-0000-0000-0000-000000000062", "debtId": "dddddddd-0000-0000-0000-000000000003", "debtTitle": "Owed to Dad", "date": "2026-04-27T09:10:00.000Z", "amount": 500, "type": "payment" },
-    { "id": "hhhhhhhh-0000-0000-0000-000000000063", "debtId": "dddddddd-0000-0000-0000-000000000004", "debtTitle": "Standard Bank Credit Card", "date": "2026-04-27T09:15:00.000Z", "amount": 1800, "type": "payment" },
-
-    { "id": "hhhhhhhh-0000-0000-0000-000000000070", "debtId": "dddddddd-0000-0000-0000-000000000001", "debtTitle": "Student Loan", "date": "2026-05-26T09:00:00.000Z", "amount": 1200, "type": "payment" },
-    { "id": "hhhhhhhh-0000-0000-0000-000000000071", "debtId": "dddddddd-0000-0000-0000-000000000002", "debtTitle": "Samsung Galaxy S24", "date": "2026-05-26T09:05:00.000Z", "amount": 600, "type": "payment" },
-    { "id": "hhhhhhhh-0000-0000-0000-000000000072", "debtId": "dddddddd-0000-0000-0000-000000000003", "debtTitle": "Owed to Dad", "date": "2026-05-26T09:10:00.000Z", "amount": 500, "type": "payment" },
-    { "id": "hhhhhhhh-0000-0000-0000-000000000073", "debtId": "dddddddd-0000-0000-0000-000000000004", "debtTitle": "Standard Bank Credit Card", "date": "2026-05-26T09:15:00.000Z", "amount": 1800, "type": "payment" },
-
-    { "id": "hhhhhhhh-0000-0000-0000-000000000080", "debtId": "dddddddd-0000-0000-0000-000000000001", "debtTitle": "Student Loan", "date": "2026-06-20T09:00:00.000Z", "amount": 1200, "type": "payment" },
-    { "id": "hhhhhhhh-0000-0000-0000-000000000081", "debtId": "dddddddd-0000-0000-0000-000000000004", "debtTitle": "Standard Bank Credit Card", "date": "2026-06-20T09:05:00.000Z", "amount": 1800, "type": "payment" },
-
-    { "id": "hhhhhhhh-0000-0000-0000-000000000090", "debtTitle": "Expense — Netflix", "date": "2026-02-15T08:00:00.000Z", "amount": 199, "type": "expense" },
-    { "id": "hhhhhhhh-0000-0000-0000-000000000091", "debtTitle": "Expense — Gym (Planet Fitness)", "date": "2026-02-01T08:00:00.000Z", "amount": 519, "type": "expense" },
-    { "id": "hhhhhhhh-0000-0000-0000-000000000092", "debtTitle": "Expense — Electricity", "date": "2026-03-10T08:00:00.000Z", "amount": 850, "type": "expense" },
-    { "id": "hhhhhhhh-0000-0000-0000-000000000093", "debtTitle": "Expense — Car Service", "date": "2026-04-05T08:00:00.000Z", "amount": 3230, "type": "expense", "note": "Service + brake pads at Tiger Wheel & Tyre" },
-    { "id": "hhhhhhhh-0000-0000-0000-000000000094", "debtTitle": "Expense — Medical Aid", "date": "2026-05-01T08:00:00.000Z", "amount": 1350, "type": "expense" },
-
-    { "id": "hhhhhhhh-0000-0000-0000-000000000100", "debtTitle": "Balance Snapshot", "date": "2026-01-31T23:59:00.000Z", "amount": 45700, "type": "snapshot" },
-    { "id": "hhhhhhhh-0000-0000-0000-000000000101", "debtTitle": "Balance Snapshot", "date": "2026-02-28T23:59:00.000Z", "amount": 43500, "type": "snapshot" },
-    { "id": "hhhhhhhh-0000-0000-0000-000000000102", "debtTitle": "Balance Snapshot", "date": "2026-03-31T23:59:00.000Z", "amount": 41300, "type": "snapshot" },
-    { "id": "hhhhhhhh-0000-0000-0000-000000000103", "debtTitle": "Balance Snapshot", "date": "2026-04-30T23:59:00.000Z", "amount": 39100, "type": "snapshot" },
-    { "id": "hhhhhhhh-0000-0000-0000-000000000104", "debtTitle": "Balance Snapshot", "date": "2026-05-31T23:59:00.000Z", "amount": 39400, "type": "snapshot" },
-
-    { "id": "hhhhhhhh-0000-0000-0000-000000000110", "debtTitle": "Budget — June Groceries & Household", "date": "2026-06-01T09:00:00.000Z", "amount": 2000, "type": "budget" },
-    { "id": "hhhhhhhh-0000-0000-0000-000000000111", "debtTitle": "Budget — Tech Wishlist 2026", "date": "2026-03-10T10:00:00.000Z", "amount": 12000, "type": "budget" },
-    { "id": "hhhhhhhh-0000-0000-0000-000000000112", "debtTitle": "Budget — April Car Repairs", "date": "2026-04-01T08:00:00.000Z", "amount": 6500, "type": "budget" },
-    { "id": "hhhhhhhh-0000-0000-0000-000000000113", "debtTitle": "Budget — December Holiday", "date": "2026-06-15T14:00:00.000Z", "amount": 18000, "type": "budget" }
+    {
+      "id": "hhhhhhhh-0000-0000-0000-000000000001",
+      "debtId": "dddddddd-0000-0000-0000-000000000001",
+      "debtTitle": "Student Loan",
+      "date": "2025-01-20T09:00:00.000Z",
+      "amount": 45000,
+      "type": "creation"
+    },
+    {
+      "id": "hhhhhhhh-0000-0000-0000-000000000002",
+      "debtId": "dddddddd-0000-0000-0000-000000000002",
+      "debtTitle": "Samsung Galaxy S24",
+      "date": "2025-08-01T13:00:00.000Z",
+      "amount": 11400,
+      "type": "creation"
+    },
+    {
+      "id": "hhhhhhhh-0000-0000-0000-000000000003",
+      "debtId": "dddddddd-0000-0000-0000-000000000004",
+      "debtTitle": "Standard Bank Credit Card",
+      "date": "2025-10-01T10:00:00.000Z",
+      "amount": 18000,
+      "type": "creation"
+    },
+    {
+      "id": "hhhhhhhh-0000-0000-0000-000000000004",
+      "debtId": "dddddddd-0000-0000-0000-000000000003",
+      "debtTitle": "Owed to Dad",
+      "date": "2026-01-10T11:00:00.000Z",
+      "amount": 3700,
+      "type": "creation",
+      "note": "Borrowed for laptop repairs"
+    },
+    {
+      "id": "hhhhhhhh-0000-0000-0000-000000000010",
+      "debtTitle": "Started at Ephemeral Tech",
+      "date": "2025-01-06T07:30:00.000Z",
+      "amount": 0,
+      "type": "employment"
+    },
+    {
+      "id": "hhhhhhhh-0000-0000-0000-000000000020",
+      "debtTitle": "Transport — January 2026",
+      "date": "2026-01-30T17:00:00.000Z",
+      "amount": 1628,
+      "type": "transport"
+    },
+    {
+      "id": "hhhhhhhh-0000-0000-0000-000000000021",
+      "debtTitle": "Transport — February 2026",
+      "date": "2026-02-27T17:00:00.000Z",
+      "amount": 1628,
+      "type": "transport"
+    },
+    {
+      "id": "hhhhhhhh-0000-0000-0000-000000000022",
+      "debtTitle": "Transport — March 2026",
+      "date": "2026-03-31T17:00:00.000Z",
+      "amount": 1760,
+      "type": "transport"
+    },
+    {
+      "id": "hhhhhhhh-0000-0000-0000-000000000023",
+      "debtTitle": "Transport — April 2026",
+      "date": "2026-04-30T17:00:00.000Z",
+      "amount": 1628,
+      "type": "transport"
+    },
+    {
+      "id": "hhhhhhhh-0000-0000-0000-000000000024",
+      "debtTitle": "Transport — May 2026",
+      "date": "2026-05-29T17:00:00.000Z",
+      "amount": 1716,
+      "type": "transport"
+    },
+    {
+      "id": "hhhhhhhh-0000-0000-0000-000000000030",
+      "debtId": "dddddddd-0000-0000-0000-000000000001",
+      "debtTitle": "Student Loan",
+      "date": "2026-01-26T09:00:00.000Z",
+      "amount": 1200,
+      "type": "payment"
+    },
+    {
+      "id": "hhhhhhhh-0000-0000-0000-000000000031",
+      "debtId": "dddddddd-0000-0000-0000-000000000002",
+      "debtTitle": "Samsung Galaxy S24",
+      "date": "2026-01-26T09:05:00.000Z",
+      "amount": 600,
+      "type": "payment"
+    },
+    {
+      "id": "hhhhhhhh-0000-0000-0000-000000000032",
+      "debtId": "dddddddd-0000-0000-0000-000000000003",
+      "debtTitle": "Owed to Dad",
+      "date": "2026-01-26T09:10:00.000Z",
+      "amount": 500,
+      "type": "payment"
+    },
+    {
+      "id": "hhhhhhhh-0000-0000-0000-000000000033",
+      "debtId": "dddddddd-0000-0000-0000-000000000004",
+      "debtTitle": "Standard Bank Credit Card",
+      "date": "2026-01-26T09:15:00.000Z",
+      "amount": 1800,
+      "type": "payment"
+    },
+    {
+      "id": "hhhhhhhh-0000-0000-0000-000000000040",
+      "debtId": "dddddddd-0000-0000-0000-000000000001",
+      "debtTitle": "Student Loan",
+      "date": "2026-02-26T09:00:00.000Z",
+      "amount": 1200,
+      "type": "payment"
+    },
+    {
+      "id": "hhhhhhhh-0000-0000-0000-000000000041",
+      "debtId": "dddddddd-0000-0000-0000-000000000002",
+      "debtTitle": "Samsung Galaxy S24",
+      "date": "2026-02-26T09:05:00.000Z",
+      "amount": 600,
+      "type": "payment"
+    },
+    {
+      "id": "hhhhhhhh-0000-0000-0000-000000000042",
+      "debtId": "dddddddd-0000-0000-0000-000000000003",
+      "debtTitle": "Owed to Dad",
+      "date": "2026-02-26T09:10:00.000Z",
+      "amount": 500,
+      "type": "payment"
+    },
+    {
+      "id": "hhhhhhhh-0000-0000-0000-000000000043",
+      "debtId": "dddddddd-0000-0000-0000-000000000004",
+      "debtTitle": "Standard Bank Credit Card",
+      "date": "2026-02-26T09:15:00.000Z",
+      "amount": 1800,
+      "type": "payment"
+    },
+    {
+      "id": "hhhhhhhh-0000-0000-0000-000000000050",
+      "debtId": "dddddddd-0000-0000-0000-000000000001",
+      "debtTitle": "Student Loan",
+      "date": "2026-03-26T09:00:00.000Z",
+      "amount": 1200,
+      "type": "payment"
+    },
+    {
+      "id": "hhhhhhhh-0000-0000-0000-000000000051",
+      "debtId": "dddddddd-0000-0000-0000-000000000002",
+      "debtTitle": "Samsung Galaxy S24",
+      "date": "2026-03-26T09:05:00.000Z",
+      "amount": 600,
+      "type": "payment"
+    },
+    {
+      "id": "hhhhhhhh-0000-0000-0000-000000000052",
+      "debtId": "dddddddd-0000-0000-0000-000000000003",
+      "debtTitle": "Owed to Dad",
+      "date": "2026-03-26T09:10:00.000Z",
+      "amount": 500,
+      "type": "payment"
+    },
+    {
+      "id": "hhhhhhhh-0000-0000-0000-000000000053",
+      "debtId": "dddddddd-0000-0000-0000-000000000004",
+      "debtTitle": "Standard Bank Credit Card",
+      "date": "2026-03-26T09:15:00.000Z",
+      "amount": 1800,
+      "type": "payment"
+    },
+    {
+      "id": "hhhhhhhh-0000-0000-0000-000000000060",
+      "debtId": "dddddddd-0000-0000-0000-000000000001",
+      "debtTitle": "Student Loan",
+      "date": "2026-04-27T09:00:00.000Z",
+      "amount": 1200,
+      "type": "payment"
+    },
+    {
+      "id": "hhhhhhhh-0000-0000-0000-000000000061",
+      "debtId": "dddddddd-0000-0000-0000-000000000002",
+      "debtTitle": "Samsung Galaxy S24",
+      "date": "2026-04-27T09:05:00.000Z",
+      "amount": 600,
+      "type": "payment"
+    },
+    {
+      "id": "hhhhhhhh-0000-0000-0000-000000000062",
+      "debtId": "dddddddd-0000-0000-0000-000000000003",
+      "debtTitle": "Owed to Dad",
+      "date": "2026-04-27T09:10:00.000Z",
+      "amount": 500,
+      "type": "payment"
+    },
+    {
+      "id": "hhhhhhhh-0000-0000-0000-000000000063",
+      "debtId": "dddddddd-0000-0000-0000-000000000004",
+      "debtTitle": "Standard Bank Credit Card",
+      "date": "2026-04-27T09:15:00.000Z",
+      "amount": 1800,
+      "type": "payment"
+    },
+    {
+      "id": "hhhhhhhh-0000-0000-0000-000000000070",
+      "debtId": "dddddddd-0000-0000-0000-000000000001",
+      "debtTitle": "Student Loan",
+      "date": "2026-05-26T09:00:00.000Z",
+      "amount": 1200,
+      "type": "payment"
+    },
+    {
+      "id": "hhhhhhhh-0000-0000-0000-000000000071",
+      "debtId": "dddddddd-0000-0000-0000-000000000002",
+      "debtTitle": "Samsung Galaxy S24",
+      "date": "2026-05-26T09:05:00.000Z",
+      "amount": 600,
+      "type": "payment"
+    },
+    {
+      "id": "hhhhhhhh-0000-0000-0000-000000000072",
+      "debtId": "dddddddd-0000-0000-0000-000000000003",
+      "debtTitle": "Owed to Dad",
+      "date": "2026-05-26T09:10:00.000Z",
+      "amount": 500,
+      "type": "payment"
+    },
+    {
+      "id": "hhhhhhhh-0000-0000-0000-000000000073",
+      "debtId": "dddddddd-0000-0000-0000-000000000004",
+      "debtTitle": "Standard Bank Credit Card",
+      "date": "2026-05-26T09:15:00.000Z",
+      "amount": 1800,
+      "type": "payment"
+    },
+    {
+      "id": "hhhhhhhh-0000-0000-0000-000000000080",
+      "debtId": "dddddddd-0000-0000-0000-000000000001",
+      "debtTitle": "Student Loan",
+      "date": "2026-06-20T09:00:00.000Z",
+      "amount": 1200,
+      "type": "payment"
+    },
+    {
+      "id": "hhhhhhhh-0000-0000-0000-000000000081",
+      "debtId": "dddddddd-0000-0000-0000-000000000004",
+      "debtTitle": "Standard Bank Credit Card",
+      "date": "2026-06-20T09:05:00.000Z",
+      "amount": 1800,
+      "type": "payment"
+    },
+    {
+      "id": "hhhhhhhh-0000-0000-0000-000000000090",
+      "debtTitle": "Expense — Netflix",
+      "date": "2026-02-15T08:00:00.000Z",
+      "amount": 199,
+      "type": "expense"
+    },
+    {
+      "id": "hhhhhhhh-0000-0000-0000-000000000091",
+      "debtTitle": "Expense — Gym (Planet Fitness)",
+      "date": "2026-02-01T08:00:00.000Z",
+      "amount": 519,
+      "type": "expense"
+    },
+    {
+      "id": "hhhhhhhh-0000-0000-0000-000000000092",
+      "debtTitle": "Expense — Electricity",
+      "date": "2026-03-10T08:00:00.000Z",
+      "amount": 850,
+      "type": "expense"
+    },
+    {
+      "id": "hhhhhhhh-0000-0000-0000-000000000093",
+      "debtTitle": "Expense — Car Service",
+      "date": "2026-04-05T08:00:00.000Z",
+      "amount": 3230,
+      "type": "expense",
+      "note": "Service + brake pads at Tiger Wheel & Tyre"
+    },
+    {
+      "id": "hhhhhhhh-0000-0000-0000-000000000094",
+      "debtTitle": "Expense — Medical Aid",
+      "date": "2026-05-01T08:00:00.000Z",
+      "amount": 1350,
+      "type": "expense"
+    },
+    {
+      "id": "hhhhhhhh-0000-0000-0000-000000000100",
+      "debtTitle": "Balance Snapshot",
+      "date": "2026-01-31T23:59:00.000Z",
+      "amount": 45700,
+      "type": "snapshot"
+    },
+    {
+      "id": "hhhhhhhh-0000-0000-0000-000000000101",
+      "debtTitle": "Balance Snapshot",
+      "date": "2026-02-28T23:59:00.000Z",
+      "amount": 43500,
+      "type": "snapshot"
+    },
+    {
+      "id": "hhhhhhhh-0000-0000-0000-000000000102",
+      "debtTitle": "Balance Snapshot",
+      "date": "2026-03-31T23:59:00.000Z",
+      "amount": 41300,
+      "type": "snapshot"
+    },
+    {
+      "id": "hhhhhhhh-0000-0000-0000-000000000103",
+      "debtTitle": "Balance Snapshot",
+      "date": "2026-04-30T23:59:00.000Z",
+      "amount": 39100,
+      "type": "snapshot"
+    },
+    {
+      "id": "hhhhhhhh-0000-0000-0000-000000000104",
+      "debtTitle": "Balance Snapshot",
+      "date": "2026-05-31T23:59:00.000Z",
+      "amount": 39400,
+      "type": "snapshot"
+    },
+    {
+      "id": "hhhhhhhh-0000-0000-0000-000000000110",
+      "debtTitle": "Budget — June Groceries & Household",
+      "date": "2026-06-01T09:00:00.000Z",
+      "amount": 2000,
+      "type": "budget"
+    },
+    {
+      "id": "hhhhhhhh-0000-0000-0000-000000000111",
+      "debtTitle": "Budget — Tech Wishlist 2026",
+      "date": "2026-03-10T10:00:00.000Z",
+      "amount": 12000,
+      "type": "budget"
+    },
+    {
+      "id": "hhhhhhhh-0000-0000-0000-000000000112",
+      "debtTitle": "Budget — April Car Repairs",
+      "date": "2026-04-01T08:00:00.000Z",
+      "amount": 6500,
+      "type": "budget"
+    },
+    {
+      "id": "hhhhhhhh-0000-0000-0000-000000000113",
+      "debtTitle": "Budget — December Holiday",
+      "date": "2026-06-15T14:00:00.000Z",
+      "amount": 18000,
+      "type": "budget"
+    },
+    {
+      "id": "hhhhhhhh-0000-0000-0000-000000000200",
+      "debtId": "dddddddd-0000-0000-0000-000000000005",
+      "debtTitle": "Owed to Dad",
+      "date": "2026-05-03T14:00:00.000Z",
+      "amount": 800,
+      "type": "creation",
+      "note": "Borrowed for tyres"
+    },
+    {
+      "id": "hhhhhhhh-0000-0000-0000-000000000201",
+      "debtId": "dddddddd-0000-0000-0000-000000000006",
+      "debtTitle": "John",
+      "date": "2026-03-15T10:00:00.000Z",
+      "amount": 1500,
+      "type": "creation",
+      "note": "Split the couch, paying him back"
+    },
+    {
+      "id": "hhhhhhhh-0000-0000-0000-000000000202",
+      "debtId": "dddddddd-0000-0000-0000-000000000007",
+      "debtTitle": "John",
+      "date": "2026-06-20T18:30:00.000Z",
+      "amount": 600,
+      "type": "creation",
+      "note": "Concert ticket he fronted"
+    },
+    {
+      "id": "hhhhhhhh-0000-0000-0000-000000000203",
+      "debtId": "dddddddd-0000-0000-0000-000000000005",
+      "debtTitle": "Owed to Dad",
+      "date": "2026-05-26T09:00:00.000Z",
+      "amount": 200,
+      "type": "payment"
+    },
+    {
+      "id": "hhhhhhhh-0000-0000-0000-000000000204",
+      "debtId": "dddddddd-0000-0000-0000-000000000005",
+      "debtTitle": "Owed to Dad",
+      "date": "2026-06-26T09:00:00.000Z",
+      "amount": 200,
+      "type": "payment"
+    },
+    {
+      "id": "hhhhhhhh-0000-0000-0000-000000000205",
+      "debtId": "dddddddd-0000-0000-0000-000000000006",
+      "debtTitle": "John",
+      "date": "2026-03-25T12:00:00.000Z",
+      "amount": 300,
+      "type": "payment"
+    },
+    {
+      "id": "hhhhhhhh-0000-0000-0000-000000000206",
+      "debtId": "dddddddd-0000-0000-0000-000000000006",
+      "debtTitle": "John",
+      "date": "2026-04-25T12:00:00.000Z",
+      "amount": 300,
+      "type": "payment"
+    },
+    {
+      "id": "hhhhhhhh-0000-0000-0000-000000000207",
+      "debtId": "dddddddd-0000-0000-0000-000000000006",
+      "debtTitle": "John",
+      "date": "2026-05-25T12:00:00.000Z",
+      "amount": 300,
+      "type": "payment"
+    },
+    {
+      "id": "hhhhhhhh-0000-0000-0000-000000000208",
+      "debtId": "dddddddd-0000-0000-0000-000000000007",
+      "debtTitle": "John",
+      "date": "2026-06-26T17:00:00.000Z",
+      "amount": 150,
+      "type": "payment"
+    }
   ],
-
   "expenses": [
     {
       "id": "eeeeeeee-0000-0000-0000-000000000001",
@@ -146,7 +530,6 @@
       "recurring": false
     }
   ],
-
   "extraIncomes": [
     {
       "id": "iiiiiiii-0000-0000-0000-000000000001",
@@ -167,7 +550,6 @@
       "createdAt": "2026-06-10T00:00:00.000Z"
     }
   ],
-
   "transportSettings": {
     "driverName": "Alex",
     "employed": true,
@@ -178,42 +560,132 @@
     "company": "Ephemeral Tech",
     "employmentStartDate": "2025-01-06"
   },
-
   "transportOverrides": {
-    "2026-01-05": 1, "2026-01-06": 1, "2026-01-07": 1, "2026-01-08": 1, "2026-01-09": 1,
-    "2026-01-12": 1, "2026-01-13": 1, "2026-01-14": 0, "2026-01-15": 1, "2026-01-16": 1,
-    "2026-01-19": 1, "2026-01-20": 1, "2026-01-21": 1, "2026-01-22": 1, "2026-01-23": 1.5,
-    "2026-01-26": 1, "2026-01-27": 1, "2026-01-28": 1, "2026-01-29": 1, "2026-01-30": 1,
-
-    "2026-02-02": 1, "2026-02-03": 1, "2026-02-04": 1, "2026-02-05": 1, "2026-02-06": 1,
-    "2026-02-09": 1, "2026-02-10": 0, "2026-02-11": 1, "2026-02-12": 1, "2026-02-13": 1,
-    "2026-02-16": 1, "2026-02-17": 1, "2026-02-18": 1, "2026-02-19": 1, "2026-02-20": 1,
-    "2026-02-23": 1.5, "2026-02-24": 1, "2026-02-25": 1, "2026-02-26": 1, "2026-02-27": 1,
-
-    "2026-03-02": 1, "2026-03-03": 1, "2026-03-04": 1, "2026-03-05": 1, "2026-03-06": 1,
-    "2026-03-09": 1, "2026-03-10": 1, "2026-03-11": 1, "2026-03-12": 1, "2026-03-13": 1,
-    "2026-03-16": 1, "2026-03-17": 1, "2026-03-18": 0, "2026-03-19": 1, "2026-03-20": 1,
-    "2026-03-23": 1, "2026-03-24": 1, "2026-03-25": 0, "2026-03-26": 1, "2026-03-27": 1,
-    "2026-03-30": 1, "2026-03-31": 1,
-
-    "2026-04-01": 1, "2026-04-02": 1, "2026-04-03": 0,
-    "2026-04-06": 1, "2026-04-07": 1, "2026-04-08": 1, "2026-04-09": 1, "2026-04-10": 1,
-    "2026-04-13": 1, "2026-04-14": 0, "2026-04-15": 1, "2026-04-16": 1, "2026-04-17": 1,
-    "2026-04-20": 1, "2026-04-21": 1, "2026-04-22": 1.5, "2026-04-23": 1, "2026-04-24": 1,
-    "2026-04-27": 0, "2026-04-28": 1, "2026-04-29": 1, "2026-04-30": 1,
-
+    "2026-01-05": 1,
+    "2026-01-06": 1,
+    "2026-01-07": 1,
+    "2026-01-08": 1,
+    "2026-01-09": 1,
+    "2026-01-12": 1,
+    "2026-01-13": 1,
+    "2026-01-14": 0,
+    "2026-01-15": 1,
+    "2026-01-16": 1,
+    "2026-01-19": 1,
+    "2026-01-20": 1,
+    "2026-01-21": 1,
+    "2026-01-22": 1,
+    "2026-01-23": 1.5,
+    "2026-01-26": 1,
+    "2026-01-27": 1,
+    "2026-01-28": 1,
+    "2026-01-29": 1,
+    "2026-01-30": 1,
+    "2026-02-02": 1,
+    "2026-02-03": 1,
+    "2026-02-04": 1,
+    "2026-02-05": 1,
+    "2026-02-06": 1,
+    "2026-02-09": 1,
+    "2026-02-10": 0,
+    "2026-02-11": 1,
+    "2026-02-12": 1,
+    "2026-02-13": 1,
+    "2026-02-16": 1,
+    "2026-02-17": 1,
+    "2026-02-18": 1,
+    "2026-02-19": 1,
+    "2026-02-20": 1,
+    "2026-02-23": 1.5,
+    "2026-02-24": 1,
+    "2026-02-25": 1,
+    "2026-02-26": 1,
+    "2026-02-27": 1,
+    "2026-03-02": 1,
+    "2026-03-03": 1,
+    "2026-03-04": 1,
+    "2026-03-05": 1,
+    "2026-03-06": 1,
+    "2026-03-09": 1,
+    "2026-03-10": 1,
+    "2026-03-11": 1,
+    "2026-03-12": 1,
+    "2026-03-13": 1,
+    "2026-03-16": 1,
+    "2026-03-17": 1,
+    "2026-03-18": 0,
+    "2026-03-19": 1,
+    "2026-03-20": 1,
+    "2026-03-23": 1,
+    "2026-03-24": 1,
+    "2026-03-25": 0,
+    "2026-03-26": 1,
+    "2026-03-27": 1,
+    "2026-03-30": 1,
+    "2026-03-31": 1,
+    "2026-04-01": 1,
+    "2026-04-02": 1,
+    "2026-04-03": 0,
+    "2026-04-06": 1,
+    "2026-04-07": 1,
+    "2026-04-08": 1,
+    "2026-04-09": 1,
+    "2026-04-10": 1,
+    "2026-04-13": 1,
+    "2026-04-14": 0,
+    "2026-04-15": 1,
+    "2026-04-16": 1,
+    "2026-04-17": 1,
+    "2026-04-20": 1,
+    "2026-04-21": 1,
+    "2026-04-22": 1.5,
+    "2026-04-23": 1,
+    "2026-04-24": 1,
+    "2026-04-27": 0,
+    "2026-04-28": 1,
+    "2026-04-29": 1,
+    "2026-04-30": 1,
     "2026-05-01": 0,
-    "2026-05-04": 1, "2026-05-05": 1, "2026-05-06": 1, "2026-05-07": 1, "2026-05-08": 1,
-    "2026-05-11": 1, "2026-05-12": 1, "2026-05-13": 1, "2026-05-14": 1, "2026-05-15": 1,
-    "2026-05-18": 1, "2026-05-19": 1, "2026-05-20": 1, "2026-05-21": 1, "2026-05-22": 1.5,
-    "2026-05-25": 1, "2026-05-26": 1, "2026-05-27": 1, "2026-05-28": 1, "2026-05-29": 1,
-
-    "2026-06-01": 1, "2026-06-02": 1, "2026-06-03": 1, "2026-06-04": 1, "2026-06-05": 1,
-    "2026-06-08": 1, "2026-06-09": 1, "2026-06-10": 1, "2026-06-11": 1, "2026-06-12": 1,
-    "2026-06-15": 1, "2026-06-16": 0, "2026-06-17": 1, "2026-06-18": 1, "2026-06-19": 1,
-    "2026-06-22": 1, "2026-06-23": 1, "2026-06-24": 1, "2026-06-25": 1
+    "2026-05-04": 1,
+    "2026-05-05": 1,
+    "2026-05-06": 1,
+    "2026-05-07": 1,
+    "2026-05-08": 1,
+    "2026-05-11": 1,
+    "2026-05-12": 1,
+    "2026-05-13": 1,
+    "2026-05-14": 1,
+    "2026-05-15": 1,
+    "2026-05-18": 1,
+    "2026-05-19": 1,
+    "2026-05-20": 1,
+    "2026-05-21": 1,
+    "2026-05-22": 1.5,
+    "2026-05-25": 1,
+    "2026-05-26": 1,
+    "2026-05-27": 1,
+    "2026-05-28": 1,
+    "2026-05-29": 1,
+    "2026-06-01": 1,
+    "2026-06-02": 1,
+    "2026-06-03": 1,
+    "2026-06-04": 1,
+    "2026-06-05": 1,
+    "2026-06-08": 1,
+    "2026-06-09": 1,
+    "2026-06-10": 1,
+    "2026-06-11": 1,
+    "2026-06-12": 1,
+    "2026-06-15": 1,
+    "2026-06-16": 0,
+    "2026-06-17": 1,
+    "2026-06-18": 1,
+    "2026-06-19": 1,
+    "2026-06-22": 1,
+    "2026-06-23": 1,
+    "2026-06-24": 1,
+    "2026-06-25": 1
   },
-
   "uberRides": [
     {
       "id": "uuuuuuuu-0000-0000-0000-000000000001",
@@ -279,7 +751,6 @@
       "createdAt": "2026-06-12T20:45:00.000Z"
     }
   ],
-
   "budgetPlans": [
     {
       "id": "bbbbbbbb-0000-0000-0000-000000000001",
@@ -287,12 +758,48 @@
       "budget": 2000,
       "createdAt": "2026-06-01T09:00:00.000Z",
       "items": [
-        { "id": "item0001-0001-0001-0001-000000000001", "name": "Rice & Pantry Staples", "price": 350, "purchased": true, "createdAt": "2026-06-01T09:01:00.000Z" },
-        { "id": "item0001-0001-0001-0001-000000000002", "name": "Cleaning Supplies", "price": 280, "purchased": true, "createdAt": "2026-06-01T09:02:00.000Z" },
-        { "id": "item0001-0001-0001-0001-000000000003", "name": "Toiletries", "price": 220, "purchased": true, "createdAt": "2026-06-01T09:03:00.000Z" },
-        { "id": "item0001-0001-0001-0001-000000000004", "name": "Snacks & Drinks", "price": 180, "purchased": true, "createdAt": "2026-06-01T09:04:00.000Z" },
-        { "id": "item0001-0001-0001-0001-000000000005", "name": "Fresh Produce (week 3)", "price": 320, "purchased": false, "createdAt": "2026-06-01T09:05:00.000Z" },
-        { "id": "item0001-0001-0001-0001-000000000006", "name": "Fresh Produce (week 4)", "price": 320, "purchased": false, "createdAt": "2026-06-01T09:06:00.000Z" }
+        {
+          "id": "item0001-0001-0001-0001-000000000001",
+          "name": "Rice & Pantry Staples",
+          "price": 350,
+          "purchased": true,
+          "createdAt": "2026-06-01T09:01:00.000Z"
+        },
+        {
+          "id": "item0001-0001-0001-0001-000000000002",
+          "name": "Cleaning Supplies",
+          "price": 280,
+          "purchased": true,
+          "createdAt": "2026-06-01T09:02:00.000Z"
+        },
+        {
+          "id": "item0001-0001-0001-0001-000000000003",
+          "name": "Toiletries",
+          "price": 220,
+          "purchased": true,
+          "createdAt": "2026-06-01T09:03:00.000Z"
+        },
+        {
+          "id": "item0001-0001-0001-0001-000000000004",
+          "name": "Snacks & Drinks",
+          "price": 180,
+          "purchased": true,
+          "createdAt": "2026-06-01T09:04:00.000Z"
+        },
+        {
+          "id": "item0001-0001-0001-0001-000000000005",
+          "name": "Fresh Produce (week 3)",
+          "price": 320,
+          "purchased": false,
+          "createdAt": "2026-06-01T09:05:00.000Z"
+        },
+        {
+          "id": "item0001-0001-0001-0001-000000000006",
+          "name": "Fresh Produce (week 4)",
+          "price": 320,
+          "purchased": false,
+          "createdAt": "2026-06-01T09:06:00.000Z"
+        }
       ]
     },
     {
@@ -301,12 +808,49 @@
       "budget": 12000,
       "createdAt": "2026-03-10T10:00:00.000Z",
       "items": [
-        { "id": "item0002-0002-0002-0002-000000000001", "name": "Samsung Galaxy Watch 7", "price": 4500, "link": "", "purchased": false, "createdAt": "2026-03-10T10:01:00.000Z" },
-        { "id": "item0002-0002-0002-0002-000000000002", "name": "USB-C Hub (7-in-1)", "price": 650, "purchased": true, "createdAt": "2026-03-10T10:02:00.000Z" },
-        { "id": "item0002-0002-0002-0002-000000000003", "name": "Mechanical Keyboard", "price": 1800, "purchased": true, "createdAt": "2026-03-10T10:03:00.000Z" },
-        { "id": "item0002-0002-0002-0002-000000000004", "name": "LED Desk Lamp", "price": 450, "purchased": false, "createdAt": "2026-03-10T10:04:00.000Z" },
-        { "id": "item0002-0002-0002-0002-000000000005", "name": "SSD 1TB (Samsung 870 EVO)", "price": 900, "purchased": true, "createdAt": "2026-04-02T08:00:00.000Z" },
-        { "id": "item0002-0002-0002-0002-000000000006", "name": "Monitor Arm", "price": 780, "purchased": false, "createdAt": "2026-04-02T08:01:00.000Z" }
+        {
+          "id": "item0002-0002-0002-0002-000000000001",
+          "name": "Samsung Galaxy Watch 7",
+          "price": 4500,
+          "link": "",
+          "purchased": false,
+          "createdAt": "2026-03-10T10:01:00.000Z"
+        },
+        {
+          "id": "item0002-0002-0002-0002-000000000002",
+          "name": "USB-C Hub (7-in-1)",
+          "price": 650,
+          "purchased": true,
+          "createdAt": "2026-03-10T10:02:00.000Z"
+        },
+        {
+          "id": "item0002-0002-0002-0002-000000000003",
+          "name": "Mechanical Keyboard",
+          "price": 1800,
+          "purchased": true,
+          "createdAt": "2026-03-10T10:03:00.000Z"
+        },
+        {
+          "id": "item0002-0002-0002-0002-000000000004",
+          "name": "LED Desk Lamp",
+          "price": 450,
+          "purchased": false,
+          "createdAt": "2026-03-10T10:04:00.000Z"
+        },
+        {
+          "id": "item0002-0002-0002-0002-000000000005",
+          "name": "SSD 1TB (Samsung 870 EVO)",
+          "price": 900,
+          "purchased": true,
+          "createdAt": "2026-04-02T08:00:00.000Z"
+        },
+        {
+          "id": "item0002-0002-0002-0002-000000000006",
+          "name": "Monitor Arm",
+          "price": 780,
+          "purchased": false,
+          "createdAt": "2026-04-02T08:01:00.000Z"
+        }
       ]
     },
     {
@@ -315,10 +859,34 @@
       "budget": 6500,
       "createdAt": "2026-04-01T08:00:00.000Z",
       "items": [
-        { "id": "item0003-0003-0003-0003-000000000001", "name": "Service & Oil Change", "price": 1850, "purchased": true, "createdAt": "2026-04-01T08:01:00.000Z" },
-        { "id": "item0003-0003-0003-0003-000000000002", "name": "Two New Tyres", "price": 2400, "purchased": true, "createdAt": "2026-04-01T08:02:00.000Z" },
-        { "id": "item0003-0003-0003-0003-000000000003", "name": "Brake Pads (front)", "price": 980, "purchased": true, "createdAt": "2026-04-01T08:03:00.000Z" },
-        { "id": "item0003-0003-0003-0003-000000000004", "name": "Wiper Blades", "price": 180, "purchased": true, "createdAt": "2026-04-01T08:04:00.000Z" }
+        {
+          "id": "item0003-0003-0003-0003-000000000001",
+          "name": "Service & Oil Change",
+          "price": 1850,
+          "purchased": true,
+          "createdAt": "2026-04-01T08:01:00.000Z"
+        },
+        {
+          "id": "item0003-0003-0003-0003-000000000002",
+          "name": "Two New Tyres",
+          "price": 2400,
+          "purchased": true,
+          "createdAt": "2026-04-01T08:02:00.000Z"
+        },
+        {
+          "id": "item0003-0003-0003-0003-000000000003",
+          "name": "Brake Pads (front)",
+          "price": 980,
+          "purchased": true,
+          "createdAt": "2026-04-01T08:03:00.000Z"
+        },
+        {
+          "id": "item0003-0003-0003-0003-000000000004",
+          "name": "Wiper Blades",
+          "price": 180,
+          "purchased": true,
+          "createdAt": "2026-04-01T08:04:00.000Z"
+        }
       ]
     },
     {
@@ -327,11 +895,41 @@
       "budget": 18000,
       "createdAt": "2026-06-15T14:00:00.000Z",
       "items": [
-        { "id": "item0004-0004-0004-0004-000000000001", "name": "Return Flights (JHB–CPT)", "price": 5800, "purchased": false, "createdAt": "2026-06-15T14:01:00.000Z" },
-        { "id": "item0004-0004-0004-0004-000000000002", "name": "Accommodation (5 nights)", "price": 4500, "purchased": false, "createdAt": "2026-06-15T14:02:00.000Z" },
-        { "id": "item0004-0004-0004-0004-000000000003", "name": "Spending Money", "price": 4000, "purchased": false, "createdAt": "2026-06-15T14:03:00.000Z" },
-        { "id": "item0004-0004-0004-0004-000000000004", "name": "Car Hire (3 days)", "price": 1800, "purchased": false, "createdAt": "2026-06-15T14:04:00.000Z" },
-        { "id": "item0004-0004-0004-0004-000000000005", "name": "Travel Insurance", "price": 850, "purchased": false, "createdAt": "2026-06-15T14:05:00.000Z" }
+        {
+          "id": "item0004-0004-0004-0004-000000000001",
+          "name": "Return Flights (JHB–CPT)",
+          "price": 5800,
+          "purchased": false,
+          "createdAt": "2026-06-15T14:01:00.000Z"
+        },
+        {
+          "id": "item0004-0004-0004-0004-000000000002",
+          "name": "Accommodation (5 nights)",
+          "price": 4500,
+          "purchased": false,
+          "createdAt": "2026-06-15T14:02:00.000Z"
+        },
+        {
+          "id": "item0004-0004-0004-0004-000000000003",
+          "name": "Spending Money",
+          "price": 4000,
+          "purchased": false,
+          "createdAt": "2026-06-15T14:03:00.000Z"
+        },
+        {
+          "id": "item0004-0004-0004-0004-000000000004",
+          "name": "Car Hire (3 days)",
+          "price": 1800,
+          "purchased": false,
+          "createdAt": "2026-06-15T14:04:00.000Z"
+        },
+        {
+          "id": "item0004-0004-0004-0004-000000000005",
+          "name": "Travel Insurance",
+          "price": 850,
+          "purchased": false,
+          "createdAt": "2026-06-15T14:05:00.000Z"
+        }
       ]
     },
     {
@@ -340,20 +938,42 @@
       "budget": 5500,
       "createdAt": "2026-05-20T11:00:00.000Z",
       "items": [
-        { "id": "item0005-0005-0005-0005-000000000001", "name": "Standing Desk Converter", "price": 1200, "purchased": true, "createdAt": "2026-05-20T11:01:00.000Z" },
-        { "id": "item0005-0005-0005-0005-000000000002", "name": "Ergonomic Chair", "price": 2800, "purchased": false, "createdAt": "2026-05-20T11:02:00.000Z" },
-        { "id": "item0005-0005-0005-0005-000000000003", "name": "Cable Management Kit", "price": 280, "purchased": true, "createdAt": "2026-05-20T11:03:00.000Z" },
-        { "id": "item0005-0005-0005-0005-000000000004", "name": "Desk Plant + Pot", "price": 350, "purchased": true, "createdAt": "2026-05-20T11:04:00.000Z" }
+        {
+          "id": "item0005-0005-0005-0005-000000000001",
+          "name": "Standing Desk Converter",
+          "price": 1200,
+          "purchased": true,
+          "createdAt": "2026-05-20T11:01:00.000Z"
+        },
+        {
+          "id": "item0005-0005-0005-0005-000000000002",
+          "name": "Ergonomic Chair",
+          "price": 2800,
+          "purchased": false,
+          "createdAt": "2026-05-20T11:02:00.000Z"
+        },
+        {
+          "id": "item0005-0005-0005-0005-000000000003",
+          "name": "Cable Management Kit",
+          "price": 280,
+          "purchased": true,
+          "createdAt": "2026-05-20T11:03:00.000Z"
+        },
+        {
+          "id": "item0005-0005-0005-0005-000000000004",
+          "name": "Desk Plant + Pot",
+          "price": 350,
+          "purchased": true,
+          "createdAt": "2026-05-20T11:04:00.000Z"
+        }
       ]
     }
   ],
-
   "userProfile": {
     "name": "Alex Dlamini",
     "paydayDay": 26,
     "bio": "Software dev. Trying to get out of debt before 30."
   },
-
   "notificationSettings": {
     "enabled": false,
     "paydayDay": 26,
@@ -361,7 +981,6 @@
     "minute": 0,
     "message": "Payday! Don't forget to log your payments."
   },
-
   "themeSettings": {
     "background": "240 6% 7%",
     "surface": "240 4% 11%",
@@ -372,7 +991,7 @@
     "accentForeground": "240 3% 62%",
     "backgroundOpacity": 0.5,
     "backgroundBlur": 0,
-    "uiScale": 1.0,
+    "uiScale": 1,
     "uiStyle": "solid",
     "glassOpacity": 0.55,
     "useSafeAreaInsets": true,
@@ -388,10 +1007,8 @@
     "catEmployment": "173 80% 74%",
     "catSnapshot": "199 89% 62%"
   },
-
   "userThemes": [],
   "notepadContent": "- Pay off Dad by Aug 2026\n- Galaxy S24: ~9 months left\n- Student loan payoff est. Dec 2027\n- Look into debt consolidation for credit card",
-
   "exportFolderUri": "",
   "exportFolderName": "",
   "lastSnapshotMonth": "2026-05",

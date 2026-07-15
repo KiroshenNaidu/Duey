@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { AnimatePresence, animate, motion, useMotionValue } from 'framer-motion';
 import { RADIAL_FX_PRESETS, getRadialFx } from '@/lib/radialFx';
 import { AimSparkles, RippleBurst, CometTrail, TrailFlow } from '@/components/RadialAimFx';
+import { activateDist } from '@/components/QuickAdd';
 import { hapticTick } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
 import { Zap, CreditCard, Receipt, BadgeDollarSign, Car, Check } from 'lucide-react';
@@ -22,6 +23,7 @@ const DEMO_ARC_FROM = 160;
 const DEMO_ARC_TO = 20;
 const AIM_MIN_DIST = 24;
 const SECTOR_TOLERANCE_DEG = 42;
+const DEMO_ARM_DIST = activateDist(DEMO_RADIUS);
 
 const DEMO_ITEMS = [
   { id: 'a', icon: CreditCard },
@@ -97,10 +99,13 @@ export function RadialFxDemo({ value, onChange }: {
       let aimed: string | null = null;
       if (dist >= AIM_MIN_DIST) {
         const angle = (Math.atan2(-dy, dx) * 180) / Math.PI;
-        let best = SECTOR_TOLERANCE_DEG;
-        for (const item of DEMO_ITEMS) {
-          const diff = angleDelta(angle, item.angleDeg);
-          if (diff <= best) { aimed = item.id; best = diff; }
+        // Arms only near the item ring, like the real menu (see QuickAdd's band diagram).
+        if (dist >= DEMO_ARM_DIST) {
+          let best = SECTOR_TOLERANCE_DEG;
+          for (const item of DEMO_ITEMS) {
+            const diff = angleDelta(angle, item.angleDeg);
+            if (diff <= best) { aimed = item.id; best = diff; }
+          }
         }
         if (fxRef.current.aimBeam) {
           beamLen.set(Math.min(dist, DEMO_RADIUS - 14));
@@ -112,7 +117,7 @@ export function RadialFxDemo({ value, onChange }: {
         // the track at the thumb's distance (updated every move).
         if (fxRef.current.aimTrail) {
           trailPulseX.set(Math.min(dist, DEMO_RADIUS));
-          trailEnvelope.set(aimed ? Math.max(0, Math.min(1, (dist - (DEMO_RADIUS - 40)) / 40)) : 0);
+          trailEnvelope.set(aimed ? Math.max(0, Math.min(1, (dist - DEMO_ARM_DIST) / (DEMO_RADIUS - DEMO_ARM_DIST))) : 0);
           if (aimed !== hoveredRef.current) {
             const item = aimed ? DEMO_ITEMS.find(it => it.id === aimed) : undefined;
             if (item) {
