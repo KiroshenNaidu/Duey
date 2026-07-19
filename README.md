@@ -1,7 +1,7 @@
 # Duey
 **A personal debt and transport tracker.**
 
-<a href="https://github.com/KiroshenNaidu/Duey/releases/latest/download/duey_v.2.0.apk">
+<a href="https://github.com/KiroshenNaidu/Duey/releases/latest/download/duey_v.2.1.apk">
   <img src="https://img.shields.io/badge/Download-000000?style=for-the-badge&logo=github&logoColor=white" width="200">
 </a>
 
