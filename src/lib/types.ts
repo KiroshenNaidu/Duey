@@ -3,6 +3,9 @@ import type { HapticStrength } from './haptics';
 export interface Debt {
   id: string;
   title: string;
+  // WHO the debt is owed to, separate from title (WHAT it's for). Optional — when unset,
+  // the title doubles as the person identity, which is how all pre-person debts behave.
+  person?: string;
   total_owed: number;
   installment_amount: number;
   // Day of month (1–31) a payment is due. PURELY optional — null/undefined means no due
@@ -33,6 +36,10 @@ export interface HistoryEntry {
   id: string;
   debtId?: string;
   debtTitle: string;
+  // WHO the entry was paid to, stamped from the debt's person at write time so the record
+  // stays self-describing (who + what for) even after the debt itself is gone. Absent on
+  // entries for debts without an explicit person and on all pre-person entries.
+  person?: string;
   date: string; // ISO 8601 format
   amount: number;
   type: 'payment' | 'creation' | 'transport' | 'completion' | 'budget' | 'expense' | 'employment' | 'snapshot';

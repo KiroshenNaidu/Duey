@@ -131,11 +131,10 @@ const AlertDialogCancel = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <AlertDialogPrimitive.Cancel
     ref={ref}
-    className={cn(
-      buttonVariants({ variant: "outline" }),
-      "mt-2 sm:mt-0",
-      className
-    )}
+    // No mt-2 here (unlike stock shadcn): the footer's gap-2 spaces both the stacked and
+    // row layouts, and several footers force flex-row on mobile — the margin pushed
+    // Cancel visibly lower than the button beside it.
+    className={cn(buttonVariants({ variant: "outline" }), className)}
     {...props}
   />
 ))

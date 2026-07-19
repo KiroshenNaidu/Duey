@@ -125,12 +125,14 @@ export function DayNightToggle() {
           <Settings2 className="h-4 w-4" />
         </button>
         {/* Same goo Switch used everywhere else — daynight-switch variant keeps the track
-            in the active theme's primary colour in BOTH positions (see globals.css) */}
+            in the active theme's primary colour in BOTH positions (see globals.css), and
+            iconStyle swaps the I/O track glyphs for a sun/moon pair (this switch only). */}
         <Switch
           checked={dayNight.mode === 'day'}
           onCheckedChange={handleToggle}
           aria-label="Toggle day/night theme"
           className="daynight-switch"
+          iconStyle="daynight"
         />
       </div>
 

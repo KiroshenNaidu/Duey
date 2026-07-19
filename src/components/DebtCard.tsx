@@ -93,6 +93,8 @@ export function DebtCard({ debt, grouped = false }: DebtCardProps) {
   // Edit dialog
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editedTitle, setEditedTitle] = useState(debt.title);
+  // '' = no explicit person — the title then doubles as the person (legacy behavior).
+  const [editedPerson, setEditedPerson] = useState(debt.person ?? '');
   const [editedTotalOwed, setEditedTotalOwed] = useState(debt.total_owed.toString());
   const [editedInstallmentAmount, setEditedInstallmentAmount] = useState(debt.installment_amount.toString());
   // '' = no due day (reminders off for this debt) — the field is purely optional.
@@ -117,6 +119,7 @@ export function DebtCard({ debt, grouped = false }: DebtCardProps) {
   useEffect(() => {
     if (!isDialogOpen) {
       setEditedTitle(debt.title);
+      setEditedPerson(debt.person ?? '');
       setEditedTotalOwed(debt.total_owed.toString());
       setEditedInstallmentAmount(debt.installment_amount.toString());
       setEditedDueDay(debt.dueDay != null ? String(debt.dueDay) : '');
@@ -163,6 +166,7 @@ export function DebtCard({ debt, grouped = false }: DebtCardProps) {
 
   const resetEditState = useCallback(() => {
     setEditedTitle(debt.title);
+    setEditedPerson(debt.person ?? '');
     setEditedTotalOwed(debt.total_owed.toString());
     setEditedInstallmentAmount(debt.installment_amount.toString());
     setEditedDueDay(debt.dueDay != null ? String(debt.dueDay) : '');
@@ -189,6 +193,8 @@ export function DebtCard({ debt, grouped = false }: DebtCardProps) {
 
     if (editedTitle.trim() !== debt.title)
       changes.push({ field: 'Title', from: debt.title, to: editedTitle.trim() });
+    if ((editedPerson.trim() || null) !== (debt.person ?? null))
+      changes.push({ field: 'Person', from: debt.person ?? 'None', to: editedPerson.trim() || 'None' });
     if (totalOwedNum !== debt.total_owed)
       changes.push({ field: 'Total Owed', from: formatCurrency(debt.total_owed), to: formatCurrency(totalOwedNum) });
     if (installmentAmountNum !== debt.installment_amount)
@@ -198,7 +204,7 @@ export function DebtCard({ debt, grouped = false }: DebtCardProps) {
       changes.push({ field: 'Due Day', from: debt.dueDay != null ? `Day ${debt.dueDay}` : 'None', to: dueDayNum != null ? `Day ${dueDayNum}` : 'None' });
 
     return changes;
-  }, [editedTitle, editedTotalOwed, editedInstallmentAmount, editedDueDay, debt]);
+  }, [editedTitle, editedPerson, editedTotalOwed, editedInstallmentAmount, editedDueDay, debt]);
 
   const hasChanges = pendingChanges.length > 0 || pendingPayment !== null;
 
@@ -211,6 +217,7 @@ export function DebtCard({ debt, grouped = false }: DebtCardProps) {
         const dueDayNum = editedDueDay.trim() === '' ? null : parseInt(editedDueDay, 10);
         updateDebt(debt.id, {
           title: editedTitle.trim(),
+          person: editedPerson.trim() || undefined,
           total_owed: totalOwedNum,
           installment_amount: installmentAmountNum,
           dueDay: dueDayNum != null && dueDayNum >= 1 && dueDayNum <= 31 ? dueDayNum : null,
@@ -233,7 +240,7 @@ export function DebtCard({ debt, grouped = false }: DebtCardProps) {
       setShowSaveConfirm(false);
       showToast('Failed to save — please try again', 'error');
     }
-  }, [editedTitle, editedTotalOwed, editedInstallmentAmount, editedDueDay, pendingChanges, pendingPayment, debt.id, updateDebt, logCustomPayment, showToast]);
+  }, [editedTitle, editedPerson, editedTotalOwed, editedInstallmentAmount, editedDueDay, pendingChanges, pendingPayment, debt.id, updateDebt, logCustomPayment, showToast]);
 
   const openPaymentDialog = useCallback(() => {
     // Pre-fill from existing staged payment so user sees they're replacing, not adding
@@ -381,12 +388,24 @@ export function DebtCard({ debt, grouped = false }: DebtCardProps) {
       <Card className={cn("overflow-hidden transition-all duration-300", grouped ? "rounded-[0.7rem]" : "rounded-[1rem]")}>
         <CardHeader>
           <div className="flex justify-between items-center gap-2">
-            <CardTitle
-              className="text-base font-bold truncate pr-2"
-              style={isPaidOff ? { color: 'hsl(var(--primary-complete))' } : undefined}
-            >{grouped
-              ? <span className="text-xs font-medium text-muted-foreground">{createdLabel ? `Added ${createdLabel}` : debt.title}</span>
-              : debt.title}</CardTitle>
+            <div className="min-w-0 pr-2">
+              <CardTitle
+                className="text-base font-bold truncate"
+                style={isPaidOff ? { color: 'hsl(var(--primary-complete))' } : undefined}
+              >{grouped
+                // Inside a person group the header already names the person, so the card
+                // shows WHAT the debt is for (falling back to the old date stamp when the
+                // title is just the person name repeated).
+                ? <span className="text-xs font-medium text-muted-foreground">
+                    {debt.person && debt.person !== debt.title
+                      ? `${debt.title}${createdLabel ? ` · ${createdLabel}` : ''}`
+                      : (createdLabel ? `Added ${createdLabel}` : debt.title)}
+                  </span>
+                : debt.title}</CardTitle>
+              {!grouped && debt.person && (
+                <p className="text-[10px] text-muted-foreground truncate">to {debt.person}</p>
+              )}
+            </div>
             <div className="flex items-center gap-2">
               {debt.dueDay != null && !isPaidOff && (
                 <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-muted-foreground whitespace-nowrap">
@@ -428,6 +447,7 @@ export function DebtCard({ debt, grouped = false }: DebtCardProps) {
                       <DialogHeader>
                         <DialogTitle>Make Payment</DialogTitle>
                         <DialogDescription>
+                          {debt.person ? <>Paying <span className="font-semibold text-accent">{debt.person}</span> for {debt.title}. </> : null}
                           {pendingPayment
                             ? 'Replace your staged payment — only one will be logged on save.'
                             : 'Choose how much to log. One payment will be recorded on save.'}
@@ -588,6 +608,9 @@ export function DebtCard({ debt, grouped = false }: DebtCardProps) {
                       <DebtSemiGauge progress={progress} pendingProgress={pendingProgressPct} paidOff={isPaidOff} />
                       <div className="flex-1 min-w-0">
                         <h2 className="text-lg font-bold text-foreground leading-tight break-words">{debt.title}</h2>
+                        {debt.person && (
+                          <p className="text-xs font-medium text-accent mt-0.5">Paying {debt.person}</p>
+                        )}
                         <p className="text-xs text-muted-foreground mt-0.5">
                           {paymentCount} of {totalInstallments} installments
                         </p>
@@ -635,6 +658,17 @@ export function DebtCard({ debt, grouped = false }: DebtCardProps) {
                         id={`title-${debt.id}`}
                         value={editedTitle}
                         onChange={(e) => setEditedTitle(e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor={`person-${debt.id}`} className="text-xs">
+                        Person <span className="text-muted-foreground font-normal">(optional — who you&apos;re paying)</span>
+                      </Label>
+                      <Input
+                        id={`person-${debt.id}`}
+                        placeholder="e.g., John"
+                        value={editedPerson}
+                        onChange={(e) => setEditedPerson(e.target.value)}
                       />
                     </div>
                     <div className="grid grid-cols-2 gap-3">

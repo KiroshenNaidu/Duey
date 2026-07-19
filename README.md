@@ -137,12 +137,15 @@ Want to try the app with realistic data already loaded? A sample backup is inclu
 
 It includes:
 - 7 debts (student loan, phone, credit card, plus two owed to Dad and two to John — the same-person pairs show the grouped debt cards) with 6 months of payment history
-- 5 budget plans at various stages — some fully spent, some in-progress, some just planned
+- 5 budget plans at various stages — some fully spent and confirmed, some in-progress, some just planned
 - Recurring and one-off expenses
-- 3 extra income sources
-- Transport log (Jan–Jun 2026, R88/day, with public holidays and half-days marked)
+- 3 extra income sources (recurring + one-off)
+- Transport log (Jan–Jul 2026, R88/day, with public holidays and half-days marked)
 - 7 Uber rides with routes and distances
-- Notepad, profile, and snapshot history
+- Notepad, profile (with avatar framing), and 6 months of snapshot history
+- **Settings & themes:** 3 custom themes (Aurora Glass / Mint Minimal / Sunset Elevated), starred favourites, a Day/Night pairing, two hidden presets, plus quick-menu, radial-FX, page-transition, swipe and haptics preferences
+
+Dates are anchored to mid-July 2026, so nothing gets auto-purged and every page shows current-month data.
 
 To import: **Settings → Data Management → Import Backup** → select `test-data.json`.
 

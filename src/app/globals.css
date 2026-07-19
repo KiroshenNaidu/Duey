@@ -249,9 +249,13 @@ nav.fixed,
 .daynight-switch {
   --inactive-color: hsl(var(--primary));
 }
-/* No I/O glyphs on this switch — the sun/moon context makes them redundant. */
-.daynight-switch .toggle-icon {
-  display: none;
+/* The track glyphs here are the sun/moon pair (Switch iconStyle="daynight"). The moon
+   (unchecked side) is forced white: the default .off fill assumes a muted track, but this
+   variant's track is primary in BOTH positions. When checked it hides under the white
+   knob, so the white fill never clashes. The sun inherits the default .on behavior
+   (white on the primary track when revealed). */
+.daynight-switch .toggle-icon.off {
+  fill: #fff;
 }
 
 /* Arc / gauge colour flow — cycles through the analogous palette.

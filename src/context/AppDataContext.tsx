@@ -11,7 +11,7 @@ import { DEFAULT_RADIAL_FX_ID } from '@/lib/radialFx';
 import { DEFAULT_PAGE_TRANSITION_ID } from '@/lib/pageTransitions';
 import { DEFAULT_HAPTIC_STRENGTH, setHapticStrength, type HapticStrength } from '@/lib/haptics';
 import { DEFAULT_QUICK_SHORTCUTS, sanitizeShortcuts } from '@/lib/quickShortcuts';
-import { personKey, PERSON_ENTRY_TYPES } from '@/lib/persons';
+import { personKey, debtPersonName, entryPersonName, PERSON_ENTRY_TYPES } from '@/lib/persons';
 import { LoadingScreen } from '@/components/LoadingScreen';
 
 const CURRENT_SCHEMA_VERSION = 8;
@@ -484,11 +484,14 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
 
   const addDebt = useCallback((debtData: Omit<Debt, 'id'>) => {
     updateStateAndSync(prev => {
-      const newDebt: Debt = { ...debtData, id: genId() };
+      // Normalize person on creation: trimmed, and never stored as an empty string.
+      const person = debtData.person?.trim() || undefined;
+      const newDebt: Debt = { ...debtData, person, id: genId() };
       const newHistoryEntry: HistoryEntry = {
         id: `${newDebt.id}-created`,
         debtId: newDebt.id,
         debtTitle: newDebt.title,
+        person,
         date: new Date().toISOString(),
         amount: newDebt.total_owed,
         type: 'creation',
@@ -498,10 +501,19 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
   }, [updateStateAndSync]);
 
   const updateDebt = useCallback((debtId: string, updatedData: Partial<Omit<Debt, 'id'>>) => {
-    updateStateAndSync(prev => ({
-      ...prev,
-      debts: prev.debts.map(d => (d.id === debtId ? { ...d, ...updatedData } : d)),
-    }));
+    updateStateAndSync(prev => {
+      // Person is one fact about the debt — when it changes, restamp the debt's existing
+      // history entries too so past payments never show a stale "who".
+      const personChanged = 'person' in updatedData;
+      const person = personChanged ? (updatedData.person?.trim() || undefined) : undefined;
+      return {
+        ...prev,
+        debts: prev.debts.map(d => (d.id === debtId ? { ...d, ...updatedData, ...(personChanged && { person }) } : d)),
+        history: personChanged
+          ? prev.history.map(h => (h.debtId === debtId ? { ...h, person } : h))
+          : prev.history,
+      };
+    });
   }, [updateStateAndSync]);
 
   const deleteDebt = useCallback((debtId: string) => {
@@ -522,18 +534,22 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     if (!newName || !fromKey) return;
     updateStateAndSync(prev => {
       const targetDebtIds = new Set<string>();
-      for (const d of prev.debts) if (personKey(d.title) === fromKey) targetDebtIds.add(d.id);
+      for (const d of prev.debts) if (personKey(debtPersonName(d)) === fromKey) targetDebtIds.add(d.id);
       for (const h of prev.history) {
-        if (h.type === 'creation' && h.debtId && personKey(h.debtTitle) === fromKey) targetDebtIds.add(h.debtId);
+        if (h.type === 'creation' && h.debtId && personKey(entryPersonName(h)) === fromKey) targetDebtIds.add(h.debtId);
       }
 
-      const debts = prev.debts.map(d =>
-        personKey(d.title) === fromKey ? { ...d, title: newName } : d
-      );
+      // Rename whichever field carries the identity: the explicit person when set, else the
+      // title (legacy debts where the title IS the person).
+      const debts = prev.debts.map(d => {
+        if (personKey(debtPersonName(d)) !== fromKey) return d;
+        return d.person?.trim() ? { ...d, person: newName } : { ...d, title: newName };
+      });
       const history = prev.history.map(h => {
         if (!PERSON_ENTRY_TYPES.includes(h.type)) return h; // never touch transport/expense/etc.
-        const belongs = (h.debtId != null && targetDebtIds.has(h.debtId)) || personKey(h.debtTitle) === fromKey;
-        return belongs ? { ...h, debtTitle: newName } : h;
+        const belongs = (h.debtId != null && targetDebtIds.has(h.debtId)) || personKey(entryPersonName(h)) === fromKey;
+        if (!belongs) return h;
+        return h.person?.trim() ? { ...h, person: newName } : { ...h, debtTitle: newName };
       });
 
       return { ...prev, debts, history };
@@ -548,6 +564,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
         id: genId(),
         debtId: debt.id,
         debtTitle: debt.title,
+        person: debt.person,
         date: new Date().toISOString(),
         amount: debt.total_owed,
         type: 'completion',
@@ -580,6 +597,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
               id: genId(),
               debtId: debt.id,
               debtTitle: debt.title,
+              person: debt.person,
               date: dateToToggle.toISOString(),
               amount: debt.installment_amount,
               type: 'payment'
@@ -598,6 +616,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
           id: genId(),
           debtId: debt.id,
           debtTitle: debt.title,
+          person: debt.person,
           date: new Date().toISOString(),
           amount: debt.installment_amount,
           type: 'payment'
@@ -615,6 +634,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
         id: genId(),
         debtId: debt.id,
         debtTitle: debt.title,
+        person: debt.person,
         date: new Date().toISOString(),
         amount,
         type: 'payment'

@@ -87,6 +87,9 @@ function HistoryItem({ entry }: { entry: ProcessedHistoryEntry }) {
           <p className={cn('font-semibold text-sm text-foreground truncate', isCompletion && 'text-accent')}>
             {title}
           </p>
+          {entry.person && (
+            <p className="text-[10px] text-muted-foreground truncate">to {entry.person}</p>
+          )}
           <p className="text-xs text-muted-foreground">
             {format(new Date(entry.date), 'PPP')}
           </p>
@@ -197,9 +200,12 @@ export function HistoryLog() {
     const debtProfiles = Object.entries(byDebtId).map(([debtId, entries]) => {
       const activeDept    = debts.find(d => d.id === debtId);
       const creationEntry = entries.find(e => e.type === 'creation');
+      const person        = activeDept?.person ?? creationEntry?.person;
+      const baseTitle     = activeDept?.title ?? entries[0].debtTitle;
       return {
         id:        debtId,
-        title:     activeDept?.title ?? entries[0].debtTitle,
+        // Filter chips name both what the debt is for and who it's owed to.
+        title:     person?.trim() ? `${baseTitle} · ${person.trim()}` : baseTitle,
         totalOwed: activeDept?.total_owed ?? creationEntry?.amount ?? 0,
         archived:  !activeDebtIds.has(debtId),
       };

@@ -11,6 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useFabLongPress, FAB_TOUCH_STYLE, FabPulse } from '@/components/QuickAdd';
 import { formatCurrency, cn } from '@/lib/utils';
 import { getRemainingBalance } from '@/lib/calculations';
+import { personKey, debtPersonName } from '@/lib/persons';
 import { useReplayOnActive } from '@/hooks/useReplayOnActive';
 import type { Debt, HistoryEntry } from '@/lib/types';
 
@@ -27,15 +28,16 @@ function creationTimes(history: HistoryEntry[]): Map<string, number> {
 
 type DebtUnit = { key: string; debts: Debt[]; sortTime: number };
 
-// Cluster debts owed to the SAME person/label (title, case-insensitive) into one unit, with
-// each unit's members ordered oldest→newest by creation. Units are then ordered by their own
-// oldest member, so the list keeps its existing oldest-first flow and same-name debts sit
-// together at the spot where the first of them was added.
+// Cluster debts owed to the SAME person into one unit — the explicit person field when set,
+// else the title (legacy debts where the title IS the person) — with each unit's members
+// ordered oldest→newest by creation. Units are then ordered by their own oldest member, so
+// the list keeps its existing oldest-first flow and same-person debts sit together at the
+// spot where the first of them was added.
 function groupDebts(debts: Debt[], times: Map<string, number>): DebtUnit[] {
   const timeOf = (d: Debt) => times.get(d.id) ?? 0;
   const groups = new Map<string, Debt[]>();
   for (const d of debts) {
-    const key = d.title.trim().toLowerCase() || d.id; // blank titles never merge together
+    const key = personKey(debtPersonName(d)) || d.id; // blank identities never merge together
     const bucket = groups.get(key);
     if (bucket) bucket.push(d);
     else groups.set(key, [d]);
@@ -131,7 +133,7 @@ export function DebtsList() {
         </Card>
       ) : (
         units.map(u => u.debts.length >= 2
-          ? <DebtGroup key={u.key} name={u.debts[0].title.trim() || 'Untitled'} debts={u.debts} />
+          ? <DebtGroup key={u.key} name={debtPersonName(u.debts[0]) || 'Untitled'} debts={u.debts} />
           : <DebtCard key={u.debts[0].id} debt={u.debts[0]} />
         )
       )}

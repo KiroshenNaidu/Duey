@@ -1,9 +1,18 @@
-import type { HistoryEntry } from './types';
+import type { Debt, HistoryEntry } from './types';
 
 // Canonical identity for a person: trimmed, lowercased, internal whitespace collapsed. Every
 // decision about "is this the same person" (dedupe, matching, stat aggregation, rename) runs on
 // this key, so "John", " john ", and "John  Smith" behave as one person everywhere.
 export const personKey = (name: string) => name.trim().toLowerCase().replace(/\s+/g, ' ');
+
+// The display name that identifies a debt's person: the explicit person when set, otherwise
+// the title (how every pre-person debt worked — "John" as a title IS the person). All person
+// identity throughout the app funnels through these two helpers so the explicit-person and
+// legacy title-only worlds can never disagree.
+export const debtPersonName = (d: Pick<Debt, 'title' | 'person'>) =>
+  (d.person?.trim() ? d.person : d.title).trim();
+export const entryPersonName = (h: Pick<HistoryEntry, 'debtTitle' | 'person'>) =>
+  (h.person?.trim() ? h.person : h.debtTitle).trim();
 
 // The debt-history entry types that belong to a person. Transport/expense/budget/etc. never do,
 // so renaming a person must never touch them even if a title happens to collide.
@@ -25,7 +34,7 @@ export interface PersonProfile {
 export function derivePersonProfiles(history: HistoryEntry[]): PersonProfile[] {
   const debtIdToKey = new Map<string, string>();
   for (const h of history) {
-    if (h.type === 'creation' && h.debtId) debtIdToKey.set(h.debtId, personKey(h.debtTitle));
+    if (h.type === 'creation' && h.debtId) debtIdToKey.set(h.debtId, personKey(entryPersonName(h)));
   }
 
   type Acc = PersonProfile & { nameTime: number };
@@ -39,15 +48,18 @@ export function derivePersonProfiles(history: HistoryEntry[]): PersonProfile[] {
   for (const h of history) {
     const t = new Date(h.date).getTime();
     if (h.type === 'creation') {
-      const key = personKey(h.debtTitle);
+      const name = entryPersonName(h);
+      const key = personKey(name);
       if (!key) continue; // blank titles aren't a person
       const p = ensure(key);
       p.timesInDebt++;
-      if (t >= p.nameTime) { p.name = h.debtTitle.trim(); p.nameTime = t; }
+      if (t >= p.nameTime) { p.name = name; p.nameTime = t; }
       p.lastActivity = Math.max(p.lastActivity, t);
     } else if (h.type === 'payment' || h.type === 'completion') {
       // Route via debtId so a renamed debt's payments still land on the right person.
-      const key = h.debtId ? debtIdToKey.get(h.debtId) : undefined;
+      // Entries whose creation record is gone fall back to their own stamped person.
+      const key = (h.debtId ? debtIdToKey.get(h.debtId) : undefined)
+        ?? (h.person?.trim() ? personKey(h.person) : undefined);
       if (!key) continue;
       const p = ensure(key);
       if (h.type === 'payment') p.totalPaid += h.amount;

@@ -979,6 +979,7 @@ function QuickUberForm({ onDone }: { onDone: () => void }) {
 function QuickDebtForm({ onDone }: { onDone: () => void }) {
   const { addDebt } = useContext(AppDataContext);
   const [title, setTitle] = useState('');
+  const [person, setPerson] = useState('');
   const [total, setTotal] = useState('');
   const [installment, setInstallment] = useState('');
   const [error, setError] = useState('');
@@ -989,15 +990,19 @@ function QuickDebtForm({ onDone }: { onDone: () => void }) {
     const instNum = parseFloat(installment);
     if (isNaN(totalNum) || totalNum <= 0) { setError('Enter a valid total owed.'); return; }
     if (isNaN(instNum) || instNum <= 0) { setError('Enter a valid installment.'); return; }
-    addDebt({ title: title.trim(), total_owed: totalNum, installment_amount: instNum, dueDay: null });
+    addDebt({ title: title.trim(), person: person.trim() || undefined, total_owed: totalNum, installment_amount: instNum, dueDay: null });
     onDone();
   };
 
   return (
     <div className="space-y-3">
       <div>
-        <FieldLabel>Title / Person</FieldLabel>
-        <Input value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g., John, Car Loan" autoFocus />
+        <FieldLabel>Title</FieldLabel>
+        <Input value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g., Laptop, Car Loan" autoFocus />
+      </div>
+      <div>
+        <FieldLabel>Person (optional)</FieldLabel>
+        <Input value={person} onChange={e => setPerson(e.target.value)} placeholder="e.g., John" />
       </div>
       <div className="grid grid-cols-2 gap-2">
         <div>

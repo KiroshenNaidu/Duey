@@ -23,6 +23,9 @@ import { personKey, derivePersonProfiles, type PersonProfile } from '@/lib/perso
 
 const debtSchema = z.object({
   title: z.string().min(1, 'Title is required'),
+  // WHO the debt is owed to. Optional — left empty, the title acts as the person, exactly
+  // like every debt created before the person field existed.
+  person: z.string().optional(),
   total_owed: z.coerce.number().positive('Total amount must be positive'),
   installment_amount: z.coerce.number().positive('Installment amount must be positive'),
   // PURELY optional — empty means no due date and no reminder for this debt.
@@ -33,7 +36,7 @@ type DebtFormValues = z.infer<typeof debtSchema>;
 
 export function AddDebtDialog({ children }: { children: ReactNode }) {
   const [isOpen, setIsOpen] = useState(false);
-  const [titleInput, setTitleInput] = useState('');
+  const [personInput, setPersonInput] = useState('');
   const [showSuggestions, setShowSuggestions] = useState(false);
   const { addDebt, history } = useContext(AppDataContext);
 
@@ -41,6 +44,7 @@ export function AddDebtDialog({ children }: { children: ReactNode }) {
     resolver: zodResolver(debtSchema),
     defaultValues: {
       title: '',
+      person: '',
       total_owed: '' as unknown as number,
       installment_amount: '' as unknown as number,
       dueDay: '',
@@ -52,48 +56,55 @@ export function AddDebtDialog({ children }: { children: ReactNode }) {
   const personProfiles = useMemo(() => derivePersonProfiles(history), [history]);
 
   const filteredSuggestions = useMemo(() => {
-    const q = personKey(titleInput);
-    const ranked = [...personProfiles]
-      .filter(p => q === '' || p.key.includes(q))
+    const q = personKey(personInput);
+    // Suggestions only appear once the user starts typing — never the whole roster on
+    // focus — and are capped at the top 3 so the dropdown stays cheap to render.
+    if (!q) return [];
+    const ranked = personProfiles
+      .filter(p => p.key.includes(q))
       .sort((a, b) => {
-        if (q) {
-          // Prefix matches ("jo" → "John") rank above mid-string matches ("jo" → "Major").
-          const ap = a.key.startsWith(q) ? 0 : 1;
-          const bp = b.key.startsWith(q) ? 0 : 1;
-          if (ap !== bp) return ap - bp;
-        }
+        // Prefix matches ("jo" → "John") rank above mid-string matches ("jo" → "Major").
+        const ap = a.key.startsWith(q) ? 0 : 1;
+        const bp = b.key.startsWith(q) ? 0 : 1;
+        if (ap !== bp) return ap - bp;
         return b.lastActivity - a.lastActivity; // otherwise most recent first
       });
     // Nothing to offer when the field already exactly matches the sole suggestion.
     if (ranked.length === 1 && ranked[0].key === q) return [];
-    return ranked.slice(0, 6);
-  }, [titleInput, personProfiles]);
+    return ranked.slice(0, 3);
+  }, [personInput, personProfiles]);
 
   const handleSelectSuggestion = (profile: PersonProfile) => {
-    form.setValue('title', profile.name);
-    setTitleInput(profile.name);
+    form.setValue('person', profile.name);
+    setPersonInput(profile.name);
     setShowSuggestions(false);
   };
 
   const onSubmit = (data: DebtFormValues) => {
-    const { dueDay, title, ...rest } = data;
-    // Trim on creation so the stored title (and the person key derived from it) stays clean.
-    addDebt({ ...rest, title: title.trim(), dueDay: typeof dueDay === 'number' ? dueDay : null });
+    const { dueDay, title, person, ...rest } = data;
+    // Trim on creation so the stored title/person (and the person key derived from them)
+    // stay clean. An empty person is dropped — the title then doubles as the person.
+    addDebt({
+      ...rest,
+      title: title.trim(),
+      person: person?.trim() || undefined,
+      dueDay: typeof dueDay === 'number' ? dueDay : null,
+    });
     form.reset();
-    setTitleInput('');
+    setPersonInput('');
     setIsOpen(false);
   };
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => {
       setIsOpen(open);
-      if (!open) { form.reset(); setTitleInput(''); setShowSuggestions(false); }
+      if (!open) { form.reset(); setPersonInput(''); setShowSuggestions(false); }
     }}>
       <DialogTrigger asChild>{children}</DialogTrigger>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>Add New Debt</DialogTitle>
-          <DialogDescription className="sr-only">Enter the debt title, total amount owed, and monthly installment to start tracking.</DialogDescription>
+          <DialogDescription className="sr-only">Enter the debt title, who it is owed to, total amount owed, and monthly installment to start tracking.</DialogDescription>
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
@@ -102,14 +113,27 @@ export function AddDebtDialog({ children }: { children: ReactNode }) {
               name="title"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Debt Title / Person</FormLabel>
+                  <FormLabel>Debt Title <span className="text-muted-foreground font-normal">(what it&apos;s for)</span></FormLabel>
+                  <FormControl>
+                    <Input placeholder="e.g., Laptop, Car Loan" {...field} value={field.value ?? ''} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="person"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Person <span className="text-muted-foreground font-normal">(optional — who you&apos;re paying)</span></FormLabel>
                   <FormControl>
                     <Input
-                      placeholder="e.g., John, Car Loan"
+                      placeholder="e.g., John"
                       {...field}
-                      value={titleInput}
+                      value={personInput}
                       onChange={(e) => {
-                        setTitleInput(e.target.value);
+                        setPersonInput(e.target.value);
                         field.onChange(e.target.value);
                         setShowSuggestions(true);
                       }}

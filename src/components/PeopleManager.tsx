@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Pencil, Users, Check } from 'lucide-react';
 import { formatCurrency, cn } from '@/lib/utils';
-import { personKey, derivePersonProfiles, type PersonProfile } from '@/lib/persons';
+import { personKey, debtPersonName, derivePersonProfiles, type PersonProfile } from '@/lib/persons';
 
 // The People manager: a roster of everyone you've ever owed, derived from history (there is no
 // separate person store). Editing a person renames them everywhere at once — active debts, the
@@ -22,7 +22,7 @@ export function usePeople() {
   const { history, debts } = useContext(AppDataContext);
   return useMemo(() => {
     const people = derivePersonProfiles(history);
-    const activeKeys = new Set(debts.map(d => personKey(d.title)));
+    const activeKeys = new Set(debts.map(d => personKey(debtPersonName(d))));
     // Active people first, then alphabetical — a stable "address book" order.
     people.sort((a, b) => {
       const aActive = activeKeys.has(a.key), bActive = activeKeys.has(b.key);

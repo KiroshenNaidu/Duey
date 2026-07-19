@@ -262,7 +262,7 @@ async function buildPdf(args: ExportBuilderArgs): Promise<Blob> {
       const rows: RowData[] = entries.map(e => [
         fmtDate(e.date),
         e.type.charAt(0).toUpperCase() + e.type.slice(1),
-        e.debtTitle + (e.label ? ` — ${e.label}` : '') + (e.note ? ` (${e.note})` : ''),
+        (e.person ? `${e.person} — ` : '') + e.debtTitle + (e.label ? ` — ${e.label}` : '') + (e.note ? ` (${e.note})` : ''),
         `${CUR} ${e.amount.toFixed(2)}`,
       ]);
       const monthTotal = entries.filter(e => e.type === 'payment').reduce((s, e) => s + e.amount, 0);
@@ -292,10 +292,13 @@ async function buildPdf(args: ExportBuilderArgs): Promise<Blob> {
   } else if (tab === 'debts') {
     let y = pdfHeader(doc, 'Debt History Report', 'All debt payments, creations and completions', userName, logoBase64);
     const debtEntries = history.filter(h => ['payment', 'creation', 'completion'].includes(h.type));
+    // Section per debt: keyed by title + person so same-titled debts to different people
+    // stay separate; the section heading names both (what for — who).
     const groups = new Map<string, HistoryEntry[]>();
     for (const e of debtEntries) {
-      if (!groups.has(e.debtTitle)) groups.set(e.debtTitle, []);
-      groups.get(e.debtTitle)!.push(e);
+      const heading = e.debtTitle + (e.person?.trim() ? ` — ${e.person.trim()}` : '');
+      if (!groups.has(heading)) groups.set(heading, []);
+      groups.get(heading)!.push(e);
     }
 
     const COLS: ColDef[] = [
@@ -306,7 +309,8 @@ async function buildPdf(args: ExportBuilderArgs): Promise<Blob> {
     ];
 
     for (const [debtName, entries] of groups) {
-      const debt = debts.find((d: { title: string }) => d.title === debtName);
+      const debt = debts.find((d: { title: string; person?: string }) =>
+        d.title + (d.person?.trim() ? ` — ${d.person.trim()}` : '') === debtName);
       const totalOwed = debt?.total_owed ?? entries.find(e => e.type === 'creation')?.amount ?? 0;
       const totalPaid = entries.filter(e => e.type === 'payment').reduce((s, e) => s + e.amount, 0);
       const isComplete = entries.some(e => e.type === 'completion');
@@ -457,9 +461,10 @@ function buildTxt(args: ExportBuilderArgs): Blob {
     for (const [month, entries] of monthMap) {
       lines.push(`\n${month}`);
       entries.forEach(e => {
+        const person = e.person?.trim() ? `${e.person.trim()} — ` : '';
         const label = e.label ? ` [${e.label}]` : '';
         const note = e.note ? ` (${e.note})` : '';
-        lines.push(`  ${fmtDate(e.date)}  ${e.type.padEnd(12)} ${e.debtTitle}${label}${note}  ${CUR} ${e.amount.toFixed(2)}`);
+        lines.push(`  ${fmtDate(e.date)}  ${e.type.padEnd(12)} ${person}${e.debtTitle}${label}${note}  ${CUR} ${e.amount.toFixed(2)}`);
       });
     }
   } else if (tab === 'debts') {
@@ -468,7 +473,11 @@ function buildTxt(args: ExportBuilderArgs): Blob {
     lines.push(sep);
     const debtEntries = history.filter(h => ['payment', 'creation', 'completion'].includes(h.type));
     const groups = new Map<string, HistoryEntry[]>();
-    for (const e of debtEntries) { if (!groups.has(e.debtTitle)) groups.set(e.debtTitle, []); groups.get(e.debtTitle)!.push(e); }
+    for (const e of debtEntries) {
+      const heading = e.debtTitle + (e.person?.trim() ? ` — ${e.person.trim()}` : '');
+      if (!groups.has(heading)) groups.set(heading, []);
+      groups.get(heading)!.push(e);
+    }
     for (const [name, entries] of groups) {
       const totalPaid = entries.filter(e => e.type === 'payment').reduce((s, e) => s + e.amount, 0);
       lines.push(`\n${name}`);
@@ -838,7 +847,11 @@ function EntryRow({ entry, onUpdate, onDelete, showDebt = false, onSnapshotTap }
             <span className="text-[9px] font-semibold text-accent">View breakdown ›</span>
           )}
         </div>
-        {showDebt && <p className="text-[10px] text-muted-foreground/60 mt-0.5">{entry.debtTitle}</p>}
+        {showDebt && (
+          <p className="text-[10px] text-muted-foreground/60 mt-0.5">
+            {entry.person ? `${entry.person} — ${entry.debtTitle}` : entry.debtTitle}
+          </p>
+        )}
         <p className="text-xs text-muted-foreground mt-1">{fmtDate(entry.date)}</p>
         {entry.note && <p className="text-[10px] text-muted-foreground/60 truncate mt-0.5">{entry.note}</p>}
       </button>
@@ -923,14 +936,19 @@ export default function HistoryPage() {
     const paymentCount = history.filter(h => h.type === 'payment').length;
     const transportEntries = allSorted.filter(h => h.type === 'transport');
 
+    // Group by title AND person, so two debts with the same title owed to different people
+    // never merge, and each group can show both what it was for and who it was paid to.
     const debtEntries = allSorted.filter(h => ['payment', 'creation', 'completion'].includes(h.type));
-    const groups = new Map<string, HistoryEntry[]>();
+    const groups = new Map<string, { title: string; person?: string; items: HistoryEntry[] }>();
     for (const e of debtEntries) {
-      if (!groups.has(e.debtTitle)) groups.set(e.debtTitle, []);
-      groups.get(e.debtTitle)!.push(e);
+      const person = e.person?.trim() || undefined;
+      const key = `${person?.toLowerCase() ?? ''}|${e.debtTitle.trim().toLowerCase()}`;
+      let g = groups.get(key);
+      if (!g) { g = { title: e.debtTitle, person, items: [] }; groups.set(key, g); }
+      g.items.push(e);
     }
 
-    return { allSorted, debtGroups: Array.from(groups.entries()), transportEntries, totalPaid, paymentCount };
+    return { allSorted, debtGroups: Array.from(groups.values()), transportEntries, totalPaid, paymentCount };
   }, [history]);
 
   const monthGroups = useMemo(() => {
@@ -942,7 +960,7 @@ export default function HistoryPage() {
       if (filterBig && e.amount < 500) return false;
       if (filterEdited && !e.edited) return false;
       if (q) {
-        const haystack = `${e.debtTitle} ${e.label ?? ''} ${e.note ?? ''} ${e.amount}`.toLowerCase();
+        const haystack = `${e.debtTitle} ${e.person ?? ''} ${e.label ?? ''} ${e.note ?? ''} ${e.amount}`.toLowerCase();
         if (!haystack.includes(q)) return false;
       }
       return true;
@@ -1290,20 +1308,23 @@ export default function HistoryPage() {
                 <p className="text-sm">No debt history yet</p>
               </div>
             )}
-            {debtGroups.map(([debtTitle, items]) => {
-              const groupTotal = items.filter(i => i.type === 'payment').reduce((s, i) => s + i.amount, 0);
-              const isComplete = items.some(i => i.type === 'completion');
+            {debtGroups.map(group => {
+              const groupTotal = group.items.filter(i => i.type === 'payment').reduce((s, i) => s + i.amount, 0);
+              const isComplete = group.items.some(i => i.type === 'completion');
               return (
-                <Card key={debtTitle} className="overflow-hidden cv-auto">
+                <Card key={`${group.person?.toLowerCase() ?? ''}|${group.title}`} className="overflow-hidden cv-auto">
                   <div className="px-4 pt-4 pb-1 flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{debtTitle}</p>
+                    <div className="flex items-center gap-2 min-w-0 flex-wrap">
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{group.title}</p>
+                      {group.person && (
+                        <span className="text-[9px] font-semibold text-accent">→ {group.person}</span>
+                      )}
                       {isComplete && <span className="text-[9px] bg-positive/15 text-positive px-1.5 py-0.5 rounded-full font-semibold">PAID OFF</span>}
                     </div>
-                    {groupTotal > 0 && <p className="text-[10px] text-muted-foreground/60 tabular-nums">{formatCurrency(groupTotal)} paid</p>}
+                    {groupTotal > 0 && <p className="text-[10px] text-muted-foreground/60 tabular-nums shrink-0">{formatCurrency(groupTotal)} paid</p>}
                   </div>
                   <CardContent className="px-4 pb-2 pt-0">
-                    {items.map(entry => (
+                    {group.items.map(entry => (
                       <EntryRow key={entry.id} entry={entry} onUpdate={updateHistoryEntry} onDelete={handleDeleteEntry} />
                     ))}
                   </CardContent>

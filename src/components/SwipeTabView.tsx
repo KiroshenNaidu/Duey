@@ -99,16 +99,21 @@ export function SwipeTabView<T extends string>({
 
   const containerRef = useRef<HTMLDivElement | null>(null);
 
-  // Pin the container to the tallest panel while panels are in motion, so a taller
-  // incoming panel is never clipped by the container's overflow:hidden mid-drag
-  // (the active panel alone defines the height at rest).
+  // Pin the container to the tallest REACHABLE panel while panels are in motion, so a
+  // taller incoming panel is never clipped by the container's overflow:hidden mid-drag
+  // (the active panel alone defines the height at rest). Only panels within one step of
+  // the current position are measured — a gesture can traverse at most one tab, and
+  // pinning to the height of a far-away tall tab (e.g. All while swiping Expenses ⇄
+  // Budget) opened a huge blank scroll region below short tabs that then snapped shut
+  // when the settle released the lock.
   const lockHeight = () => {
     const c = containerRef.current;
     if (!c) return;
+    const p = progress.get();
     let max = 0;
-    for (const child of Array.from(c.children)) {
-      max = Math.max(max, (child as HTMLElement).offsetHeight);
-    }
+    Array.from(c.children).forEach((child, i) => {
+      if (Math.abs(i - p) <= 1.5) max = Math.max(max, (child as HTMLElement).offsetHeight);
+    });
     if (max > 0) c.style.minHeight = `${max}px`;
   };
   const releaseHeight = () => {
@@ -129,6 +134,13 @@ export function SwipeTabView<T extends string>({
     }
     if (pendingSettleRef.current === activeIdx) {
       pendingSettleRef.current = null;
+      // Belt-and-braces: the commit's settle spring normally runs already, but if it was
+      // cancelled before this effect fired (stray touch, interrupted gesture teardown)
+      // the panels would freeze mid-flight with the new tab already active. Restart it.
+      if (!progress.isAnimating() && progress.get() !== activeIdx) {
+        lockHeight();
+        animate(progress, activeIdx, { ...SWIPE_SETTLE_SPRING, onComplete: releaseHeight });
+      }
       return;
     }
     if (progress.get() !== activeIdx) {
@@ -149,6 +161,10 @@ export function SwipeTabView<T extends string>({
     let tracking: 'none' | 'h' | 'v' = 'none';
 
     const onStart = (e: TouchEvent) => {
+      // A SECOND finger landing mid-gesture must not reset the drag state — re-basing
+      // start.x/tracking here used to corrupt the in-flight gesture (and could strand a
+      // stopped settle animation). Only the primary touch begins a gesture.
+      if (e.touches.length > 1) return;
       const x = e.touches[0].clientX;
       start.x = x;
       start.y = e.touches[0].clientY;
@@ -195,9 +211,18 @@ export function SwipeTabView<T extends string>({
 
     const onEnd = (e: TouchEvent) => {
       if (tracking !== 'h') return;
+      // A non-final touchend (one of several fingers lifting) must not end the gesture.
+      if (e.touches.length > 0) return;
       tracking = 'none';
 
-      const endX = e.changedTouches[0].clientX;
+      const touch = e.changedTouches[0];
+      if (!touch) {
+        // No release point (seen on some Android WebViews) — settle home rather than
+        // leaving the panels frozen wherever the finger left them.
+        animate(progress, activeIdxRef.current, { ...SWIPE_SETTLE_SPRING, onComplete: releaseHeight });
+        return;
+      }
+      const endX = touch.clientX;
       const endT = Date.now();
 
       // Instantaneous velocity: earliest sample inside the trailing window. Holding
