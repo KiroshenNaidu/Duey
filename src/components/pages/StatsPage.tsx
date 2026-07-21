@@ -2,7 +2,6 @@
 
 import { useContext, useMemo } from 'react';
 import { AppDataContext } from '@/context/AppDataContext';
-import { Card, CardContent } from '@/components/ui/card';
 import { formatCurrency, cn } from '@/lib/utils';
 import { DebtProgressCharts } from '@/components/DebtProgressCharts';
 import { useReplayOnActive } from '@/hooks/useReplayOnActive';
@@ -280,12 +279,15 @@ export function StatsPage() {
       <TransportStatusCard />
 
       {debts.length > 0 && (
-        <Card>
-          <CardContent className="p-3">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3">Debt Progress</p>
-            <DebtProgressCharts />
-          </CardContent>
-        </Card>
+        // Same flat shell as every other Stats card (bg-card rounded-2xl p-4, no border/shadow)
+        // with the icon + uppercase muted title header the other section cards use.
+        <div className="bg-card rounded-2xl p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <CreditCard className="h-4 w-4 text-primary" />
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Debt Progress</p>
+          </div>
+          <DebtProgressCharts />
+        </div>
       )}
 
       {/* ── NEW SECTIONS ── */}

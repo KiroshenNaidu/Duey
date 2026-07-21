@@ -1,10 +1,11 @@
 'use client';
 
-import { useContext, useState, useMemo, useEffect, useLayoutEffect } from 'react';
+import { useContext, useState, useMemo, useEffect, useLayoutEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { motion } from 'framer-motion';
+import { motion, motionValue } from 'framer-motion';
 import { AppDataContext } from '@/context/AppDataContext';
 import { SwipeTabView } from '@/components/SwipeTabView';
+import { SWIPE_SETTLE_SPRING } from '@/lib/pageTransitions';
 import { formatCurrency, getCurrencySymbol, cn } from '@/lib/utils';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -929,6 +930,36 @@ export default function HistoryPage() {
 
   const changeTab = (tab: TabId) => setActiveTab(tab);
 
+  // Shared carousel position for the tab strip: SwipeTabView writes the live drag/settle
+  // position here, and the segmented highlight below reads it — so the selected pill glides
+  // in lockstep with the panels (finger 1:1 on swipe, settle spring on tap), exactly like
+  // the BottomNav pill tracks the page carousel. eslint: created once, seeded from the
+  // initial tab.
+  const tabProgress = useMemo(() => motionValue(TAB_ORDER.indexOf(activeTab)), []); // eslint-disable-line react-hooks/exhaustive-deps
+  const highlightRef = useRef<HTMLDivElement | null>(null);
+  const tabBtnRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  useLayoutEffect(() => {
+    const apply = (p: number) => {
+      // Clamp to the tab range so the highlight parks at the first/last cell (and the label
+      // colours stay aligned with it) while the panels rubber-band past the ends.
+      const clamped = Math.min(Math.max(p, 0), TAB_ORDER.length - 1);
+      const hl = highlightRef.current;
+      if (hl) hl.style.transform = `translateX(${clamped * 100}%)`;
+      // Crossfade each label between muted and on-primary in lockstep with the highlight,
+      // so the text colour tracks the finger mid-swipe instead of snapping on commit.
+      // Written straight to style (no React re-render) so it moves in the same frame as
+      // the highlight and panels — the main-carousel contract.
+      for (let i = 0; i < tabBtnRefs.current.length; i++) {
+        const btn = tabBtnRefs.current[i];
+        if (!btn) continue;
+        const on = 1 - Math.min(Math.abs(i - clamped), 1); // 1 under the highlight → 0 a tab away
+        btn.style.color = `color-mix(in srgb, hsl(var(--primary-foreground)) ${on * 100}%, hsl(var(--muted-foreground)))`;
+      }
+    };
+    apply(tabProgress.get());
+    return tabProgress.on('change', apply);
+  }, [tabProgress]);
+
   // ── Derived data ─────────────────────────────────────────────────────────────
   const { allSorted, debtGroups, transportEntries, totalPaid, paymentCount } = useMemo(() => {
     const allSorted = [...history].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
@@ -1113,8 +1144,17 @@ export default function HistoryPage() {
     <motion.div
       initial={{ x: '100%' }}
       animate={{ x: 0 }}
-      transition={{ type: 'tween', ease: [0.22, 1, 0.36, 1], duration: 0.22 }}
-      className="container mx-auto max-w-md pt-12 pb-10 px-4 min-h-screen"
+      // Settle in on the SAME velocity-seeded spring the AppShell page carousel and the
+      // SwipeTabView tabs use (lib/pageTransitions.ts), so entering History feels identical
+      // to a committed page swipe instead of a one-off fixed-duration tween.
+      transition={SWIPE_SETTLE_SPRING}
+      // Match the main pages' scroll under the fixed top nav: pt-11 aligns the top offset,
+      // and a wrapper 1px taller than the scroll viewport (mirroring AppShell's carousel
+      // container) keeps <main> always scrollable — so Android's native stretch-overscroll
+      // (the rubber-band beneath the nav) engages even when History content is short,
+      // instead of the old min-h-screen which scrolled differently on short tabs.
+      className="container mx-auto max-w-md pt-11 pb-10 px-4"
+      style={{ minHeight: 'calc(100% + 1px)' }}
     >
       {/* Header */}
       <div className="relative flex items-center justify-center pb-4">
@@ -1127,17 +1167,35 @@ export default function HistoryPage() {
         </div>
       </div>
 
-      {/* Tab strip */}
-      <div className="flex flex-wrap justify-center gap-1.5 mb-4">
-        {TAB_ORDER.map(tab => (
+      {/* Tab strip — segmented bar (styled like the Money page's Tabs) with a single
+          sliding highlight driven by tabProgress, so it moves in sync with the swiped
+          panels instead of snapping between tabs. */}
+      <div className="relative flex h-10 items-center rounded-xl bg-card border border-border p-1 shadow-sm mb-4">
+        {/* Sliding highlight — one cell wide, translated by the live carousel position. */}
+        <div
+          ref={highlightRef}
+          className="absolute top-1 bottom-1 left-1 rounded-lg bg-primary pointer-events-none"
+          style={{
+            width: `calc((100% - 0.5rem) / ${TAB_ORDER.length})`,
+            // Seed from the LIVE carousel position, not the committed tab index: a swipe
+            // commits (and re-renders) while the settle spring is still mid-flight, and
+            // stamping the destination here would snap the pill for a frame before the
+            // next spring tick. Same live-value pattern as the BottomNav pill.
+            transform: `translateX(${Math.min(Math.max(tabProgress.get(), 0), TAB_ORDER.length - 1) * 100}%)`,
+            willChange: 'transform',
+          }}
+        />
+        {TAB_ORDER.map((tab, i) => (
           <button
             key={tab}
+            ref={el => { tabBtnRefs.current[i] = el; }}
             onClick={() => changeTab(tab)}
+            // Colour is driven per-frame from tabProgress in the effect above (crossfade in
+            // sync with the highlight). The className colour is only a fallback for engines
+            // without color-mix() support, where it snaps on commit instead.
             className={cn(
-              'px-3.5 py-1.5 rounded-full text-xs font-semibold transition-colors',
-              activeTab === tab
-                ? 'bg-primary text-primary-foreground'
-                : 'bg-muted/50 text-muted-foreground hover:bg-muted'
+              'relative z-10 flex-1 rounded-lg py-1.5 text-xs font-semibold',
+              activeTab === tab ? 'text-primary-foreground' : 'text-muted-foreground'
             )}
           >
             {TAB_LABELS[tab]}
@@ -1222,6 +1280,7 @@ export default function HistoryPage() {
         tabs={TAB_ORDER}
         active={activeTab}
         onChange={changeTab}
+        progress={tabProgress}
         renderTab={tab => (
       <div>
 

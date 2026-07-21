@@ -38,6 +38,12 @@ nav.fixed,
     --popover-foreground: 228 14% 96%;
     --primary: 252 84% 72%;
     --primary-foreground: 0 0% 0%;
+    /* Analogous gradient stops — normally re-derived per theme in ThemeProvider, but
+       defaulted here so gradient effects (progress bars, the aurora dialog ring) are
+       valid on the very first paint, before the provider hydrates. Offsets: -20/+20/+45. */
+    --primary-a: 232 84% 72%;
+    --primary-b: 272 84% 72%;
+    --primary-complete: 297 84% 72%;
     --secondary: 230 14% 14%;
     --secondary-foreground: 228 14% 96%;
     --muted: 230 14% 14%;
@@ -526,4 +532,60 @@ body {
     white-space: nowrap;
     mask-image: linear-gradient(to bottom, rgba(0,0,0,1) 70%, rgba(0,0,0,0.8));
     text-shadow: 2px 2px 5px rgba(0,0,0,0.2);
+}
+
+/* ─── Aurora pop-up frame ──────────────────────────────────────────────────
+   A slow, subtle rotating gradient border on modal pop-ups (Dialog + AlertDialog).
+   Adapted from a Uiverse rotating-gradient card, but reworked for this app:
+   • Themed — the ring is built from the live --primary-a/-b/-complete/-accent vars,
+     so it re-tints automatically with every app theme.
+   • Gentle — two soft arcs sweeping a mostly-transparent conic gradient, ~18s per
+     turn, so it reads as a quiet drifting glow rather than a spinning bar.
+   • Smooth on high-refresh Android — only a registered <angle> custom property
+     animates (no layout, no JS, no per-frame style recalc of children), and the
+     ring rides the border-box background (background-attachment defaults to the
+     element, not the content) so it never scrolls away inside a tall dialog.
+   Bows out under the Glass / Minimal / Elevated UI styles (each brings its own
+   chrome) and freezes to a static ring for reduced-motion / low-power devices. */
+@property --aurora-angle {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 0deg;
+}
+@keyframes aurora-spin {
+  to { --aurora-angle: 360deg; }
+}
+body:not(.ui-glass):not(.ui-minimal):not(.ui-elevated) .aurora-dialog {
+  border: 1.5px solid transparent;
+  /* Inner solid panel (padding-box) sits over the conic ring (border-box); the ring
+     only shows through the 1.5px transparent border. */
+  background:
+    linear-gradient(hsl(var(--background)), hsl(var(--background))) padding-box,
+    conic-gradient(
+      from var(--aurora-angle),
+      transparent 0deg,
+      hsl(var(--primary-a) / 0.85) 40deg,
+      hsl(var(--accent) / 0.55) 82deg,
+      transparent 150deg,
+      transparent 210deg,
+      hsl(var(--primary-b) / 0.7) 262deg,
+      hsl(var(--primary-complete) / 0.85) 306deg,
+      transparent 360deg
+    ) border-box;
+  /* Themed depth glow, replacing the flat shadow-lg. */
+  box-shadow: 0 10px 40px -12px hsl(var(--primary) / 0.28), 0 8px 24px rgba(0, 0, 0, 0.45);
+}
+@media (prefers-reduced-motion: no-preference) {
+  body:not(.ui-glass):not(.ui-minimal):not(.ui-elevated) .aurora-dialog {
+    /* The delay is a PERF measure, not styling: the angle animates a paint property, so
+       every frame of the spin repaints the dialog background on the main thread. Holding
+       the ring static (initial 0deg paints once) until the dialog's ~200ms zoom/fade
+       entrance has settled keeps the open — critically the quick-add radial → form dialog
+       handoff — jank-free on Android. The drift starting 450ms in is imperceptible. */
+    animation: aurora-spin 18s linear 0.45s infinite;
+  }
+}
+/* Low-power devices keep the themed ring but drop the continuous repaint. */
+body.low-power .aurora-dialog {
+  animation: none !important;
 }

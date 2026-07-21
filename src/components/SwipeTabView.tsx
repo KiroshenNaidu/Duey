@@ -66,6 +66,7 @@ export function SwipeTabView<T extends string>({
   enabled = true,
   edgeZone = 0,
   className,
+  progress: externalProgress,
 }: {
   /** Ordered tab ids — panel order along the swipe axis. */
   tabs: readonly T[];
@@ -80,6 +81,10 @@ export function SwipeTabView<T extends string>({
    *  slider/scroller guard — keeps slider-heavy tabs swipeable from the gutters. */
   edgeZone?: number;
   className?: string;
+  /** Optional external carousel-position value. Pass one in to drive a synced tab-strip
+   *  highlight (like the BottomNav pill) — it tracks the finger 1:1 during a swipe and
+   *  settles with the panels on a tap. Omitted, an internal value is used. */
+  progress?: MotionValue<number>;
 }) {
   const { pageTransitionId } = useContext(AppDataContext);
   const reduceMotion = useReducedMotion();
@@ -94,8 +99,10 @@ export function SwipeTabView<T extends string>({
   tabsRef.current = tabs;
 
   // Local carousel position (activeIdx + drag fraction) — same contract as the global
-  // pageProgress, but scoped to this tab set.
-  const progress = useMemo(() => motionValue(activeIdx), []); // eslint-disable-line react-hooks/exhaustive-deps
+  // pageProgress, but scoped to this tab set. Falls back to an internal value when the
+  // parent doesn't supply one to sync a tab strip against.
+  const internalProgress = useMemo(() => motionValue(activeIdx), []); // eslint-disable-line react-hooks/exhaustive-deps
+  const progress = externalProgress ?? internalProgress;
 
   const containerRef = useRef<HTMLDivElement | null>(null);
 

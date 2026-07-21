@@ -396,23 +396,25 @@ export function DebtCard({ debt, grouped = false }: DebtCardProps) {
                 // Inside a person group the header already names the person, so the card
                 // shows WHAT the debt is for (falling back to the old date stamp when the
                 // title is just the person name repeated).
-                ? <span className="text-xs font-medium text-muted-foreground">
-                    {debt.person && debt.person !== debt.title
-                      ? `${debt.title}${createdLabel ? ` · ${createdLabel}` : ''}`
-                      : (createdLabel ? `Added ${createdLabel}` : debt.title)}
-                  </span>
+                ? debt.person && debt.person !== debt.title
+                  // Real reason present: show it at full title weight (the person's name is
+                  // already up in the group header), with the creation date trailing in grey.
+                  ? <>{debt.title}{createdLabel && <span className="text-xs font-medium text-muted-foreground"> · {createdLabel}</span>}</>
+                  // No real reason (title just repeats the person): keep the muted date stamp.
+                  : <span className="text-xs font-medium text-muted-foreground">{createdLabel ? `Added ${createdLabel}` : debt.title}</span>
+                // Ungrouped card with a distinct person: "Person - reason" on one line, the
+                // reason styled with the same grey used for the grouped title above.
+                : debt.person && debt.person !== debt.title
+                ? <>{debt.person}<span className="text-xs font-medium text-muted-foreground"> - {debt.title}</span></>
                 : debt.title}</CardTitle>
-              {!grouped && debt.person && (
-                <p className="text-[10px] text-muted-foreground truncate">to {debt.person}</p>
-              )}
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 shrink-0">
               {debt.dueDay != null && !isPaidOff && (
                 <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-muted-foreground whitespace-nowrap">
                   <CalendarDays className="h-3 w-3" /> Due {ordinal(debt.dueDay)}
                 </span>
               )}
-              <span className="text-xs text-muted-foreground whitespace-nowrap">
+              <span className="text-xs text-muted-foreground whitespace-nowrap tabular-nums">
                 {paymentCount} of {totalInstallments} ({Math.round(progress)}%)
               </span>
 
@@ -783,12 +785,12 @@ export function DebtCard({ debt, grouped = false }: DebtCardProps) {
               }}
             />
           </div>
-          <div className="flex justify-between items-baseline">
+          <div className="flex justify-between items-baseline gap-2">
             <span
-              className="text-xs font-medium text-muted-foreground"
+              className="text-xs font-medium text-muted-foreground min-w-0 truncate tabular-nums"
               style={isPaidOff ? { color: 'hsl(var(--primary-complete))' } : undefined}
             >{formatCurrency(amountPaid)} Paid</span>
-            <span className="text-xs text-muted-foreground">/ {formatCurrency(debt.total_owed)}</span>
+            <span className="text-xs text-muted-foreground whitespace-nowrap tabular-nums shrink-0">/ {formatCurrency(debt.total_owed)}</span>
           </div>
         </CardContent>
       </Card>
