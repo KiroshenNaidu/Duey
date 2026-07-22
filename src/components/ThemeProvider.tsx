@@ -154,6 +154,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     root.style.setProperty('--btn-on-primary', autoContrast(themeSettings.primary));
     root.style.setProperty('--btn-on-secondary', autoContrast(lighten(themeSettings.surface, 4)));
     root.style.setProperty('--btn-on-accent', autoContrast(themeSettings.accent));
+    root.style.setProperty('--btn-on-positive', autoContrast(themeSettings.positive || '161 50% 57%'));
     root.style.setProperty('--btn-on-destructive', autoContrast('0 62.8% 30.6%'));
     // Auto-contrast text for transparent buttons (outline/ghost) sitting on the
     // app surface — both Dialog and AlertDialog content use --background.

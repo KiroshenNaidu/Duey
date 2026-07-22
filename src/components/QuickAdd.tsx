@@ -1064,7 +1064,7 @@ function QuickTransportPaidForm({ onDone }: { onDone: () => void }) {
         <span className="text-lg font-bold tabular-nums">{formatCurrency(totalDue)}</span>
       </div>
       <p className="text-[10px] text-muted-foreground">Logs a transport payment for this month — same as &ldquo;Mark as Paid&rdquo; on the Transport page. Undo there anytime.</p>
-      <Button className="w-full" onClick={submit}>Mark {format(now, 'MMMM')} as paid</Button>
+      <Button className="w-full pay-button-3d" onClick={submit}>Mark {format(now, 'MMMM')} as paid</Button>
     </div>
   );
 }

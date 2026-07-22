@@ -508,89 +508,91 @@ export function TransportPage() {
             </Button>
           </div>
         </CardFooter>
-      </Card>
 
-      {/* ── Monthly summary ── */}
-      {calendarMode === 'driver' ? (
-        <Card>
-          <CardHeader className="p-3">
-            <CardTitle className="text-foreground uppercase text-[10px] tracking-widest">Monthly Summary</CardTitle>
-          </CardHeader>
-          <CardContent className="p-3 pt-0 space-y-1.5">
-            {pricingMode === 'monthly' && isEditingCalendar && !isLocked && !isPaidForMonth ? (
-              <>
-                <div className="flex justify-between items-center">
-                  <p className="text-xs text-foreground">Flat monthly rate</p>
-                  <Input
-                    type="number"
-                    min={0}
-                    value={monthlyAmountOverride}
-                    onChange={e => handleMonthlyOverrideChange(e.target.value)}
-                    placeholder={String(transportSettings.monthlyFee)}
-                    className="h-9 w-32 text-right text-sm font-bold"
-                  />
-                </div>
-                {monthlyAmountOverride !== '' && parseFloat(monthlyAmountOverride) !== transportSettings.monthlyFee && (
-                  <p className="text-[10px] text-muted-foreground text-right">
-                    Default {formatCurrency(transportSettings.monthlyFee)} · adjusted for {format(currentDate, 'MMMM')}
-                  </p>
-                )}
-              </>
-            ) : (
-              <>
-                <div className="flex justify-between items-baseline">
-                  <p className="text-xs text-foreground">
-                    {!transportSettings.employed && isFutureMonth ? (
-                      <span className="text-muted-foreground">Unemployed — no travel</span>
-                    ) : pricingMode === 'monthly' ? (
-                      <span>Flat monthly rate</span>
-                    ) : (
-                      <>
-                        <span className="font-bold">{fullDaysCount}</span> full
-                        {halfDaysCount > 0 && <> · <span className="font-bold">{halfDaysCount}</span> half</>}
-                        {' '}days
-                      </>
-                    )}
-                  </p>
-                  <p className="text-base font-bold whitespace-nowrap text-foreground">
-                    {formatCurrency(pricingMode === 'monthly' ? effectiveMonthlyAmount : totalDue)}
-                  </p>
-                </div>
-                {pricingMode === 'monthly' && hasMonthlyOverride && effectiveMonthlyAmount !== transportSettings.monthlyFee && (
-                  <p className="text-[10px] text-muted-foreground text-right">
-                    Default {formatCurrency(transportSettings.monthlyFee)} · adjusted for {format(currentDate, 'MMMM')}
-                  </p>
-                )}
-              </>
-            )}
-          </CardContent>
-          <CardFooter className="p-3 pt-0">
-            <Button
-              className={cn(
-                "w-full h-8 text-xs font-bold",
-                isPaidForMonth && "bg-positive/20 text-positive border border-positive/30 hover:bg-destructive/20 hover:text-destructive hover:border-destructive/30"
+        {/* ── Monthly summary — same card, divided from the calendar; the Driver/Uber
+            toggle above switches both the grid and this summary section. ── */}
+        {calendarMode === 'driver' ? (
+          <div className="border-t border-border/30">
+            <CardHeader className="p-3">
+              <CardTitle className="text-foreground uppercase text-[10px] tracking-widest">Monthly Summary</CardTitle>
+            </CardHeader>
+            <CardContent className="p-3 pt-0 space-y-1.5">
+              {pricingMode === 'monthly' && isEditingCalendar && !isLocked && !isPaidForMonth ? (
+                <>
+                  <div className="flex justify-between items-center">
+                    <p className="text-xs text-foreground">Flat monthly rate</p>
+                    <Input
+                      type="number"
+                      min={0}
+                      value={monthlyAmountOverride}
+                      onChange={e => handleMonthlyOverrideChange(e.target.value)}
+                      placeholder={String(transportSettings.monthlyFee)}
+                      className="h-9 w-32 text-right text-sm font-bold"
+                    />
+                  </div>
+                  {monthlyAmountOverride !== '' && parseFloat(monthlyAmountOverride) !== transportSettings.monthlyFee && (
+                    <p className="text-[10px] text-muted-foreground text-right">
+                      Default {formatCurrency(transportSettings.monthlyFee)} · adjusted for {format(currentDate, 'MMMM')}
+                    </p>
+                  )}
+                </>
+              ) : (
+                <>
+                  <div className="flex justify-between items-baseline">
+                    <p className="text-xs text-foreground">
+                      {!transportSettings.employed && isFutureMonth ? (
+                        <span className="text-muted-foreground">Unemployed — no travel</span>
+                      ) : pricingMode === 'monthly' ? (
+                        <span>Flat monthly rate</span>
+                      ) : (
+                        <>
+                          <span className="font-bold">{fullDaysCount}</span> full
+                          {halfDaysCount > 0 && <> · <span className="font-bold">{halfDaysCount}</span> half</>}
+                          {' '}days
+                        </>
+                      )}
+                    </p>
+                    <p className="text-base font-bold whitespace-nowrap text-foreground">
+                      {formatCurrency(pricingMode === 'monthly' ? effectiveMonthlyAmount : totalDue)}
+                    </p>
+                  </div>
+                  {pricingMode === 'monthly' && hasMonthlyOverride && effectiveMonthlyAmount !== transportSettings.monthlyFee && (
+                    <p className="text-[10px] text-muted-foreground text-right">
+                      Default {formatCurrency(transportSettings.monthlyFee)} · adjusted for {format(currentDate, 'MMMM')}
+                    </p>
+                  )}
+                </>
               )}
-              variant={isPaidForMonth ? 'outline' : 'default'}
-              onClick={handleMarkAsPaid}
-              disabled={!isPaidForMonth && (isLocked || (pricingMode === 'monthly' ? effectiveMonthlyAmount : totalDue) <= 0)}
-            >
-              {isPaidForMonth ? '✓ Payment Confirmed — tap to undo' : `Mark as Paid for ${format(currentDate, 'MMMM')}`}
-            </Button>
-          </CardFooter>
-        </Card>
-      ) : (
-        <Card>
-          <CardHeader className="p-3">
-            <CardTitle className="text-foreground uppercase text-[10px] tracking-widest">Uber — {format(currentDate, 'MMMM yyyy')}</CardTitle>
-          </CardHeader>
-          <CardContent className="flex justify-between items-baseline p-3 pt-0">
-            <p className="text-xs text-foreground">
-              <span className="font-bold">{uberMonthRides.length}</span> ride{uberMonthRides.length !== 1 ? 's' : ''}
-            </p>
-            <p className="text-base font-bold whitespace-nowrap text-foreground">{formatCurrency(uberMonthTotal)}</p>
-          </CardContent>
-        </Card>
-      )}
+            </CardContent>
+            <CardFooter className="p-3 pt-0">
+              <Button
+                className={cn(
+                  "w-full h-8 text-xs font-bold",
+                  !isPaidForMonth && "pay-button-3d",
+                  isPaidForMonth && "paid-button-3d"
+                )}
+                variant={isPaidForMonth ? 'outline' : 'default'}
+                onClick={handleMarkAsPaid}
+                disabled={!isPaidForMonth && (isLocked || (pricingMode === 'monthly' ? effectiveMonthlyAmount : totalDue) <= 0)}
+              >
+                {isPaidForMonth ? '✓ Payment Confirmed — tap to undo' : `Mark as Paid for ${format(currentDate, 'MMMM')}`}
+              </Button>
+            </CardFooter>
+          </div>
+        ) : (
+          <div className="border-t border-border/30">
+            <CardHeader className="p-3">
+              <CardTitle className="text-foreground uppercase text-[10px] tracking-widest">Uber — {format(currentDate, 'MMMM yyyy')}</CardTitle>
+            </CardHeader>
+            <CardContent className="flex justify-between items-baseline p-3 pt-0">
+              <p className="text-xs text-foreground">
+                <span className="font-bold">{uberMonthRides.length}</span> ride{uberMonthRides.length !== 1 ? 's' : ''}
+              </p>
+              <p className="text-base font-bold whitespace-nowrap text-foreground">{formatCurrency(uberMonthTotal)}</p>
+            </CardContent>
+          </div>
+        )}
+      </Card>
 
       <TransportHistoryLog
         history={history}

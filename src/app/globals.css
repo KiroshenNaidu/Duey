@@ -65,6 +65,7 @@ nav.fixed,
     --btn-on-primary: 0 0% 0%;
     --btn-on-secondary: 0 0% 100%;
     --btn-on-accent: 0 0% 0%;
+    --btn-on-positive: 0 0% 0%;
     --btn-on-destructive: 0 0% 100%;
     --btn-on-surface: 0 0% 100%;
 
@@ -363,6 +364,67 @@ nav.fixed,
       arc-flow-accent 1.6s ease-in-out infinite alternate,
       cell-glow-accent 2s ease-in-out infinite;
   }
+}
+
+/* ── Pressable 3D transport buttons — shared form for the "Mark as paid" (accent) and
+   "Payment confirmed" (positive → destructive) states so they read as one family:
+   a filled gradient face, a solid darker lower "lip", and a very subtle static glow.
+   TUNE ME: in each box-shadow the FIRST layer is the lip (its Y offset = lip height,
+   the darker mix = the button's side wall); the SECOND is the depth drop; the LAST is
+   the subtle glow (blur/alpha = strength). :active sinks the button by translating it
+   down onto a shorter lip so the bottom edge stays put — that's the "press". */
+.pay-button-3d {
+  background-image: linear-gradient(147deg, hsl(var(--accent)) 0%, hsl(var(--accent-complete)) 92%);
+  color: hsl(var(--btn-on-accent));
+  border: none;
+  transform: translateY(0);
+  box-shadow:
+    0 4px 0 0 hsl(var(--accent-complete) / 0.85),
+    0 5px 10px -3px hsl(var(--accent) / 0.35),
+    0 0 8px 0 hsl(var(--accent) / 0.22);
+  transition: transform 0.09s ease, box-shadow 0.09s ease, background-image 0.2s ease, color 0.2s ease;
+}
+.pay-button-3d:hover:not(:disabled) {
+  /* Drift the far stop toward the near-analogous accent-b on hover — the same hue the
+     today cell rests-then-flows through, so hovering "warms" the button a step. */
+  background-image: linear-gradient(147deg, hsl(var(--accent)) 0%, hsl(var(--accent-b)) 92%);
+}
+.pay-button-3d:active:not(:disabled) {
+  transform: translateY(3px);
+  box-shadow:
+    0 1px 0 0 hsl(var(--accent-complete) / 0.85),
+    0 2px 5px -3px hsl(var(--accent) / 0.3),
+    0 0 6px 0 hsl(var(--accent) / 0.2);
+}
+
+/* Confirmed/paid state — same 3D form in the positive family so it reads as "done";
+   hovering flips it to the destructive family (the undo cue). No -b/-complete stops
+   exist for these, so the darker gradient/lip is mixed toward black with color-mix. */
+.paid-button-3d {
+  background-image: linear-gradient(147deg, hsl(var(--positive)) 0%, color-mix(in srgb, hsl(var(--positive)) 60%, #000) 92%);
+  color: hsl(var(--btn-on-positive));
+  border: none;
+  transform: translateY(0);
+  box-shadow:
+    0 4px 0 0 color-mix(in srgb, hsl(var(--positive)) 52%, #000),
+    0 5px 10px -3px hsl(var(--positive) / 0.35),
+    0 0 8px 0 hsl(var(--positive) / 0.22);
+  transition: transform 0.09s ease, box-shadow 0.09s ease, background-image 0.2s ease, color 0.2s ease;
+}
+.paid-button-3d:hover:not(:disabled) {
+  background-image: linear-gradient(147deg, hsl(var(--destructive)) 0%, color-mix(in srgb, hsl(var(--destructive)) 74%, #000) 92%);
+  color: hsl(var(--btn-on-destructive));
+  box-shadow:
+    0 4px 0 0 color-mix(in srgb, hsl(var(--destructive)) 68%, #000),
+    0 5px 10px -3px hsl(var(--destructive) / 0.4),
+    0 0 8px 0 hsl(var(--destructive) / 0.25);
+}
+.paid-button-3d:active:not(:disabled) {
+  transform: translateY(3px);
+  box-shadow:
+    0 1px 0 0 color-mix(in srgb, hsl(var(--destructive)) 68%, #000),
+    0 2px 5px -3px hsl(var(--destructive) / 0.35),
+    0 0 6px 0 hsl(var(--destructive) / 0.22);
 }
 
 /* Quick-add radial labels. Colour is a FIXED primary (no colour animation) so it snaps
