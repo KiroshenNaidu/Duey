@@ -108,7 +108,9 @@ export function DayNightToggle() {
     // relative anchor: the config panel floats below the card (overlaying the menu
     // buttons underneath) instead of expanding the card and pushing them down.
     <div className="relative">
-      <div className="bg-card rounded-2xl p-3">
+      {/* Bottom corners square off while open so the floating panel below reads as one
+          connected drop-down surface. */}
+      <div className={cn('bg-card rounded-2xl p-3 transition-[border-radius] duration-300', expanded && 'rounded-b-none')}>
         <div className="flex items-center gap-4">
           {dayNight.mode === 'day'
             ? <Sun className="h-5 w-5 text-accent shrink-0" />
@@ -152,9 +154,9 @@ export function DayNightToggle() {
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
             transition={{ type: 'tween', ease: [0.25, 0.46, 0.45, 0.94], duration: 0.28 }}
-            className="absolute left-0 right-0 top-full z-30 mt-2 overflow-hidden rounded-2xl bg-card border border-border/40 shadow-xl shadow-black/40"
+            className="absolute left-0 right-0 top-full z-30 overflow-hidden rounded-b-2xl bg-card shadow-xl shadow-black/40"
           >
-            <div className="space-y-3 p-3">
+            <div className="space-y-3 p-3 border-t border-border/40">
               {favouriteOptions.length === 0 ? (
                 <p className="text-xs text-muted-foreground">
                   No favourite themes yet. Star themes in{' '}
