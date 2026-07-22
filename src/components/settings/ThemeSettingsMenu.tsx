@@ -14,7 +14,7 @@ import { Slider } from '@/components/ui/slider';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { hexToHsl, hslToHex, idbGet, idbSet, cn } from '@/lib/utils';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Upload, Loader2, Trash2, Check, Plus, Minus, ShieldCheck, Star, RotateCcw } from 'lucide-react';
+import { Upload, Loader2, Trash2, Check, Plus, Minus, Star, RotateCcw } from 'lucide-react';
 import { AppDataContext } from '@/context/AppDataContext';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
@@ -451,7 +451,6 @@ export function ThemeSettingsMenu({ onCancel, onDirtyChange, onSaved }: { onCanc
     onDelete,
     deleteDescription = 'This custom preset will be permanently removed.',
     isActive,
-    isDefault,
     isFavourite,
     onToggleFavourite,
   }: {
@@ -460,7 +459,6 @@ export function ThemeSettingsMenu({ onCancel, onDirtyChange, onSaved }: { onCanc
     onDelete?: () => void;
     deleteDescription?: string;
     isActive: boolean;
-    isDefault?: boolean;
     isFavourite: boolean;
     onToggleFavourite: () => void;
   }) => (
@@ -488,14 +486,6 @@ export function ThemeSettingsMenu({ onCancel, onDirtyChange, onSaved }: { onCanc
         {isActive && (
           <div className="absolute top-2 right-2 h-5 w-5 rounded-full bg-primary flex items-center justify-center">
             <Check className="h-3 w-3 text-primary-foreground" />
-          </div>
-        )}
-        {isDefault && (
-          <div
-            className="absolute top-2 left-2 h-5 w-5 rounded-full bg-black/30 flex items-center justify-center"
-            title="Safe mode — always restores to app defaults"
-          >
-            <ShieldCheck className="h-3 w-3 text-white/70" />
           </div>
         )}
         {settings.uiStyle === 'glass' && (
@@ -992,7 +982,6 @@ export function ThemeSettingsMenu({ onCancel, onDirtyChange, onSaved }: { onCanc
                     name={preset.name}
                     settings={preset.settings}
                     isActive={areThemeSettingsEqual(currentActiveSettings, preset.settings)}
-                    isDefault={preset.name === 'Duey'}
                     isFavourite={draftFavourites.includes(`preset:${preset.name}`)}
                     onToggleFavourite={() => toggleDraftFavourite(`preset:${preset.name}`)}
                     // Deleting a built-in just hides it (restorable, drafted until Save).

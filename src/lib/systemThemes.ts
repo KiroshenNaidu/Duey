@@ -4,19 +4,6 @@ import type { UserTheme } from './types';
 // menu and the Day/Night quick-switch can list them without pulling each other in.
 export const systemPresets: Omit<UserTheme, 'id'>[] = [
   {
-    name: 'Duey',
-    settings: {
-      background: '240 6% 7%', surface: '240 4% 11%',
-      primary: '96 65% 64%', accent: '103 77% 59%',
-      foreground: '60 8% 95%', accentForeground: '240 3% 62%',
-      font: 'Inter', uiScale: 1.0, uiStyle: 'solid',
-      positive: '161 50% 57%', negative: '0 70% 62%',
-      catTransport: '217 91% 68%', catBudget: '0 70% 62%',
-      catExpense: '25 95% 53%', catCompletion: '43 96% 70%',
-      catEmployment: '173 80% 74%', catSnapshot: '199 89% 62%',
-    },
-  },
-  {
     // Curated recommendation: a deep slate-indigo base with a soft violet primary and a
     // mint accent — tuned to the app's card-heavy dark layout (violet carries the FABs
     // and progress bars without glare; mint keeps positive amounts/actions legible).
@@ -30,6 +17,19 @@ export const systemPresets: Omit<UserTheme, 'id'>[] = [
       catTransport: '213 90% 68%', catBudget: '340 68% 64%',
       catExpense: '25 92% 60%', catCompletion: '43 96% 70%',
       catEmployment: '168 62% 56%', catSnapshot: '199 89% 66%',
+    },
+  },
+  {
+    name: 'Duey',
+    settings: {
+      background: '240 6% 7%', surface: '240 4% 11%',
+      primary: '96 65% 64%', accent: '103 77% 59%',
+      foreground: '60 8% 95%', accentForeground: '240 3% 62%',
+      font: 'Inter', uiScale: 1.0, uiStyle: 'solid',
+      positive: '161 50% 57%', negative: '0 70% 62%',
+      catTransport: '217 91% 68%', catBudget: '0 70% 62%',
+      catExpense: '25 95% 53%', catCompletion: '43 96% 70%',
+      catEmployment: '173 80% 74%', catSnapshot: '199 89% 62%',
     },
   },
   {

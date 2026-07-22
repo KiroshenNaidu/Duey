@@ -1,6 +1,7 @@
 'use client';
 
 import { useContext, useMemo, useState } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
 import { AppDataContext } from '@/context/AppDataContext';
 import { systemPresets } from '@/lib/systemThemes';
 import { STATUS_COLOR_VARS } from '@/components/ThemeProvider';
@@ -104,66 +105,84 @@ export function DayNightToggle() {
   };
 
   return (
-    <div className="bg-card rounded-2xl p-3">
-      <div className="flex items-center gap-4">
-        {dayNight.mode === 'day'
-          ? <Sun className="h-5 w-5 text-accent shrink-0" />
-          : <Moon className="h-5 w-5 text-accent shrink-0" />}
-        <div className="flex-1 min-w-0">
-          <p className="text-base font-semibold text-card-foreground">Day / Night</p>
-          <p className="text-xs text-muted-foreground">
-            {configured
-              ? `${dayNight.mode === 'day' ? 'Day' : 'Night'} theme active — tap to switch`
-              : 'Pick a theme for each mode to enable'}
-          </p>
+    // relative anchor: the config panel floats below the card (overlaying the menu
+    // buttons underneath) instead of expanding the card and pushing them down.
+    <div className="relative">
+      <div className="bg-card rounded-2xl p-3">
+        <div className="flex items-center gap-4">
+          {dayNight.mode === 'day'
+            ? <Sun className="h-5 w-5 text-accent shrink-0" />
+            : <Moon className="h-5 w-5 text-accent shrink-0" />}
+          <div className="flex-1 min-w-0">
+            <p className="text-base font-semibold text-card-foreground">Day / Night</p>
+            <p className="text-xs text-muted-foreground">
+              {configured
+                ? `${dayNight.mode === 'day' ? 'Day' : 'Night'} theme active — tap to switch`
+                : 'Pick a theme for each mode to enable'}
+            </p>
+          </div>
+          <button
+            onClick={() => setExpanded(v => !v)}
+            className="p-2 rounded-xl text-muted-foreground/60 active:bg-muted shrink-0"
+            aria-label="Configure day/night themes"
+          >
+            <Settings2 className="h-4 w-4" />
+          </button>
+          {/* Same goo Switch used everywhere else — daynight-switch variant keeps the track
+              in the active theme's primary colour in BOTH positions (see globals.css), and
+              iconStyle swaps the I/O track glyphs for a sun/moon pair (this switch only). */}
+          <Switch
+            checked={dayNight.mode === 'day'}
+            onCheckedChange={handleToggle}
+            aria-label="Toggle day/night theme"
+            className="daynight-switch"
+            iconStyle="daynight"
+          />
         </div>
-        <button
-          onClick={() => setExpanded(v => !v)}
-          className="p-2 rounded-xl text-muted-foreground/60 active:bg-muted shrink-0"
-          aria-label="Configure day/night themes"
-        >
-          <Settings2 className="h-4 w-4" />
-        </button>
-        {/* Same goo Switch used everywhere else — daynight-switch variant keeps the track
-            in the active theme's primary colour in BOTH positions (see globals.css), and
-            iconStyle swaps the I/O track glyphs for a sun/moon pair (this switch only). */}
-        <Switch
-          checked={dayNight.mode === 'day'}
-          onCheckedChange={handleToggle}
-          aria-label="Toggle day/night theme"
-          className="daynight-switch"
-          iconStyle="daynight"
-        />
       </div>
 
-      {expanded && (
-        <div className="space-y-3 mt-3 pt-3 border-t border-border/40">
-          {favouriteOptions.length === 0 ? (
-            <p className="text-xs text-muted-foreground">
-              No favourite themes yet. Star themes in{' '}
-              <span className="font-semibold text-foreground">Theme → Presets</span>{' '}
-              (<Star className="inline h-3 w-3 -mt-0.5 text-yellow-400 fill-yellow-400" />) and they&apos;ll show up here to pick from.
-            </p>
-          ) : (
-            <>
-              <PresetChips
-                label="Day theme"
-                icon={<Sun className="h-3 w-3" />}
-                options={favouriteOptions}
-                selectedId={dayNight.dayThemeId}
-                onPick={id => handlePick('day', id)}
-              />
-              <PresetChips
-                label="Night theme"
-                icon={<Moon className="h-3 w-3" />}
-                options={favouriteOptions}
-                selectedId={dayNight.nightThemeId}
-                onPick={id => handlePick('night', id)}
-              />
-            </>
-          )}
-        </div>
-      )}
+      {/* Animated drop-down: height reveal clipped by overflow-hidden, same easing as the
+          settings menu slide (SettingsPage menuTransition) so it feels native to the app.
+          Absolutely positioned + z-30 so it floats over the menu items below the card. */}
+      <AnimatePresence initial={false}>
+        {expanded && (
+          <motion.div
+            key="daynight-config"
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ type: 'tween', ease: [0.25, 0.46, 0.45, 0.94], duration: 0.28 }}
+            className="absolute left-0 right-0 top-full z-30 mt-2 overflow-hidden rounded-2xl bg-card border border-border/40 shadow-xl shadow-black/40"
+          >
+            <div className="space-y-3 p-3">
+              {favouriteOptions.length === 0 ? (
+                <p className="text-xs text-muted-foreground">
+                  No favourite themes yet. Star themes in{' '}
+                  <span className="font-semibold text-foreground">Theme → Presets</span>{' '}
+                  (<Star className="inline h-3 w-3 -mt-0.5 text-yellow-400 fill-yellow-400" />) and they&apos;ll show up here to pick from.
+                </p>
+              ) : (
+                <>
+                  <PresetChips
+                    label="Day theme"
+                    icon={<Sun className="h-3 w-3" />}
+                    options={favouriteOptions}
+                    selectedId={dayNight.dayThemeId}
+                    onPick={id => handlePick('day', id)}
+                  />
+                  <PresetChips
+                    label="Night theme"
+                    icon={<Moon className="h-3 w-3" />}
+                    options={favouriteOptions}
+                    selectedId={dayNight.nightThemeId}
+                    onPick={id => handlePick('night', id)}
+                  />
+                </>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
