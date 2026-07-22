@@ -8,6 +8,8 @@ import { cn } from "@/lib/utils"
 // previous Radix switch — same API (checked / onCheckedChange / disabled / id / className).
 // Colors are theme-driven via CSS vars in globals.css (.toggle-container): the active fill is
 // --primary and the inactive track is --input, so it recolors with the app theme automatically.
+// Variant classes passed via className can re-pin those vars — .daynight-switch (primary track
+// in both positions) and .accent-flow-switch (checked track flows through the accent family).
 
 export interface SwitchProps
   extends Omit<React.InputHTMLAttributes<HTMLInputElement>, "onChange" | "type"> {

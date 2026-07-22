@@ -134,7 +134,7 @@ const DraggableCard = ({ children, onClose }: { children: React.ReactNode; onClo
         exit={{ opacity: 0, scale: 0.92, y: 10 }}
         transition={{ type: 'tween', ease: [0.25, 0.46, 0.45, 0.94], duration: 0.18 }}
       >
-        <Card className="rounded-3xl overflow-hidden border-accent/20 shadow-2xl">
+        <Card className="rounded-3xl overflow-hidden border border-accent/20 shadow-2xl">
           <CardHeader
             onMouseDown={onDragStart}
             onTouchStart={onDragStart}

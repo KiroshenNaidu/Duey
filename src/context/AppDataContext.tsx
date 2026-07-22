@@ -55,8 +55,10 @@ function migrateState(raw: AppState): AppState {
       ? { name: raw.userProfile.name ?? '', paydayDay: raw.userProfile.paydayDay ?? 26, bio: raw.userProfile.bio ?? '' }
       : { name: '', paydayDay: 26, bio: '' },
     notificationSettings: raw.notificationSettings
-      ? { enabled: raw.notificationSettings.enabled ?? false, paydayDay: raw.notificationSettings.paydayDay ?? 26, hour: raw.notificationSettings.hour ?? 18, minute: raw.notificationSettings.minute ?? 0, message: raw.notificationSettings.message ?? 'Time to log your monthly payments.' }
-      : { enabled: false, paydayDay: 26, hour: 18, minute: 0, message: 'Time to log your monthly payments.' },
+      // masterEnabled migration: pre-master installs could only have granted notification
+      // permission by enabling the monthly reminder, so inherit `enabled` as the default.
+      ? { masterEnabled: raw.notificationSettings.masterEnabled ?? raw.notificationSettings.enabled ?? false, enabled: raw.notificationSettings.enabled ?? false, paydayDay: raw.notificationSettings.paydayDay ?? 26, hour: raw.notificationSettings.hour ?? 18, minute: raw.notificationSettings.minute ?? 0, message: raw.notificationSettings.message ?? 'Time to log your monthly payments.' }
+      : { masterEnabled: false, enabled: false, paydayDay: 26, hour: 18, minute: 0, message: 'Time to log your monthly payments.' },
     themeSettings: raw.themeSettings
       ? { ...raw.themeSettings, useSafeAreaInsets: true, bgX: raw.themeSettings.bgX ?? 50, bgY: raw.themeSettings.bgY ?? 50, bgScale: raw.themeSettings.bgScale ?? 1, backgroundBlur: raw.themeSettings.backgroundBlur ?? 0 }
       : defaultState.themeSettings,
@@ -89,7 +91,7 @@ const defaultState: AppState = {
   budgetPlans: [],
   monthlyIncome: 0,
   userProfile: { name: '', paydayDay: 26, bio: '' },
-  notificationSettings: { enabled: false, paydayDay: 26, hour: 18, minute: 0, message: 'Time to log your monthly payments.' },
+  notificationSettings: { masterEnabled: false, enabled: false, paydayDay: 26, hour: 18, minute: 0, message: 'Time to log your monthly payments.' },
   // Default theme = the "System Rec" preset (deep slate-indigo base, violet primary, mint
   // accent). Keep these color values in sync with the 'System Rec' entry in systemThemes.ts
   // and the :root fallback in globals.css.
@@ -173,6 +175,7 @@ interface AppContextType extends AppState {
   setDayNight: (dayNight: DayNightSettings) => void;
   addBudgetPlan: (name: string, budget: number) => void;
   deleteBudgetPlan: (planId: string) => void;
+  archiveBudgetPlan: (planId: string) => void;
   updateBudgetPlan: (planId: string, data: { name?: string; budget?: number }) => void;
   addBudgetItem: (planId: string, item: Omit<BudgetItem, 'id' | 'createdAt'>) => void;
   deleteBudgetItem: (planId: string, itemId: string) => void;
@@ -231,6 +234,7 @@ export const AppDataContext = createContext<AppContextType>({
   setDayNight: () => {},
   addBudgetPlan: () => {},
   deleteBudgetPlan: () => {},
+  archiveBudgetPlan: () => {},
   updateBudgetPlan: () => {},
   addBudgetItem: () => {},
   deleteBudgetItem: () => {},
@@ -283,11 +287,13 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
   useEffect(() => { setHapticStrength(appState.hapticsStrength); }, [appState.hapticsStrength]);
 
   // Keep per-debt due-date reminders in sync with the debt list (native only, best-effort).
-  // Debts without a dueDay are simply never scheduled.
+  // Debts without a dueDay are simply never scheduled; fully-paid debts stop reminding
+  // (history dep re-syncs after every payment). The Notifications master switch gates the
+  // whole feature — turning it off cancels every pending debt reminder.
   useEffect(() => {
     if (!isLoaded) return;
-    void syncDebtReminders(appState.debts);
-  }, [isLoaded, appState.debts]);
+    void syncDebtReminders(appState.debts, appState.history, appState.notificationSettings.masterEnabled);
+  }, [isLoaded, appState.debts, appState.history, appState.notificationSettings.masterEnabled]);
 
   useEffect(() => {
     const storedStateRaw = localStorage.getItem('appState');
@@ -789,6 +795,29 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     });
   }, [updateStateAndSync]);
 
+  // Archive keeps the plan in state (hidden from the picker) so its confirmed spend
+  // still counts for the month it was confirmed — removing it would silently un-deduct
+  // that money from the live balance and the month-end seal. See BudgetPlan.archived.
+  const archiveBudgetPlan = useCallback((planId: string) => {
+    updateStateAndSync(prev => {
+      const plan = prev.budgetPlans.find(p => p.id === planId);
+      if (!plan) return prev;
+      const historyEntry: HistoryEntry = {
+        id: genId(),
+        debtTitle: `Budget: ${plan.name}`,
+        date: new Date().toISOString(),
+        amount: plan.items.reduce((s, i) => s + i.price, 0),
+        type: 'budget',
+        note: 'Plan archived',
+      };
+      return {
+        ...prev,
+        budgetPlans: prev.budgetPlans.map(p => p.id === planId ? { ...p, archived: true } : p),
+        history: [historyEntry, ...prev.history],
+      };
+    });
+  }, [updateStateAndSync]);
+
   const updateBudgetPlan = (planId: string, data: { name?: string; budget?: number }) => {
     updateStateAndSync(prev => ({
       ...prev,
@@ -951,6 +980,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     setDayNight: (dayNight: DayNightSettings) => updateStateAndSync(p => ({ ...p, dayNight })),
     addBudgetPlan,
     deleteBudgetPlan,
+    archiveBudgetPlan,
     updateBudgetPlan,
     addBudgetItem,
     deleteBudgetItem,

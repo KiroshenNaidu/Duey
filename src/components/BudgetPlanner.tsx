@@ -1,13 +1,13 @@
 'use client';
 
-import { useContext, useState, useMemo } from 'react';
+import { useContext, useState, useMemo, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import { format } from 'date-fns';
 import { AppDataContext } from '@/context/AppDataContext';
 import { useFabLongPress, FAB_TOUCH_STYLE, FabPulse } from '@/components/QuickAdd';
 import type { BudgetPlan, BudgetItem } from '@/lib/types';
 import { formatCurrency, cn } from '@/lib/utils';
-import { Plus, Trash2, ExternalLink, Edit2, Check } from 'lucide-react';
+import { Plus, Trash2, ExternalLink, Edit2, Check, Maximize2, Minimize2, Archive } from 'lucide-react';
 import { FixedPortal } from '@/components/FixedPortal';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -282,7 +282,7 @@ function AddItemDialog({ plan, onAdd }: { plan: BudgetPlan; onAdd: (item: Omit<B
 }
 
 function PlanView({ plan }: { plan: BudgetPlan }) {
-  const { deleteBudgetPlan, addBudgetItem, deleteBudgetItem, toggleBudgetItemPurchased, updateBudgetPlan, toggleBudgetPlanConfirmed, themeSettings } = useContext(AppDataContext);
+  const { deleteBudgetPlan, archiveBudgetPlan, addBudgetItem, deleteBudgetItem, toggleBudgetItemPurchased, updateBudgetPlan, toggleBudgetPlanConfirmed, themeSettings } = useContext(AppDataContext);
   // Largest item first so it maps to the outer ring; colours match by index.
   const sortedItems = useMemo(
     () => [...plan.items].sort((a, b) => b.price - a.price),
@@ -376,6 +376,34 @@ function PlanView({ plan }: { plan: BudgetPlan }) {
                   </DialogFooter>
                 </DialogContent>
               </Dialog>
+
+              {/* Archive — offered once the purchase is confirmed. Unlike delete, it keeps
+                  the plan's confirmed spend counted for its month (see archiveBudgetPlan). */}
+              {plan.confirmed && (
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-7 w-7">
+                      <Archive className="h-3.5 w-3.5 text-accent" />
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Archive &ldquo;{plan.name}&rdquo;?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Hides this completed plan from your Budget list. Its {formatCurrency(spent)} spend stays
+                        counted{plan.confirmedAt ? ` for ${format(new Date(plan.confirmedAt), 'MMMM')}` : ''} and the
+                        record remains in History.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction onClick={() => archiveBudgetPlan(plan.id)}>
+                        Archive
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              )}
 
               <AlertDialog>
                 <AlertDialogTrigger asChild>
@@ -479,11 +507,28 @@ export function BudgetPlanner() {
   const [planName, setPlanName] = useState('');
   const [planBudget, setPlanBudget] = useState('');
   const [activePlanId, setActivePlanId] = useState<string | null>(null);
+  const [fullscreen, setFullscreen] = useState(false);
+
+  // Archived plans stay in state (their confirmed spend still counts) but are hidden
+  // from the picker and never auto-selected.
+  const visiblePlans = useMemo(() => budgetPlans.filter(p => !p.archived), [budgetPlans]);
 
   const activePlan = useMemo(() =>
-    budgetPlans.find(p => p.id === activePlanId) ?? budgetPlans[0] ?? null,
-    [budgetPlans, activePlanId]
+    visiblePlans.find(p => p.id === activePlanId) ?? visiblePlans[0] ?? null,
+    [visiblePlans, activePlanId]
   );
+
+  // In-app full screen: budget content covers the whole viewport (over both nav bars)
+  // for easier reading/editing. Opening pushes a history entry so the Android hardware
+  // back button closes the overlay instead of leaving the page; the minimize button goes
+  // through history.back() so the entry is consumed either way.
+  useEffect(() => {
+    if (!fullscreen) return;
+    window.history.pushState({ __duey_budget_fs: true }, '', window.location.href);
+    const onPop = () => setFullscreen(false);
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, [fullscreen]);
 
   const handleCreatePlan = () => {
     const b = parseFloat(planBudget);
@@ -493,11 +538,13 @@ export function BudgetPlanner() {
     setNewPlanOpen(false);
   };
 
-  return (
-    <div className="space-y-3">
-      {budgetPlans.length > 1 && (
+  // Shared between inline and full-screen renders — but only ever mounted in ONE place
+  // at a time, so dialog state inside PlanView isn't duplicated.
+  const plannerBody = (
+    <>
+      {visiblePlans.length > 1 && (
         <div className="flex gap-2 overflow-x-auto pb-1">
-          {budgetPlans.map(p => (
+          {visiblePlans.map(p => (
             <button
               key={p.id}
               onClick={() => setActivePlanId(p.id)}
@@ -524,9 +571,63 @@ export function BudgetPlanner() {
           </CardContent>
         </Card>
       )}
+    </>
+  );
+
+  return (
+    <div className="space-y-3">
+      {activePlan && !fullscreen && (
+        <div className="flex justify-end">
+          <button
+            onClick={() => setFullscreen(true)}
+            className="flex items-center gap-1.5 rounded-lg px-2 py-1 text-[11px] font-semibold text-muted-foreground active:bg-muted transition-colors"
+          >
+            <Maximize2 className="h-3.5 w-3.5" /> Full screen
+          </button>
+        </div>
+      )}
+
+      {!fullscreen ? plannerBody : (
+        <p className="text-center text-xs text-muted-foreground py-8">Budget is open in full screen.</p>
+      )}
+
+      {/* Full-screen overlay — portaled to <body> so it paints over both nav bars.
+          z-50 + mounted last, so it covers them; Radix dialogs opened from inside
+          (edit plan, add item) portal to <body> even later, stacking above it.
+          fab-blurable keeps it blurring in step with the app while dialogs are open. */}
+      {fullscreen && (
+        <FixedPortal>
+          <div className="fab-blurable fixed inset-0 z-50 bg-background overflow-y-auto overscroll-contain">
+            <div
+              className="sticky top-0 z-10 bg-background"
+              style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
+            >
+              <div className="container mx-auto max-w-md flex items-center justify-between pl-4 pr-2 py-2">
+                <div className="min-w-0">
+                  <p className="text-sm font-bold text-foreground">Budget</p>
+                  {activePlan && <p className="text-[10px] text-muted-foreground truncate">{activePlan.name}</p>}
+                </div>
+                <button
+                  onClick={() => window.history.back()}
+                  aria-label="Exit full screen"
+                  className="p-2.5 rounded-xl text-muted-foreground active:bg-muted shrink-0"
+                >
+                  <Minimize2 className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+            <div
+              className="container mx-auto max-w-md px-4 pt-1 space-y-3"
+              style={{ paddingBottom: 'calc(24px + var(--sab))' }}
+            >
+              {plannerBody}
+            </div>
+          </div>
+        </FixedPortal>
+      )}
 
       <Dialog open={newPlanOpen} onOpenChange={setNewPlanOpen}>
-        {pathname === '/' && (
+        {pathname === '/' && !fullscreen && (
           <FixedPortal>
             <DialogTrigger asChild>
               <button

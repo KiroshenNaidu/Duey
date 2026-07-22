@@ -250,15 +250,19 @@ function ExpenseRow({ expense, onDelete }: { expense: import('@/lib/types').Expe
       <Card>
         <CardContent className="p-3 flex items-center gap-3">
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-semibold text-foreground truncate">{expense.title}</span>
-              {expense.recurring && (
-                <span className={cn('inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold', 'bg-primary/15 text-primary')}>
-                  <RefreshCw className="h-2.5 w-2.5" /> Recurring
-                </span>
-              )}
-            </div>
-            {expense.note && <p className="text-xs text-muted-foreground mt-0.5">{expense.note}</p>}
+            {/* Title owns its line; badge + note live on their own line below so nothing
+                squeezes the title against the amount on narrow screens. */}
+            <span className="block text-sm font-semibold text-foreground truncate">{expense.title}</span>
+            {(expense.recurring || expense.note) && (
+              <div className="flex items-center gap-2 mt-1 min-w-0">
+                {expense.recurring && (
+                  <span className={cn('inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold shrink-0', 'bg-primary/15 text-primary')}>
+                    <RefreshCw className="h-2.5 w-2.5" /> Recurring
+                  </span>
+                )}
+                {expense.note && <p className="text-xs text-muted-foreground truncate">{expense.note}</p>}
+              </div>
+            )}
           </div>
           <div className="flex items-center gap-1 shrink-0">
             <span className="text-sm font-bold text-foreground tabular-nums">{formatCurrency(expense.amount)}</span>

@@ -427,7 +427,7 @@ export function DebtCard({ debt, grouped = false }: DebtCardProps) {
                   <Pencil className="h-4 w-4" />
                 </button>
 
-                <DialogContent className="sm:max-w-[425px] p-0 gap-0 overflow-hidden">
+                <DialogContent className="sm:max-w-[425px] p-0 gap-0 overflow-hidden flex flex-col">
                   <DialogHeader className="sr-only">
                     <DialogTitle>{debt.title}</DialogTitle>
                   </DialogHeader>
@@ -448,7 +448,7 @@ export function DebtCard({ debt, grouped = false }: DebtCardProps) {
                     <DialogContent className="sm:max-w-[360px]">
                       <DialogHeader>
                         <DialogTitle>Make Payment</DialogTitle>
-                        <DialogDescription>
+                        <DialogDescription className="[overflow-wrap:anywhere]">
                           {debt.person ? <>Paying <span className="font-semibold text-accent">{debt.person}</span> for {debt.title}. </> : null}
                           {pendingPayment
                             ? 'Replace your staged payment — only one will be logged on save.'
@@ -468,7 +468,10 @@ export function DebtCard({ debt, grouped = false }: DebtCardProps) {
                           )}
                         >
                           <p className="text-sm font-semibold text-foreground">Standard Installment</p>
-                          <p className="text-xs text-muted-foreground mt-0.5">
+                          {/* break-anywhere: formatted amounts are unbreakable digit-comma
+                              runs — without it an absurd amount forces the dialog to
+                              overflow sideways and clip its own text. */}
+                          <p className="text-xs text-muted-foreground mt-0.5 [overflow-wrap:anywhere]">
                             {formatCurrency(liveInstallmentAmount)} per payment
                           </p>
                         </button>
@@ -604,6 +607,10 @@ export function DebtCard({ debt, grouped = false }: DebtCardProps) {
                     </AlertDialogContent>
                   </AlertDialog>
 
+                  {/* Everything except the action row lives in ONE scroll region, so on
+                      short viewports (keyboard open) the hero scrolls away rather than
+                      squeezing the form into an unreachable sliver. */}
+                  <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
                   {/* Hero progress header */}
                   <div className="px-5 pt-5 pb-4">
                     <div className="flex items-center gap-4">
@@ -652,7 +659,7 @@ export function DebtCard({ debt, grouped = false }: DebtCardProps) {
                     )}
                   </div>
 
-                  {/* Form & actions */}
+                  {/* Form fields */}
                   <div className="px-5 pb-5 space-y-4 border-t pt-4">
                     <div className="space-y-2">
                       <Label htmlFor={`title-${debt.id}`} className="text-xs">Title</Label>
@@ -709,48 +716,52 @@ export function DebtCard({ debt, grouped = false }: DebtCardProps) {
                       />
                     </div>
 
-                    <div className="flex justify-between items-center pt-3 border-t">
-                      <div className="flex gap-2">
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          className="h-10 w-10"
-                          onClick={() => { setIsDialogOpen(false); setTimeout(() => setShowDeleteConfirm(true), 150); }}
-                        >
-                          <Trash2 className="text-destructive" />
+                  </div>
+                  </div>
+
+                  {/* Pinned action row — outside the scroll area so it's never clipped,
+                      however tall the form gets on a short screen. */}
+                  <div className="shrink-0 flex justify-between items-center gap-2 border-t px-5 py-4">
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        className="h-10 w-10"
+                        onClick={() => { setIsDialogOpen(false); setTimeout(() => setShowDeleteConfirm(true), 150); }}
+                      >
+                        <Trash2 className="text-destructive" />
+                      </Button>
+                      <PaymentCalendarDialog debt={debt}>
+                        <Button variant="outline" size="icon" className="h-10 w-10">
+                          <CalendarDays />
                         </Button>
-                        <PaymentCalendarDialog debt={debt}>
-                          <Button variant="outline" size="icon" className="h-10 w-10">
-                            <CalendarDays />
-                          </Button>
-                        </PaymentCalendarDialog>
-                      </div>
-                      <div className="flex gap-2">
-                        {isPaidOff ? (
-                          <Button
-                            variant="secondary"
-                            onClick={() => { setIsDialogOpen(false); setTimeout(() => setShowArchiveConfirm(true), 150); }}
-                          >
-                            Archive
-                          </Button>
-                        ) : (
-                          <Button variant="secondary" onClick={openPaymentDialog}>
-                            Make Payment
-                          </Button>
-                        )}
+                      </PaymentCalendarDialog>
+                    </div>
+                    <div className="flex gap-2">
+                      {isPaidOff ? (
                         <Button
-                          className="bg-primary"
-                          onClick={() => {
-                            if (hasChanges) {
-                              setShowSaveConfirm(true);
-                            } else {
-                              setIsDialogOpen(false);
-                            }
-                          }}
+                          variant="secondary"
+                          onClick={() => { setIsDialogOpen(false); setTimeout(() => setShowArchiveConfirm(true), 150); }}
                         >
-                          Save
+                          Archive
                         </Button>
-                      </div>
+                      ) : (
+                        <Button variant="secondary" onClick={openPaymentDialog}>
+                          Make Payment
+                        </Button>
+                      )}
+                      <Button
+                        className="bg-primary"
+                        onClick={() => {
+                          if (hasChanges) {
+                            setShowSaveConfirm(true);
+                          } else {
+                            setIsDialogOpen(false);
+                          }
+                        }}
+                      >
+                        Save
+                      </Button>
                     </div>
                   </div>
                 </DialogContent>

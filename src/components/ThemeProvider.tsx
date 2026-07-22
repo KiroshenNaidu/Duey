@@ -106,9 +106,10 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       return `${p[0]} ${p[1]} ${l.toFixed(0)}%`;
     };
 
-    // Derive the "completed debt" colour by rotating the primary hue +30°.
-    // This keeps it in the same colour family as the active theme while staying
-    // visually distinct — e.g. gold→yellow, blue→purple, green→teal.
+    // Rotate an HSL triple's hue by delta° (sat/light untouched) — derives the
+    // analogous families below from --primary and --accent. Small rotations stay
+    // in the same colour family while reading distinct — e.g. gold→yellow,
+    // blue→purple, green→teal.
     const shiftHue = (hsl: string, delta: number) => {
       const p = hsl.trim().split(/\s+/);
       if (p.length < 3) return hsl;
@@ -134,6 +135,11 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     root.style.setProperty('--primary-b',        shiftHue(themeSettings.primary,  20)); // warm side
     root.style.setProperty('--primary-complete', shiftHue(themeSettings.primary,  45)); // completion colour
     root.style.setProperty('--accent', themeSettings.accent);
+    // Accent analogous family — same +20/+45 offsets as the primary family above. The
+    // current-day cell ALWAYS colours from this family (arc-animated-accent): accent
+    // leads, its analogous hues carry the flow, glow, and water gradient.
+    root.style.setProperty('--accent-b',        shiftHue(themeSettings.accent,  20));
+    root.style.setProperty('--accent-complete', shiftHue(themeSettings.accent,  45));
     root.style.setProperty('--ring', themeSettings.accent);
     root.style.setProperty('--accent-foreground', themeSettings.accentForeground);
     root.style.setProperty('--secondary', lighten(themeSettings.surface, 4));

@@ -74,10 +74,16 @@ export function NotificationsMenu({ onDirtyChange, onSaved, onCancel }: Notifica
 
   const handleSave = async () => {
     const effectiveDay = draft.paydayDay || userProfile.paydayDay;
-    const draftToSave = { ...draft, paydayDay: effectiveDay };
+    // Master off forces every subordinate feature off in what we persist, so nothing
+    // downstream (debt reminder sync included) can act on a stale enabled flag.
+    const draftToSave = draft.masterEnabled
+      ? { ...draft, paydayDay: effectiveDay }
+      : { ...draft, paydayDay: effectiveDay, enabled: false };
     const native = await checkNative();
     if (native) {
-      if (draftToSave.enabled) {
+      if (draftToSave.masterEnabled) {
+        // Master ON is the single place the app asks Android for notification
+        // permission — every scheduler elsewhere only checks, never prompts.
         try {
           const { LocalNotifications } = await import('@capacitor/local-notifications');
           const perm = await LocalNotifications.requestPermissions();
@@ -85,6 +91,13 @@ export function NotificationsMenu({ onDirtyChange, onSaved, onCancel }: Notifica
             setStatusMsg('Permission denied. Enable notifications in Android settings.');
             return;
           }
+        } catch {
+          setStatusMsg('Failed to request notification permission.');
+          return;
+        }
+      }
+      if (draftToSave.masterEnabled && draftToSave.enabled) {
+        try {
           await scheduleNotification(
             effectiveDay,
             draftToSave.hour,
@@ -98,10 +111,12 @@ export function NotificationsMenu({ onDirtyChange, onSaved, onCancel }: Notifica
           return;
         }
       } else {
+        // Monthly reminder off (or master off) — cancel it. Per-debt due-day reminders
+        // are cancelled by the AppDataContext sync effect reacting to masterEnabled.
         try {
           await cancelNotification();
           setNotificationSettings(draftToSave);
-          setStatusMsg('');
+          setStatusMsg(draftToSave.masterEnabled ? '' : 'All notifications turned off.');
         } catch {
           setStatusMsg('Failed to cancel notification.');
           return;
@@ -165,7 +180,30 @@ export function NotificationsMenu({ onDirtyChange, onSaved, onCancel }: Notifica
         </Button>
       </div>
 
+      {/* MASTER switch — the one gate for ALL notifications (monthly + debt due-day
+          reminders). Turning it on triggers the Android permission request on Save;
+          turning it off cancels everything scheduled. */}
       <Card>
+        <CardContent className="p-3 space-y-1">
+          <div className="flex items-center justify-between">
+            <div>
+              <Label htmlFor="notif-master" className="text-sm font-semibold">Allow Notifications</Label>
+              <p className="text-xs text-muted-foreground">Master switch — off means Duey sends nothing</p>
+            </div>
+            <Switch
+              id="notif-master"
+              checked={draft.masterEnabled}
+              onCheckedChange={(v) => setDraft(prev => ({ ...prev, masterEnabled: v }))}
+            />
+          </div>
+          <p className="text-[10px] text-muted-foreground">
+            Covers the monthly reminder below and every per-debt due-day reminder.
+            Android will ask for permission when you save with this on.
+          </p>
+        </CardContent>
+      </Card>
+
+      <Card className={cn(!draft.masterEnabled && 'opacity-50')}>
         <CardContent className="p-3 space-y-4">
           <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Payment Reminders</p>
 
@@ -177,6 +215,7 @@ export function NotificationsMenu({ onDirtyChange, onSaved, onCancel }: Notifica
             <Switch
               id="notif-toggle"
               checked={draft.enabled}
+              disabled={!draft.masterEnabled}
               onCheckedChange={(v) => setDraft(prev => ({ ...prev, enabled: v }))}
             />
           </div>
@@ -189,7 +228,7 @@ export function NotificationsMenu({ onDirtyChange, onSaved, onCancel }: Notifica
               max={31}
               value={draftDayStr}
               onChange={e => handleDayChange(e.target.value)}
-              disabled={!draft.enabled}
+              disabled={!draft.masterEnabled || !draft.enabled}
             />
             <p className="text-[10px] text-muted-foreground">
               Defaults to your payday ({userProfile.paydayDay}th). Change in Profile if needed.
@@ -201,7 +240,7 @@ export function NotificationsMenu({ onDirtyChange, onSaved, onCancel }: Notifica
             <TimePicker
               value={draftTimeString}
               onChange={handleTimeChange}
-              disabled={!draft.enabled}
+              disabled={!draft.masterEnabled || !draft.enabled}
             />
           </div>
 
@@ -213,7 +252,7 @@ export function NotificationsMenu({ onDirtyChange, onSaved, onCancel }: Notifica
               onChange={e => setDraft(prev => ({ ...prev, message: e.target.value }))}
               rows={2}
               className="resize-none text-sm"
-              disabled={!draft.enabled}
+              disabled={!draft.masterEnabled || !draft.enabled}
             />
             <p className="text-[10px] text-muted-foreground">
               This appears as the notification body on your Android device.

@@ -99,10 +99,10 @@ export function MoneyOverview() {
             </div>
           ) : (
             <button onClick={startEdit} className="flex items-center gap-2 group w-full text-left">
-              <span className="text-2xl font-bold text-foreground">
+              <span className="text-2xl font-bold text-foreground min-w-0">
                 {monthlyIncome > 0 ? formatCurrency(monthlyIncome) : 'Set income'}
               </span>
-              <Pencil className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+              <Pencil className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
             </button>
           )}
         </CardContent>
@@ -137,7 +137,8 @@ export function MoneyOverview() {
                   </span>
                 )}
               </span>
-              <span className="text-xs font-semibold text-primary tabular-nums shrink-0">+{formatCurrency(item.amount)}</span>
+              {/* min-w-0 (not shrink-0): a huge amount must wrap inside the row, never widen it */}
+              <span className="text-xs font-semibold text-primary tabular-nums min-w-0 text-right">+{formatCurrency(item.amount)}</span>
               <button
                 onClick={() => handleDeleteExtra(item.id)}
                 className="p-1 rounded text-muted-foreground/40 hover:text-destructive hover:bg-destructive/10 transition-colors shrink-0"
@@ -182,8 +183,9 @@ export function MoneyOverview() {
 
           {totalExtra > 0 && (
             <div className="flex justify-between items-baseline border-t border-border/40 pt-2 mt-1">
-              <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Total Extra</span>
-              <span className="text-sm font-bold text-primary tabular-nums">+{formatCurrency(totalExtra)}</span>
+              {/* Label shrink-0 so a huge total wraps instead of crushing it letter-by-letter */}
+              <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground shrink-0">Total Extra</span>
+              <span className="text-sm font-bold text-primary tabular-nums min-w-0 text-right">+{formatCurrency(totalExtra)}</span>
             </div>
           )}
         </CardContent>
@@ -192,8 +194,8 @@ export function MoneyOverview() {
       {/* Total income (salary + extras) */}
       <Card>
         <CardContent className="p-3 flex justify-between items-baseline">
-          <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Total Income</span>
-          <span className="text-lg font-bold text-primary tabular-nums">+{formatCurrency(monthlyIncome + totalExtra)}</span>
+          <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground shrink-0">Total Income</span>
+          <span className="text-lg font-bold text-primary tabular-nums min-w-0 text-right">+{formatCurrency(monthlyIncome + totalExtra)}</span>
         </CardContent>
       </Card>
 
@@ -209,11 +211,11 @@ export function MoneyOverview() {
                 onClick={() => toggleExclude(d.id)}
                 className={cn('flex justify-between items-baseline w-full text-left transition-opacity', off && 'opacity-35')}
               >
-                <span className={cn('text-xs text-muted-foreground', off && 'line-through')}>
+                <span className={cn('text-xs text-muted-foreground shrink-0', off && 'line-through')}>
                   {d.label}
                   {d.estimate && <span className="ml-1 text-[9px] font-medium text-muted-foreground/50">(estimate)</span>}
                 </span>
-                <span className={cn('text-sm font-semibold text-foreground tabular-nums', off && 'line-through')}>
+                <span className={cn('text-sm font-semibold text-foreground tabular-nums min-w-0 text-right', off && 'line-through')}>
                   {d.value > 0 ? `−${formatCurrency(d.value)}` : formatCurrency(0)}
                 </span>
               </button>
@@ -221,8 +223,8 @@ export function MoneyOverview() {
           })}
           <div className="border-t border-border pt-2 mt-1">
             <div className="flex justify-between items-baseline">
-              <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Total deductions</span>
-              <span className="text-sm font-bold text-foreground tabular-nums">−{formatCurrency(effectiveDeductions)}</span>
+              <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground shrink-0">Total deductions</span>
+              <span className="text-sm font-bold text-foreground tabular-nums min-w-0 text-right">−{formatCurrency(effectiveDeductions)}</span>
             </div>
           </div>
         </CardContent>

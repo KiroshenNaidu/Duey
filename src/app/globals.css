@@ -49,6 +49,10 @@ nav.fixed,
     --muted: 230 14% 14%;
     --muted-foreground: 230 8% 63%;
     --accent: 168 62% 56%;
+    /* Accent analogous stops — re-derived per theme in ThemeProvider, same +20/+45
+       offsets as the primary family. Consumed by the today-cell accent variant. */
+    --accent-b: 188 62% 56%;
+    --accent-complete: 213 62% 56%;
     --accent-foreground: 230 8% 63%;
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 0 0% 98%;
@@ -122,6 +126,12 @@ nav.fixed,
   body {
     @apply bg-background text-foreground;
     font-family: var(--font-family);
+    /* Global guard against layout blowouts from unbreakable runs (huge formatted
+       amounts like "R 23,343,233,432,…"): `anywhere` allows an emergency break ONLY
+       when a run cannot fit, and (unlike break-word) also shrinks min-content so flex
+       rows can't be forced wide. Normal text, `truncate`, and `whitespace-nowrap`
+       elements behave exactly as before. */
+    overflow-wrap: anywhere;
   }
 
   body.has-bg-image {
@@ -264,10 +274,31 @@ nav.fixed,
   fill: #fff;
 }
 
+/* Accent-flow switch variant — the CHECKED track wears the same shifting accent colours
+   as the calendars' today cell: rests on the accent, drifts into its near analogous.
+   Pinning --active-color to the accent keeps every non-animated piece in step — the
+   reduced-motion fallback, the check/uncheck 0.4s fill transition, and the O glyph the
+   knob covers. Unchecked keeps the muted track (off must still read as off). */
+.accent-flow-switch {
+  --active-color: hsl(var(--accent));
+}
+/* The checked "I" glyph sits on the accent track, so its contrast comes from
+   --btn-on-accent (auto black/white for the accent) — the default #fff assumes a
+   primary track and would wash out on light accents. */
+.accent-flow-switch .toggle-input:checked + .toggle .toggle-icon.on {
+  fill: hsl(var(--btn-on-accent));
+}
+@media (prefers-reduced-motion: no-preference) {
+  .accent-flow-switch .toggle-input:checked + .toggle .toggle-background {
+    animation: fill-flow-accent 1.6s ease-in-out infinite alternate;
+  }
+}
+
 /* Arc / gauge colour flow — cycles through the analogous palette.
    arc-flow animates CSS `color` (picked up by stroke="currentColor" paths).
    stroke-flow animates SVG `stroke` directly for paths with explicit stroke classes.
-   Two variants: normal (primary leads) and complete (primary-complete leads). */
+   Three variants: normal (primary leads), complete (primary-complete leads), and
+   accent (accent leads — the calendars' today cell). */
 /* Two-state arcs — alternate reverses the animation so there's no jump back to the start. */
 @keyframes arc-flow {
   from { color: hsl(var(--primary-a)); }
@@ -277,13 +308,26 @@ nav.fixed,
   from { color: hsl(var(--primary-b)); }
   to   { color: hsl(var(--primary-complete)); }
 }
+/* Today cell: rests ON the accent, then drifts into its near analogous (+20°) — the
+   accent always leads, so today reads as THE accent-coloured cell on any theme. */
+@keyframes arc-flow-accent {
+  from { color: hsl(var(--accent)); }
+  to   { color: hsl(var(--accent-b)); }
+}
 @keyframes stroke-flow {
   from { stroke: hsl(var(--primary-a)); }
   to   { stroke: hsl(var(--primary-b)); }
 }
+/* SVG-fill twin of arc-flow-accent — for shapes coloured by `fill` rather than `color`
+   (the accent-flow switch track). Same accent-leads drift as the today cell. */
+@keyframes fill-flow-accent {
+  from { fill: hsl(var(--accent)); }
+  to   { fill: hsl(var(--accent-b)); }
+}
 @media (prefers-reduced-motion: no-preference) {
   .arc-animated          { animation: arc-flow          1.6s ease-in-out infinite alternate; }
   .arc-animated-complete { animation: arc-flow-complete 1.6s ease-in-out infinite alternate; }
+  .arc-animated-accent   { animation: arc-flow-accent   1.6s ease-in-out infinite alternate; }
   .stroke-animated       { animation: stroke-flow       1.6s ease-in-out infinite alternate; }
 }
 
@@ -298,9 +342,27 @@ nav.fixed,
   0%, 100% { box-shadow: 0 0 1px hsl(var(--primary-complete) / 0.3); }
   50%       { box-shadow: 0 0 4px hsl(var(--primary-complete) / 0.65); }
 }
+/* Stronger halo for the calendars' today cell (bar-glow is sized for a 1.5px bar) —
+   pulses the accent itself, matching the accent-led colour flow.
+   TUNE ME: box-shadow is `0 0 <blur> <spread> <colour/alpha>` — bigger blur = softer
+   wider halo, bigger spread = pushes it further out, higher alpha = brighter. The 50%
+   frame is the pulse peak; the 0%/100% frame is its resting state. */
+@keyframes cell-glow-accent {
+  0%, 100% { box-shadow: 0 0 5px 1px hsl(var(--accent) / 0.45); }
+  50%       { box-shadow: 0 0 14px 2px hsl(var(--accent) / 0.9); }
+}
 @media (prefers-reduced-motion: no-preference) {
   .ring-pulse { animation: ring-glow 2s ease-in-out infinite; }
   .bar-glow   { animation: bar-glow  2s ease-in-out infinite; }
+  /* An element wearing BOTH classes (the transport calendars' today cell) needs the two
+     animations composited — each class alone sets the `animation` shorthand, so whichever
+     rule came later would silently cancel the other (bar-glow was killing the colour
+     flow, leaving the cell static). */
+  .arc-animated-accent.bar-glow {
+    animation:
+      arc-flow-accent 1.6s ease-in-out infinite alternate,
+      cell-glow-accent 2s ease-in-out infinite;
+  }
 }
 
 /* Quick-add radial labels. Colour is a FIXED primary (no colour animation) so it snaps
@@ -314,6 +376,109 @@ nav.fixed,
    reads the same everywhere, matching the primary FAB. Re-tints with the theme. */
 .sel-glow {
   box-shadow: 0 0 0 1px hsl(var(--primary) / 0.5), 0 0 8px 1px hsl(var(--primary) / 0.4);
+}
+
+/* Soft press feedback — a radial halo that fades to transparent well before the element's
+   edges, so adjacent tap zones (e.g. Day/Night's two halves) never meet in a hard line.
+   Sits behind content (pointer-events off); fade it in with `group-active:opacity-100`. */
+.tap-glow {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: radial-gradient(115% 90% at 50% 50%, hsl(var(--muted) / 0.6), transparent 72%);
+}
+
+/* Liquid day cells — transport calendar days render their state as water in a glass:
+   full day = filled to the brim, half day = half full, off = empty. The surface sloshes
+   on its own, and because the level is one CSS var (`--fill`) with a transition, tapping
+   a day in edit mode DRAINS or FILLS the water to the new mark instead of snapping
+   (cycle: full → drains empty → fills to half → fills full).
+
+   Host button must be `relative overflow-hidden rounded-full` to clip to the circle.
+   Each wave IS the water: an oversized near-round blob whose top arc is the surface; its
+   body floods everything below (clipped by the cell) and, because border-radius < 50%,
+   its uneven corner lobes make the surface bob and travel as it rotates about its own
+   centre (below the cell). Full overshoots (--fill: 1.08) and empty undershoots (-0.08)
+   so wave crests/dips never peek past the rim. Re-tints with the theme (--primary). */
+.liquid-fill {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+/* Each layer is a 2×-cell-wide strip whose top edge is a row of half-ellipse humps
+   (14px wavelength → exactly two curves across the 28px cell) over a solid body below.
+   Sliding the strip sideways by one wavelength on loop makes the humps travel like a
+   real surface. Solid-colour gradients + element opacity, so humps and body composite
+   as ONE translucent layer with no seam where they meet. */
+.liquid-fill .lf-wave {
+  position: absolute;
+  top: calc((1 - var(--fill, 0)) * 100%);
+  left: 0;
+  width: 200%;
+  height: 200%;
+  opacity: 0.8;
+  background: hsl(var(--primary));
+  /* The water SHAPE lives in the mask (scalloped surface + solid body), so the paint
+     above is freely swappable — today's cell swaps it for a two-colour gradient
+     without touching the wave geometry. */
+  -webkit-mask:
+    radial-gradient(ellipse 50% 100% at 50% 100%, #000 0 98%, transparent 100%) 0 0 / 14px 5px repeat-x,
+    linear-gradient(#000, #000) 0 4px / 100% calc(100% - 4px) no-repeat;
+  mask:
+    radial-gradient(ellipse 50% 100% at 50% 100%, #000 0 98%, transparent 100%) 0 0 / 14px 5px repeat-x,
+    linear-gradient(#000, #000) 0 4px / 100% calc(100% - 4px) no-repeat;
+  transition: top 650ms cubic-bezier(0.3, 0.9, 0.4, 1.08);
+}
+/* Today's water: ONE smooth diagonal blend from the accent into its far analogous (the
+   FAQ-button-style 147deg gradient), held perfectly still while the surface still
+   sloshes. Trick: these strips don't translate — the WAVES move via mask-position
+   (scallop layer slides its 14px period; body layer stays), so the diagonal paint
+   never scrolls, stripes never form, and the loop is seamless. */
+.arc-animated-accent .lf-wave {
+  /* TUNE ME: the strip is 2× the cell, so the visible window only shows its top-left
+     region — the stops are compressed (5%→45%) to land the whole colour ramp inside
+     the button, and the ramp spans accent → accent-complete (+45°) for a wide enough
+     hue span that both colours read clearly. Pull the stops closer for a harder
+     contrast, push them apart for a softer blend. */
+  background: linear-gradient(147deg, hsl(var(--accent)) 5%, hsl(var(--accent-complete)) 45%);
+}
+/* Back layer — lighter, slower, drifting the other way, riding higher with its humps
+   offset half a wavelength so its crests peek out between the front layer's. */
+.liquid-fill .lf-wave2 {
+  margin-top: -2px;
+  opacity: 0.35;
+  -webkit-mask-position: 7px 0, 0 4px;
+  mask-position: 7px 0, 0 4px;
+}
+/* Travel exactly one 14px wavelength (25% of the 56px strip) per loop → seamless. */
+@keyframes liquid-travel {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-25%); }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .liquid-fill .lf-wave  { animation: liquid-travel 2s linear infinite; }
+  .liquid-fill .lf-wave2 { animation: liquid-travel 3.3s linear infinite reverse; }
+}
+/* Today's strips must NOT translate (that would scroll the diagonal paint) — instead
+   the scallop mask layer slides one 14px period per loop (seamless), waves move while
+   the gradient holds still. Back layer keeps its half-wavelength (7px) head start. */
+@keyframes liquid-mask-travel {
+  from { -webkit-mask-position: 0 0, 0 4px;    mask-position: 0 0, 0 4px; }
+  to   { -webkit-mask-position: 14px 0, 0 4px; mask-position: 14px 0, 0 4px; }
+}
+@keyframes liquid-mask-travel-back {
+  from { -webkit-mask-position: 7px 0, 0 4px;  mask-position: 7px 0, 0 4px; }
+  to   { -webkit-mask-position: 21px 0, 0 4px; mask-position: 21px 0, 0 4px; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .arc-animated-accent .lf-wave  { animation: liquid-mask-travel 2s linear infinite; }
+  .arc-animated-accent .lf-wave2 { animation: liquid-mask-travel-back 3.3s linear infinite reverse; }
+}
+/* Reduced motion: still water — the scalloped surface stays but nothing travels; level
+   changes still ease between marks (state feedback, not decoration). */
+@media (prefers-reduced-motion: reduce) {
+  .liquid-fill .lf-wave { animation: none; }
 }
 
 /* Progress bar flowing gradient — animates background-position on a repeating gradient

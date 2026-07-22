@@ -111,7 +111,7 @@ const DraggableNotepadBox = ({
         exit={{ opacity: 0, scale: 0.92, y: 10 }}
         transition={{ type: 'tween', ease: [0.25, 0.46, 0.45, 0.94], duration: 0.18 }}
       >
-        <Card className="h-full shadow-2xl flex flex-col overflow-hidden rounded-2xl border-accent/20">
+        <Card className="h-full shadow-2xl flex flex-col overflow-hidden rounded-2xl border border-accent/20">
            <CardHeader 
              onMouseDown={onDragStart} 
              onTouchStart={onDragStart}

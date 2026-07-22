@@ -14,7 +14,8 @@ const TabsList = React.forwardRef<
   <TabsPrimitive.List
     ref={ref}
     className={cn(
-      "inline-flex h-10 items-center justify-center rounded-xl bg-card border border-border p-1 text-muted-foreground shadow-sm",
+      // Flat pill — no outline/shadow, matching the app's borderless card shells.
+      "inline-flex h-10 items-center justify-center rounded-xl bg-card p-1 text-muted-foreground",
       className
     )}
     {...props}

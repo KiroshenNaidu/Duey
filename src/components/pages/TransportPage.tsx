@@ -105,6 +105,19 @@ export function TransportPage() {
     setTransportOverrides({ ...transportOverrides, [isoDate]: next });
   };
 
+  const setCalendarEditing = (v: boolean) => {
+    if (isLocked || isPaidForMonth) return;
+    setIsEditingCalendar(v);
+    if (!v) {
+      // Turning edit off unmounts the override input and shrinks the card. The keyboard
+      // may stay open here (unlike Mark as Paid), so KeyboardInset's close-reset won't
+      // fire and <main> would be left scrolled into the now-shorter content with the top
+      // cut off. Blur to dismiss the keyboard and snap the scroller to top.
+      (document.activeElement as HTMLElement | null)?.blur();
+      document.querySelector('main')?.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
+    }
+  };
+
   const handleMarkAsPaid = () => {
     if (isPaidForMonth) {
       setUndoOpen(true);
@@ -356,28 +369,29 @@ export function TransportPage() {
             </Button>
           </div>
 
+          {/* Whole row is one tap target for the Edit switch (small screens) — pointer
+              taps land on the row (switch is pointer-events-none so a direct tap can't
+              double-fire); keyboard users still toggle the Switch itself. */}
           {calendarMode === 'driver' && (
-            <div className="flex items-center space-x-2 mt-1 justify-end">
-              <Label htmlFor="edit-calendar" className={cn("text-xs", (isLocked || isPaidForMonth) && "opacity-50")}>
+            <div
+              className={cn(
+                "flex items-center space-x-2 mt-1 justify-end",
+                (isLocked || isPaidForMonth) ? "cursor-not-allowed" : "cursor-pointer"
+              )}
+              onClick={() => setCalendarEditing(!isEditingCalendar)}
+            >
+              <Label className={cn("text-xs pointer-events-none", (isLocked || isPaidForMonth) && "opacity-50")}>
                 {isEditingCalendar ? 'Editing' : 'Edit'}
               </Label>
               <Switch
                 id="edit-calendar"
+                aria-label="Edit calendar days"
                 checked={isEditingCalendar}
-                onCheckedChange={v => {
-                  setIsEditingCalendar(v);
-                  if (!v) {
-                    // Turning edit off unmounts the override input and shrinks the
-                    // card. The keyboard may stay open here (unlike Mark as Paid),
-                    // so KeyboardInset's close-reset won't fire and <main> would be
-                    // left scrolled into the now-shorter content with the top cut
-                    // off. Blur to dismiss the keyboard and snap the scroller to top.
-                    (document.activeElement as HTMLElement | null)?.blur();
-                    document.querySelector('main')?.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
-                  }
-                }}
+                onCheckedChange={setCalendarEditing}
                 disabled={isLocked || isPaidForMonth}
-                className={cn("h-5 w-10", (isLocked || isPaidForMonth) && "opacity-50 cursor-not-allowed")}
+                // accent-flow-switch: checked track shifts through the accent family,
+                // matching the today cell's colour flow (see globals.css).
+                className={cn("h-5 w-10 pointer-events-none accent-flow-switch", (isLocked || isPaidForMonth) && "opacity-50 cursor-not-allowed")}
               />
             </div>
           )}
@@ -403,18 +417,43 @@ export function TransportPage() {
                     key={isoDate}
                     disabled={!isEditingCalendar || isLocked || isPaidForMonth}
                     onClick={() => handleDayToggle(day)}
-                    style={isToday ? { boxShadow: '0 0 10px 3px hsl(var(--accent) / 0.4)' } : undefined}
                     className={cn(
-                      "h-7 w-7 rounded-full flex flex-col items-center justify-center transition-all duration-200 text-[10px]",
+                      "relative overflow-hidden h-7 w-7 rounded-full flex flex-col items-center justify-center transition-all duration-200 text-[10px]",
                       (isEditingCalendar && !isLocked && !isPaidForMonth) ? 'cursor-pointer hover:scale-105' : 'cursor-default',
-                      state === 1 && 'bg-primary/90 text-primary-foreground',
-                      state === 1.5 && 'bg-primary/40 text-primary-foreground',
+                      state === 1 && 'bg-primary/15 text-primary-foreground',
+                      state === 1.5 && 'bg-primary/15 text-foreground',
                       state === 0 && 'bg-muted text-muted-foreground opacity-60',
-                      isToday && "ring-1 ring-accent ring-offset-1 ring-offset-background",
+                      // Today ALWAYS colours from the accent family (never the primary's):
+                      // arc-animated-accent flows the cell's `color` from the accent into its
+                      // analogous hue (water and ring paint with currentColor, so they ride
+                      // along), bar-glow composites in the accent halo pulse, and the static
+                      // text colour is the reduced-motion fallback. bg-accent/15 replaces the
+                      // per-state tint (it shows through the translucent water and above the
+                      // waterline on half days); opacity-100 beats the off-day dim so the
+                      // halo/ring never fade — the empty water still reads as "off".
+                      isToday && "arc-animated-accent bar-glow text-[hsl(var(--accent))] bg-accent/15 opacity-100 ring-1 ring-current ring-offset-1 ring-offset-background",
                     )}
                   >
-                    <span className="leading-none">{format(day, 'd')}</span>
-                    {state === 1.5 && <span className="leading-none text-[7px] opacity-80">½</span>}
+                    {/* Water level renders the day state (full/half/empty) and eases
+                        between marks on tap — see .liquid-fill in globals.css. Mounted in
+                        every state so drain-to-empty animates too. Back wave first so the
+                        front surface paints over it. */}
+                    <span
+                      aria-hidden
+                      className="liquid-fill"
+                      style={{ '--fill': state === 1 ? 1.08 : state === 1.5 ? 0.5 : -0.08 } as React.CSSProperties}
+                    >
+                      <span className="lf-wave lf-wave2" />
+                      <span className="lf-wave" />
+                    </span>
+                    {/* Today's button `color` is the animated water colour, so the number
+                        re-asserts its per-state colour to stay readable on the water. Full
+                        days sit ON the accent water, so contrast comes from --btn-on-accent
+                        (auto black/white for the accent), not the primary's. */}
+                    <span className={cn(
+                      "relative z-10 leading-none",
+                      isToday && (state === 1 ? 'text-[hsl(var(--btn-on-accent))]' : state === 1.5 ? 'text-foreground' : 'text-muted-foreground'),
+                    )}>{format(day, 'd')}</span>
                   </button>
                 );
               })}
@@ -429,11 +468,12 @@ export function TransportPage() {
                   <button
                     key={isoDate}
                     onClick={() => setUberDialogDate(isoDate)}
-                    style={isToday ? { boxShadow: '0 0 10px 3px hsl(var(--accent) / 0.4)' } : undefined}
                     className={cn(
                       "h-7 w-7 rounded-full flex flex-col items-center justify-center transition-all duration-200 text-[10px] cursor-pointer hover:scale-105",
                       hasRides ? 'bg-accent/30 text-foreground' : 'bg-muted/20 text-muted-foreground opacity-50',
-                      isToday && "ring-1 ring-accent ring-offset-1 ring-offset-background"
+                      // Same accent-family today treatment as the driver calendar; opacity-100
+                      // beats the no-rides dim so the halo/ring never fade.
+                      isToday && "arc-animated-accent bar-glow text-[hsl(var(--accent))] opacity-100 ring-1 ring-current ring-offset-1 ring-offset-background"
                     )}
                   >
                     <span className="leading-none">{format(day, 'd')}</span>

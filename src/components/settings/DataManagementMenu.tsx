@@ -254,7 +254,7 @@ const PERIOD_LABELS: Record<StatsPeriod, string> = {
 // ──────────────────────────────────────────────────────────────────────────────
 
 export function DataManagementMenu() {
-  const { getAppState, importData, clearData, setAppError, userProfile, exportFolderUri, exportFolderName, setExportFolder } = useContext(AppDataContext);
+  const { getAppState, importData, clearData, setAppError, userProfile, exportFolderUri, exportFolderName, setExportFolder, notificationSettings } = useContext(AppDataContext);
   const fullFileInputRef   = useRef<HTMLInputElement>(null);
   const configFileInputRef = useRef<HTMLInputElement>(null);
 
@@ -323,6 +323,9 @@ export function DataManagementMenu() {
   // No share sheet, no extra permissions. Web: blob URL download.
 
   const notifySaved = async (filename: string, folderName: string, fileUri: string, mimeType: string) => {
+    // Settings → Notifications master switch governs ALL notifications, download
+    // confirmations included. The export itself still completes and shows its own UI.
+    if (!notificationSettings.masterEnabled) return;
     try {
       const { LocalNotifications } = await import('@capacitor/local-notifications');
       await LocalNotifications.createChannel({
@@ -1110,7 +1113,9 @@ export function DataManagementMenu() {
         if (data.themeSettings)        partial.themeSettings        = data.themeSettings;
         if (data.userThemes)           partial.userThemes           = data.userThemes;
         if (data.userProfile)          partial.userProfile          = data.userProfile;
-        if (data.notificationSettings) partial.notificationSettings = data.notificationSettings;
+        // Backups from before the master switch lack masterEnabled — inherit `enabled`,
+        // same migration AppDataContext applies on load.
+        if (data.notificationSettings) partial.notificationSettings = { ...data.notificationSettings, masterEnabled: data.notificationSettings.masterEnabled ?? data.notificationSettings.enabled ?? false };
         if (data.currency)             partial.currency             = data.currency;
         if (data.monthlyIncome != null) partial.monthlyIncome       = data.monthlyIncome;
         if (data.transportSettings)    partial.transportSettings    = data.transportSettings;

@@ -1,9 +1,17 @@
-import type { Debt } from './types';
+import type { Debt, HistoryEntry } from './types';
+import { getRemainingBalance } from './calculations';
+import { formatCurrency } from './utils';
 
 // Per-debt due-date reminders (Android only). Debts with no dueDay set get NO reminder —
 // the feature is purely opt-in per debt. Notification ids are derived from the debt id so
 // rescheduling replaces rather than duplicates; the whole id block is cleared first so
 // removed/completed debts lose their reminders.
+//
+// The Settings → Notifications master switch governs this feature: when it is off, every
+// pending debt reminder is cancelled and nothing new is scheduled. Permission is never
+// requested here — it is requested exactly once, from the Notifications settings screen
+// when the user turns the master switch on. This sync only ever runs with an
+// already-granted permission.
 
 // Keep clear of id 1 (the monthly payment reminder in NotificationsMenu).
 const DEBT_NOTIFICATION_ID_BASE = 100000;
@@ -21,17 +29,25 @@ export function debtNotificationId(debtId: string): number {
 /**
  * Cancel-and-reschedule all per-debt reminders to match the current debt list.
  * Fire-and-forget safe: resolves silently on web or when permission is missing.
+ *
+ * masterEnabled — Settings → Notifications master switch. false clears everything
+ * pending and schedules nothing. history is needed to skip fully-paid debts.
  */
-export async function syncDebtReminders(debts: Debt[], hour = 9, minute = 0): Promise<void> {
+export async function syncDebtReminders(
+  debts: Debt[],
+  history: HistoryEntry[],
+  masterEnabled: boolean,
+  hour = 9,
+  minute = 0,
+): Promise<void> {
   try {
     const { Capacitor } = await import('@capacitor/core');
     if (!Capacitor.isNativePlatform()) return;
 
     const { LocalNotifications } = await import('@capacitor/local-notifications');
-    const perm = await LocalNotifications.checkPermissions();
-    if (perm.display !== 'granted') return;
 
     // Clear every previously scheduled debt reminder (including ones for deleted debts).
+    // Runs even when the master switch is off so flipping it off wipes pending reminders.
     const pending = await LocalNotifications.getPending();
     const stale = pending.notifications.filter(
       n => n.id >= DEBT_NOTIFICATION_ID_BASE && n.id < DEBT_NOTIFICATION_ID_BASE + DEBT_NOTIFICATION_ID_RANGE
@@ -40,7 +56,17 @@ export async function syncDebtReminders(debts: Debt[], hour = 9, minute = 0): Pr
       await LocalNotifications.cancel({ notifications: stale.map(n => ({ id: n.id })) });
     }
 
-    const withDueDay = debts.filter(d => d.dueDay != null && d.dueDay >= 1 && d.dueDay <= 31);
+    if (!masterEnabled) return;
+
+    const perm = await LocalNotifications.checkPermissions();
+    if (perm.display !== 'granted') return;
+
+    // Only debts that still owe money — a fully paid debt must stop reminding even if
+    // the user hasn't archived it yet.
+    const withDueDay = debts.filter(d =>
+      d.dueDay != null && d.dueDay >= 1 && d.dueDay <= 31 &&
+      getRemainingBalance(d, history) > 0
+    );
     if (withDueDay.length === 0) return;
 
     await LocalNotifications.createChannel({
@@ -54,7 +80,7 @@ export async function syncDebtReminders(debts: Debt[], hour = 9, minute = 0): Pr
     await LocalNotifications.schedule({
       notifications: withDueDay.map(d => ({
         title: `Duey — ${d.title} due`,
-        body: `Installment of R${d.installment_amount} is due today.`,
+        body: `Installment of ${formatCurrency(d.installment_amount)} is due today.`,
         id: debtNotificationId(d.id),
         schedule: {
           on: { day: d.dueDay as number, hour, minute },

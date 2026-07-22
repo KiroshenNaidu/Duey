@@ -110,36 +110,53 @@ export function DayNightToggle() {
     <div className="relative">
       {/* Bottom corners square off while open so the floating panel below reads as one
           connected drop-down surface. */}
-      <div className={cn('bg-card rounded-2xl p-3 transition-[border-radius] duration-300', expanded && 'rounded-b-none')}>
-        <div className="flex items-center gap-4">
-          {dayNight.mode === 'day'
-            ? <Sun className="h-5 w-5 text-accent shrink-0" />
-            : <Moon className="h-5 w-5 text-accent shrink-0" />}
-          <div className="flex-1 min-w-0">
-            <p className="text-base font-semibold text-card-foreground">Day / Night</p>
-            <p className="text-xs text-muted-foreground">
-              {configured
-                ? `${dayNight.mode === 'day' ? 'Day' : 'Night'} theme active — tap to switch`
-                : 'Pick a theme for each mode to enable'}
-            </p>
-          </div>
+      <div className={cn('bg-card rounded-2xl transition-[border-radius] duration-300', expanded && 'rounded-b-none')}>
+        {/* Two big tap zones for small screens: the whole row opens/closes the config
+            panel; the padded block around the switch flips day/night. Padding lives on
+            the zones (not the card) so each target reaches the card edges. Each zone gets
+            the same scale-press as the sibling menu cards plus a soft tap-glow (behind
+            content) so pressing one half never draws a hard seam against the other. */}
+        <div className="flex items-stretch">
           <button
             onClick={() => setExpanded(v => !v)}
-            className="p-2 rounded-xl text-muted-foreground/60 active:bg-muted shrink-0"
+            aria-expanded={expanded}
             aria-label="Configure day/night themes"
+            className="group relative flex flex-1 min-w-0 items-center gap-4 p-3 pr-2 text-left rounded-l-2xl transition-transform active:scale-[0.98]"
           >
-            <Settings2 className="h-4 w-4" />
+            <span aria-hidden className="tap-glow opacity-0 transition-opacity duration-200 group-active:opacity-100" />
+            {dayNight.mode === 'day'
+              ? <Sun className="relative h-5 w-5 text-accent shrink-0" />
+              : <Moon className="relative h-5 w-5 text-accent shrink-0" />}
+            <div className="relative flex-1 min-w-0">
+              <p className="text-base font-semibold text-card-foreground">Day / Night</p>
+              <p className="text-xs text-muted-foreground">
+                {configured
+                  ? `${dayNight.mode === 'day' ? 'Day' : 'Night'} theme active — tap to switch`
+                  : 'Pick a theme for each mode to enable'}
+              </p>
+            </div>
+            <span className="relative p-2 rounded-xl text-muted-foreground/60 shrink-0">
+              <Settings2 className="h-4 w-4" />
+            </span>
           </button>
-          {/* Same goo Switch used everywhere else — daynight-switch variant keeps the track
-              in the active theme's primary colour in BOTH positions (see globals.css), and
-              iconStyle swaps the I/O track glyphs for a sun/moon pair (this switch only). */}
-          <Switch
-            checked={dayNight.mode === 'day'}
-            onCheckedChange={handleToggle}
-            aria-label="Toggle day/night theme"
-            className="daynight-switch"
-            iconStyle="daynight"
-          />
+          {/* Pointer taps land on this wrapper (switch is pointer-events-none) so the
+              switch never double-fires; keyboard users still toggle the Switch itself. */}
+          <div
+            onClick={handleToggle}
+            className="group relative flex items-center shrink-0 p-3 pl-2 cursor-pointer rounded-r-2xl transition-transform active:scale-[0.98]"
+          >
+            <span aria-hidden className="tap-glow opacity-0 transition-opacity duration-200 group-active:opacity-100" />
+            {/* Same goo Switch used everywhere else — daynight-switch variant keeps the track
+                in the active theme's primary colour in BOTH positions (see globals.css), and
+                iconStyle swaps the I/O track glyphs for a sun/moon pair (this switch only). */}
+            <Switch
+              checked={dayNight.mode === 'day'}
+              onCheckedChange={handleToggle}
+              aria-label="Toggle day/night theme"
+              className="daynight-switch pointer-events-none relative"
+              iconStyle="daynight"
+            />
+          </div>
         </div>
       </div>
 

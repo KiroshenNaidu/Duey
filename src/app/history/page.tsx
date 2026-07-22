@@ -884,6 +884,7 @@ export default function HistoryPage() {
     updateHistoryEntry, deleteHistoryEntry, restoreHistoryEntry,
     monthlyIncome, extraIncomes, transportSettings, transportOverrides, transportMonthlyOverrides,
     userProfile, exportFolderUri, exportFolderName, setExportFolder, setAppError,
+    notificationSettings,
   } = useContext(AppDataContext);
 
   const [activeTab, setActiveTab] = useState<TabId>('all');
@@ -1120,11 +1121,15 @@ export default function HistoryPage() {
       const base64 = await blobToBase64(blob);
       const saved = await FolderAccess.saveFile({ folderUri: uri, name: filename, mimeType: blob.type || 'application/octet-stream', data: base64 });
 
-      try {
-        const { LocalNotifications } = await import('@capacitor/local-notifications');
-        await LocalNotifications.createChannel({ id: 'downloads', name: 'Downloads', description: 'File download notifications', importance: 3, visibility: 1 });
-        await LocalNotifications.schedule({ notifications: [{ title: 'File Saved', body: `Tap to open ${filename}`, id: (Date.now() % 100000) + 1000, channelId: 'downloads', extra: { fileUri: saved.uri, mimeType: blob.type || 'application/octet-stream' } }] });
-      } catch { /* notification failure is non-fatal */ }
+      // Master notifications switch governs download confirmations too; export still
+      // completes and reports through the in-app status UI below.
+      if (notificationSettings.masterEnabled) {
+        try {
+          const { LocalNotifications } = await import('@capacitor/local-notifications');
+          await LocalNotifications.createChannel({ id: 'downloads', name: 'Downloads', description: 'File download notifications', importance: 3, visibility: 1 });
+          await LocalNotifications.schedule({ notifications: [{ title: 'File Saved', body: `Tap to open ${filename}`, id: (Date.now() % 100000) + 1000, channelId: 'downloads', extra: { fileUri: saved.uri, mimeType: blob.type || 'application/octet-stream' } }] });
+        } catch { /* notification failure is non-fatal */ }
+      }
 
       setExportResult({ filename, folder: folderName });
       setExportStatus('success');
@@ -1170,7 +1175,7 @@ export default function HistoryPage() {
       {/* Tab strip — segmented bar (styled like the Money page's Tabs) with a single
           sliding highlight driven by tabProgress, so it moves in sync with the swiped
           panels instead of snapping between tabs. */}
-      <div className="relative flex h-10 items-center rounded-xl bg-card border border-border p-1 shadow-sm mb-4">
+      <div className="relative flex h-10 items-center rounded-xl bg-card p-1 mb-4">
         {/* Sliding highlight — one cell wide, translated by the live carousel position. */}
         <div
           ref={highlightRef}

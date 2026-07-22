@@ -116,6 +116,10 @@ export interface BudgetPlan {
   // prices, not the budget ceiling) is then deducted, but only for the month it was confirmed.
   confirmed?: boolean;
   confirmedAt?: string; // ISO 8601 — when the plan was confirmed
+  // Archived plans disappear from the Budget tab's picker but STAY in state: their
+  // confirmed spend must keep counting for the month it was confirmed (live balance +
+  // month-end seal both read budgetPlans). History keeps the archive record.
+  archived?: boolean;
 }
 
 export interface ThemeSettings {
@@ -168,6 +172,11 @@ export interface UserProfile {
 }
 
 export interface NotificationSettings {
+  // MASTER switch — when false, NO notification of any kind is scheduled (monthly
+  // payment reminder AND per-debt due-day reminders) and everything pending is
+  // cancelled. Individual features below only apply while this is true.
+  masterEnabled: boolean;
+  // Monthly payment reminder on/off (subordinate to masterEnabled).
   enabled: boolean;
   paydayDay: number;
   hour: number;
