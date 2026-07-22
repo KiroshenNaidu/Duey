@@ -84,9 +84,12 @@ export function DebtSemiGauge({ progress, pendingProgress = 0, paidOff, classNam
           style={{ transition: 'stroke-dasharray 0.85s cubic-bezier(0.22, 1, 0.36, 1)' }}
         />
       </svg>
-      {/* Value readout, seated in the mouth of the "C" */}
+      {/* Value readout, seated in the mouth of the "C". w-max + whitespace-nowrap keep it
+          at its natural content width: an absolutely-positioned box with `left` but no
+          width shrinks-to-fit the sliver of space to its right (~35px here), which would
+          otherwise wrap "100%" → "10 0 %" and "complete" → "comple te". */}
       <div
-        className="absolute top-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center pointer-events-none"
+        className="absolute top-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center w-max whitespace-nowrap pointer-events-none"
         style={{ left: '62%' }}
       >
         <span className="text-2xl font-black tabular-nums leading-none">{Math.round(p)}%</span>

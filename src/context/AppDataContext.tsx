@@ -172,6 +172,15 @@ interface AppContextType extends AppState {
   restoreExtraIncome: (item: ExtraIncome) => void;
   restoreExpense: (item: Expense) => void;
   restoreHistoryEntry: (entry: HistoryEntry) => void;
+  // Undo counterparts for the destructive actions above/below — see the implementations
+  // for exactly what each puts back.
+  restoreDebt: (debt: Debt, entries: HistoryEntry[]) => void;
+  unarchiveDebt: (debt: Debt) => void;
+  restoreUberRide: (ride: UberRide) => void;
+  restoreBudgetPlan: (plan: BudgetPlan) => void;
+  unarchiveBudgetPlan: (planId: string, planName: string) => void;
+  restoreBudgetItem: (planId: string, item: BudgetItem) => void;
+  restoreUserTheme: (theme: UserTheme, favourite: boolean) => void;
   setDayNight: (dayNight: DayNightSettings) => void;
   addBudgetPlan: (name: string, budget: number) => void;
   deleteBudgetPlan: (planId: string) => void;
@@ -231,6 +240,13 @@ export const AppDataContext = createContext<AppContextType>({
   restoreExtraIncome: () => {},
   restoreExpense: () => {},
   restoreHistoryEntry: () => {},
+  restoreDebt: () => {},
+  unarchiveDebt: () => {},
+  restoreUberRide: () => {},
+  restoreBudgetPlan: () => {},
+  unarchiveBudgetPlan: () => {},
+  restoreBudgetItem: () => {},
+  restoreUserTheme: () => {},
   setDayNight: () => {},
   addBudgetPlan: () => {},
   deleteBudgetPlan: () => {},
@@ -757,6 +773,82 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     }));
   }, [updateStateAndSync]);
 
+  // Undo a debt delete: the debt plus every history record deleteDebt removed with it
+  // (callers capture both BEFORE deleting). Id guards make a double-tapped UNDO a no-op.
+  const restoreDebt = useCallback((debt: Debt, entries: HistoryEntry[]) => {
+    updateStateAndSync(prev => ({
+      ...prev,
+      debts: prev.debts.some(d => d.id === debt.id) ? prev.debts : [...prev.debts, debt],
+      history: [...entries.filter(e => !prev.history.some(h => h.id === e.id)), ...prev.history],
+    }));
+  }, [updateStateAndSync]);
+
+  // Undo an archive: put the debt back and drop the completion entry the archive wrote
+  // (first match = newest, since history is prepend-ordered).
+  const unarchiveDebt = useCallback((debt: Debt) => {
+    updateStateAndSync(prev => {
+      if (prev.debts.some(d => d.id === debt.id)) return prev;
+      const idx = prev.history.findIndex(h => h.type === 'completion' && h.debtId === debt.id);
+      return {
+        ...prev,
+        debts: [...prev.debts, debt],
+        history: idx < 0 ? prev.history : [...prev.history.slice(0, idx), ...prev.history.slice(idx + 1)],
+      };
+    });
+  }, [updateStateAndSync]);
+
+  const restoreUberRide = useCallback((ride: UberRide) => {
+    updateStateAndSync(prev => ({
+      ...prev,
+      uberRides: prev.uberRides.some(r => r.id === ride.id) ? prev.uberRides : [...prev.uberRides, ride],
+    }));
+  }, [updateStateAndSync]);
+
+  // Undo a plan delete: re-add the plan and drop the "Plan deleted" record the delete
+  // wrote — leaving it would show a deletion in History for a plan that exists again.
+  const restoreBudgetPlan = useCallback((plan: BudgetPlan) => {
+    updateStateAndSync(prev => {
+      if (prev.budgetPlans.some(p => p.id === plan.id)) return prev;
+      const idx = prev.history.findIndex(h => h.type === 'budget' && h.note === 'Plan deleted' && h.debtTitle === `Budget: ${plan.name}`);
+      return {
+        ...prev,
+        budgetPlans: [...prev.budgetPlans, plan],
+        history: idx < 0 ? prev.history : [...prev.history.slice(0, idx), ...prev.history.slice(idx + 1)],
+      };
+    });
+  }, [updateStateAndSync]);
+
+  // Undo a plan archive: clear the flag and drop its "Plan archived" record.
+  const unarchiveBudgetPlan = useCallback((planId: string, planName: string) => {
+    updateStateAndSync(prev => {
+      const idx = prev.history.findIndex(h => h.type === 'budget' && h.note === 'Plan archived' && h.debtTitle === `Budget: ${planName}`);
+      return {
+        ...prev,
+        budgetPlans: prev.budgetPlans.map(p => p.id === planId ? { ...p, archived: false } : p),
+        history: idx < 0 ? prev.history : [...prev.history.slice(0, idx), ...prev.history.slice(idx + 1)],
+      };
+    });
+  }, [updateStateAndSync]);
+
+  const restoreBudgetItem = useCallback((planId: string, item: BudgetItem) => {
+    updateStateAndSync(prev => ({
+      ...prev,
+      budgetPlans: prev.budgetPlans.map(p =>
+        p.id === planId && !p.items.some(i => i.id === item.id) ? { ...p, items: [...p.items, item] } : p
+      ),
+    }));
+  }, [updateStateAndSync]);
+
+  // Undo a saved-theme delete; `favourite` re-links it into the Day/Night quick-switch
+  // list deleteUserTheme scrubbed it from.
+  const restoreUserTheme = useCallback((theme: UserTheme, favourite: boolean) => {
+    updateStateAndSync(prev => ({
+      ...prev,
+      userThemes: prev.userThemes.some(t => t.id === theme.id) ? prev.userThemes : [...prev.userThemes, theme],
+      favouriteThemes: favourite ? [...new Set([...(prev.favouriteThemes ?? []), theme.id])] : (prev.favouriteThemes ?? []),
+    }));
+  }, [updateStateAndSync]);
+
   const addBudgetPlan = useCallback((name: string, budget: number) => {
     updateStateAndSync(prev => {
       const newPlan = { id: genId(), name, budget, items: [], createdAt: new Date().toISOString() };
@@ -977,6 +1069,13 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     restoreExtraIncome,
     restoreExpense,
     restoreHistoryEntry,
+    restoreDebt,
+    unarchiveDebt,
+    restoreUberRide,
+    restoreBudgetPlan,
+    unarchiveBudgetPlan,
+    restoreBudgetItem,
+    restoreUserTheme,
     setDayNight: (dayNight: DayNightSettings) => updateStateAndSync(p => ({ ...p, dayNight })),
     addBudgetPlan,
     deleteBudgetPlan,

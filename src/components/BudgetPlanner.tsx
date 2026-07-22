@@ -37,6 +37,7 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { buttonVariants } from '@/components/ui/button';
+import { showUndoToast } from '@/components/ui/undo-toast';
 
 function parseHsl(hsl: string): [number, number, number] {
   const parts = hsl.split(' ');
@@ -282,7 +283,13 @@ function AddItemDialog({ plan, onAdd }: { plan: BudgetPlan; onAdd: (item: Omit<B
 }
 
 function PlanView({ plan }: { plan: BudgetPlan }) {
-  const { deleteBudgetPlan, archiveBudgetPlan, addBudgetItem, deleteBudgetItem, toggleBudgetItemPurchased, updateBudgetPlan, toggleBudgetPlanConfirmed, themeSettings } = useContext(AppDataContext);
+  const { deleteBudgetPlan, archiveBudgetPlan, addBudgetItem, deleteBudgetItem, toggleBudgetItemPurchased, updateBudgetPlan, toggleBudgetPlanConfirmed, themeSettings, restoreBudgetPlan, unarchiveBudgetPlan, restoreBudgetItem } = useContext(AppDataContext);
+
+  // Delete/archive with a 5s undo window (the standard undo toast).
+  const removeItem = (item: BudgetItem) => {
+    deleteBudgetItem(plan.id, item.id);
+    showUndoToast(`Removed "${item.name}"`, () => restoreBudgetItem(plan.id, item));
+  };
   // Largest item first so it maps to the outer ring; colours match by index.
   const sortedItems = useMemo(
     () => [...plan.items].sort((a, b) => b.price - a.price),
@@ -356,7 +363,7 @@ function PlanView({ plan }: { plan: BudgetPlan }) {
                               </button>
                               <button
                                 title="Remove item"
-                                onClick={() => deleteBudgetItem(plan.id, item.id)}
+                                onClick={() => removeItem(item)}
                                 className="h-6 w-6 rounded flex items-center justify-center shrink-0 text-muted-foreground hover:text-destructive transition-colors"
                               >
                                 <Trash2 className="h-3 w-3" />
@@ -397,7 +404,10 @@ function PlanView({ plan }: { plan: BudgetPlan }) {
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                       <AlertDialogCancel>Cancel</AlertDialogCancel>
-                      <AlertDialogAction onClick={() => archiveBudgetPlan(plan.id)}>
+                      <AlertDialogAction onClick={() => {
+                        archiveBudgetPlan(plan.id);
+                        showUndoToast(`Archived "${plan.name}"`, () => unarchiveBudgetPlan(plan.id, plan.name));
+                      }}>
                         Archive
                       </AlertDialogAction>
                     </AlertDialogFooter>
@@ -418,7 +428,10 @@ function PlanView({ plan }: { plan: BudgetPlan }) {
                   </AlertDialogHeader>
                   <AlertDialogFooter>
                     <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction className={cn(buttonVariants({ variant: 'destructive' }))} onClick={() => deleteBudgetPlan(plan.id)}>
+                    <AlertDialogAction className={cn(buttonVariants({ variant: 'destructive' }))} onClick={() => {
+                      deleteBudgetPlan(plan.id);
+                      showUndoToast(`Deleted "${plan.name}"`, () => restoreBudgetPlan(plan));
+                    }}>
                       Delete
                     </AlertDialogAction>
                   </AlertDialogFooter>
@@ -447,7 +460,7 @@ function PlanView({ plan }: { plan: BudgetPlan }) {
                     item={item}
                     planBudget={plan.budget}
                     color={colors[idx % colors.length]}
-                    onDelete={() => deleteBudgetItem(plan.id, item.id)}
+                    onDelete={() => removeItem(item)}
                   />
                 ))}
               </div>

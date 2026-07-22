@@ -1,6 +1,6 @@
 'use client';
 
-import { useContext, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
+import { memo, useContext, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
 import { FolderAccess } from '@/lib/folderAccess';
 import { usePathname, useRouter } from 'next/navigation';
 import { animate, useReducedMotion } from 'framer-motion';
@@ -21,11 +21,15 @@ import { TransportPage } from '@/components/pages/TransportPage';
 import { StatsPage } from '@/components/pages/StatsPage';
 import { SettingsPage } from '@/components/pages/SettingsPage';
 
+// Elements are built ONCE at module scope so their identity never changes: a re-render
+// of AppShell (route commit, context update) then reuses each page's subtree untouched
+// instead of re-rendering all four heavy trees — the route commit used to do exactly
+// that in the middle of the settle spring, visibly starving the animation of frames.
 const PAGES = [
-  { href: '/transport', Component: TransportPage },
-  { href: '/',          Component: MoneyPage },
-  { href: '/stats',     Component: StatsPage },
-  { href: '/settings',  Component: SettingsPage },
+  { href: '/transport', element: <TransportPage /> },
+  { href: '/',          element: <MoneyPage /> },
+  { href: '/stats',     element: <StatsPage /> },
+  { href: '/settings',  element: <SettingsPage /> },
 ] as const;
 
 const ROUTE_ORDER: Record<string, number> = {
@@ -419,9 +423,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           display: isMainRoute ? 'block' : 'none',
         }}
       >
-        {PAGES.map(({ href, Component }, i) => (
+        {PAGES.map(({ href, element }, i) => (
           <CarouselPage key={href} index={i} active={i === activeIdx} preset={preset}>
-            <Component />
+            {element}
           </CarouselPage>
         ))}
       </div>
@@ -453,8 +457,12 @@ function frameStyles(preset: PageTransitionPreset, index: number, p: number) {
  * touchmove moves the pages in the very same event turn; that saved frame of latency is
  * what makes the drag stick to the finger on Android instead of trailing it. Only
  * `active` (position relative vs absolute, pointer events) changes through React.
+ *
+ * memo: on a route commit only the outgoing and incoming pages' wrappers re-render
+ * (their `active` flipped) — and thanks to the stable children elements even those
+ * re-renders stop at this wrapper div instead of descending into the page tree.
  */
-function CarouselPage({ index, active, preset, children }: {
+const CarouselPage = memo(function CarouselPage({ index, active, preset, children }: {
   index: number;
   active: boolean;
   preset: PageTransitionPreset;
@@ -473,16 +481,24 @@ function CarouselPage({ index, active, preset, children }: {
       el.style.opacity = String(s.opacity);
       el.style.visibility = s.visibility;
     };
-    apply(pageProgress.get()); // re-style immediately when the preset changes
+    apply(pageProgress.get()); // first paint, and re-style immediately on preset change
     return pageProgress.on('change', apply);
   }, [index, preset]);
+
+  // First-paint frame, FROZEN at mount. The style prop must present the exact same
+  // frame values on every render so React's diff never rewrites transform/opacity/
+  // visibility after mount — the progress subscription above is their single writer.
+  // (Recomputing this per render was the "ghost page" bug: the route-commit render
+  // captured mid-settle values, and by the time that commit reached the DOM the spring
+  // had finished — React stamped the stale mid-swipe frame back on with nothing left
+  // running to correct it, leaving the outgoing page half-visible under the new one.)
+  const initialFrame = useRef(frameStyles(preset, index, pageProgress.get())).current;
 
   return (
     <div
       ref={ref}
       style={{
-        // Initial frame for first paint; live updates bypass React via el.style above.
-        ...frameStyles(preset, index, pageProgress.get()),
+        ...initialFrame,
         // Keep the pages permanently promoted to their own GPU layers: promoting them
         // lazily at drag-start costs a visible first-frame hitch on Android WebViews.
         willChange: 'transform',
@@ -499,4 +515,4 @@ function CarouselPage({ index, active, preset, children }: {
       {children}
     </div>
   );
-}
+})

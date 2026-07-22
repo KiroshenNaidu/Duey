@@ -24,6 +24,7 @@ import { HapticsCard } from '@/components/settings/HapticsCard';
 import { setHapticStrength } from '@/lib/haptics';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
+import { showUndoToast } from '@/components/ui/undo-toast';
 
 const TAB_ORDER = ['style', 'colors', 'background', 'presets'] as const;
 type TabKey = (typeof TAB_ORDER)[number];
@@ -87,7 +88,7 @@ const areThemeSettingsEqual = (
 
 export function ThemeSettingsMenu({ onCancel, onDirtyChange, onSaved }: { onCancel?: () => void; onDirtyChange?: (dirty: boolean) => void; onSaved?: (msg: string) => void }) {
   const {
-    themeSettings, setThemeSettings, userThemes, addUserTheme, deleteUserTheme, setAppError,
+    themeSettings, setThemeSettings, userThemes, addUserTheme, deleteUserTheme, restoreUserTheme, setAppError,
     favouriteThemes, hiddenSystemPresets, setFavouriteThemes, setHiddenSystemPresets,
     quickAddFxId, setQuickAddFxId, quickAddShortcuts, setQuickAddShortcuts,
     pageTransitionId, setPageTransitionId, swipeActionsEnabled, setSwipeActionsEnabled,
@@ -1015,7 +1016,16 @@ export function ThemeSettingsMenu({ onCancel, onDirtyChange, onSaved }: { onCanc
                       settings={theme.settings}
                       // Deleting a saved theme is immediate + destructive (not drafted);
                       // also drop it from the favourites draft so Save can't resurrect it.
-                      onDelete={() => { deleteUserTheme(theme.id); setDraftFavourites(f => f.filter(id => id !== theme.id)); }}
+                      // The undo restores both — the theme AND its spot in the draft.
+                      onDelete={() => {
+                        const wasFavourite = draftFavourites.includes(theme.id);
+                        deleteUserTheme(theme.id);
+                        setDraftFavourites(f => f.filter(id => id !== theme.id));
+                        showUndoToast(`Deleted "${theme.name}" theme`, () => {
+                          restoreUserTheme(theme, wasFavourite);
+                          if (wasFavourite) setDraftFavourites(f => f.includes(theme.id) ? f : [...f, theme.id]);
+                        });
+                      }}
                       isActive={areThemeSettingsEqual(currentActiveSettings, theme.settings)}
                       isFavourite={draftFavourites.includes(theme.id)}
                       onToggleFavourite={() => toggleDraftFavourite(theme.id)}

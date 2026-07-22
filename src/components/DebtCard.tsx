@@ -9,8 +9,9 @@ import { DebtSemiGauge } from '@/components/DebtSemiGauge';
 import { AppDataContext } from '@/context/AppDataContext';
 import { formatCurrency, cn, hslToHex } from '@/lib/utils';
 import type { Debt } from '@/lib/types';
-import { Pencil, Trash2, CalendarDays, CheckCircle2, XCircle, X, Archive, CreditCard } from 'lucide-react';
-import { SwipeableRow } from '@/components/SwipeableRow';
+import { Trash2, CalendarDays, Check, CheckCircle2, XCircle, X, CreditCard } from 'lucide-react';
+import { useLongPress } from '@/hooks/useLongPress';
+import { showUndoToast } from '@/components/ui/undo-toast';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import {
@@ -42,6 +43,13 @@ interface DebtCardProps {
   // header already shows the name, so the card swaps its now-redundant title for its
   // creation date — which also distinguishes same-named debts from one another.
   grouped?: boolean;
+  // Multi-select wiring from DebtsList: press & hold enters selection, then taps toggle.
+  // All four arrive together (or not at all — cards rendered outside the list, if any,
+  // simply have no selection affordance).
+  selectMode?: boolean;
+  selected?: boolean;
+  onSelectHold?: () => void;
+  onSelectToggle?: () => void;
 }
 
 interface PendingPayment {
@@ -86,9 +94,13 @@ function getConfettiColors(): string[] {
   ];
 }
 
-export function DebtCard({ debt, grouped = false }: DebtCardProps) {
+export function DebtCard({ debt, grouped = false, selectMode = false, selected = false, onSelectHold, onSelectToggle }: DebtCardProps) {
   const router = useRouter();
-  const { history, updateDebt, deleteDebt, completeDebt, logCustomPayment } = useContext(AppDataContext);
+  const { history, updateDebt, deleteDebt, completeDebt, logCustomPayment, restoreDebt, unarchiveDebt } = useContext(AppDataContext);
+
+  // Press & hold → multi-select (see DebtsList). Disabled once already selecting —
+  // in that mode plain taps on the overlay do all the work.
+  const longPress = useLongPress(() => onSelectHold?.(), { enabled: !selectMode && !!onSelectHold });
 
   // Edit dialog
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -181,9 +193,19 @@ export function DebtCard({ debt, grouped = false }: DebtCardProps) {
   }, [resetEditState]);
 
   const handleDelete = useCallback(() => {
+    // Capture what deleteDebt is about to remove (the debt AND its history records)
+    // so the undo toast can put it all back exactly as it was.
+    const entries = history.filter(h => h.debtId === debt.id);
     deleteDebt(debt.id);
     setIsDialogOpen(false);
-  }, [debt.id, deleteDebt]);
+    showUndoToast(`Deleted "${debt.title}"`, () => restoreDebt(debt, entries));
+  }, [debt, history, deleteDebt, restoreDebt]);
+
+  // Archive undo, shared by the archive confirm and the pay-off celebration dialog.
+  const archiveWithUndo = useCallback(() => {
+    completeDebt(debt.id);
+    showUndoToast(`Archived "${debt.title}"`, () => unarchiveDebt(debt));
+  }, [debt, completeDebt, unarchiveDebt]);
 
   // Pending changes — computed from current edit state vs saved debt
   const pendingChanges = useMemo(() => {
@@ -311,7 +333,7 @@ export function DebtCard({ debt, grouped = false }: DebtCardProps) {
           // this debt, which unmounts the card (and this dialog with it). Doing that in the
           // same tick as the close leaves Radix's body pointer-events lock stuck — the page
           // freezes and the archive appears to "do nothing". Same race as handleConfirmSave.
-          setTimeout(() => completeDebt(debt.id), DIALOG_CLOSE_DELAY_MS);
+          setTimeout(archiveWithUndo, DIALOG_CLOSE_DELAY_MS);
         }}
         onKeepTracking={() => setShowCelebration(false)}
       />
@@ -360,7 +382,7 @@ export function DebtCard({ debt, grouped = false }: DebtCardProps) {
             <AlertDialogAction
               // Defer for the same reason as the celebration dialog: let this AlertDialog
               // finish closing before completeDebt unmounts the card, or the page freezes.
-              onClick={() => { setTimeout(() => completeDebt(debt.id), DIALOG_CLOSE_DELAY_MS); }}
+              onClick={() => { setTimeout(archiveWithUndo, DIALOG_CLOSE_DELAY_MS); }}
             >
               Archive
             </AlertDialogAction>
@@ -368,24 +390,12 @@ export function DebtCard({ debt, grouped = false }: DebtCardProps) {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Card — swipe left for Edit / Pay (or Archive when paid off) / Delete.
-          Handlers reuse the exact state the edit dialog's own buttons drive; the Pay
-          action opens the edit dialog first, then its nested payment sheet (the payment
-          dialog only exists inside the edit DialogContent), with the same settle delay
-          the dialog's internal transitions use. */}
-      <SwipeableRow
-        rightActions={[
-          { icon: Pencil, label: 'Edit', onAction: () => setIsDialogOpen(true) },
-          isPaidOff
-            ? { icon: Archive, label: 'Archive', tone: 'accent', onAction: () => setShowArchiveConfirm(true) }
-            : {
-                icon: CreditCard, label: 'Pay', tone: 'accent',
-                onAction: () => { setIsDialogOpen(true); setTimeout(openPaymentDialog, 180); },
-              },
-          { icon: Trash2, label: 'Delete', tone: 'destructive', onAction: () => setShowDeleteConfirm(true) },
-        ]}
-      >
-      <Card className={cn("overflow-hidden transition-all duration-300", grouped ? "rounded-[0.7rem]" : "rounded-[1rem]")}>
+      {/* Card — press & hold starts multi-select (replacing the old swipe-to-reveal tray,
+          which fought the page-swipe navigation gesture); Edit / Pay / Archive / Delete all
+          live inside the edit dialog, and DebtsList's selection bar handles the batch
+          versions. select-none keeps the hold from starting a text selection instead. */}
+      <div className="relative select-none" {...longPress}>
+      <Card className={cn("overflow-hidden transition-all duration-300", grouped ? "rounded-[0.7rem]" : "rounded-[1rem]", selected && "sel-glow")}>
         <CardHeader>
           <div className="flex justify-between items-center gap-2">
             <div className="min-w-0 pr-2">
@@ -424,7 +434,7 @@ export function DebtCard({ debt, grouped = false }: DebtCardProps) {
                   onClick={() => setIsDialogOpen(true)}
                   className={cn(buttonVariants({ variant: 'ghost', size: 'icon' }), "h-8 w-8 flex-shrink-0")}
                 >
-                  <Pencil className="h-4 w-4" />
+                  <CreditCard className="h-4 w-4" />
                 </button>
 
                 <DialogContent className="sm:max-w-[425px] p-0 gap-0 overflow-hidden flex flex-col">
@@ -805,7 +815,30 @@ export function DebtCard({ debt, grouped = false }: DebtCardProps) {
           </div>
         </CardContent>
       </Card>
-      </SwipeableRow>
+
+      {/* Selection chrome — the overlay owns EVERY tap while selecting so the card's own
+          controls can't fire, and the corner badge is the visible selected/unselected state.
+          Mounted only in select mode: zero cost (and zero interference) the rest of the time. */}
+      {selectMode && (
+        <>
+          <button
+            aria-label={selected ? `Deselect ${debt.title}` : `Select ${debt.title}`}
+            aria-pressed={selected}
+            onClick={onSelectToggle}
+            className={cn('absolute inset-0 z-20', grouped ? 'rounded-[0.7rem]' : 'rounded-[1rem]')}
+          />
+          <span
+            aria-hidden
+            className={cn(
+              'absolute -top-1.5 -right-1.5 z-30 pointer-events-none flex h-5 w-5 items-center justify-center rounded-full border shadow-sm transition-colors duration-150',
+              selected ? 'bg-primary border-primary text-btn-on-primary' : 'bg-card border-muted-foreground/40'
+            )}
+          >
+            {selected && <Check className="h-3 w-3" strokeWidth={3} />}
+          </span>
+        </>
+      )}
+      </div>
     </>
   );
 }

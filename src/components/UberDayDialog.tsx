@@ -17,6 +17,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { SwipeableRow } from '@/components/SwipeableRow';
+import { showUndoToast } from '@/components/ui/undo-toast';
 
 interface UberDayDialogProps {
   date: string; // ISO YYYY-MM-DD
@@ -26,7 +27,13 @@ interface UberDayDialogProps {
 }
 
 export function UberDayDialog({ date, rides, open, onOpenChange }: UberDayDialogProps) {
-  const { addUberRide, deleteUberRide } = useContext(AppDataContext);
+  const { addUberRide, deleteUberRide, restoreUberRide } = useContext(AppDataContext);
+
+  // Both delete paths (trash button + full row swipe) get the same 5s undo window.
+  const removeRide = (ride: UberRide) => {
+    deleteUberRide(ride.id);
+    showUndoToast(`Removed ${formatCurrency(ride.price)} ride`, () => restoreUberRide(ride));
+  };
 
   const [price, setPrice] = useState('');
   const [distance, setDistance] = useState('');
@@ -71,7 +78,7 @@ export function UberDayDialog({ date, rides, open, onOpenChange }: UberDayDialog
               // Swipe left → delete (same as the trash button; full swipe fires it too)
               <SwipeableRow
                 key={ride.id}
-                rightActions={[{ icon: Trash2, label: 'Delete', tone: 'destructive', onAction: () => deleteUberRide(ride.id) }]}
+                rightActions={[{ icon: Trash2, label: 'Delete', tone: 'destructive', onAction: () => removeRide(ride) }]}
               >
                 <div className="flex items-center justify-between gap-2 bg-muted/40 rounded-lg px-3 py-2">
                   <div className="flex-1 min-w-0">
@@ -86,7 +93,7 @@ export function UberDayDialog({ date, rides, open, onOpenChange }: UberDayDialog
                     variant="ghost"
                     size="icon"
                     className="h-7 w-7 flex-shrink-0 text-destructive hover:text-destructive"
-                    onClick={() => deleteUberRide(ride.id)}
+                    onClick={() => removeRide(ride)}
                   >
                     <Trash2 className="h-3.5 w-3.5" />
                   </Button>
