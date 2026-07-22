@@ -440,7 +440,11 @@ export function TransportPage() {
                         front surface paints over it. */}
                     <span
                       aria-hidden
-                      className="liquid-fill"
+                      className={cn(
+                        "liquid-fill",
+                        state === 1 && "lf-full",      // solid, still, completely filled
+                        state === 1.5 && "lf-animate", // only half-days slosh
+                      )}
                       style={{ '--fill': state === 1 ? 1.08 : state === 1.5 ? 0.5 : -0.08 } as React.CSSProperties}
                     >
                       <span className="lf-wave lf-wave2" />

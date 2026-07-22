@@ -2,8 +2,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Button } from './ui/button';
-import { Card, CardContent, CardHeader } from './ui/card';
-import { X } from 'lucide-react';
+import { X, Calculator } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { acquireOverlayBlur, releaseOverlayBlur } from '@/lib/overlayBlur';
 import { FixedPortal } from '@/components/FixedPortal';
@@ -60,15 +59,23 @@ function safeCalculate(raw: string): number {
 const DraggableCard = ({ children, onClose }: { children: React.ReactNode; onClose: () => void }) => {
   const cardRef = useRef<HTMLDivElement>(null);
   const [position, setPosition] = useState({ x: 0, y: 0 });
+  const [placed, setPlaced] = useState(false);
   const isDraggingRef = useRef(false);
   const offsetRef = useRef({ x: 0, y: 0 });
 
+  // Open near the TOP of the screen (just under the fixed top nav) for easy thumb reach
+  // instead of dead-centre; still fully draggable from the header afterwards. navBottom is
+  // measured live so the notch/safe area is accounted for on every device.
   useEffect(() => {
-    if (cardRef.current) {
-      const { innerWidth, innerHeight } = window;
-      const { offsetWidth, offsetHeight } = cardRef.current;
-      setPosition({ x: (innerWidth - offsetWidth) / 2, y: (innerHeight - offsetHeight) / 2 });
-    }
+    if (!cardRef.current) return;
+    const { innerWidth } = window;
+    const { offsetWidth } = cardRef.current;
+    const navBottom = document.querySelector('nav')?.getBoundingClientRect().bottom ?? 56;
+    setPosition({
+      x: Math.max(12, Math.round((innerWidth - offsetWidth) / 2)),
+      y: Math.round(navBottom + 12),
+    });
+    setPlaced(true);
   }, []);
 
   // Blur the whole app uniformly while open (same mechanism dialogs/quick-add use).
@@ -129,31 +136,43 @@ const DraggableCard = ({ children, onClose }: { children: React.ReactNode; onClo
         ref={cardRef}
         className="fixed z-[100] w-[85vw] min-w-[280px] max-w-[320px]"
         style={{ left: `${position.x}px`, top: `${position.y}px`, touchAction: 'none' }}
-        initial={{ opacity: 0, scale: 0.92, y: 10 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.92, y: 10 }}
+        // Slide DOWN into place from just above; held invisible until the top position is
+        // measured so it never flashes at 0,0.
+        initial={{ opacity: 0, scale: 0.94, y: -14 }}
+        animate={{ opacity: placed ? 1 : 0, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.94, y: -14 }}
         transition={{ type: 'tween', ease: [0.25, 0.46, 0.45, 0.94], duration: 0.18 }}
       >
-        <Card className="rounded-3xl overflow-hidden border border-accent/20 shadow-2xl">
-          <CardHeader
+        {/* aurora-dialog: the app's themed rotating-gradient ring (matches every modal +
+            the Quick Notepad). `border bg-background` is the fallback chrome under the
+            glass/minimal/elevated UI styles, same pattern as DialogContent. */}
+        <div className="aurora-dialog rounded-3xl overflow-hidden border bg-background flex flex-col">
+          <div
             onMouseDown={onDragStart}
             onTouchStart={onDragStart}
-            className="cursor-move px-4 pt-3 pb-0 flex flex-row items-center justify-between"
+            className="cursor-move select-none flex items-center gap-2.5 px-3 py-2.5 border-b border-border/40"
           >
-            <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground/60 select-none">Calculator</span>
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-accent/15 text-accent">
+              <Calculator size={16} />
+            </span>
+            <div className="flex-1 min-w-0 leading-tight">
+              <p className="text-[13px] font-bold text-foreground">Calculator</p>
+              <p className="text-[10px] text-muted-foreground">Drag to move</p>
+            </div>
             <Button
               variant="ghost"
               size="icon"
-              className="h-7 w-7 rounded-full text-muted-foreground hover:text-foreground hover:bg-accent/10 transition-colors"
+              className="h-8 w-8 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
               onClick={(e) => { e.stopPropagation(); onClose(); }}
+              aria-label="Close calculator"
             >
-              <X size={15} strokeWidth={2.5} />
+              <X size={18} strokeWidth={2.5} />
             </Button>
-          </CardHeader>
-          <CardContent className="p-3 pt-2">
+          </div>
+          <div className="p-3">
             {children}
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       </motion.div>
     </FixedPortal>
   );

@@ -6,6 +6,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { animate, useReducedMotion } from 'framer-motion';
 import { AppDataContext } from '@/context/AppDataContext';
 import { warmBackgroundChunks } from '@/lib/prefetch';
+import { acquirePerfFreeze, releasePerfFreeze } from '@/lib/perfFreeze';
 import {
   pageProgress, getPageTransition, type PageTransitionPreset,
   SWIPE_SETTLE_SPRING as SETTLE_SPRING,
@@ -121,6 +122,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   // animation), but the transition style stays a plain flat slide.
   const preset = getPageTransition(reduceMotion ? 'slide' : pageTransitionId);
   const containerRef = useRef<HTMLDivElement | null>(null);
+  // Held for the whole swipe+settle window so the ambient decorative loops pause and
+  // don't fight the finger-tracked pager for the main thread (see perfFreeze.ts).
+  const swipeFreezeRef = useRef<symbol | null>(null);
 
   // ── Container height lock ──
   // The carousel container's height comes from the ACTIVE page (position: relative);
@@ -136,8 +140,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   // (the "rubber band") engages even on pages shorter than the screen (Money).
   const BASE_MIN_HEIGHT = 'calc(100% + 1px)';
   const lockContainerHeight = useCallback(() => {
+    // Freeze ambient animations for the duration of the gesture (idempotent: one token
+    // spans the whole swipe→settle, released once in releaseContainerHeight).
+    if (swipeFreezeRef.current === null) swipeFreezeRef.current = acquirePerfFreeze();
     const c = containerRef.current;
     if (!c) return;
+    // Mark the carousel as in-motion so the pages feather their edges (see .carousel-surface
+    // in globals.css) — softens the seam between pages while swiping/settling.
+    c.classList.add('carousel-animating');
     let max = 0;
     for (const child of Array.from(c.children)) {
       max = Math.max(max, (child as HTMLElement).offsetHeight);
@@ -145,8 +155,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     if (max > 0) c.style.minHeight = `max(${BASE_MIN_HEIGHT}, ${max}px)`;
   }, []);
   const releaseContainerHeight = useCallback(() => {
+    if (swipeFreezeRef.current !== null) {
+      releasePerfFreeze(swipeFreezeRef.current);
+      swipeFreezeRef.current = null;
+    }
     const c = containerRef.current;
-    if (c) c.style.minHeight = BASE_MIN_HEIGHT;
+    if (c) {
+      c.style.minHeight = BASE_MIN_HEIGHT;
+      c.classList.remove('carousel-animating'); // edges retract to crisp full-bleed at rest
+    }
   }, []);
 
   // Drive the shared carousel progress toward the active page. First sync jumps
@@ -179,6 +196,31 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   useLayoutEffect(() => {
     document.querySelector('main')?.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
   }, [pathname]);
+
+  // Pause the ambient decorative loops while <main> is scrolling/flinging — same reason
+  // as the swipe freeze: their per-frame main-thread repaint stutters the scroll in the
+  // Android WebView. Acquire once on the first scroll event, release a beat after motion
+  // stops. Passive so it never delays the scroll. <main> is a stable parent of AppShell,
+  // so one bind on mount covers every route.
+  useEffect(() => {
+    const main = document.querySelector('main');
+    if (!main) return;
+    let token: symbol | null = null;
+    let idle: ReturnType<typeof setTimeout>;
+    const onScroll = () => {
+      if (token === null) token = acquirePerfFreeze();
+      clearTimeout(idle);
+      idle = setTimeout(() => {
+        if (token !== null) { releasePerfFreeze(token); token = null; }
+      }, 160);
+    };
+    main.addEventListener('scroll', onScroll, { passive: true });
+    return () => {
+      main.removeEventListener('scroll', onScroll);
+      clearTimeout(idle);
+      if (token !== null) releasePerfFreeze(token);
+    };
+  }, []);
 
   const navigate = useCallback(
     (href: string) => {
@@ -497,6 +539,9 @@ const CarouselPage = memo(function CarouselPage({ index, active, preset, childre
   return (
     <div
       ref={ref}
+      // carousel-surface: paint the page with the solid app background so, mid-swipe, this
+      // page cleanly OCCLUDES its neighbour instead of both showing through (see globals.css).
+      className="carousel-surface"
       style={{
         ...initialFrame,
         // Keep the pages permanently promoted to their own GPU layers: promoting them

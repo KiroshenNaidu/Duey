@@ -151,6 +151,48 @@ nav.fixed,
   }
 }
 
+/* ── Carousel page/panel occlusion ──
+   Every finger-tracked carousel (the AppShell page pager + the SwipeTabView tab pagers)
+   stacks its panels and slides them across each other. The panels are normally transparent
+   so an optional custom background image/video (the fixed z-[-10] layer) can show through.
+   The cost of that transparency is that mid-swipe the two overlapping panels BLEED into one
+   another — with the parallax/cube presets the incoming page slides on TOP of the outgoing
+   one, and being see-through you saw the page beneath through it (Money's debt cards laid
+   over the Transport calendar, the "carousel looks broken" bug).
+   Painting each panel with the solid app background makes the incoming panel OCCLUDE the
+   outgoing one like a native pager. It matches <body>'s bg-background exactly, so the thin
+   gaps the scale presets open between panels (and any short-page underhang) fall through to
+   the same colour — no visible seam.
+   When a custom background image/video IS active the panels stay transparent so it remains
+   visible; that mode keeps the swipe see-through as the accepted cost of the feature. */
+@property --carousel-edge-fade {
+  syntax: '<length>';
+  inherits: false;
+  initial-value: 0px;
+}
+
+.carousel-surface {
+  background-color: hsl(var(--background));
+  /* Feathered left/right edges — see .carousel-animating below. Held at 0px (solid,
+     full-bleed) at rest; the pager only grows the fade while a swipe/settle runs. The
+     registered @property above makes that grow/shrink animate as a real length so the
+     fade eases in and retracts smoothly instead of popping on/off. */
+  --carousel-edge-fade: 0px;
+  transition: --carousel-edge-fade 0.2s ease;
+  -webkit-mask-image: linear-gradient(to right, transparent 0, #000 var(--carousel-edge-fade), #000 calc(100% - var(--carousel-edge-fade)), transparent 100%);
+  mask-image: linear-gradient(to right, transparent 0, #000 var(--carousel-edge-fade), #000 calc(100% - var(--carousel-edge-fade)), transparent 100%);
+}
+body.has-bg-image .carousel-surface {
+  background-color: transparent;
+}
+/* While the pager is mid-swipe or settling (the .carousel-animating class the AppShell /
+   SwipeTabView carousels toggle for the duration of a drag + settle) soften the vertical
+   seam between the incoming and outgoing page: fade each page's leading/trailing edge from
+   solid to transparent so the two BLEND across the seam instead of meeting at a hard line. */
+.carousel-animating > .carousel-surface {
+  --carousel-edge-fade: 36px;
+}
+
 /* Protected Indicator Colors — routed through themeable status vars */
 .text-green-500 {
     color: hsl(var(--positive)) !important;
@@ -513,14 +555,30 @@ nav.fixed,
   -webkit-mask-position: 7px 0, 0 4px;
   mask-position: 7px 0, 0 4px;
 }
+/* Full day: a completely-filled, perfectly still circle — no scalloped surface, no
+   travel. The waves only ever read as "not quite full", so at 100% we drop the mask
+   (solid body), pin the level to the very top, make it fully opaque and kill motion.
+   Today's full cell keeps its diagonal accent gradient (set on .arc-animated-accent
+   .lf-wave) but sits static. Only the half state (.lf-animate) sloshes. */
+.liquid-fill.lf-full .lf-wave {
+  top: 0;
+  opacity: 1;
+  -webkit-mask: none;
+  mask: none;
+  animation: none !important;
+}
+.liquid-fill.lf-full .lf-wave2 { display: none; }
+
 /* Travel exactly one 14px wavelength (25% of the 56px strip) per loop → seamless. */
 @keyframes liquid-travel {
   from { transform: translateX(0); }
   to   { transform: translateX(-25%); }
 }
+/* Only half-days (.lf-animate) animate — full days are solid & still, empty days have
+   no visible water, so neither wastes a compositor layer on a loop nobody can see. */
 @media (prefers-reduced-motion: no-preference) {
-  .liquid-fill .lf-wave  { animation: liquid-travel 2s linear infinite; }
-  .liquid-fill .lf-wave2 { animation: liquid-travel 3.3s linear infinite reverse; }
+  .liquid-fill.lf-animate .lf-wave  { animation: liquid-travel 2s linear infinite; }
+  .liquid-fill.lf-animate .lf-wave2 { animation: liquid-travel 3.3s linear infinite reverse; }
 }
 /* Today's strips must NOT translate (that would scroll the diagonal paint) — instead
    the scallop mask layer slides one 14px period per loop (seamless), waves move while
@@ -534,8 +592,8 @@ nav.fixed,
   to   { -webkit-mask-position: 21px 0, 0 4px; mask-position: 21px 0, 0 4px; }
 }
 @media (prefers-reduced-motion: no-preference) {
-  .arc-animated-accent .lf-wave  { animation: liquid-mask-travel 2s linear infinite; }
-  .arc-animated-accent .lf-wave2 { animation: liquid-mask-travel-back 3.3s linear infinite reverse; }
+  .arc-animated-accent .lf-animate .lf-wave  { animation: liquid-mask-travel 2s linear infinite; }
+  .arc-animated-accent .lf-animate .lf-wave2 { animation: liquid-mask-travel-back 3.3s linear infinite reverse; }
 }
 /* Reduced motion: still water — the scalloped surface stays but nothing travels; level
    changes still ease between marks (state feedback, not decoration). */
@@ -667,6 +725,60 @@ body.overlay-blur .fab-blurable {
    FABs, the quick-add FAB) so they blur in step with the app instead of floating
    sharp above it. Applied to the fixed element itself — filtering a wrapper would
    re-anchor its fixed positioning. */
+
+/* ── Interaction perf-freeze ──
+   The ambient decorative loops below (gauge glows, flowing gradients, calendar water)
+   repaint on the main thread every frame. That's free on desktop Chrome but in the
+   Android WebView it competes with — and visibly stutters — the two things the user is
+   actually doing: swiping between pages and scrolling lists. So they're paused for the
+   moment those gestures run (body.perf-freeze, held by the carousel + a scroll listener,
+   see perfFreeze.ts), and paused UNDER an open overlay (body.overlay-blur): the blurred
+   #app-root would otherwise have to re-run its 5px Gaussian blur every frame just to
+   track a shimmer nobody can see through the blur — the "overlays open laggy" cost.
+   This changes NOTHING visible: a 1.6–3s loop can't be perceived across a ~300ms swipe,
+   and under the blur/scrim it's imperceptible by definition. The loops resume the instant
+   the gesture/overlay ends. Meaningful motion (page-follow transforms, fill-in
+   transitions, the water LEVEL easing on tap) is JS/transition-driven, not listed here,
+   so it is never frozen. */
+body.perf-freeze .ring-pulse,
+body.perf-freeze .bar-glow,
+body.perf-freeze .bar-animated,
+body.perf-freeze .arc-animated,
+body.perf-freeze .arc-animated-complete,
+body.perf-freeze .arc-animated-accent,
+body.perf-freeze .stroke-animated,
+body.perf-freeze .liquid-fill .lf-wave,
+body.overlay-blur #app-root .ring-pulse,
+body.overlay-blur #app-root .bar-glow,
+body.overlay-blur #app-root .bar-animated,
+body.overlay-blur #app-root .arc-animated,
+body.overlay-blur #app-root .arc-animated-complete,
+body.overlay-blur #app-root .arc-animated-accent,
+body.overlay-blur #app-root .stroke-animated,
+body.overlay-blur #app-root .liquid-fill .lf-wave {
+  animation-play-state: paused !important;
+}
+
+/* Glass chrome (bottom nav, tab bar) sits OVER the scrolling content, so its live
+   backdrop-filter re-samples and re-blurs everything behind it on EVERY scroll/swipe
+   frame — the single biggest scroll cost in glass mode, and one the animation pause above
+   can't reach. At 120 Hz the frame budget halves (8.3ms), so this is exactly what tips a
+   smooth scroll into stutter. For the ~300ms a gesture runs (and under an open overlay,
+   where the whole app is already blurred in one static pass), swap the live blur for the
+   near-opaque fill reduced-motion already falls back to. The bars are 55–88% opaque card
+   colour to begin with, so the swap barely registers while your eyes track moving content,
+   and it turns a per-frame Gaussian into a static, compositor-cached layer. Restored the
+   instant motion stops. */
+body.perf-freeze.ui-glass nav.fixed,
+body.perf-freeze.ui-glass .fixed-bottom-bar,
+body.perf-freeze.ui-glass [role="tablist"],
+body.overlay-blur.ui-glass nav.fixed,
+body.overlay-blur.ui-glass .fixed-bottom-bar,
+body.overlay-blur.ui-glass [role="tablist"] {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  background-color: hsla(var(--card) / 0.92) !important;
+}
 
 /* Skip layout/paint for off-screen rows in long history lists. `auto` caches the
    real size after first render, so output is pixel-identical with far less work. */

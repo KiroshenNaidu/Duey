@@ -3,6 +3,7 @@
 import { useContext, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import { animate, motionValue, useReducedMotion, type MotionValue } from 'framer-motion';
 import { AppDataContext } from '@/context/AppDataContext';
+import { acquirePerfFreeze, releasePerfFreeze } from '@/lib/perfFreeze';
 import {
   getPageTransition, type PageTransitionPreset,
   SWIPE_SETTLE_SPRING, SWIPE_PROJECTION_MS, SWIPE_COMMIT_FRACTION,
@@ -105,6 +106,9 @@ export function SwipeTabView<T extends string>({
   const progress = externalProgress ?? internalProgress;
 
   const containerRef = useRef<HTMLDivElement | null>(null);
+  // Held for the whole swipe+settle window so ambient decorative loops pause and don't
+  // fight the finger-tracked pager for the main thread (see perfFreeze.ts).
+  const freezeRef = useRef<symbol | null>(null);
 
   // Pin the container to the tallest REACHABLE panel while panels are in motion, so a
   // taller incoming panel is never clipped by the container's overflow:hidden mid-drag
@@ -114,8 +118,12 @@ export function SwipeTabView<T extends string>({
   // Budget) opened a huge blank scroll region below short tabs that then snapped shut
   // when the settle released the lock.
   const lockHeight = () => {
+    if (freezeRef.current === null) freezeRef.current = acquirePerfFreeze();
     const c = containerRef.current;
     if (!c) return;
+    // In-motion flag → panels feather their edges (see .carousel-surface in globals.css),
+    // softening the seam between tabs while swiping/settling.
+    c.classList.add('carousel-animating');
     const p = progress.get();
     let max = 0;
     Array.from(c.children).forEach((child, i) => {
@@ -124,9 +132,25 @@ export function SwipeTabView<T extends string>({
     if (max > 0) c.style.minHeight = `${max}px`;
   };
   const releaseHeight = () => {
+    if (freezeRef.current !== null) {
+      releasePerfFreeze(freezeRef.current);
+      freezeRef.current = null;
+    }
     const c = containerRef.current;
-    if (c) c.style.minHeight = '';
+    if (c) {
+      c.style.minHeight = '';
+      c.classList.remove('carousel-animating'); // edges retract to crisp full-bleed at rest
+    }
   };
+
+  // Unmounting mid-settle (e.g. leaving History while a tab spring is still running) would
+  // strand the freeze token and leave every ambient loop paused app-wide — release on unmount.
+  useEffect(() => () => {
+    if (freezeRef.current !== null) {
+      releasePerfFreeze(freezeRef.current);
+      freezeRef.current = null;
+    }
+  }, []);
 
   // Settle toward the active tab on external changes (tab-strip taps). A committed
   // swipe starts its settle BEFORE calling onChange; pendingSettleRef stops this effect
@@ -330,6 +354,9 @@ function TabPanel({ index, active, preset, progress, children }: {
   return (
     <div
       ref={ref}
+      // carousel-surface: paint the panel with the solid app background so, mid-swipe, this
+      // panel cleanly OCCLUDES its neighbour instead of both showing through (see globals.css).
+      className="carousel-surface"
       style={{
         ...frameStyles(preset, index, progress.get()),
         willChange: 'transform',
