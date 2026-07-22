@@ -145,9 +145,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     if (swipeFreezeRef.current === null) swipeFreezeRef.current = acquirePerfFreeze();
     const c = containerRef.current;
     if (!c) return;
-    // Mark the carousel as in-motion so the pages feather their edges (see .carousel-surface
-    // in globals.css) — softens the seam between pages while swiping/settling.
-    c.classList.add('carousel-animating');
     let max = 0;
     for (const child of Array.from(c.children)) {
       max = Math.max(max, (child as HTMLElement).offsetHeight);
@@ -162,7 +159,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     const c = containerRef.current;
     if (c) {
       c.style.minHeight = BASE_MIN_HEIGHT;
-      c.classList.remove('carousel-animating'); // edges retract to crisp full-bleed at rest
     }
   }, []);
 
@@ -539,9 +535,6 @@ const CarouselPage = memo(function CarouselPage({ index, active, preset, childre
   return (
     <div
       ref={ref}
-      // carousel-surface: paint the page with the solid app background so, mid-swipe, this
-      // page cleanly OCCLUDES its neighbour instead of both showing through (see globals.css).
-      className="carousel-surface"
       style={{
         ...initialFrame,
         // Keep the pages permanently promoted to their own GPU layers: promoting them

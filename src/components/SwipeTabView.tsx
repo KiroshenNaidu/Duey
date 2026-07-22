@@ -121,9 +121,6 @@ export function SwipeTabView<T extends string>({
     if (freezeRef.current === null) freezeRef.current = acquirePerfFreeze();
     const c = containerRef.current;
     if (!c) return;
-    // In-motion flag → panels feather their edges (see .carousel-surface in globals.css),
-    // softening the seam between tabs while swiping/settling.
-    c.classList.add('carousel-animating');
     const p = progress.get();
     let max = 0;
     Array.from(c.children).forEach((child, i) => {
@@ -139,7 +136,6 @@ export function SwipeTabView<T extends string>({
     const c = containerRef.current;
     if (c) {
       c.style.minHeight = '';
-      c.classList.remove('carousel-animating'); // edges retract to crisp full-bleed at rest
     }
   };
 
@@ -354,9 +350,6 @@ function TabPanel({ index, active, preset, progress, children }: {
   return (
     <div
       ref={ref}
-      // carousel-surface: paint the panel with the solid app background so, mid-swipe, this
-      // panel cleanly OCCLUDES its neighbour instead of both showing through (see globals.css).
-      className="carousel-surface"
       style={{
         ...frameStyles(preset, index, progress.get()),
         willChange: 'transform',
