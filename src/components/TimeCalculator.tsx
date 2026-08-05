@@ -1,9 +1,17 @@
 'use client';
 
 import { useState } from 'react';
+import dynamic from 'next/dynamic';
 import { formatCurrency, getCurrencySymbol, cn } from '@/lib/utils';
 import { ChevronDown } from 'lucide-react';
-import { MeasurementConverter } from '@/components/MeasurementConverter';
+
+// The converter's unit tables make it the largest section on this tab by some margin, and it
+// sits inside a section that starts COLLAPSED — so it never renders on a first visit. Split
+// out of the boot bundle; warmed in the background shortly after (prefetch.ts tier 1).
+const MeasurementConverter = dynamic(() => import('@/components/MeasurementConverter').then(m => ({ default: m.MeasurementConverter })), {
+  ssr: false,
+  loading: () => <div className="h-40" />,
+});
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';

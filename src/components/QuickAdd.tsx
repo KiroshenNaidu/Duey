@@ -61,6 +61,10 @@ const AIM_ACTIVATE_INSET = 46;    // how far INSIDE the option ring the armed ba
                                   // activateAt = radius − this, so it tracks the ring as the
                                   // radius widens with item count (see computeRadial).
 const TRAIL_THICKNESS = 48;       // aim-trail bar thickness = the FAB circle's diameter (h-12)
+const ENVELOPE_R = 48;            // destination-glow radius (px). Must exceed the option
+                                  // button's own radius (24, ×hoverScale while aimed) by
+                                  // enough that a halo still shows around it — that halo IS
+                                  // the "the trail fills the option" moment.
 // Quick snap for the bar re-aiming between neighbouring options — fast enough to feel
 // locked to the finger, springy enough to read as a glide rather than a teleport.
 const TRAIL_SNAP = { type: 'spring', stiffness: 700, damping: 42 } as const;
@@ -549,22 +553,29 @@ export function QuickAdd() {
                   glow under the buttons; the accent chevrons are the loud part. */}
               {gestureOn && fx.aimTrail && (
                 <motion.div
-                  className="absolute pointer-events-none overflow-hidden"
+                  className="absolute pointer-events-none"
                   style={{
                     left: 0,
                     top: 0,
-                    // Runs PAST the option centre so its far end tucks behind the button
-                    // (the button paints over it), and the gradient fades it to nothing
-                    // before then — a rectangle track that dissolves smoothly under the
-                    // destination instead of ending in a hard pill cap.
-                    width: Math.max(0, radial.radius + 8),
+                    // Ends EXACTLY at the option centre. The button is a 48px circle centred
+                    // there and the bar is 48px thick, so the bar's end edge lands on the
+                    // circle's vertical diameter — fully covered by the button, no visible
+                    // cap. (Widening it past the centre only pushed a hard corner out from
+                    // behind the button.) The gradient still fades to nothing at the end so
+                    // the last few px dissolve rather than butt up against the button.
+                    width: Math.max(0, radial.radius),
                     height: TRAIL_THICKNESS,
                     marginTop: -TRAIL_THICKNESS / 2,
                     borderRadius: 12, // rectangular, only lightly softened corners
                     rotate: trailRotate,
                     opacity: trailOpacity,
                     transformOrigin: '0 50%',
-                    background: 'linear-gradient(90deg, hsl(var(--primary) / 0.55) 0%, hsl(var(--primary) / 0.3) 50%, hsl(var(--primary) / 0) 86%)',
+                    // NO overflow-hidden. The orb below is MEANT to run to the far end and
+                    // slide behind the button, and it carries a drop-shadow that is wider
+                    // and taller than this track. Clipping squared both off into a hard
+                    // rectangle at the exact moment the glow should be pooling into the
+                    // option. Nothing here needs clipping — the chevrons stop at 70%.
+                    background: 'linear-gradient(90deg, hsl(var(--primary) / 0.55) 0%, hsl(var(--primary) / 0.34) 55%, hsl(var(--primary) / 0.18) 88%, hsl(var(--primary) / 0) 100%)',
                     filter: 'drop-shadow(0 0 10px hsl(var(--primary) / 0.22))',
                   }}
                 >
@@ -608,12 +619,19 @@ export function QuickAdd() {
                     animate={{ scale: [1, 1.12, 1] }}
                     transition={{ duration: 0.9, repeat: Infinity, ease: 'easeInOut' }}
                     style={{
-                      left: radial.radius - 38,
-                      top: -38,
-                      width: 76,
-                      height: 76,
-                      background: 'radial-gradient(circle, hsl(var(--primary) / 0.55), hsl(var(--primary) / 0.18) 55%, hsl(var(--primary) / 0) 72%)',
-                      filter: 'drop-shadow(0 0 14px hsl(var(--primary) / 0.5))',
+                      // Centred on the aimed button, INCLUDING its magnetic lean: the item
+                      // leans fx.magneticPull px further out along this same angle, and the
+                      // wrapper is already rotated to that angle, so adding it on x keeps the
+                      // halo concentric instead of trailing behind the button it's wrapping.
+                      left: radial.radius + fx.magneticPull - ENVELOPE_R,
+                      top: -ENVELOPE_R,
+                      width: ENVELOPE_R * 2,
+                      height: ENVELOPE_R * 2,
+                      // Fades to nothing only at the very edge, so past the button's rim
+                      // (24px, 28 while aimed) there's a real halo left to read as a fill.
+                      // The old 72% stop died 3px past the rim — barely a fringe.
+                      background: 'radial-gradient(circle, hsl(var(--primary) / 0.6) 0%, hsl(var(--primary) / 0.34) 42%, hsl(var(--primary) / 0.12) 70%, hsl(var(--primary) / 0) 100%)',
+                      filter: 'drop-shadow(0 0 16px hsl(var(--primary) / 0.5))',
                     }}
                   />
                 </motion.div>

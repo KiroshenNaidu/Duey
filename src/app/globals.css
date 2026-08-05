@@ -717,6 +717,26 @@ body.overlay-blur #app-root .liquid-fill .lf-wave {
   animation-play-state: paused !important;
 }
 
+/* ── Off-screen page freeze ──
+   The AppShell carousel keeps ALL FOUR main pages mounted permanently, so at any moment
+   three of them are parked off-screen (visibility: hidden) — and their ambient loops kept
+   ticking the whole time: the Transport calendar's flowing arcs and water, the Stats rings,
+   the Money payoff bars. That's a permanent, invisible main-thread tax the perf-freeze
+   above never touched, because it only covers the ~300ms of an active gesture. AppShell
+   stamps data-page-offscreen on a page the moment it can no longer be seen (and clears it
+   before it comes back), so these loops cost nothing while parked and resume the instant
+   the page is on screen again. Nothing visible changes — by definition. */
+[data-page-offscreen] .ring-pulse,
+[data-page-offscreen] .bar-glow,
+[data-page-offscreen] .bar-animated,
+[data-page-offscreen] .arc-animated,
+[data-page-offscreen] .arc-animated-complete,
+[data-page-offscreen] .arc-animated-accent,
+[data-page-offscreen] .stroke-animated,
+[data-page-offscreen] .liquid-fill .lf-wave {
+  animation-play-state: paused !important;
+}
+
 /* Glass chrome (bottom nav, tab bar) sits OVER the scrolling content, so its live
    backdrop-filter re-samples and re-blurs everything behind it on EVERY scroll/swipe
    frame — the single biggest scroll cost in glass mode, and one the animation pause above

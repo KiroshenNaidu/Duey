@@ -60,9 +60,15 @@ function isInHorizontalScroller(el: EventTarget | null): boolean {
     // Match only that — NOT Radix Tabs root, which also has data-orientation="horizontal"
     // but no slider descendant (otherwise page-swipe is blocked over tab strips).
     if (node.getAttribute('data-orientation') === 'horizontal' && node.querySelector('[role="slider"]')) return true;
-    const style = window.getComputedStyle(node);
-    const ox = style.overflowX;
-    if ((ox === 'scroll' || ox === 'auto') && node.scrollWidth > node.clientWidth) return true;
+    // Geometry first, computed style second. This walk runs on the frame a drag is
+    // classified — the one frame where the finger is most sensitive to a stall — and
+    // getComputedStyle forces a style recalc on every ancestor it touches. Only an element
+    // that actually overflows horizontally can be a scroller, and that test is a plain
+    // layout read, so it eliminates almost every ancestor before the expensive call.
+    if (node.scrollWidth > node.clientWidth) {
+      const ox = window.getComputedStyle(node).overflowX;
+      if (ox === 'scroll' || ox === 'auto') return true;
+    }
     node = node.parentElement;
   }
   return false;
@@ -263,9 +269,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     return () => { observer.disconnect(); cancelAnimationFrame(raf); };
   }, []);
 
-  // Once the app is interactive, warm the deferred chunks in the background (Money Balance
-  // first, then Profile + its sub-pages) and prefetch the History route, so navigating to
-  // them later is instant without bloating the initial bundle/boot.
+  // Once the app is interactive, warm the deferred chunks in the background, in strict
+  // priority order (see prefetch.ts): quick-nav destinations first, then Settings, then —
+  // dead last, behind an extra idle gap — the History route. Navigating anywhere later is
+  // instant without any of it bloating the initial bundle/boot.
   //
   // Production only: in dev, each import()/prefetch forces an on-demand Turbopack compile of
   // these heavy modules (the ~1,400-line settings menus, the jsPDF-pulling History route),
@@ -273,8 +280,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   // Dev compiles them lazily on first visit instead.
   useEffect(() => {
     if (process.env.NODE_ENV !== 'production') return;
-    warmBackgroundChunks();
-    router.prefetch?.('/history');
+    warmBackgroundChunks(() => router.prefetch?.('/history'));
   }, [router]);
 
   // Open downloaded file when user taps a "File Saved" notification
@@ -352,8 +358,17 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         lockContainerHeight();
       }
 
-      samples.push({ t: Date.now(), x: e.touches[0].clientX });
-      if (samples.length > 8) samples.shift();
+      // Age-bounded (not count-bounded) sample ring. Android touchscreens sample anywhere
+      // from 60 Hz to 240+ Hz, so the old fixed 8-slot buffer silently shrank the velocity
+      // window to ~33ms on exactly the high-refresh panels this app is tuned for, making
+      // flings read slower than the finger actually threw them. Drop samples older than
+      // VELOCITY_WINDOW_MS but always KEEP the first one past the edge, so the release scan
+      // below still finds a sample spanning the full window. A pause before release still
+      // kills the fling: no touchmoves fire while the finger is still, so every retained
+      // sample ages out of the window and the scan finds nothing — the native-pager feel.
+      const now = Date.now();
+      samples.push({ t: now, x: e.touches[0].clientX });
+      while (samples.length > 2 && now - samples[1].t > VELOCITY_WINDOW_MS) samples.shift();
 
       // Finger-following: progress = the position the finger implies right now,
       // rubber-banded past the first/last page so the edges resist progressively.
@@ -511,13 +526,29 @@ const CarouselPage = memo(function CarouselPage({ index, active, preset, childre
   presetRef.current = preset;
 
   useLayoutEffect(() => {
+    // Last committed visibility. `null` until the first apply, so a preset change (which
+    // re-runs this effect) always re-stamps the styles even on a parked page.
+    let offscreen: boolean | null = null;
     const apply = (p: number) => {
       const el = ref.current;
       if (!el) return;
+      const nowOffscreen = Math.abs(index - p) >= VISIBLE_RANGE;
+      // Already parked out of sight and staying there: nothing about this page can be
+      // perceived, so skip the writes entirely. With four permanently-mounted pages a
+      // touchmove used to restyle all four; now it restyles the two that are actually on
+      // screen. Android's touchscreen samples well above the refresh rate, so this is
+      // several style invalidations saved per FRAME on a 120 Hz drag.
+      if (nowOffscreen && offscreen === true) return;
       const s = frameStyles(presetRef.current, index, p);
       el.style.transform = s.transform;
       el.style.opacity = String(s.opacity);
       el.style.visibility = s.visibility;
+      if (nowOffscreen !== offscreen) {
+        offscreen = nowOffscreen;
+        // Marks the page for the CSS rule that pauses its ambient decorative loops while
+        // it can't be seen (see globals.css) — the off-screen twin of body.perf-freeze.
+        el.toggleAttribute('data-page-offscreen', nowOffscreen);
+      }
     };
     apply(pageProgress.get()); // first paint, and re-style immediately on preset change
     return pageProgress.on('change', apply);

@@ -7,7 +7,6 @@ import { StickyNote, X, Trash2 } from 'lucide-react';
 import { AppDataContext } from '@/context/AppDataContext';
 import { cn } from '@/lib/utils';
 import { acquireOverlayBlur, releaseOverlayBlur } from '@/lib/overlayBlur';
-import { hapticTap } from '@/lib/haptics';
 import { FixedPortal } from '@/components/FixedPortal';
 
 type SaveState = 'saved' | 'saving';
@@ -185,19 +184,14 @@ const DraggableNotepadBox = ({
   );
 };
 
-export function QuickNotepad({ showButton = true }: { showButton?: boolean }) {
+// Pure panel: open state and the launch button live in FloatingTools, which also owns the
+// 'duey:open-notes' quick-add shortcut. Keeping this component free of both is what lets
+// FloatingTools code-split it without the home page's notepad button arriving late.
+export function QuickNotepad({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
   const { notepadContent, setNotepadContent } = useContext(AppDataContext);
-  const [isOpen, setIsOpen] = useState(false);
   const [localContent, setLocalContent] = useState(notepadContent);
   const [saveState, setSaveState] = useState<SaveState>('saved');
   const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-
-  // The quick-add "Notes" shortcut opens the notepad from any page.
-  useEffect(() => {
-    const onOpen = () => setIsOpen(true);
-    window.addEventListener('duey:open-notes', onOpen);
-    return () => window.removeEventListener('duey:open-notes', onOpen);
-  }, []);
 
   // Sync local content when the notepad opens so it reflects persisted state.
   // notepadContent intentionally omitted from deps — including it would reset mid-edit content on every keystroke.
@@ -228,22 +222,10 @@ export function QuickNotepad({ showButton = true }: { showButton?: boolean }) {
 
   return (
     <>
-      {showButton && (
-        <Button
-          variant="outline"
-          size="icon"
-          className="fixed right-4 z-[60] h-12 w-12 rounded-full shadow-lg bg-card border-2 border-accent/30"
-          style={{ bottom: 'calc(10px + var(--sab))' }}
-          onClick={() => { hapticTap(); setIsOpen(prev => !prev); }}
-        >
-          <StickyNote className="h-5 w-5" />
-        </Button>
-      )}
-
       <AnimatePresence>
         {isOpen && (
           <DraggableNotepadBox
-            onClose={() => setIsOpen(false)}
+            onClose={onClose}
             onClear={handleClear}
             charCount={localContent.length}
             saveState={saveState}

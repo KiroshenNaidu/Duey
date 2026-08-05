@@ -225,15 +225,17 @@ export function RadialFxDemo({ value, onChange }: {
           )}
           {/* Aim trail: low-opacity primary bar growing from BEHIND the demo FAB (the FAB
               button is a later sibling → paints over it) and sticking to the aimed icon,
-              with accent chevrons streaming outward — mirrors the real menu. */}
+              with accent chevrons streaming outward — mirrors the real menu.
+              No overflow-hidden, and the track stops AT the icon centre — see the matching
+              comments in QuickAdd; clipping squared the orb + its shadow off mid-glow. */}
           {open && fx.aimTrail && (
             <motion.div
-              className="absolute pointer-events-none overflow-hidden"
+              className="absolute pointer-events-none"
               style={{
-                left: 0, top: 0, width: Math.max(0, DEMO_RADIUS + 6), height: 44, marginTop: -22,
+                left: 0, top: 0, width: Math.max(0, DEMO_RADIUS), height: 44, marginTop: -22,
                 borderRadius: 11,
                 rotate: trailRotate, opacity: trailOpacity, transformOrigin: '0 50%',
-                background: 'linear-gradient(90deg, hsl(var(--primary) / 0.55) 0%, hsl(var(--primary) / 0.3) 50%, hsl(var(--primary) / 0) 86%)',
+                background: 'linear-gradient(90deg, hsl(var(--primary) / 0.55) 0%, hsl(var(--primary) / 0.34) 55%, hsl(var(--primary) / 0.18) 88%, hsl(var(--primary) / 0) 100%)',
                 filter: 'drop-shadow(0 0 9px hsl(var(--primary) / 0.22))',
               }}
             >
@@ -267,9 +269,9 @@ export function RadialFxDemo({ value, onChange }: {
                 animate={{ scale: [1, 1.12, 1] }}
                 transition={{ duration: 0.9, repeat: Infinity, ease: 'easeInOut' }}
                 style={{
-                  left: DEMO_RADIUS - 32, top: -32, width: 64, height: 64,
-                  background: 'radial-gradient(circle, hsl(var(--primary) / 0.55), hsl(var(--primary) / 0.18) 55%, hsl(var(--primary) / 0) 72%)',
-                  filter: 'drop-shadow(0 0 12px hsl(var(--primary) / 0.5))',
+                  left: DEMO_RADIUS + fx.magneticPull - 40, top: -40, width: 80, height: 80,
+                  background: 'radial-gradient(circle, hsl(var(--primary) / 0.6) 0%, hsl(var(--primary) / 0.34) 42%, hsl(var(--primary) / 0.12) 70%, hsl(var(--primary) / 0) 100%)',
+                  filter: 'drop-shadow(0 0 14px hsl(var(--primary) / 0.5))',
                 }}
               />
             </motion.div>
