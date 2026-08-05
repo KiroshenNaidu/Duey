@@ -33,6 +33,16 @@ export const getProgress = (debt: Debt, history: HistoryEntry[]): number => {
     return Math.min(100, progress);
 };
 
+// Percentages shown next to real amounts must never lie about the two states people
+// actually check: "untouched" and "done". Plain Math.round turns 99.6% into "100%" on a
+// debt that still owes money, and 0.4% into "0%" on one that's been paid. Clamp the
+// rounded value to 1..99 unless the underlying progress genuinely hits the endpoint.
+export const displayProgressPct = (progress: number): number => {
+    if (!Number.isFinite(progress) || progress <= 0) return 0;
+    if (progress >= 100) return 100;
+    return Math.min(99, Math.max(1, Math.round(progress)));
+};
+
 
 // Stats Page Calculations
 export const calculateGlobalStats = (debts: Debt[], history: HistoryEntry[]) => {
@@ -46,9 +56,26 @@ export const calculateGlobalStats = (debts: Debt[], history: HistoryEntry[]) => 
         }
     }
     const globalTotalDebt = debts.reduce((acc, d) => acc + d.total_owed, 0);
+    // Raw money actually handed over — can exceed the total owed when a debt is overpaid.
     const globalAmountPaid = debts.reduce((acc, d) => acc + (paidByDebtId.get(d.id) ?? 0), 0);
-    const globalRemainingBalance = globalTotalDebt - globalAmountPaid;
-    return { globalTotalDebt, globalAmountPaid, globalRemainingBalance, totalTransportPaid };
+    // Only what each debt could absorb counts toward progress. Without the per-debt clamp,
+    // an overpayment on one debt silently cancels the shortfall on another, so the donut
+    // reads "100% paid off" (and remaining goes negative) while a bar still sits at 83%.
+    // This matches getRemainingBalance/getProgress, which already clamp per debt.
+    const globalCreditedPaid = debts.reduce(
+        (acc, d) => acc + Math.min(paidByDebtId.get(d.id) ?? 0, d.total_owed),
+        0,
+    );
+    const globalOverpaid = globalAmountPaid - globalCreditedPaid;
+    const globalRemainingBalance = globalTotalDebt - globalCreditedPaid;
+    return {
+        globalTotalDebt,
+        globalAmountPaid,
+        globalCreditedPaid,
+        globalOverpaid,
+        globalRemainingBalance,
+        totalTransportPaid,
+    };
 };
 
 // NOTE (flagged, not yet changed — see plan Part D #8): the ISO key below is derived

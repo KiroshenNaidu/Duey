@@ -6,7 +6,7 @@ import { formatCurrency, cn } from '@/lib/utils';
 import { DebtProgressCharts } from '@/components/DebtProgressCharts';
 import { useReplayOnActive } from '@/hooks/useReplayOnActive';
 import { TransportStatusCard } from '@/components/TransportStatusCard';
-import { calculateGlobalStats, calculateLiveMonthly, isTransportPaidForMonth } from '@/lib/calculations';
+import { calculateGlobalStats, calculateLiveMonthly, displayProgressPct, isTransportPaidForMonth } from '@/lib/calculations';
 import {
   TrendingUp, Car, CreditCard, TrendingDown,
   ReceiptText, PiggyBank, ArrowUpRight, ArrowDownRight, BadgeDollarSign,
@@ -23,8 +23,10 @@ function DebtHeroCard() {
   const { debts, history } = useContext(AppDataContext);
   const stats = useMemo(() => calculateGlobalStats(debts, history), [debts, history]);
 
-  const progress = stats.globalTotalDebt > 0 ? stats.globalAmountPaid / stats.globalTotalDebt : 0;
-  const pct = Math.min(100, Math.round(progress * 100));
+  // Credited (per-debt clamped) paid, so the ring and the % agree with the per-debt bars
+  // below instead of being inflated by an overpayment on one debt.
+  const progress = stats.globalTotalDebt > 0 ? stats.globalCreditedPaid / stats.globalTotalDebt : 0;
+  const pct = displayProgressPct(progress * 100);
   const offset = DONUT_CIRC * (1 - Math.min(progress, 1));
 
   // Re-runs the ring-fill every time the Stats page becomes active (swipe or tab),
@@ -57,9 +59,12 @@ function DebtHeroCard() {
           {formatCurrency(stats.globalRemainingBalance)}
         </p>
         <p className="text-xs text-muted-foreground mt-1 truncate">of {formatCurrency(stats.globalTotalDebt)} total</p>
-        {stats.globalAmountPaid > 0 && (
+        {stats.globalCreditedPaid > 0 && (
           <p className="text-xs text-[hsl(var(--positive))] font-medium mt-0.5 truncate">
-            {formatCurrency(stats.globalAmountPaid)} paid
+            {formatCurrency(stats.globalCreditedPaid)} paid
+            {stats.globalOverpaid > 0 && (
+              <span className="text-muted-foreground"> · {formatCurrency(stats.globalOverpaid)} over</span>
+            )}
           </p>
         )}
       </div>

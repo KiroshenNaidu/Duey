@@ -3,7 +3,7 @@
 import { useContext, useMemo, useState, useEffect } from 'react';
 import { AppDataContext } from '@/context/AppDataContext';
 import { Skeleton } from '@/components/ui/skeleton';
-import { getProgress } from '@/lib/calculations';
+import { displayProgressPct, getProgress } from '@/lib/calculations';
 import { cn } from '@/lib/utils';
 import { useReplayOnActive } from '@/hooks/useReplayOnActive';
 
@@ -50,7 +50,7 @@ export function DebtProgressCharts() {
         <div key={debt.id} className="space-y-1">
           <div className="flex items-center justify-between gap-2">
             <span className="text-xs font-medium text-foreground truncate">{debt.name}</span>
-            <span className="text-xs font-mono text-muted-foreground shrink-0">{Math.round(debt.progress)}%</span>
+            <span className="text-xs font-mono text-muted-foreground shrink-0">{displayProgressPct(debt.progress)}%</span>
           </div>
           <div className="relative h-1.5 w-full overflow-hidden rounded-full bg-muted/40">
             <div

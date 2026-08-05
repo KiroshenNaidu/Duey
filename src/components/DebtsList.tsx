@@ -21,7 +21,7 @@ import {
 import { buttonVariants } from '@/components/ui/button';
 import { useFabLongPress, FAB_TOUCH_STYLE, FabPulse } from '@/components/QuickAdd';
 import { formatCurrency, cn } from '@/lib/utils';
-import { getAmountPaid, getRemainingBalance } from '@/lib/calculations';
+import { displayProgressPct, getAmountPaid, getRemainingBalance } from '@/lib/calculations';
 import { personKey, debtPersonName } from '@/lib/persons';
 import { hapticImpact, hapticTick } from '@/lib/haptics';
 import { showUndoToast } from '@/components/ui/undo-toast';
@@ -112,7 +112,7 @@ function DebtGroup({ name, debts, selectProps }: { name: string; debts: Debt[]; 
             className="flex-shrink-0 text-sm font-bold tabular-nums text-primary"
             style={allPaid ? { color: 'hsl(var(--primary-complete))' } : undefined}
           >
-            {Math.round(progress)}%
+            {displayProgressPct(progress)}%
           </span>
         </div>
 

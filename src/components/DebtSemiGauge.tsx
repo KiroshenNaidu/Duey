@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
+import { displayProgressPct } from '@/lib/calculations';
 
 // A sideways semicircular gauge (a "C" opening to the right). The arc traces the
 // left half of a circle from top → left → bottom and fills with progress. It is
@@ -92,7 +93,7 @@ export function DebtSemiGauge({ progress, pendingProgress = 0, paidOff, classNam
         className="absolute top-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center w-max whitespace-nowrap pointer-events-none"
         style={{ left: '62%' }}
       >
-        <span className="text-2xl font-black tabular-nums leading-none">{Math.round(p)}%</span>
+        <span className="text-2xl font-black tabular-nums leading-none">{displayProgressPct(p)}%</span>
         <span className="text-[10px] text-muted-foreground mt-0.5">complete</span>
       </div>
     </div>

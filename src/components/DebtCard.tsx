@@ -34,7 +34,7 @@ import {
 } from "@/components/ui/dialog"
 import { PaymentCalendarDialog } from './PaymentCalendarDialog';
 import { DebtCompletionDialog } from './DebtCompletionDialog';
-import { getPaymentCount, getTotalInstallments, getAmountPaid } from '@/lib/calculations';
+import { getPaymentCount, getTotalInstallments, getAmountPaid, displayProgressPct } from '@/lib/calculations';
 import { useReplayOnActive } from '@/hooks/useReplayOnActive';
 
 interface DebtCardProps {
@@ -425,7 +425,7 @@ export function DebtCard({ debt, grouped = false, selectMode = false, selected =
                 </span>
               )}
               <span className="text-xs text-muted-foreground whitespace-nowrap tabular-nums">
-                {paymentCount} of {totalInstallments} ({Math.round(progress)}%)
+                {paymentCount} of {totalInstallments} ({displayProgressPct(progress)}%)
               </span>
 
               {/* Edit dialog */}
@@ -555,7 +555,7 @@ export function DebtCard({ debt, grouped = false, selectMode = false, selected =
                                     <div className="rounded-lg border border-border/40 bg-muted/30 px-3 py-2.5 space-y-1">
                                       <p className="text-[10px] uppercase tracking-wide text-muted-foreground/60">Before</p>
                                       <p className="font-semibold text-foreground">{formatCurrency(amountPaid)}</p>
-                                      <p className="text-muted-foreground">{Math.round(progress)}% paid</p>
+                                      <p className="text-muted-foreground">{displayProgressPct(progress)}% paid</p>
                                       {newTotalOwed > amountPaid && (
                                         <p className="text-muted-foreground/60">{formatCurrency(newTotalOwed - amountPaid)} left</p>
                                       )}
@@ -563,7 +563,7 @@ export function DebtCard({ debt, grouped = false, selectMode = false, selected =
                                     <div className="rounded-lg border border-accent/20 bg-accent/5 px-3 py-2.5 space-y-1">
                                       <p className="text-[10px] uppercase tracking-wide text-muted-foreground/60">After</p>
                                       <p className="font-semibold text-accent">{formatCurrency(newAmountPaid)}</p>
-                                      <p className="text-muted-foreground">{Math.round(newProgress)}% paid</p>
+                                      <p className="text-muted-foreground">{displayProgressPct(newProgress)}% paid</p>
                                       {newTotalOwed > newAmountPaid && (
                                         <p className="text-muted-foreground/60">{formatCurrency(newTotalOwed - newAmountPaid)} left</p>
                                       )}
