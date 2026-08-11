@@ -1,6 +1,6 @@
 {
   "name": "duey",
-  "version": "2.0.0",
+  "version": "2.0.2",
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack -p 9002",
@@ -10,7 +10,11 @@
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
     "android": "npx cap open android",
-    "sync:android": "npm run clean && next build && npx cap sync android"
+    "version:patch": "node scripts/bump-version.mjs patch",
+    "version:minor": "node scripts/bump-version.mjs minor",
+    "version:major": "node scripts/bump-version.mjs major",
+    "sync:android": "npm run version:patch && npm run clean && next build && npx cap sync android",
+    "sync:android:norev": "npm run clean && next build && npx cap sync android"
   },
   "dependencies": {
     "@capacitor/android": "^7.0.0",
