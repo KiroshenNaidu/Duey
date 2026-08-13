@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { AnimatePresence, animate, motion, useMotionValue } from 'framer-motion';
 import { RADIAL_FX_PRESETS, getRadialFx } from '@/lib/radialFx';
-import { AimSparkles, RippleBurst, CometTrail, TrailFlow } from '@/components/RadialAimFx';
+import { AimSparkles, RippleBurst, CometTrail, TrailFlow, aimTrailTrackStyle } from '@/components/RadialAimFx';
 import { activateDist } from '@/components/QuickAdd';
 import { hapticTick } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
@@ -232,10 +232,11 @@ export function RadialFxDemo({ value, onChange }: {
             <motion.div
               className="absolute pointer-events-none"
               style={{
-                left: 0, top: 0, width: Math.max(0, DEMO_RADIUS), height: 44, marginTop: -22,
-                borderRadius: 11,
+                top: 0,
+                // Thickness matches the demo FAB (h-11 = 44px) so its end fades out exactly at
+                // that button's rim — same treatment as the real menu, see aimTrailTrackStyle.
+                ...aimTrailTrackStyle(DEMO_RADIUS, 44, 11),
                 rotate: trailRotate, opacity: trailOpacity, transformOrigin: '0 50%',
-                background: 'linear-gradient(90deg, hsl(var(--primary) / 0.55) 0%, hsl(var(--primary) / 0.34) 55%, hsl(var(--primary) / 0.18) 88%, hsl(var(--primary) / 0) 100%)',
                 filter: 'drop-shadow(0 0 9px hsl(var(--primary) / 0.22))',
               }}
             >

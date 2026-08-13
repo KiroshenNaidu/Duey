@@ -23,6 +23,7 @@
 - See repayment progress at a glance
 - Attach notes and custom labels to individual payments in your history
 - Optional per-debt due-date reminders (Android notifications, opt-in per debt)
+- People manager — a roster of everyone you've owed, built from your history; rename someone once and it updates across active debts, history, and suggestions
 
 ### Transport Calculator
 - Tap days on a custom calendar to mark days you traveled — full days or half days
@@ -60,6 +61,7 @@
 ### Feel
 - Swipe pages left/right to move between Money, Stats, and Transport
 - Swipe list cards to reveal edit/delete actions
+- Undo on deletes and archives — debts, budget plans, Uber days and saved themes all come back exactly as they were from the toast
 - Haptic feedback on buttons and gestures — off / light / medium / strong
 
 ---
@@ -106,9 +108,27 @@ npm run dev        # runs on port 9002
 To build and sync to Android:
 
 ```bash
-npm run sync:android   # clean && next build && cap sync android
-npm run android        # opens Android Studio
+npm run sync:android         # patch bump && clean && next build && cap sync android
+npm run sync:android:norev   # same, without bumping the version
+npm run android              # opens Android Studio
 ```
+
+---
+
+## Versioning
+
+`package.json`'s `version` is the single source of truth. `next.config.ts` inlines it as
+`NEXT_PUBLIC_APP_VERSION`, and `android/app/build.gradle` reads it into `versionName` plus a
+derived `versionCode` (`major * 10000 + minor * 100 + patch`).
+
+`npm run sync:android` runs a patch bump first, so every APK you build carries a fresh
+`versionCode`. For the bigger jumps, bump by hand before syncing:
+
+```bash
+npm run version:minor   # or version:major / version:patch
+```
+
+Use `sync:android:norev` when you want to rebuild without burning a version number.
 
 ---
 

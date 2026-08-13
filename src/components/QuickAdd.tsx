@@ -16,7 +16,7 @@ import { Zap, X, Check } from 'lucide-react';
 import { acquireOverlayBlur, releaseOverlayBlur } from '@/lib/overlayBlur';
 import { hapticTick, hapticTap, hapticImpact } from '@/lib/haptics';
 import { getRadialFx } from '@/lib/radialFx';
-import { AimSparkles, CurvedLabel, RippleBurst, CometTrail, TrailFlow } from '@/components/RadialAimFx';
+import { AimSparkles, CurvedLabel, RippleBurst, CometTrail, TrailFlow, aimTrailTrackStyle } from '@/components/RadialAimFx';
 import { getShortcut, type QuickShortcut } from '@/lib/quickShortcuts';
 
 // Global quick-add: log a debt payment, expense, extra income or Uber ride from anywhere.
@@ -555,7 +555,6 @@ export function QuickAdd() {
                 <motion.div
                   className="absolute pointer-events-none"
                   style={{
-                    left: 0,
                     top: 0,
                     // Ends EXACTLY at the option centre. The button is a 48px circle centred
                     // there and the bar is 48px thick, so the bar's end edge lands on the
@@ -563,10 +562,13 @@ export function QuickAdd() {
                     // cap. (Widening it past the centre only pushed a hard corner out from
                     // behind the button.) The gradient still fades to nothing at the end so
                     // the last few px dissolve rather than butt up against the button.
-                    width: Math.max(0, radial.radius),
-                    height: TRAIL_THICKNESS,
-                    marginTop: -TRAIL_THICKNESS / 2,
-                    borderRadius: 12, // rectangular, only lightly softened corners
+                    //
+                    // The FAB end starts square AT the ✕ centre — bar thickness = ✕ diameter,
+                    // so its edges are the ✕ circle's tangents and run straight out of the rim
+                    // with no seam, while the ramp fades to transparent there so nothing pokes
+                    // out. See aimTrailTrackStyle. left/width/height/marginTop/borderRadius/
+                    // background all come from there.
+                    ...aimTrailTrackStyle(radial.radius, TRAIL_THICKNESS, 12),
                     rotate: trailRotate,
                     opacity: trailOpacity,
                     transformOrigin: '0 50%',
@@ -574,8 +576,7 @@ export function QuickAdd() {
                     // slide behind the button, and it carries a drop-shadow that is wider
                     // and taller than this track. Clipping squared both off into a hard
                     // rectangle at the exact moment the glow should be pooling into the
-                    // option. Nothing here needs clipping — the chevrons stop at 70%.
-                    background: 'linear-gradient(90deg, hsl(var(--primary) / 0.55) 0%, hsl(var(--primary) / 0.34) 55%, hsl(var(--primary) / 0.18) 88%, hsl(var(--primary) / 0) 100%)',
+                    // option. Nothing here needs clipping — the chevrons stop short of the end.
                     filter: 'drop-shadow(0 0 10px hsl(var(--primary) / 0.22))',
                   }}
                 >

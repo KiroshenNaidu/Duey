@@ -68,6 +68,45 @@ export function RippleBurst() {
   );
 }
 
+// Geometry + colour ramp for the aim-trail track — the FAB-thick bar that grows from behind
+// the FAB out to the aimed option. Shared by the real quick-add menu and the Theme→Style demo
+// so the two can't drift.
+//
+// The track is a band exactly as thick as the FAB is wide, and it starts AT the FAB centre —
+// which is the whole trick. Two lines a diameter apart, straddling the centre of a circle of
+// that diameter, are the circle's two TANGENTS: they touch the rim at its top and bottom
+// points and carry straight on from there. So the band's long edges leave the button without
+// a seam, and its flat back edge is the button's own vertical diameter — sitting entirely
+// under the opaque ✕, which paints over it.
+//
+// Do NOT round the back cap. A `thickness/2` radius there is an arc of a circle centred half
+// a thickness OUT along the beam — a different circle from the FAB's. The two cross at 30°
+// off the centreline, and that crossing is a visible cusp: a hard diagonal nick slicing out
+// of the button exactly where the trail should be growing smoothly out of it. Extending the
+// box backwards to make the cap concentric instead just blooms the drop-shadow out the BACK
+// of the button as a halo. (Tried both. Square is the one that's actually tangent.)
+//
+// Alpha finishes the job: the ramp starts fully TRANSPARENT at the FAB centre and reaches
+// full strength at the rim (half a thickness out), so the wedges of band that fall outside
+// the circle on the way there — and the drop-shadow they cast — fade in rather than appear.
+// The rest of the ramp is unchanged, so the trail still fades out as it reaches the option.
+export function aimTrailTrackStyle(length: number, thickness: number, cornerRadius: number) {
+  const width = Math.max(0, length);
+  // The FAB's rim, as a stop along the track: half the thickness = the FAB's radius.
+  const rimPct = width > 0 ? Math.min(45, (thickness / 2 / width) * 100).toFixed(1) : '0';
+  return {
+    left: 0,
+    width,
+    height: thickness,
+    marginTop: -thickness / 2,
+    // Square at the FAB end (tangent, see above); only the far end is rounded.
+    borderRadius: `0 ${cornerRadius}px ${cornerRadius}px 0`,
+    background:
+      `linear-gradient(90deg, hsl(var(--primary) / 0) 0%, hsl(var(--primary) / 0.55) ${rimPct}%, ` +
+      `hsl(var(--primary) / 0.34) 55%, hsl(var(--primary) / 0.18) 88%, hsl(var(--primary) / 0) 100%)`,
+  };
+}
+
 // Chevrons that stream OUTWARD along the aim-trail bar, from the FAB centre toward the
 // locked option — racing-game "boost" arrows. Rendered inside the bar element itself:
 // the bar's width is its length and its x-axis points at the option, so `left`

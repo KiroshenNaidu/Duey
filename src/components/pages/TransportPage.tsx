@@ -36,6 +36,15 @@ import { buttonVariants } from '@/components/ui/button';
 
 const WEEK_DAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
+// The two calendars the card can show. Listed rather than hand-written twice so the footer
+// switch splits the row evenly between however many there are.
+const CALENDAR_MODES = [
+  { id: 'driver', label: 'Driver' },
+  { id: 'uber', label: 'Uber' },
+] as const;
+
+type CalendarMode = (typeof CALENDAR_MODES)[number]['id'];
+
 
 
 export function TransportPage() {
@@ -51,7 +60,7 @@ export function TransportPage() {
   const [isEditingCalendar, setIsEditingCalendar] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [undoOpen, setUndoOpen] = useState(false);
-  const [calendarMode, setCalendarMode] = useState<'driver' | 'uber'>('driver');
+  const [calendarMode, setCalendarMode] = useState<CalendarMode>('driver');
   const [uberDialogDate, setUberDialogDate] = useState<string | null>(null);
   // Flat monthly mode only: per-month amount override, committed when Edit toggle is turned off.
   const [monthlyAmountOverride, setMonthlyAmountOverride] = useState('');
@@ -474,15 +483,26 @@ export function TransportPage() {
                     onClick={() => setUberDialogDate(isoDate)}
                     className={cn(
                       "h-7 w-7 rounded-full flex flex-col items-center justify-center transition-all duration-200 text-[10px] cursor-pointer hover:scale-105",
-                      hasRides ? 'bg-accent/30 text-foreground' : 'bg-muted/20 text-muted-foreground opacity-50',
-                      // Same accent-family today treatment as the driver calendar; opacity-100
-                      // beats the no-rides dim so the halo/ring never fade.
-                      isToday && "arc-animated-accent bar-glow text-[hsl(var(--accent))] opacity-100 ring-1 ring-current ring-offset-1 ring-offset-background"
+                      // Per-day tint only when it ISN'T today — today owns its whole fill
+                      // below, and two competing bg-* utilities would be decided by
+                      // stylesheet order rather than by this list.
+                      !isToday && (hasRides ? 'bg-accent/30 text-foreground' : 'bg-muted/20 text-muted-foreground opacity-50'),
+                      // Today is a SOLID accent disc — the same look the driver calendar's
+                      // today cell gets from a full water level. Deliberately no partial
+                      // fill: an Uber day is either logged or not, so there is no half state
+                      // for a level to show. bg-current takes the hue arc-animated-accent is
+                      // flowing through, so disc, ring and halo drift as one colour.
+                      isToday && "arc-animated-accent bar-glow text-[hsl(var(--accent))] bg-current opacity-100 ring-1 ring-current ring-offset-1 ring-offset-background"
                     )}
                   >
-                    <span className="leading-none">{format(day, 'd')}</span>
+                    {/* On today's disc the type sits ON the accent, so it takes the accent's
+                        auto black/white contrast colour instead of the flowing hue. */}
+                    <span className={cn("leading-none", isToday && 'text-[hsl(var(--btn-on-accent))]')}>{format(day, 'd')}</span>
                     {hasRides && (
-                      <span className="leading-none text-[7px] text-accent font-semibold">
+                      <span className={cn(
+                        "leading-none text-[7px] font-semibold",
+                        isToday ? 'text-[hsl(var(--btn-on-accent))]' : 'text-accent',
+                      )}>
                         {dayTotal >= 1000 ? `${Math.round(dayTotal / 1000)}k` : Math.round(dayTotal)}
                       </span>
                     )}
@@ -493,23 +513,33 @@ export function TransportPage() {
           </div>
         </CardContent>
         <CardFooter className="px-3 pb-3 pt-2 border-t border-border/30">
-          <div className="flex gap-1 justify-center w-full">
-            <Button
-              size="sm"
-              variant={calendarMode === 'driver' ? 'default' : 'ghost'}
-              className="h-6 px-3 text-[10px]"
-              onClick={() => setCalendarMode('driver')}
-            >
-              Driver
-            </Button>
-            <Button
-              size="sm"
-              variant={calendarMode === 'uber' ? 'default' : 'ghost'}
-              className="h-6 px-3 text-[10px]"
-              onClick={() => setCalendarMode('uber')}
-            >
-              Uber
-            </Button>
+          {/* Driver/Uber switch. Each option OWNS HALF THE ROW as its tap target — the
+              visible pill is just the label's styling, painted on an inner span. The pills
+              themselves are ~30px wide, which is a fiddly thing to hit with a thumb; giving
+              them the full footer width to aim at costs nothing visually. */}
+          <div className="flex w-full">
+            {CALENDAR_MODES.map(({ id, label }) => {
+              const isActive = calendarMode === id;
+              return (
+                <Button
+                  key={id}
+                  variant="ghost"
+                  // px-0 + transparent hover: the hit area stretches, the highlight doesn't.
+                  className="group flex-1 h-9 px-0 hover:bg-transparent active:bg-transparent"
+                  onClick={() => setCalendarMode(id)}
+                  aria-pressed={isActive}
+                >
+                  <span className={cn(
+                    "px-3 py-1 rounded-xl text-[10px] font-medium transition-colors",
+                    isActive
+                      ? 'bg-primary text-btn-on-primary'
+                      : 'text-btn-on-surface group-hover:bg-foreground/10 group-active:bg-foreground/15',
+                  )}>
+                    {label}
+                  </span>
+                </Button>
+              );
+            })}
           </div>
         </CardFooter>
 
