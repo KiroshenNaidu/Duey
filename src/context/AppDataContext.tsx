@@ -4,7 +4,7 @@ import { createContext, ReactNode, useEffect, useState, useMemo, useCallback, us
 import type { AppState, Debt, HistoryEntry, AppData, ThemeSettings, TransportSettings, TransportOverrides, TransportMonthlyOverrides, DayState, UberRide, UserTheme, BudgetPlan, BudgetItem, UserProfile, NotificationSettings, AppError, Expense, ExtraIncome, DayNightSettings } from '@/lib/types';
 import { isSameDay, startOfDay, startOfMonth, format, add, endOfMonth } from 'date-fns';
 import { idbGet, idbSet, idbDel, setCurrencyCode, genId } from '@/lib/utils';
-import { calculateSealedMonthSummary } from '@/lib/calculations';
+import { calculateSealedMonthSummary, dayKey, legacyUtcDayKey } from '@/lib/calculations';
 import { syncDebtReminders } from '@/lib/debtReminders';
 import { systemPresets } from '@/lib/systemThemes';
 import { DEFAULT_RADIAL_FX_ID } from '@/lib/radialFx';
@@ -14,7 +14,50 @@ import { DEFAULT_QUICK_SHORTCUTS, sanitizeShortcuts } from '@/lib/quickShortcuts
 import { personKey, debtPersonName, entryPersonName, PERSON_ENTRY_TYPES } from '@/lib/persons';
 import { LoadingScreen } from '@/components/LoadingScreen';
 
-const CURRENT_SCHEMA_VERSION = 8;
+const CURRENT_SCHEMA_VERSION = 9;
+
+/**
+ * v9: day keys moved from UTC-derived (`toISOString`) to LOCAL 'yyyy-MM-dd'
+ * (see `dayKey` in lib/calculations.ts for why).
+ *
+ * For every stored key we recover the calendar day it was WRITTEN for and re-key it.
+ * Under the old scheme a local day D was stored as the UTC date of D's local midnight,
+ * so the original day is whichever of {K, K+1} reproduces K when run back through the
+ * old derivation. Resolving it per key (rather than applying one blanket offset) means
+ * a timezone that straddles UTC — the UK, where the offset is 0 in winter and −60 in
+ * summer — migrates each date with the offset that was actually in force on it.
+ *
+ * Timezones at or west of UTC never shifted, so their keys resolve to themselves and
+ * this is a no-op. Anything that resolves to neither candidate (a hand-edited backup,
+ * a key that was already local) is left exactly as-is.
+ */
+function migrateDayKey(key: string): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(key);
+  if (!m) return key;
+  const [, y, mo, d] = m;
+  const asLocal = new Date(Number(y), Number(mo) - 1, Number(d));
+  if (Number.isNaN(asLocal.getTime())) return key;
+  if (legacyUtcDayKey(asLocal) === key) return key;              // west of / at UTC — unchanged
+  const nextDay = add(asLocal, { days: 1 });
+  if (legacyUtcDayKey(nextDay) === key) return dayKey(nextDay);  // east of UTC — shift forward
+  return key;
+}
+
+/** Re-key whichever day-keyed collections are PRESENT. Absent ones stay absent so a
+ *  partial payload (the config-only import) is never given empty ones to spread over
+ *  the real data already in state. NOT idempotent — always gate on the schema version. */
+function migrateDayKeys<T extends { transportOverrides?: TransportOverrides; uberRides?: UberRide[] }>(payload: T): T {
+  const next = { ...payload };
+  if (payload.transportOverrides) {
+    const overrides: TransportOverrides = {};
+    for (const [k, v] of Object.entries(payload.transportOverrides)) overrides[migrateDayKey(k)] = v;
+    next.transportOverrides = overrides;
+  }
+  if (payload.uberRides) {
+    next.uberRides = payload.uberRides.map(r => ({ ...r, date: migrateDayKey(r.date) }));
+  }
+  return next;
+}
 
 // How long to coalesce rapid state changes into a single localStorage write. Long enough to
 // absorb a burst (tapping calendar days, toggling budget items, notepad autosave) into one
@@ -39,14 +82,21 @@ function migrateState(raw: AppState): AppState {
     employmentStartDate: raw.transportSettings?.employmentStartDate,
     employmentEndDate: raw.transportSettings?.employmentEndDate,
   };
+  // v9 day-key re-keying, applied ONCE (gated on the stored schema version) — running it
+  // twice would shift every date a second day forward.
+  const needsDayKeyMigration = (raw.schemaVersion ?? 0) < 9;
+  const dayKeyed = needsDayKeyMigration
+    ? migrateDayKeys({ transportOverrides: overrides, uberRides: raw.uberRides ?? [] })
+    : { transportOverrides: overrides, uberRides: raw.uberRides ?? [] };
+
   return {
     ...raw,
     // Existing users who already have data default to ZAR so they don't see the picker.
     currency: raw.currency ?? ((raw.debts?.length ?? 0) > 0 || (raw.history?.length ?? 0) > 0 ? 'ZAR' : ''),
     transportSettings,
-    transportOverrides: overrides,
+    transportOverrides: dayKeyed.transportOverrides,
     transportMonthlyOverrides: raw.transportMonthlyOverrides ?? {},
-    uberRides: raw.uberRides ?? [],
+    uberRides: dayKeyed.uberRides,
     expenses: raw.expenses ?? [],
     extraIncomes: raw.extraIncomes ?? [],
     budgetPlans: raw.budgetPlans ?? [],
@@ -997,7 +1047,14 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
   }, [updateStateAndSync]);
 
   const importData = (data: AppData) => {
-    updateStateAndSync(prev => ({ ...prev, ...data, schemaVersion: CURRENT_SCHEMA_VERSION }));
+    // A backup written by a pre-v9 build still carries UTC-derived day keys, so re-key it
+    // on the way in — otherwise an imported transport calendar / Uber log would sit one day
+    // off from everything created since. Gated on the FILE's version, not the app's, and
+    // applied to the INCOMING payload only: the config-only import carries no day-keyed
+    // collections, and re-keying the merged result would have shifted the data already in
+    // state (which is v9 already) a second day forward.
+    const incoming = (data.schemaVersion ?? 0) < 9 ? migrateDayKeys(data) : data;
+    updateStateAndSync(prev => ({ ...prev, ...incoming, schemaVersion: CURRENT_SCHEMA_VERSION }));
   };
 
   const clearData = () => {

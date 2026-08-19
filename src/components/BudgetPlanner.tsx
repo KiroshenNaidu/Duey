@@ -7,6 +7,7 @@ import { AppDataContext } from '@/context/AppDataContext';
 import { useFabLongPress, FAB_TOUCH_STYLE, FabPulse } from '@/components/QuickAdd';
 import type { BudgetPlan, BudgetItem } from '@/lib/types';
 import { formatCurrency, cn } from '@/lib/utils';
+import { displayProgressPct } from '@/lib/calculations';
 import { Plus, Trash2, ExternalLink, Edit2, Check, Maximize2, Minimize2, Archive } from 'lucide-react';
 import { FixedPortal } from '@/components/FixedPortal';
 import { Button } from '@/components/ui/button';
@@ -69,6 +70,9 @@ function ItemRow({ item, planBudget, color, onDelete }: {
 }) {
   const [open, setOpen] = useState(false);
   const ratio = planBudget > 0 ? item.price / planBudget : 0;
+  // Same guard as the gauge: a cheap item is "1%", never "0%" — a 0 next to a real price
+  // reads as a bug. Items can exceed the budget, so >100% is shown as-is.
+  const ratioPct = ratio > 1 ? Math.round(ratio * 100) : displayProgressPct(ratio * 100);
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -77,7 +81,7 @@ function ItemRow({ item, planBudget, color, onDelete }: {
           <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: color }} />
           <span className={cn('text-xs truncate flex-1 min-w-0', item.purchased ? 'line-through text-muted-foreground' : 'text-foreground')}>{item.name}</span>
           <span className="text-[11px] text-muted-foreground tabular-nums shrink-0 w-9 text-right">
-            {Math.round(ratio * 100)}%
+            {ratioPct}%
           </span>
           <span className="text-xs font-semibold text-foreground tabular-nums shrink-0 w-20 text-right">
             {formatCurrency(item.price)}
@@ -91,7 +95,7 @@ function ItemRow({ item, planBudget, color, onDelete }: {
         </DialogHeader>
         <div className="space-y-1 text-sm text-muted-foreground">
           <p className="text-foreground font-bold">{formatCurrency(item.price)}</p>
-          <p className="text-xs">{Math.round(ratio * 100)}% of budget</p>
+          <p className="text-xs">{ratioPct}% of budget</p>
           {item.link && (
             <a
               href={item.link}
@@ -445,10 +449,15 @@ function PlanView({ plan }: { plan: BudgetPlan }) {
             <span className="text-muted-foreground">Spent: <span className="font-bold text-foreground">{formatCurrency(spent)}</span></span>
             <span className="text-muted-foreground">Budget: <span className="font-bold text-foreground">{formatCurrency(plan.budget)}</span></span>
           </div>
+          {/* "Budget reached" used to cover BOTH exactly-on-budget and overspent, so a plan
+              R500 over its ceiling read the same as one landing on it to the cent. Overspend
+              now names its own amount — it's the number that actually matters. */}
           {remaining > 0 ? (
             <p className="text-[11px] text-accent font-semibold">{formatCurrency(remaining)} remaining</p>
-          ) : (
+          ) : remaining === 0 ? (
             <p className="text-[11px] text-destructive font-semibold">Budget reached</p>
+          ) : (
+            <p className="text-[11px] text-destructive font-semibold">{formatCurrency(-remaining)} over budget</p>
           )}
           {plan.items.length > 0 ? (
             <div className="py-2 space-y-3">
@@ -492,8 +501,12 @@ function PlanView({ plan }: { plan: BudgetPlan }) {
                 )}
               </button>
               <p className="text-[10px] text-muted-foreground text-center">
+                {/* Only claim "stuck to budget" when the spend actually came in at or under
+                    the ceiling — otherwise say by how much it didn't. */}
                 {plan.confirmed
-                  ? `Stuck to budget: ${formatCurrency(spent)} of ${formatCurrency(plan.budget)}${spent < plan.budget ? ` · ${formatCurrency(plan.budget - spent)} under` : ''}`
+                  ? remaining >= 0
+                    ? `Stuck to budget: ${formatCurrency(spent)} of ${formatCurrency(plan.budget)}${remaining > 0 ? ` · ${formatCurrency(remaining)} under` : ''}`
+                    : `${formatCurrency(spent)} of ${formatCurrency(plan.budget)} · ${formatCurrency(-remaining)} over`
                   : 'Not counted in your balance yet'}
               </p>
             </div>

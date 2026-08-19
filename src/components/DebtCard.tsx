@@ -171,10 +171,17 @@ export function DebtCard({ debt, grouped = false, selectMode = false, selected =
     prevIsPaidOff.current = isPaidOff;
   }, [isPaidOff]);
 
+  // One timer, replaced on each toast and cleared on unmount: two toasts in quick
+  // succession used to leave the first one's timer running, so it dismissed the second
+  // one early — and a toast in flight when the card is archived/deleted kept a timer
+  // alive against an unmounted component.
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const showToast = useCallback((message: string, variant: 'success' | 'error' = 'success') => {
     setToast({ message, variant });
-    setTimeout(() => setToast(null), 3000);
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    toastTimerRef.current = setTimeout(() => setToast(null), 3000);
   }, []);
+  useEffect(() => () => { if (toastTimerRef.current) clearTimeout(toastTimerRef.current); }, []);
 
   const resetEditState = useCallback(() => {
     setEditedTitle(debt.title);

@@ -16,7 +16,10 @@ export const getPaymentCount = (debt: Debt, history: HistoryEntry[]): number => 
 };
 
 export const getTotalInstallments = (debt: Debt): number => {
-    if (debt.installment_amount <= 0) return 0;
+    // A non-finite or non-positive installment (a cleared/garbage input that reached
+    // storage) would otherwise produce Infinity/NaN and render as "3 of NaN".
+    if (!Number.isFinite(debt.installment_amount) || debt.installment_amount <= 0) return 0;
+    if (!Number.isFinite(debt.total_owed) || debt.total_owed <= 0) return 0;
     return Math.ceil(debt.total_owed / debt.installment_amount);
 };
 
@@ -78,14 +81,28 @@ export const calculateGlobalStats = (debts: Debt[], history: HistoryEntry[]) => 
     };
 };
 
-// NOTE (flagged, not yet changed — see plan Part D #8): the ISO key below is derived
-// in UTC (`toISOString`), so for UTC+ timezones a day can round to the previous calendar
-// day. It round-trips consistently with how overrides are written, but is risky at month
-// boundaries; a future change should switch to local `format(day, 'yyyy-MM-dd')` behind a
-// key migration for existing stored overrides.
+/**
+ * Canonical 'yyyy-MM-dd' key for a calendar day, in the user's LOCAL timezone.
+ *
+ * This used to be `day.toISOString().split('T')[0]`, which is a UTC date. For any
+ * timezone east of UTC (SAST, the app's default currency's home, is UTC+2) local
+ * midnight falls on the PREVIOUS UTC day, so every key was silently shifted back one
+ * day. Reads and writes shifted together, so the calendar looked self-consistent — but
+ * anything that compared a key against a locally-derived month ('yyyy-MM') did not:
+ * an Uber ride logged on the 1st was keyed to the last day of the previous month and
+ * counted in that month's spend, and the Uber day dialog re-parsed the key and titled
+ * itself with yesterday's date. Local keys make the key mean what it reads as.
+ *
+ * Stored keys written under the old scheme are re-keyed once at load (see
+ * migrateDayKeys in AppDataContext).
+ */
+export const dayKey = (day: Date): string => format(day, 'yyyy-MM-dd');
+
+/** The pre-v9 UTC-derived key for a day. Only the load-time migration needs this. */
+export const legacyUtcDayKey = (day: Date): string => day.toISOString().split('T')[0];
+
 export function getDayState(day: Date, overrides: TransportOverrides): DayState {
-  const isoDate = day.toISOString().split('T')[0];
-  const override = overrides[isoDate];
+  const override = overrides[dayKey(day)];
   if (override !== undefined) return override;
   return isWeekend(day) ? 0 : 1;
 }
@@ -100,8 +117,7 @@ export function getEffectiveDayState(
   employed: boolean,
   isFutureMonth: boolean
 ): DayState {
-  const isoDate = day.toISOString().split('T')[0];
-  const override = overrides[isoDate];
+  const override = overrides[dayKey(day)];
   if (override !== undefined) return override;
   if (!employed && isFutureMonth) return 0;
   return isWeekend(day) ? 0 : 1;
@@ -132,12 +148,17 @@ export const calculateTransportMonth = (
 
     const travelDaysCount = fullDaysCount + halfDaysCount;
     const unemployedFuture = !settings.employed && isFutureMonth;
-    const effectiveMonthlyFee = monthlyOverride !== undefined ? monthlyOverride : (settings.monthlyFee || 0);
+    // A fee can reach storage as NaN (a cleared number input parsed with parseFloat) or
+    // negative (typed with a minus). Either would poison every downstream total — the
+    // month balance, the Stats snapshot and the sealed summary all read this figure — so
+    // both are normalised to 0 here rather than at each of the ~6 call sites.
+    const safeFee = (v: number | undefined) => (Number.isFinite(v) && (v as number) > 0 ? (v as number) : 0);
+    const effectiveMonthlyFee = monthlyOverride !== undefined ? safeFee(monthlyOverride) : safeFee(settings.monthlyFee);
     const totalDue = unemployedFuture
       ? 0
       : settings.pricingMode === 'monthly'
         ? effectiveMonthlyFee
-        : (fullDaysCount + halfDaysCount * 0.5) * (settings.dailyFee || 0);
+        : (fullDaysCount + halfDaysCount * 0.5) * safeFee(settings.dailyFee);
 
     return { daysInMonth, fullDaysCount, halfDaysCount, travelDaysCount, totalDue, isFutureMonth };
 }

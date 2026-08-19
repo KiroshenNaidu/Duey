@@ -31,9 +31,11 @@ function getMonthDayCounts(date: Date, overrides: TransportOverrides) {
 function MonthBar({ value, max, color = 'bg-primary/70' }: { value: number; max: number; color?: string }) {
   return (
     <div className="flex-1 bg-muted/30 rounded-full h-1.5 overflow-hidden">
+      {/* The 2% floor is there so a small-but-real month is still visible — but it was
+          applied to zero months too, painting a bar for a month with no spend at all. */}
       <div
         className={cn('h-full rounded-full transition-all duration-500', color)}
-        style={{ width: max > 0 ? `${Math.max(2, (value / max) * 100)}%` : '0%' }}
+        style={{ width: value > 0 && max > 0 ? `${Math.max(2, (value / max) * 100)}%` : '0%' }}
       />
     </div>
   );
@@ -107,16 +109,19 @@ export function TransportHistoryLog({ history, uberRides, transportOverrides }: 
           <span className="text-[10px] text-muted-foreground">Last 6 months</span>
         </div>
         <div className="flex gap-2 mt-1.5">
+          {/* These sum the SIX months listed below, not all history — the old "All-time"
+              labels contradicted the "Last 6 months" caption right above them and read as
+              a much smaller lifetime spend than the History page reports. */}
           <div className="flex-1 bg-muted/40 rounded-lg p-2 text-center">
-            <p className="text-[9px] text-muted-foreground">All-time Driver</p>
+            <p className="text-[9px] text-muted-foreground">Driver · 6 mo</p>
             <p className="text-xs font-bold">{formatCurrency(totalDriver)}</p>
           </div>
           <div className="flex-1 bg-muted/40 rounded-lg p-2 text-center">
-            <p className="text-[9px] text-muted-foreground">All-time Uber</p>
+            <p className="text-[9px] text-muted-foreground">Uber · 6 mo</p>
             <p className="text-xs font-bold">{formatCurrency(totalUber)}</p>
           </div>
           <div className="flex-1 bg-muted/40 rounded-lg p-2 text-center">
-            <p className="text-[9px] text-muted-foreground">Combined Total</p>
+            <p className="text-[9px] text-muted-foreground">Combined · 6 mo</p>
             <p className="text-xs font-bold">{formatCurrency(totalDriver + totalUber)}</p>
           </div>
         </div>

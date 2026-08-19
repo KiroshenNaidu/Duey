@@ -93,25 +93,32 @@ function DateDurationCalculator() {
   let result: { years: number; months: number; days: number; totalDays: number; totalWeeks: number } | null = null;
 
   if (start && end) {
-    const s = new Date(start);
-    const e = new Date(end);
-    const from = s <= e ? s : e;
-    const to   = s <= e ? e : s;
+    // DatePicker emits 'yyyy-MM-dd', which `new Date()` parses as UTC midnight while
+    // getFullYear/getMonth/getDate below read LOCAL fields — so west of UTC every date
+    // came back one day early and the Y/M/D breakdown was off. Pin both to local midnight.
+    const s = new Date(`${start}T00:00:00`);
+    const e = new Date(`${end}T00:00:00`);
+    if (!Number.isNaN(s.getTime()) && !Number.isNaN(e.getTime())) {
+      const from = s <= e ? s : e;
+      const to   = s <= e ? e : s;
 
-    let years  = to.getFullYear() - from.getFullYear();
-    let months = to.getMonth()    - from.getMonth();
-    let days   = to.getDate()     - from.getDate();
+      let years  = to.getFullYear() - from.getFullYear();
+      let months = to.getMonth()    - from.getMonth();
+      let days   = to.getDate()     - from.getDate();
 
-    if (days < 0) {
-      months--;
-      const prevMonth = new Date(to.getFullYear(), to.getMonth(), 0);
-      days += prevMonth.getDate();
+      if (days < 0) {
+        months--;
+        const prevMonth = new Date(to.getFullYear(), to.getMonth(), 0);
+        days += prevMonth.getDate();
+      }
+      if (months < 0) { years--; months += 12; }
+
+      // Round, not floor: a DST transition inside the span makes the millisecond
+      // difference 23 or 25 hours short of a whole number of days.
+      const totalDays  = Math.round((to.getTime() - from.getTime()) / 86_400_000);
+      const totalWeeks = Math.floor(totalDays / 7);
+      result = { years, months, days, totalDays, totalWeeks };
     }
-    if (months < 0) { years--; months += 12; }
-
-    const totalDays  = Math.round((to.getTime() - from.getTime()) / 86_400_000);
-    const totalWeeks = Math.floor(totalDays / 7);
-    result = { years, months, days, totalDays, totalWeeks };
   }
 
   const fmt = (n: number, unit: string) => n === 0 ? null : `${n} ${unit}${n !== 1 ? 's' : ''}`;
@@ -154,9 +161,11 @@ function DurationCalculator() {
   if (start && end) {
     const [sh, sm] = start.split(':').map(Number);
     const [eh, em] = end.split(':').map(Number);
-    let startMins = sh * 60 + sm;
+    const startMins = sh * 60 + sm;
     let endMins = eh * 60 + em;
-    if (endMins <= startMins) endMins += 24 * 60;
+    // Only an end time strictly EARLIER than the start wraps to the next day. `<=` also
+    // wrapped identical times, so 09:00 → 09:00 reported a 24-hour shift instead of zero.
+    if (endMins < startMins) endMins += 24 * 60;
     totalSeconds = (endMins - startMins) * 60;
   }
 

@@ -304,12 +304,24 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     // start.progress is the carousel position at the moment the drag is classified —
     // NOT the route index. Grabbing mid-settle therefore catches the pages exactly
     // where they are (native-pager feel) instead of teleporting them to the route.
-    const start = { x: 0, y: 0, progress: 1, routeIdx: 1, width: 1 };
+    // `id` is the identifier of the finger that OWNS the gesture. Everything downstream
+    // reads that specific touch instead of touches[0]: an extra finger landing (a palm
+    // or resting thumb during a fling) used to re-base the drag and snap the pages to the
+    // new contact point, and if the original finger then lifted first, touches[0] silently
+    // became the other one and the pages jumped again.
+    const start = { id: -1, x: 0, y: 0, progress: 1, routeIdx: 1, width: 1 };
+    const findTouch = (list: TouchList, id: number): Touch | null => {
+      for (let i = 0; i < list.length; i++) if (list[i].identifier === id) return list[i];
+      return null;
+    };
     // Recent (time, x) samples for instantaneous release velocity.
     const samples: { t: number; x: number }[] = [];
     let tracking: 'none' | 'h' | 'v' = 'none';
 
     const onStart = (e: TouchEvent) => {
+      // Only the FIRST finger down begins a gesture; later ones are ignored entirely.
+      if (e.touches.length > 1) return;
+      start.id = e.touches[0].identifier;
       start.x = e.touches[0].clientX;
       start.y = e.touches[0].clientY;
       // Touches inside a modal dialog, or on an element that owns its own gesture (the
@@ -319,6 +331,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
     const onMove = (e: TouchEvent) => {
       if (tracking === 'v') return;
+      const t = findTouch(e.touches, start.id);
+      if (!t) return; // a different finger moved — not our gesture
       // An overlay can appear MID-DRAG (a long-press maturing into the quick-add radial).
       // Hand the gesture over: let go of the pages and settle them back where they were,
       // rather than dragging the whole blurred app around behind the radial.
@@ -327,8 +341,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         animate(pageProgress, start.routeIdx, { ...SETTLE_SPRING, onComplete: releaseContainerHeight });
         return;
       }
-      const dx = e.touches[0].clientX - start.x;
-      const dy = e.touches[0].clientY - start.y;
+      const dx = t.clientX - start.x;
+      const dy = t.clientY - start.y;
       if (tracking === 'none') {
         if (Math.abs(dx) < 4 && Math.abs(dy) < 4) return;
         if (Math.abs(dy) > Math.abs(dx)) {
@@ -367,7 +381,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       // kills the fling: no touchmoves fire while the finger is still, so every retained
       // sample ages out of the window and the scan finds nothing — the native-pager feel.
       const now = Date.now();
-      samples.push({ t: now, x: e.touches[0].clientX });
+      samples.push({ t: now, x: t.clientX });
       while (samples.length > 2 && now - samples[1].t > VELOCITY_WINDOW_MS) samples.shift();
 
       // Finger-following: progress = the position the finger implies right now,
@@ -381,9 +395,20 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
     const onEnd = (e: TouchEvent) => {
       if (tracking !== 'h') return;
+      const touch = findTouch(e.changedTouches, start.id);
+      if (!touch) {
+        // A different finger lifted — the drag is still live under ours, so do nothing.
+        // But if NOTHING is left on screen, the gesture really is over and the WebView
+        // simply gave us no release point (some Android builds send an empty
+        // changedTouches list; reading .clientX off it used to throw, popping the generic
+        // error modal and freezing the pages mid-drag). Settle home instead.
+        if (e.touches.length > 0) return;
+        tracking = 'none';
+        animate(pageProgress, start.routeIdx, { ...SETTLE_SPRING, onComplete: releaseContainerHeight });
+        return;
+      }
       tracking = 'none';
-
-      const endX = e.changedTouches[0].clientX;
+      const endX = touch.clientX;
       const endT = Date.now();
 
       // Instantaneous velocity: earliest sample inside the trailing window. Holding

@@ -6,6 +6,7 @@ import { formatCurrency, cn } from '@/lib/utils';
 import { DebtProgressCharts } from '@/components/DebtProgressCharts';
 import { useReplayOnActive } from '@/hooks/useReplayOnActive';
 import { TransportStatusCard } from '@/components/TransportStatusCard';
+import { add, getDaysInMonth, isWeekend, startOfMonth } from 'date-fns';
 import { calculateGlobalStats, calculateLiveMonthly, displayProgressPct, isTransportPaidForMonth } from '@/lib/calculations';
 import {
   TrendingUp, Car, CreditCard, TrendingDown,
@@ -222,10 +223,15 @@ function ExpensesCard() {
 
 function BudgetCard() {
   const { budgetPlans } = useContext(AppDataContext);
-  if (budgetPlans.length === 0) return null;
+  // Archived plans are hidden from the Budget tab entirely (they only stay in state so
+  // their confirmed spend keeps counting for the month it was confirmed). Including them
+  // here made these totals disagree with every plan the user can actually see — a plan
+  // they archived months ago kept inflating "Total budgeted" with no way to find it.
+  const activePlans = useMemo(() => budgetPlans.filter(p => !p.archived), [budgetPlans]);
+  if (activePlans.length === 0) return null;
 
-  const totalBudget = budgetPlans.reduce((s, p) => s + p.budget, 0);
-  const totalSpent  = budgetPlans.reduce((s, p) => s + p.items.reduce((si, i) => si + i.price, 0), 0);
+  const totalBudget = activePlans.reduce((s, p) => s + p.budget, 0);
+  const totalSpent  = activePlans.reduce((s, p) => s + p.items.reduce((si, i) => si + i.price, 0), 0);
   const remaining   = totalBudget - totalSpent;
 
   return (
@@ -233,7 +239,7 @@ function BudgetCard() {
       <div className="flex items-center gap-2 mb-2">
         <PiggyBank className="h-4 w-4 text-[hsl(var(--cat-completion))]" />
         <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Budget Plans</p>
-        <span className="ml-auto text-xs text-muted-foreground">{budgetPlans.length} plan{budgetPlans.length !== 1 ? 's' : ''}</span>
+        <span className="ml-auto text-xs text-muted-foreground">{activePlans.length} plan{activePlans.length !== 1 ? 's' : ''}</span>
       </div>
       <StatRow label="Total budgeted"     value={formatCurrency(totalBudget)} />
       <StatRow label="Allocated to items" value={formatCurrency(totalSpent)}  color="text-[hsl(var(--cat-expense))]" />
@@ -253,9 +259,19 @@ function TransportExtrasCard() {
   const { uberRides, transportSettings, history } = useContext(AppDataContext);
   const stats = useMemo(() => calculateGlobalStats([], history), [history]);
   const uberTotal = uberRides.reduce((s, r) => s + r.price, 0);
+  // Daily-rate estimate was a flat "× 22 days", which is wrong for every month that
+  // doesn't happen to have 22 weekdays (they range 20–23) — up to ~R270 off at R90/day.
+  // Count the actual weekdays in THIS month instead; it costs one cheap loop and the
+  // sub-label names the real figure.
+  const workdaysThisMonth = useMemo(() => {
+    const start = startOfMonth(new Date());
+    let n = 0;
+    for (let i = 0; i < getDaysInMonth(start); i++) if (!isWeekend(add(start, { days: i }))) n++;
+    return n;
+  }, []);
   const monthlyEstimate = transportSettings.pricingMode === 'monthly'
     ? transportSettings.monthlyFee
-    : transportSettings.dailyFee * 22;
+    : transportSettings.dailyFee * workdaysThisMonth;
 
   return (
     <div className="bg-card rounded-2xl p-4">
@@ -265,7 +281,7 @@ function TransportExtrasCard() {
       </div>
       <StatRow label="All-time paid"     value={formatCurrency(stats.totalTransportPaid)} color="text-[hsl(var(--cat-transport))]" />
       <StatRow label="Uber / rides"      value={formatCurrency(uberTotal)} sub={`${uberRides.length} trip${uberRides.length !== 1 ? 's' : ''}`} />
-      <StatRow label="Monthly estimate"  value={formatCurrency(monthlyEstimate)} sub={transportSettings.pricingMode === 'monthly' ? 'Fixed fee' : `${formatCurrency(transportSettings.dailyFee)}/day × ~22 days`} />
+      <StatRow label="Monthly estimate"  value={formatCurrency(monthlyEstimate)} sub={transportSettings.pricingMode === 'monthly' ? 'Fixed fee' : `${formatCurrency(transportSettings.dailyFee)}/day × ${workdaysThisMonth} weekdays`} />
     </div>
   );
 }
@@ -313,7 +329,7 @@ export function StatsPage() {
         </div>
       )}
 
-      {budgetPlans.length > 0 && (
+      {budgetPlans.some(p => !p.archived) && (
         <div className="space-y-2">
           <SectionLabel>Budget</SectionLabel>
           <BudgetCard />

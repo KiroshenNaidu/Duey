@@ -183,7 +183,14 @@ export function SwipeTabView<T extends string>({
   useEffect(() => {
     if (!enabled) return;
 
-    const start = { x: 0, y: 0, progress: 0, fromIdx: 0, width: 1, edge: false };
+    // `id` pins the gesture to the finger that started it (see the same pattern in
+    // AppShell): guarding touchstart alone still let touches[0] silently become a second
+    // finger once the original one lifted, which snapped the panels to it mid-flight.
+    const start = { id: -1, x: 0, y: 0, progress: 0, fromIdx: 0, width: 1, edge: false };
+    const findTouch = (list: TouchList, id: number): Touch | null => {
+      for (let i = 0; i < list.length; i++) if (list[i].identifier === id) return list[i];
+      return null;
+    };
     const samples: { t: number; x: number }[] = [];
     let tracking: 'none' | 'h' | 'v' = 'none';
 
@@ -193,6 +200,7 @@ export function SwipeTabView<T extends string>({
       // stopped settle animation). Only the primary touch begins a gesture.
       if (e.touches.length > 1) return;
       const x = e.touches[0].clientX;
+      start.id = e.touches[0].identifier;
       start.x = x;
       start.y = e.touches[0].clientY;
       // Touches inside a modal dialog must never drive the tab carousel.
@@ -202,8 +210,10 @@ export function SwipeTabView<T extends string>({
 
     const onMove = (e: TouchEvent) => {
       if (tracking === 'v') return;
-      const dx = e.touches[0].clientX - start.x;
-      const dy = e.touches[0].clientY - start.y;
+      const t = findTouch(e.touches, start.id);
+      if (!t) return; // a different finger moved — not our gesture
+      const dx = t.clientX - start.x;
+      const dy = t.clientY - start.y;
       if (tracking === 'none') {
         if (Math.abs(dx) < 4 && Math.abs(dy) < 4) return;
         if (Math.abs(dy) > Math.abs(dx)) {
@@ -224,8 +234,11 @@ export function SwipeTabView<T extends string>({
         lockHeight();
       }
 
-      samples.push({ t: Date.now(), x: e.touches[0].clientX });
-      if (samples.length > 8) samples.shift();
+      // Age-bounded, matching AppShell: a fixed 8-slot ring silently shrinks the velocity
+      // window on high-refresh Android panels, so flings read slower than they were thrown.
+      const now = Date.now();
+      samples.push({ t: now, x: t.clientX });
+      while (samples.length > 2 && now - samples[1].t > SWIPE_VELOCITY_WINDOW_MS) samples.shift();
 
       // Finger-following: progress = the position the finger implies right now,
       // rubber-banded past the first/last tab so the edges resist progressively.
@@ -238,17 +251,17 @@ export function SwipeTabView<T extends string>({
 
     const onEnd = (e: TouchEvent) => {
       if (tracking !== 'h') return;
-      // A non-final touchend (one of several fingers lifting) must not end the gesture.
-      if (e.touches.length > 0) return;
-      tracking = 'none';
-
-      const touch = e.changedTouches[0];
+      const touch = findTouch(e.changedTouches, start.id);
       if (!touch) {
-        // No release point (seen on some Android WebViews) — settle home rather than
-        // leaving the panels frozen wherever the finger left them.
+        // A non-final touchend (one of several fingers lifting) must not end the gesture.
+        // With nothing left on screen there IS no release point (seen on some Android
+        // WebViews) — settle home rather than leaving the panels frozen mid-drag.
+        if (e.touches.length > 0) return;
+        tracking = 'none';
         animate(progress, activeIdxRef.current, { ...SWIPE_SETTLE_SPRING, onComplete: releaseHeight });
         return;
       }
+      tracking = 'none';
       const endX = touch.clientX;
       const endT = Date.now();
 

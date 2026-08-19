@@ -2,6 +2,7 @@
 
 import { useMemo, useState, useEffect } from 'react';
 import type { BudgetItem } from '@/lib/types';
+import { displayProgressPct } from '@/lib/calculations';
 import { cn } from '@/lib/utils';
 
 // Geometry for the concentric multi-ring gauge (mirrors the Highcharts solidgauge look)
@@ -62,8 +63,12 @@ export function BudgetGauge({ items, budget, colors }: {
   }, []);
 
   const spent = items.reduce((s, i) => s + i.price, 0);
-  const usedPct = budget > 0 ? Math.round((spent / budget) * 100) : 0;
   const over = spent > budget;
+  // Never round INTO 0%/100%: a plan with a few cents on it must not read "0% used", and
+  // one a rand short of its ceiling must not read "100%". Overspending is the one case
+  // that genuinely exceeds the ceiling, so it shows the true (>100) figure.
+  const rawPct = budget > 0 ? (spent / budget) * 100 : 0;
+  const usedPct = over ? Math.round(rawPct) : displayProgressPct(rawPct);
 
   return (
     <div className="relative mx-auto" style={{ width: SIZE, maxWidth: '100%', aspectRatio: '1 / 1', padding: 4 }}>

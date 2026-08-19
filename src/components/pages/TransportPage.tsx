@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useContext, useEffect } from 'react';
 import { AppDataContext } from '@/context/AppDataContext';
-import { format, getDay, add, sub, isSameMonth, startOfMonth, startOfToday } from 'date-fns';
+import { format, getDay, add, sub, isSameDay, isSameMonth, startOfMonth, startOfToday } from 'date-fns';
 import { ChevronLeft, ChevronRight, Lock, Settings2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { formatCurrency, cn } from '@/lib/utils';
-import { calculateTransportMonth, getEffectiveDayState } from '@/lib/calculations';
+import { calculateTransportMonth, getEffectiveDayState, dayKey } from '@/lib/calculations';
 import type { DayState } from '@/lib/types';
 import { UberDayDialog } from '@/components/UberDayDialog';
 import { TransportHistoryLog } from '@/components/TransportHistoryLog';
@@ -77,9 +77,16 @@ export function TransportPage() {
     return { isPaidForMonth: !!entry, monthStr, paymentEntryId: entry?.id ?? null };
   }, [currentDate, history]);
 
+  // The per-month flat-fee override MUST be passed in: without it `totalDue` silently
+  // ignored the adjusted amount for 'monthly' pricing, and every consumer had to remember
+  // to swap in `effectiveMonthlyAmount` instead. Passing it here makes totalDue the single
+  // correct figure for both pricing modes, matching the Balance tab and the month-end seal
+  // (which both already pass it).
   const { daysInMonth, fullDaysCount, halfDaysCount, totalDue } = useMemo(
-    () => calculateTransportMonth(currentDate, transportOverrides, transportSettings, today),
-    [currentDate, transportOverrides, transportSettings, today]
+    () => calculateTransportMonth(
+      currentDate, transportOverrides, transportSettings, today, transportMonthlyOverrides[monthKey],
+    ),
+    [currentDate, transportOverrides, transportSettings, today, transportMonthlyOverrides, monthKey]
   );
 
   // Load the persisted per-month override into the editable draft when the user
@@ -108,7 +115,7 @@ export function TransportPage() {
 
   const handleDayToggle = (day: Date) => {
     if (!isEditingCalendar || isLocked || isPaidForMonth) return;
-    const isoDate = day.toISOString().split('T')[0];
+    const isoDate = dayKey(day);
     const cur: DayState = getEffectiveDayState(day, transportOverrides, transportSettings.employed, isFutureMonth);
     const next: DayState = cur === 1 ? 0 : cur === 0 ? 1.5 : 1;
     setTransportOverrides({ ...transportOverrides, [isoDate]: next });
@@ -132,9 +139,10 @@ export function TransportPage() {
       setUndoOpen(true);
       return;
     }
-    const amount = pricingMode === 'monthly' ? effectiveMonthlyAmount : totalDue;
-    if (amount <= 0 || isLocked) return;
-    logTransportPayment(amount, monthStr);
+    // totalDue now honours the per-month flat-fee override in 'monthly' mode, so it is
+    // the amount for BOTH pricing modes — no parallel figure to keep in sync.
+    if (totalDue <= 0 || isLocked) return;
+    logTransportPayment(totalDue, monthStr);
     setIsEditingCalendar(false);
   };
 
@@ -149,14 +157,11 @@ export function TransportPage() {
   const uberMonthTotal = uberMonthRides.reduce((sum, r) => sum + r.price, 0);
   const pricingMode = transportSettings.pricingMode ?? 'daily';
 
-  // Flat-monthly override: a persisted per-month value takes priority over the
-  // configured monthlyFee. Read from the persisted store (not the local draft) so the
-  // adjusted amount survives navigating between months. Used for display and logging.
+  // Flat-monthly override: a persisted per-month value takes priority over the configured
+  // monthlyFee. The AMOUNT itself now comes from totalDue (calculateTransportMonth already
+  // applies the override); this flag only drives the "adjusted for <Month>" caption.
   const savedMonthlyOverride = transportMonthlyOverrides[monthKey];
   const hasMonthlyOverride = pricingMode === 'monthly' && savedMonthlyOverride !== undefined;
-  const effectiveMonthlyAmount = hasMonthlyOverride
-    ? savedMonthlyOverride
-    : transportSettings.monthlyFee;
 
   const rateStr = pricingMode === 'monthly'
     ? `${formatCurrency(transportSettings.monthlyFee)}/mo`
@@ -418,9 +423,9 @@ export function TransportPage() {
               {Array.from({ length: firstDayOfMonth }).map((_, i) => <div key={`e-${i}`} />)}
 
               {calendarMode === 'driver' && daysInMonth.map(day => {
-                const isoDate = day.toISOString().split('T')[0];
+                const isoDate = dayKey(day);
                 const state = getEffectiveDayState(day, transportOverrides, transportSettings.employed, isFutureMonth);
-                const isToday = isSameMonth(day, new Date()) && day.getDate() === new Date().getDate();
+                const isToday = isSameDay(day, today);
                 return (
                   <button
                     key={isoDate}
@@ -472,35 +477,47 @@ export function TransportPage() {
               })}
 
               {calendarMode === 'uber' && daysInMonth.map(day => {
-                const isoDate = day.toISOString().split('T')[0];
+                const isoDate = dayKey(day);
                 const dayRides = uberRides.filter(r => r.date === isoDate);
                 const dayTotal = dayRides.reduce((sum, r) => sum + r.price, 0);
                 const hasRides = dayRides.length > 0;
-                const isToday = isSameMonth(day, new Date()) && day.getDate() === new Date().getDate();
+                const isToday = isSameDay(day, today);
                 return (
                   <button
                     key={isoDate}
                     onClick={() => setUberDialogDate(isoDate)}
                     className={cn(
-                      "h-7 w-7 rounded-full flex flex-col items-center justify-center transition-all duration-200 text-[10px] cursor-pointer hover:scale-105",
+                      // relative + overflow-hidden so the water layer below clips to the circle
+                      // (same host requirements as the driver cell).
+                      "relative overflow-hidden h-7 w-7 rounded-full flex flex-col items-center justify-center transition-all duration-200 text-[10px] cursor-pointer hover:scale-105",
                       // Per-day tint only when it ISN'T today — today owns its whole fill
                       // below, and two competing bg-* utilities would be decided by
                       // stylesheet order rather than by this list.
                       !isToday && (hasRides ? 'bg-accent/30 text-foreground' : 'bg-muted/20 text-muted-foreground opacity-50'),
-                      // Today is a SOLID accent disc — the same look the driver calendar's
-                      // today cell gets from a full water level. Deliberately no partial
-                      // fill: an Uber day is either logged or not, so there is no half state
-                      // for a level to show. bg-current takes the hue arc-animated-accent is
-                      // flowing through, so disc, ring and halo drift as one colour.
-                      isToday && "arc-animated-accent bar-glow text-[hsl(var(--accent))] bg-current opacity-100 ring-1 ring-current ring-offset-1 ring-offset-background"
+                      // Today is styled EXACTLY like the driver calendar's today cell: the same
+                      // bg-accent/15 tint under a full water level, so it picks up the same
+                      // accent → accent-complete diagonal blend (.arc-animated-accent .lf-wave)
+                      // instead of the flat single-hue disc bg-current used to paint.
+                      isToday && "arc-animated-accent bar-glow text-[hsl(var(--accent))] bg-accent/15 opacity-100 ring-1 ring-current ring-offset-1 ring-offset-background",
                     )}
                   >
-                    {/* On today's disc the type sits ON the accent, so it takes the accent's
-                        auto black/white contrast colour instead of the flowing hue. */}
-                    <span className={cn("leading-none", isToday && 'text-[hsl(var(--btn-on-accent))]')}>{format(day, 'd')}</span>
+                    {/* Today's multicolour water. Always at a FULL level — an Uber day is
+                        either logged or not, so there is no half state for a level to show;
+                        the two-colour blend, ring and halo are what mark it as today. Back
+                        wave first so the front surface paints over it (lf-full hides it). */}
+                    {isToday && (
+                      <span aria-hidden className="liquid-fill lf-full" style={{ '--fill': 1.08 } as React.CSSProperties}>
+                        <span className="lf-wave lf-wave2" />
+                        <span className="lf-wave" />
+                      </span>
+                    )}
+                    {/* On today's disc the type sits ON the accent water, so it takes the
+                        accent's auto black/white contrast colour instead of the flowing hue,
+                        and z-10 keeps it above the water. */}
+                    <span className={cn("relative z-10 leading-none", isToday && 'text-[hsl(var(--btn-on-accent))]')}>{format(day, 'd')}</span>
                     {hasRides && (
                       <span className={cn(
-                        "leading-none text-[7px] font-semibold",
+                        "relative z-10 leading-none text-[7px] font-semibold",
                         isToday ? 'text-[hsl(var(--btn-on-accent))]' : 'text-accent',
                       )}>
                         {dayTotal >= 1000 ? `${Math.round(dayTotal / 1000)}k` : Math.round(dayTotal)}
@@ -587,10 +604,10 @@ export function TransportPage() {
                       )}
                     </p>
                     <p className="text-base font-bold whitespace-nowrap text-foreground">
-                      {formatCurrency(pricingMode === 'monthly' ? effectiveMonthlyAmount : totalDue)}
+                      {formatCurrency(totalDue)}
                     </p>
                   </div>
-                  {pricingMode === 'monthly' && hasMonthlyOverride && effectiveMonthlyAmount !== transportSettings.monthlyFee && (
+                  {hasMonthlyOverride && savedMonthlyOverride !== transportSettings.monthlyFee && (
                     <p className="text-[10px] text-muted-foreground text-right">
                       Default {formatCurrency(transportSettings.monthlyFee)} · adjusted for {format(currentDate, 'MMMM')}
                     </p>
@@ -607,7 +624,7 @@ export function TransportPage() {
                 )}
                 variant={isPaidForMonth ? 'outline' : 'default'}
                 onClick={handleMarkAsPaid}
-                disabled={!isPaidForMonth && (isLocked || (pricingMode === 'monthly' ? effectiveMonthlyAmount : totalDue) <= 0)}
+                disabled={!isPaidForMonth && (isLocked || totalDue <= 0)}
               >
                 {isPaidForMonth ? '✓ Payment Confirmed — tap to undo' : `Mark as Paid for ${format(currentDate, 'MMMM')}`}
               </Button>

@@ -3,11 +3,11 @@
 import { useContext, useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import type { AppRouterInstance } from 'next/dist/shared/lib/app-router-context.shared-runtime';
-import { format, startOfDay } from 'date-fns';
+import { format } from 'date-fns';
 import { AnimatePresence, animate, motion, useMotionValue, useReducedMotion } from 'framer-motion';
 import { AppDataContext } from '@/context/AppDataContext';
 import { formatCurrency, cn } from '@/lib/utils';
-import { calculateTransportMonth, isTransportPaidForMonth } from '@/lib/calculations';
+import { calculateTransportMonth, isTransportPaidForMonth, dayKey } from '@/lib/calculations';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -955,12 +955,11 @@ function QuickUberForm({ onDone }: { onDone: () => void }) {
   const submit = () => {
     const amt = parseFloat(price);
     if (isNaN(amt) || amt <= 0) { setError('Enter a valid positive price.'); return; }
-    // The Uber calendar keys each day cell by local-midnight → toISOString (UTC-shifted for
-    // UTC+ timezones — see the getDayState NOTE in calculations.ts). Derive today's key the
-    // same way so the ride lands on TODAY's cell, not tomorrow's. A plain local
-    // 'yyyy-MM-dd' here put rides one cell ahead.
+    // Same local 'yyyy-MM-dd' key the Uber calendar renders each cell with (see dayKey in
+    // calculations.ts) — the old UTC-derived key needed a matching shift here to land on
+    // today's cell; now both sides just use the local date.
     addUberRide({
-      date: startOfDay(new Date()).toISOString().split('T')[0],
+      date: dayKey(new Date()),
       price: amt,
       from: from.trim() || undefined,
       to: to.trim() || undefined,

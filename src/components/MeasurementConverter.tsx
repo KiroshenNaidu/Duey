@@ -28,6 +28,14 @@ type Category = {
 
 // ─── Unit Definitions ─────────────────────────────────────────────────────────
 
+// Fuel economy is measured two opposite ways (consumption vs distance), so every
+// conversion in that category is a reciprocal. Guard the divide: a non-positive input has
+// no meaningful counterpart, and 100/0 → Infinity used to round-trip back to 0 L/100km —
+// i.e. "burns no fuel", the exact opposite of what 0 km/L means. NaN renders as "—".
+const recip = (k: number) => (v: number) => (v > 0 ? k / v : NaN);
+const MPG_US_CONST = 100 * 1.609344 * 3.785411784; // ≈ 235.2145833
+const MPG_UK_CONST = 100 * 1.609344 * 4.54609;     // ≈ 282.4809363
+
 const CATEGORIES: Category[] = [
   {
     key: 'length',
@@ -38,12 +46,15 @@ const CATEGORIES: Category[] = [
       { key: 'cm',   label: 'Centimetre (cm)',    factor: 0.01 },
       { key: 'm',    label: 'Metre (m)',           factor: 1 },
       { key: 'km',   label: 'Kilometre (km)',      factor: 1000 },
+      // Imperial/US lengths are defined EXACTLY in SI (international yard, 1959), so
+      // these are not approximations.
       { key: 'in',   label: 'Inch (in)',           factor: 0.0254 },
       { key: 'ft',   label: 'Foot (ft)',           factor: 0.3048 },
       { key: 'yd',   label: 'Yard (yd)',           factor: 0.9144 },
       { key: 'mi',   label: 'Mile (mi)',           factor: 1609.344 },
       { key: 'nmi',  label: 'Nautical Mile',       factor: 1852 },
-      { key: 'ly',   label: 'Light-year',          factor: 9.461e15 },
+      // IAU light-year: 299 792 458 m/s × 365.25 d — exact to the metre.
+      { key: 'ly',   label: 'Light-year',          factor: 9.4607304725808e15 },
     ],
   },
   {
@@ -56,11 +67,13 @@ const CATEGORIES: Category[] = [
       { key: 'g',    label: 'Gram (g)',            factor: 0.001 },
       { key: 'kg',   label: 'Kilogram (kg)',       factor: 1 },
       { key: 't',    label: 'Metric Ton (t)',      factor: 1000 },
-      { key: 'oz',   label: 'Ounce (oz)',          factor: 0.0283495 },
-      { key: 'lb',   label: 'Pound (lb)',          factor: 0.453592 },
-      { key: 'st',   label: 'Stone (st)',          factor: 6.35029 },
-      { key: 'uston',label: 'US Short Ton',        factor: 907.185 },
-      { key: 'ukton',label: 'UK Long Ton',         factor: 1016.05 },
+      // Avoirdupois masses derive exactly from the international pound (0.453 592 37 kg);
+      // the old 6-figure roundings drifted at the 7th significant digit fmt() prints.
+      { key: 'oz',   label: 'Ounce (oz)',          factor: 0.028349523125 },
+      { key: 'lb',   label: 'Pound (lb)',          factor: 0.45359237 },
+      { key: 'st',   label: 'Stone (st)',          factor: 6.35029318 },
+      { key: 'uston',label: 'US Short Ton',        factor: 907.18474 },
+      { key: 'ukton',label: 'UK Long Ton',         factor: 1016.0469088 },
     ],
   },
   {
@@ -100,11 +113,11 @@ const CATEGORIES: Category[] = [
       { key: 'm2',   label: 'm²',               factor: 1 },
       { key: 'km2',  label: 'km²',              factor: 1e6 },
       { key: 'in2',  label: 'in²',              factor: 6.4516e-4 },
-      { key: 'ft2',  label: 'ft²',              factor: 0.092903 },
-      { key: 'yd2',  label: 'yd²',              factor: 0.836127 },
-      { key: 'ac',   label: 'Acre',             factor: 4046.86 },
+      { key: 'ft2',  label: 'ft²',              factor: 0.09290304 },
+      { key: 'yd2',  label: 'yd²',              factor: 0.83612736 },
+      { key: 'ac',   label: 'Acre',             factor: 4046.8564224 },
       { key: 'ha',   label: 'Hectare (ha)',      factor: 10000 },
-      { key: 'mi2',  label: 'mi²',              factor: 2.59e6 },
+      { key: 'mi2',  label: 'mi²',              factor: 2589988.110336 },
     ],
   },
   {
@@ -142,7 +155,8 @@ const CATEGORIES: Category[] = [
       { key: 'fps',   label: 'ft/s',           factor: 0.3048 },
       { key: 'kn',    label: 'Knot (kn)',       factor: 0.514444 },
       { key: 'mach',  label: 'Mach (sea level)',factor: 340.29 },
-      { key: 'c',     label: 'Speed of Light',  factor: 2.998e8 },
+      // Exact SI definition (299 792 458 m/s), not the 4-significant-figure shorthand.
+      { key: 'c',     label: 'Speed of Light',  factor: 299792458 },
     ],
   },
   {
@@ -189,9 +203,10 @@ const CATEGORIES: Category[] = [
       { key: 'mpa',  label: 'Megapascal (MPa)',  factor: 1e6 },
       { key: 'bar',  label: 'Bar',               factor: 100000 },
       { key: 'mbar', label: 'Millibar (mbar)',   factor: 100 },
-      { key: 'psi',  label: 'PSI',               factor: 6894.76 },
+      { key: 'psi',  label: 'PSI',               factor: 6894.757293168361 },
       { key: 'atm',  label: 'Atmosphere (atm)',  factor: 101325 },
-      { key: 'torr', label: 'mmHg / Torr',       factor: 133.322 },
+      // Torr is defined as exactly atm/760.
+      { key: 'torr', label: 'mmHg / Torr',       factor: 101325 / 760 },
     ],
   },
   {
@@ -206,8 +221,8 @@ const CATEGORIES: Category[] = [
       { key: 'kcal',label: 'Kilocalorie (kcal)', factor: 4184 },
       { key: 'wh',  label: 'Watt-hour (Wh)',     factor: 3600 },
       { key: 'kwh', label: 'kWh',                factor: 3600000 },
-      { key: 'btu', label: 'BTU',                factor: 1055.06 },
-      { key: 'ev',  label: 'Electronvolt (eV)',  factor: 1.602e-19 },
+      { key: 'btu', label: 'BTU',                factor: 1055.05585262 }, // BTU_IT
+      { key: 'ev',  label: 'Electronvolt (eV)',  factor: 1.602176634e-19 }, // exact since SI 2019
     ],
   },
   {
@@ -219,9 +234,9 @@ const CATEGORIES: Category[] = [
       { key: 'kw',   label: 'Kilowatt (kW)',      factor: 1000 },
       { key: 'mw',   label: 'Megawatt (MW)',      factor: 1e6 },
       { key: 'gw',   label: 'Gigawatt (GW)',      factor: 1e9 },
-      { key: 'hp_m', label: 'Horsepower (metric)',factor: 735.499 },
-      { key: 'hp_i', label: 'Horsepower (imperial)', factor: 745.7 },
-      { key: 'btu_h',label: 'BTU/hour',           factor: 0.293071 },
+      { key: 'hp_m', label: 'Horsepower (metric)',factor: 735.49875 },
+      { key: 'hp_i', label: 'Horsepower (imperial)', factor: 745.6998715822702 },
+      { key: 'btu_h',label: 'BTU/hour',           factor: 1055.05585262 / 3600 },
     ],
   },
   {
@@ -241,28 +256,14 @@ const CATEGORIES: Category[] = [
     key: 'fuel',
     label: 'Fuel',
     emoji: '⛽',
+    // All convert via L/100km as base — every non-metric unit is a reciprocal of it.
     units: [
-      // All convert via L/100km as base — reciprocal relationships handled below
-      {
-        key: 'l100km', label: 'L / 100 km',
-        toBase: v => v,
-        fromBase: v => v,
-      },
-      {
-        key: 'kml',  label: 'km / L',
-        toBase: v => 100 / v,
-        fromBase: v => 100 / v,
-      },
-      {
-        key: 'mpg_us', label: 'mpg (US)',
-        toBase: v => 235.215 / v,
-        fromBase: v => 235.215 / v,
-      },
-      {
-        key: 'mpg_uk', label: 'mpg (UK)',
-        toBase: v => 282.481 / v,
-        fromBase: v => 282.481 / v,
-      },
+      { key: 'l100km', label: 'L / 100 km', toBase: v => v, fromBase: v => v },
+      { key: 'kml',    label: 'km / L',     toBase: recip(100),          fromBase: recip(100) },
+      // Constants are 100 × (km per mile) × (litres per gallon), from the exact mile and
+      // the US/UK gallon definitions.
+      { key: 'mpg_us', label: 'mpg (US)',   toBase: recip(MPG_US_CONST), fromBase: recip(MPG_US_CONST) },
+      { key: 'mpg_uk', label: 'mpg (UK)',   toBase: recip(MPG_UK_CONST), fromBase: recip(MPG_UK_CONST) },
     ],
   },
 ];

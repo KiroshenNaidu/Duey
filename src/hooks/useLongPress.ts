@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 
 /**
  * Press-and-hold detection for list cards (the multi-select entry gesture). Fires once
@@ -28,6 +28,11 @@ export function useLongPress(
     if (timer.current) { clearTimeout(timer.current); timer.current = null; }
     origin.current = null;
   }, []);
+
+  // A hold in flight when the element goes away (the card is deleted, the list re-filters,
+  // the route changes) would still fire onHold ~450ms later — entering multi-select on a
+  // list that no longer contains the pressed row. Drop the pending timer on unmount.
+  useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
 
   const onPointerDown = useCallback((e: React.PointerEvent) => {
     if (!enabled) return;

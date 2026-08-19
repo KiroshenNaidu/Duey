@@ -48,11 +48,18 @@ function safeCalculate(raw: string): number {
     const start = i;
     while (i < expr.length && /[\d.]/.test(expr[i])) i++;
     if (i === start) throw new Error(`Unexpected character at position ${i}`);
-    return parseFloat(expr.slice(start, i));
+    const raw = expr.slice(start, i);
+    // parseFloat stops at the first junk character, so a malformed literal like "1.2.3"
+    // silently evaluated as 1.2. Demand a well-formed number and surface anything else.
+    if (!/^(\d+(\.\d*)?|\.\d+)$/.test(raw)) throw new Error(`Malformed number: ${raw}`);
+    return parseFloat(raw);
   }
 
   const result = parseExpr();
   if (i !== expr.length) throw new Error(`Unexpected token: ${expr[i]}`);
+  // A finite result is the only thing worth showing — overflow to ±Infinity would
+  // otherwise render as "Infinity" in the display.
+  if (!Number.isFinite(result)) throw new Error('Result is not a finite number');
   return result;
 }
 
