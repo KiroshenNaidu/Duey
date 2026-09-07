@@ -18,7 +18,7 @@ import {
   Search, X, Eye,
 } from 'lucide-react';
 import { showUndoToast } from '@/components/ui/undo-toast';
-import { calculateSealedMonthSummary } from '@/lib/calculations';
+import { calculateSealedCycleSummary, getPayCycle } from '@/lib/calculations';
 import type { HistoryEntry, Expense, UberRide, BudgetPlan } from '@/lib/types';
 import { format } from 'date-fns';
 import { FolderAccess } from '@/lib/folderAccess';
@@ -1140,8 +1140,9 @@ export default function HistoryPage() {
     }
   };
 
-  // Current month is still "live" — its entries stay editable and only finalize into a
-  // permanent monthly summary once the month ends (see the month-end seal in AppDataContext).
+  // Entries are grouped by calendar month for reading, but the current month is still
+  // "live": its entries stay editable and only finalize into a permanent summary when the
+  // pay cycle they fall in ends — on the user's pay date (see the seal in AppDataContext).
   const currentMonthLabel = format(new Date(), 'MMMM yyyy');
 
   // ── Render ────────────────────────────────────────────────────────────────────
@@ -1345,7 +1346,7 @@ export default function HistoryPage() {
                     {month === currentMonthLabel && (
                       <span className="inline-flex items-center gap-1 text-[9px] font-semibold text-primary shrink-0">
                         <span className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
-                        Live · finalizes month-end
+                        Live · finalizes on your pay date
                       </span>
                     )}
                   </div>
@@ -1623,15 +1624,18 @@ export default function HistoryPage() {
       <Dialog open={!!snapshotEntry} onOpenChange={v => { if (!v) setSnapshotEntry(null); }}>
         <DialogContent className="sm:max-w-sm">
           {snapshotEntry && (() => {
-            const monthKey = format(new Date(snapshotEntry.date), 'yyyy-MM');
-            const monthLabel = format(new Date(snapshotEntry.date), 'MMMM yyyy');
-            // Prefer the exact figures captured when the month was sealed. Only fall back to
+            // A snapshot is dated to the LAST day of the cycle it sealed, so the cycle it
+            // belongs to is the one containing that date (for payDay 1 — every snapshot
+            // written before pay cycles existed — that is exactly its calendar month).
+            const payDay = userProfile.paydayDay;
+            const cycle = getPayCycle(payDay, new Date(snapshotEntry.date));
+            // Prefer the exact figures captured when the cycle was sealed. Only fall back to
             // a live recompute for older snapshots saved before the breakdown was persisted —
             // recomputing drifts once one-time extra incomes/expenses have been purged.
             const recomputed = !snapshotEntry.snapshot;
-            const s = snapshotEntry.snapshot ?? calculateSealedMonthSummary(
-              { monthlyIncome, extraIncomes, expenses, budgetPlans, history, uberRides, transportSettings, transportOverrides, transportMonthlyOverrides },
-              monthKey,
+            const s = snapshotEntry.snapshot ?? calculateSealedCycleSummary(
+              { payDay, monthlyIncome, extraIncomes, expenses, budgetPlans, history, uberRides, transportSettings, transportOverrides, transportMonthlyOverrides },
+              cycle.key,
             );
             const rows: { label: string; value: number; negative?: boolean }[] = [
               { label: 'Income', value: s.income },
@@ -1644,7 +1648,7 @@ export default function HistoryPage() {
             return (
               <>
                 <DialogHeader>
-                  <DialogTitle>{monthLabel} breakdown</DialogTitle>
+                  <DialogTitle>{cycle.label} breakdown</DialogTitle>
                 </DialogHeader>
                 <div className="space-y-0.5">
                   {rows.filter(r => r.value > 0 || r.label === 'Income').map(r => (
@@ -1665,7 +1669,7 @@ export default function HistoryPage() {
                   </div>
                   {recomputed && (
                     <p className="text-[10px] text-muted-foreground/60 pt-2">
-                      Recomputed from this month&apos;s stored entries. Salary uses your current monthly income.
+                      Recomputed from this period&apos;s stored entries. Salary uses your current monthly income.
                     </p>
                   )}
                 </div>

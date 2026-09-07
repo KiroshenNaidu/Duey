@@ -30,7 +30,13 @@ const TabsTrigger = React.forwardRef<
   <TabsPrimitive.Trigger
     ref={ref}
     className={cn(
-      "inline-flex items-center justify-center whitespace-nowrap rounded-lg px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm",
+      // min-w-0 + overflow-hidden: a flex/grid item defaults to min-width:auto, so a
+      // whitespace-nowrap label CANNOT shrink and instead shoves its neighbours off the
+      // end of the strip (Money's five tabs did exactly this on narrow screens). With
+      // these two, a too-long label ellipsises inside its own pill and every tab stays
+      // reachable. See also .tabs-fluid in globals.css, which scales the text/padding so
+      // the ellipsis is a backstop rather than the normal case.
+      "inline-flex min-w-0 overflow-hidden text-ellipsis items-center justify-center whitespace-nowrap rounded-lg px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-sm",
       className
     )}
     {...props}

@@ -303,7 +303,7 @@ export function RadialFxDemo({ value, onChange }: {
                       <motion.span
                         className={cn(
                           'relative flex h-10 w-10 rounded-full bg-card border shadow-lg items-center justify-center transition-colors',
-                          isAimed || isFlash ? 'border-accent bg-accent/15 text-accent' : 'border-accent/40 text-accent'
+                          isAimed || isFlash ? 'border-accent text-accent' : 'border-accent/40 text-accent'
                         )}
                         animate={{
                           x: (item.x / DEMO_RADIUS) * pull,
@@ -319,7 +319,12 @@ export function RadialFxDemo({ value, onChange }: {
                         }}
                         style={fx.hoverGlow && (isAimed || isFlash) ? { boxShadow: '0 0 16px 3px hsl(var(--accent) / 0.45)' } : undefined}
                       >
-                        {isFlash ? <Check className="h-4 w-4" /> : <item.icon className="h-4 w-4" />}
+                        {/* Aimed tint as an overlay, never as a bg-* class next to bg-card:
+                            cn() is twMerge and drops bg-card for it, which makes the disc
+                            translucent and shows the aim trail through half of it. Same
+                            fix, same reason, as the real radial in QuickAdd. */}
+                        {(isAimed || isFlash) && <span className="absolute inset-0 -z-[1] rounded-full bg-accent/15 pointer-events-none" />}
+                        {isFlash ? <Check className="relative h-4 w-4" /> : <item.icon className="relative h-4 w-4" />}
                         {isAimed && <AimSparkles count={fx.sparkles} />}
                         {isAimed && fx.rippleBurst && <RippleBurst />}
                       </motion.span>

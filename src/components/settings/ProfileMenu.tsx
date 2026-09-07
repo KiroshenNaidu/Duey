@@ -373,7 +373,8 @@ export function ProfileMenu({ onDirtyChange, onSaved, onCancel }: ProfileMenuPro
             />
             {!isNaN(parsedDay) && parsedDay >= 1 && parsedDay <= 31 && (
               <p className="text-[10px] text-muted-foreground">
-                You get paid on the {ordinal(parsedDay)} of each month
+                You get paid on the {ordinal(parsedDay)} of each month. This is the same day
+                Balance and Stats reset on — see Settings → Pay Date.
               </p>
             )}
           </div>

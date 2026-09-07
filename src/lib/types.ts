@@ -228,6 +228,9 @@ export interface AppState {
   swipeActionsEnabled: boolean;
   /** Vibration feedback strength for buttons/gestures (see lib/haptics.ts). */
   hapticsStrength: HapticStrength;
+  /** True once the first-run feature tour has been completed OR skipped. The tour is
+   *  replayable at any time from Profile -> "How to use Duey" (see TutorialTour.tsx). */
+  tutorialSeen: boolean;
 }
 
 export interface DayNightSettings {

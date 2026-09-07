@@ -1,22 +1,25 @@
 'use client';
 
 import { useContext, useState } from 'react';
+import { format } from 'date-fns';
+import { useRouter } from 'next/navigation';
 import { AppDataContext } from '@/context/AppDataContext';
 import { formatCurrency, cn } from '@/lib/utils';
-import { calculateLiveMonthly, isTransportPaidForMonth } from '@/lib/calculations';
+import { calculateLiveMonthly, getPayCycle, isTransportPaidForMonth } from '@/lib/calculations';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Pencil, Check, Plus, Trash2, X, RefreshCw } from 'lucide-react';
+import { Pencil, Check, Plus, Trash2, X, RefreshCw, CalendarClock, ChevronRight } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { showUndoToast } from '@/components/ui/undo-toast';
 
 export function MoneyOverview() {
   const {
     monthlyIncome, budgetPlans, expenses, extraIncomes, history, uberRides,
-    transportSettings, transportOverrides, transportMonthlyOverrides,
+    transportSettings, transportOverrides, transportMonthlyOverrides, userProfile,
     setMonthlyIncome, addExtraIncome, deleteExtraIncome, restoreExtraIncome,
   } = useContext(AppDataContext);
+  const router = useRouter();
 
   const [editingIncome, setEditingIncome] = useState(false);
   const [incomeInput, setIncomeInput] = useState('');
@@ -32,11 +35,14 @@ export function MoneyOverview() {
   const [extraError, setExtraError] = useState('');
 
   const now = new Date();
-  // Single shared calculator (also drives Stats + the month-end seal) so every screen
+  // The window every figure below is measured over: pay date → day before the next one.
+  // Editable in Settings → Pay Date; with a pay day of 1 it is the calendar month.
+  const cycle = getPayCycle(userProfile.paydayDay, now);
+  // Single shared calculator (also drives Stats + the pay-cycle seal) so every screen
   // agrees. It honours the live per-month transport override and counts only debt money
-  // actually logged as a payment this month — nothing is deducted until you log a payment.
+  // actually logged as a payment this cycle — nothing is deducted until you log a payment.
   const monthly = calculateLiveMonthly(
-    { monthlyIncome, extraIncomes, expenses, budgetPlans, history, uberRides, transportSettings, transportOverrides, transportMonthlyOverrides },
+    { payDay: userProfile.paydayDay, monthlyIncome, extraIncomes, expenses, budgetPlans, history, uberRides, transportSettings, transportOverrides, transportMonthlyOverrides },
     now,
   );
   const { transport: transportCost, uber: uberSpend, debt: debtInstallments, expenses: totalExpenses, budget: budgetSpent } = monthly;
@@ -72,15 +78,43 @@ export function MoneyOverview() {
   };
 
   const deductions = [
-    { id: 'transport', label: 'Transport (this month)', value: transportCost, estimate: !transportPaid },
-    { id: 'uber',      label: 'Uber (this month)',       value: uberSpend },
+    { id: 'transport', label: 'Transport (this cycle)', value: transportCost, estimate: !transportPaid },
+    { id: 'uber',      label: 'Uber (this cycle)',       value: uberSpend },
     { id: 'budget',    label: 'Budget (confirmed)',     value: budgetSpent },
-    { id: 'debts',     label: 'Debt payments (this month)', value: debtInstallments },
+    { id: 'debts',     label: 'Debt payments (this cycle)', value: debtInstallments },
     { id: 'expenses',  label: 'Expenses (active)',       value: totalExpenses },
   ];
 
   return (
     <div className="space-y-3">
+      {/* Pay cycle — the window everything below is measured over. Tapping it jumps to the
+          editor in Settings, the same way the quick-add "Theme" shortcut opens its menu. */}
+      <Card>
+        <CardContent className="p-3">
+          <button
+            onClick={() => { router.push('/settings'); window.dispatchEvent(new Event('duey:open-paydate')); }}
+            className="w-full text-left group"
+          >
+            <div className="flex items-center gap-2">
+              <CalendarClock className="h-3.5 w-3.5 text-accent shrink-0" />
+              <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Pay Cycle</p>
+              <ChevronRight className="h-3.5 w-3.5 ml-auto text-muted-foreground/40 group-hover:text-muted-foreground transition-colors shrink-0" />
+            </div>
+            <p className="text-sm font-bold text-foreground mt-1.5">{cycle.label}</p>
+          </button>
+          {/* How far through the cycle today is — the same figure the countdown states,
+              drawn so it can be read without arithmetic. */}
+          <div className="h-1.5 w-full rounded-full bg-muted/50 overflow-hidden mt-2">
+            <div className="h-full rounded-full bg-accent" style={{ width: `${Math.round(cycle.progress * 100)}%` }} />
+          </div>
+          <p className="text-[10px] text-muted-foreground mt-1.5">
+            {cycle.daysLeft === 0
+              ? 'Payday — this cycle starts fresh today'
+              : `Resets in ${cycle.daysLeft} day${cycle.daysLeft === 1 ? '' : 's'}, on ${format(cycle.end, 'd MMM')}`}
+          </p>
+        </CardContent>
+      </Card>
+
       {/* Monthly Income */}
       <Card>
         <CardContent className="p-3">
@@ -166,7 +200,7 @@ export function MoneyOverview() {
                 <div>
                   <p className="text-xs font-semibold text-foreground">Monthly</p>
                   <p className="text-[9px] text-muted-foreground">
-                    {extraRecurring ? 'Counts every month until removed' : 'This month only — clears on the 1st'}
+                    {extraRecurring ? 'Counts every cycle until removed' : 'This cycle only — clears on your next pay date'}
                   </p>
                 </div>
                 <Switch checked={extraRecurring} onCheckedChange={setExtraRecurring} />
@@ -237,7 +271,7 @@ export function MoneyOverview() {
           <p className={cn('text-3xl font-bold tabular-nums', remaining >= 0 ? 'text-accent' : 'text-destructive')}>
             {remaining < 0 ? `−${formatCurrency(Math.abs(remaining))}` : formatCurrency(remaining)}
           </p>
-          {remaining < 0 && <p className="text-[10px] text-destructive mt-0.5">You&apos;re over budget this month</p>}
+          {remaining < 0 && <p className="text-[10px] text-destructive mt-0.5">You&apos;re over budget this cycle</p>}
           {monthlyIncome === 0 && <p className="text-[10px] text-muted-foreground mt-0.5">Set your monthly income above to see your balance</p>}
         </CardContent>
       </Card>

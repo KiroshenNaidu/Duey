@@ -1,11 +1,13 @@
 'use client';
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Button } from './ui/button';
 import { X, Calculator } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { acquireOverlayBlur, releaseOverlayBlur } from '@/lib/overlayBlur';
 import { FixedPortal } from '@/components/FixedPortal';
+import { useDraggablePanel } from '@/hooks/useDraggablePanel';
+import type { ThrowOrigin } from '@/components/SwipeLaunchFab';
 
 function safeCalculate(raw: string): number {
   const expr = raw.replace(/\s+/g, '');
@@ -63,27 +65,11 @@ function safeCalculate(raw: string): number {
   return result;
 }
 
-const DraggableCard = ({ children, onClose }: { children: React.ReactNode; onClose: () => void }) => {
-  const cardRef = useRef<HTMLDivElement>(null);
-  const [position, setPosition] = useState({ x: 0, y: 0 });
-  const [placed, setPlaced] = useState(false);
-  const isDraggingRef = useRef(false);
-  const offsetRef = useRef({ x: 0, y: 0 });
-
-  // Open near the TOP of the screen (just under the fixed top nav) for easy thumb reach
-  // instead of dead-centre; still fully draggable from the header afterwards. navBottom is
-  // measured live so the notch/safe area is accounted for on every device.
-  useEffect(() => {
-    if (!cardRef.current) return;
-    const { innerWidth } = window;
-    const { offsetWidth } = cardRef.current;
-    const navBottom = document.querySelector('nav')?.getBoundingClientRect().bottom ?? 56;
-    setPosition({
-      x: Math.max(12, Math.round((innerWidth - offsetWidth) / 2)),
-      y: Math.round(navBottom + 12),
-    });
-    setPlaced(true);
-  }, []);
+const DraggableCard = ({ children, throwFrom, onClose }: { children: React.ReactNode; throwFrom: ThrowOrigin | null; onClose: () => void }) => {
+  // Placement, on-screen clamping and drag: one rAF-coalesced, transform-driven engine
+  // shared with the Quick Notepad (see useDraggablePanel for why the old per-touchmove
+  // setState + left/top drag lagged behind the thumb on the Android WebView).
+  const { ref: cardRef, origin, placed, x, y, handleProps } = useDraggablePanel();
 
   // Blur the whole app uniformly while open (same mechanism dialogs/quick-add use).
   // The old backdrop-filter blur sampled page layers inconsistently — big page titles
@@ -92,39 +78,6 @@ const DraggableCard = ({ children, onClose }: { children: React.ReactNode; onClo
     const token = acquireOverlayBlur();
     return () => releaseOverlayBlur(token);
   }, []);
-
-  const onDragStart = useCallback((e: React.MouseEvent<HTMLDivElement> | React.TouchEvent<HTMLDivElement>) => {
-    isDraggingRef.current = true;
-    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
-    const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
-    if (cardRef.current) {
-      const rect = cardRef.current.getBoundingClientRect();
-      offsetRef.current = { x: clientX - rect.left, y: clientY - rect.top };
-    }
-  }, []);
-
-  const onDrag = useCallback((e: MouseEvent | TouchEvent) => {
-    if (!isDraggingRef.current) return;
-    if (e.type === 'touchmove') e.preventDefault();
-    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
-    const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
-    setPosition({ x: clientX - offsetRef.current.x, y: clientY - offsetRef.current.y });
-  }, []);
-
-  const onDragEnd = useCallback(() => { isDraggingRef.current = false; }, []);
-
-  useEffect(() => {
-    window.addEventListener('mousemove', onDrag);
-    window.addEventListener('touchmove', onDrag, { passive: false });
-    window.addEventListener('mouseup', onDragEnd);
-    window.addEventListener('touchend', onDragEnd);
-    return () => {
-      window.removeEventListener('mousemove', onDrag);
-      window.removeEventListener('touchmove', onDrag);
-      window.removeEventListener('mouseup', onDragEnd);
-      window.removeEventListener('touchend', onDragEnd);
-    };
-  }, [onDrag, onDragEnd]);
 
   // Portaled to <body>: the panel lives inside #app-root's subtree, and the overlay
   // blur puts a CSS filter on #app-root — which would blur the calculator itself AND
@@ -139,24 +92,64 @@ const DraggableCard = ({ children, onClose }: { children: React.ReactNode; onClo
         exit={{ opacity: 0 }}
         transition={{ duration: 0.15 }}
       />
+      {/* Positioner. Owns nothing but WHERE the card is: a resting origin in left/top and
+          the drag's live offset as x/y MotionValues, written straight to this node's
+          transform without a React render (useDraggablePanel). The entrance animation is a
+          separate element inside it, so the two transforms can never fight over the node. */}
       <motion.div
         ref={cardRef}
-        className="fixed z-[100] w-[85vw] min-w-[280px] max-w-[320px]"
-        style={{ left: `${position.x}px`, top: `${position.y}px`, touchAction: 'none' }}
-        // Slide DOWN into place from just above; held invisible until the top position is
-        // measured so it never flashes at 0,0.
-        initial={{ opacity: 0, scale: 0.94, y: -14 }}
-        animate={{ opacity: placed ? 1 : 0, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.94, y: -14 }}
-        transition={{ type: 'tween', ease: [0.25, 0.46, 0.45, 0.94], duration: 0.18 }}
+        // Fluid width: the old min-w-[280px] was WIDER than 85vw below a 330px viewport,
+        // so on the smallest screens (and on any phone with Android's display size turned
+        // up) the card overflowed the very edge it was trying to stay clear of.
+        className="fixed z-[100] w-[min(92vw,320px)]"
+        style={{ left: origin.x, top: origin.y, x, y }}
+      >
+      <motion.div
+        style={{
+          // The pivot the throw entrance grows from, in this box's own coordinates. Left
+          // at the default centre for a tap, which must look exactly as it always did.
+          transformOrigin: throwFrom ? `${throwFrom.x - origin.x}px ${throwFrom.y - origin.y}px` : undefined,
+        }}
+        // Two entrances. Tapped open, it slides DOWN into place from just above, as it
+        // always has. THROWN open by a flick off a corner FAB, it grows out of that FAB
+        // along the heading of the throw: transform-origin is moved to the FAB's centre
+        // (a point well outside this box — perfectly legal, and the whole trick), so
+        // scaling up from near-nothing reads as the window unfolding from under the thumb
+        // rather than fading in where it will end up. It additionally starts a little way
+        // BACK along the throw and tilts against it, so the first frames travel the way
+        // the thumb did and the tilt settles out like something caught mid-flight. The
+        // spring is underdamped (damping ratio ~0.42) — the overshoot IS the catch.
+        // Either way it is held invisible until the top position is measured, so it never
+        // flashes at 0,0.
+        initial={throwFrom
+          ? { opacity: 0, scale: 0.12, x: -throwFrom.dx * 40, y: -throwFrom.dy * 40, rotate: -throwFrom.dx * 6 }
+          : { opacity: 0, scale: 0.94, y: -14 }}
+        animate={{ opacity: placed ? 1 : 0, scale: 1, x: 0, y: 0, rotate: 0 }}
+        // Exit is ALWAYS the quick tween, never the entrance spring. An underdamped
+        // spring takes the better part of a second to settle, and AnimatePresence keeps
+        // the whole subtree — including the full-screen backdrop — mounted until every
+        // value lands. That backdrop then silently ate the next tap or swipe for a second
+        // after each close. Closing should be brisk anyway; the bounce belongs to arrival.
+        exit={{
+          opacity: 0, scale: 0.94, y: -14,
+          transition: { type: 'tween', ease: [0.25, 0.46, 0.45, 0.94], duration: 0.15 },
+        }}
+        transition={throwFrom
+          // damping 22 against stiffness 460 / mass 0.9 is a ratio of ~0.54 — about 13%
+          // overshoot. Tuned DOWN from the 0.42 a free-standing card would want, because
+          // the distant transform-origin turns scale overshoot into travel: with the pivot
+          // ~750px away, every 1% of scale swings the card ~7px, and at 20% the notepad
+          // sailed clean off the top of the screen before coming back. This still lands
+          // with a visible catch, without the panel leaving the viewport to get it.
+          ? { type: 'spring', stiffness: 460, damping: 22, mass: 0.9, opacity: { duration: 0.12 } }
+          : { type: 'tween', ease: [0.25, 0.46, 0.45, 0.94], duration: 0.18 }}
       >
         {/* aurora-dialog: the app's themed rotating-gradient ring (matches every modal +
             the Quick Notepad). `border bg-background` is the fallback chrome under the
             glass/minimal/elevated UI styles, same pattern as DialogContent. */}
         <div className="aurora-dialog rounded-3xl overflow-hidden border bg-background flex flex-col">
           <div
-            onMouseDown={onDragStart}
-            onTouchStart={onDragStart}
+            {...handleProps}
             className="cursor-move select-none flex items-center gap-2.5 px-3 py-2.5 border-b border-border/40"
           >
             <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-accent/15 text-accent">
@@ -181,6 +174,7 @@ const DraggableCard = ({ children, onClose }: { children: React.ReactNode; onClo
           </div>
         </div>
       </motion.div>
+      </motion.div>
     </FixedPortal>
   );
 };
@@ -188,7 +182,7 @@ const DraggableCard = ({ children, onClose }: { children: React.ReactNode; onClo
 const OPERATORS = ['+', '−', '×', '÷'];
 const isOp = (s: string) => OPERATORS.includes(s);
 
-export function FloatingCalculator({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
+export function FloatingCalculator({ isOpen, throwFrom = null, onClose }: { isOpen: boolean; throwFrom?: ThrowOrigin | null; onClose: () => void }) {
   const [display, setDisplay] = useState('0');
   const [expression, setExpression] = useState('');
   const [isResult, setIsResult] = useState(false);
@@ -285,21 +279,25 @@ export function FloatingCalculator({ isOpen, onClose }: { isOpen: boolean; onClo
 
   const displaySize = display.length > 11 ? 'text-xl' : display.length > 8 ? 'text-2xl' : 'text-[2.4rem]';
 
-  const num = "h-12 text-[15px] font-semibold rounded-2xl bg-card hover:bg-accent/5 border border-accent/10 shadow-sm transition-transform active:scale-95 duration-75 select-none";
+  // Keypad rows shrink on SHORT viewports (a small phone, or any phone with Android's
+  // display size turned up) so all five rows plus the display still fit -- 3rem, i.e.
+  // exactly today's h-12, on anything about 686px tall or more.
+  const btnH = "h-[clamp(2.25rem,7dvh,3rem)]";
+  const num = cn(btnH, "text-[15px] font-semibold rounded-2xl bg-card hover:bg-accent/5 border border-accent/10 shadow-sm transition-transform active:scale-95 duration-75 select-none");
   // Dual light+dark glyph outline so the operator symbols (esp. the thin "+") stay
   // legible whatever the theme's primary/accent colours are: the dark halo carries
   // contrast on light buttons, the light halo carries it on dark buttons.
   const glyphOutline = "[text-shadow:_0_0_1px_rgba(0,0,0,0.55),_0_0_2px_rgba(0,0,0,0.45),_0_0_1px_rgba(255,255,255,0.55),_0_0_2px_rgba(255,255,255,0.45)]";
-  const op  = cn("h-12 text-lg font-bold rounded-2xl bg-primary text-btn-on-primary hover:bg-primary/85 shadow-sm transition-transform active:scale-95 duration-75 select-none", glyphOutline);
-  const fn  = "h-12 text-[13px] font-semibold rounded-2xl bg-foreground/8 text-foreground/60 hover:bg-foreground/12 border border-accent/10 shadow-sm transition-transform active:scale-95 duration-75 select-none";
-  const eq  = cn("h-12 text-lg font-bold rounded-2xl bg-accent text-btn-on-accent hover:bg-accent/85 shadow-sm transition-transform active:scale-95 duration-75 select-none", glyphOutline);
+  const op  = cn(btnH, "text-lg font-bold rounded-2xl bg-primary text-btn-on-primary hover:bg-primary/85 shadow-sm transition-transform active:scale-95 duration-75 select-none", glyphOutline);
+  const fn  = cn(btnH, "text-[13px] font-semibold rounded-2xl bg-foreground/8 text-foreground/60 hover:bg-foreground/12 border border-accent/10 shadow-sm transition-transform active:scale-95 duration-75 select-none");
+  const eq  = cn(btnH, "text-lg font-bold rounded-2xl bg-accent text-btn-on-accent hover:bg-accent/85 shadow-sm transition-transform active:scale-95 duration-75 select-none", glyphOutline);
 
   // Highlight the active operator button only while waiting for the next number
   const activeOp = !isResult && isOp(display) ? display : '';
 
   return (
     <AnimatePresence>
-      {isOpen && <DraggableCard onClose={onClose}>
+      {isOpen && <DraggableCard throwFrom={throwFrom} onClose={onClose}>
       <div className="space-y-2">
 
         {/* History — latest entry only, with clear button */}

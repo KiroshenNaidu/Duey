@@ -4,9 +4,10 @@ import { useState, useContext, useEffect, useRef } from 'react';
 import dynamic from 'next/dynamic';
 import { usePathname, useRouter } from 'next/navigation';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Database, Bell, ChevronLeft, User, Pencil, History, SlidersHorizontal } from 'lucide-react';
+import { Database, Bell, ChevronLeft, User, Pencil, History, SlidersHorizontal, GraduationCap, CalendarClock } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { AppDataContext } from '@/context/AppDataContext';
+import { startTutorial } from '@/components/TutorialTour';
 
 // Settings sub-menus are heavy (Theme + Data Management are ~1,400 lines each, and Data
 // Management pulls in jsPDF) but are only opened occasionally. Code-split them out of the
@@ -22,10 +23,11 @@ const ProfileMenu = dynamic(() => import('@/components/settings/ProfileMenu').th
 const ThemeSettingsMenu = dynamic(() => import('@/components/settings/ThemeSettingsMenu').then(m => ({ default: m.ThemeSettingsMenu })), { ssr: false, loading: MenuFallback });
 const DataManagementMenu = dynamic(() => import('@/components/settings/DataManagementMenu').then(m => ({ default: m.DataManagementMenu })), { ssr: false, loading: MenuFallback });
 const NotificationsMenu = dynamic(() => import('@/components/settings/NotificationsMenu').then(m => ({ default: m.NotificationsMenu })), { ssr: false, loading: MenuFallback });
+const PayDateMenu = dynamic(() => import('@/components/settings/PayDateMenu').then(m => ({ default: m.PayDateMenu })), { ssr: false, loading: MenuFallback });
 import { DayNightToggle } from '@/components/settings/DayNightToggle';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 
-type ActiveMenu = 'main' | 'profile' | 'settings' | 'data' | 'notifications';
+type ActiveMenu = 'main' | 'profile' | 'settings' | 'data' | 'notifications' | 'paydate';
 
 type MenuItem = {
   id: Exclude<ActiveMenu, 'main' | 'profile'>;
@@ -37,6 +39,7 @@ type MenuItem = {
 // Top-level Profile menu. Vibration + Theme both live together inside "Settings".
 const menuItems: MenuItem[] = [
   { id: 'settings',      title: 'Settings',        description: 'Vibration and appearance',            icon: SlidersHorizontal },
+  { id: 'paydate',       title: 'Pay Date',        description: 'When your balance starts over',        icon: CalendarClock },
   { id: 'data',          title: 'Data Management', description: 'Backup, restore, or reset your data', icon: Database },
   { id: 'notifications', title: 'Notifications',   description: 'Payment reminders on Android',         icon: Bell },
 ];
@@ -44,10 +47,10 @@ const menuItems: MenuItem[] = [
 // Menu tree: depth drives the slide direction (deeper = forward) and each sub-menu's
 // parent is where its back button / hardware-back returns to (all sub-menus → main).
 const MENU_DEPTH: Record<ActiveMenu, number> = {
-  main: 0, profile: 1, settings: 1, data: 1, notifications: 1,
+  main: 0, profile: 1, settings: 1, data: 1, notifications: 1, paydate: 1,
 };
 const MENU_PARENT: Record<Exclude<ActiveMenu, 'main'>, ActiveMenu> = {
-  profile: 'main', settings: 'main', data: 'main', notifications: 'main',
+  profile: 'main', settings: 'main', data: 'main', notifications: 'main', paydate: 'main',
 };
 
 const ordinal = (n: number) => {
@@ -106,7 +109,7 @@ const ProfileHeroCard = ({ onEdit }: { onEdit: () => void }) => {
           <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{userProfile.bio}</p>
         ) : (
           <p className="text-xs text-muted-foreground mt-0.5">
-            Payday: {ordinal(userProfile.paydayDay)} of each month
+            Payday: {ordinal(userProfile.paydayDay)} — balance resets then
           </p>
         )}
       </div>
@@ -142,8 +145,14 @@ export function SettingsPage() {
   // pages; QuickAdd navigates to /settings alongside dispatching the event.
   useEffect(() => {
     const onOpenTheme = () => { menuDirectionRef.current = 1; setActiveMenu('settings'); };
+    // Balance's pay-cycle card jumps straight here, the same way the Theme shortcut does.
+    const onOpenPayDate = () => { menuDirectionRef.current = 1; setActiveMenu('paydate'); };
     window.addEventListener('duey:open-theme', onOpenTheme);
-    return () => window.removeEventListener('duey:open-theme', onOpenTheme);
+    window.addEventListener('duey:open-paydate', onOpenPayDate);
+    return () => {
+      window.removeEventListener('duey:open-theme', onOpenTheme);
+      window.removeEventListener('duey:open-paydate', onOpenPayDate);
+    };
   }, []);
   const [pendingNav, setPendingNav] = useState<ActiveMenu | null>(null);
   const [pendingHref, setPendingHref] = useState<string | null>(null);
@@ -314,6 +323,12 @@ export function SettingsPage() {
               <DataManagementMenu />
             </>
           )}
+          {activeMenu === 'paydate' && (
+            <>
+              <PageHeader title="Pay Date" onBack={handleBack} />
+              <PayDateMenu onDirtyChange={setMenuIsDirty} onSaved={handleSaved} onCancel={() => navigateTo('main')} />
+            </>
+          )}
           {activeMenu === 'notifications' && (
             <>
               <PageHeader title="Notifications" onBack={handleBack} />
@@ -338,6 +353,17 @@ export function SettingsPage() {
                     </div>
                   </button>
                 ))}
+                <button
+                  data-tour="tutorial-replay"
+                  onClick={startTutorial}
+                  className="w-full text-left p-3 bg-card rounded-2xl flex items-center gap-4 transition-transform active:scale-[0.98] hover:scale-[1.02] focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background"
+                >
+                  <GraduationCap className="h-5 w-5 text-accent shrink-0" />
+                  <div>
+                    <p className="text-base font-semibold text-card-foreground">How to use Duey</p>
+                    <p className="text-xs text-muted-foreground">Show the feature tutorial again</p>
+                  </div>
+                </button>
                 <button
                   onClick={() => router.push('/history')}
                   className="w-full text-left p-3 bg-card rounded-2xl flex items-center gap-4 transition-transform active:scale-[0.98] hover:scale-[1.02] focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background"

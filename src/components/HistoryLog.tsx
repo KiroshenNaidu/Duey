@@ -161,7 +161,7 @@ function MonthHeader({ label, isCurrent }: { label: string; isCurrent?: boolean 
       {isCurrent && (
         <span className="inline-flex items-center gap-1 text-[9px] font-semibold text-primary shrink-0">
           <span className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
-          Live · finalizes month-end
+          Live · finalizes on your pay date
         </span>
       )}
     </div>

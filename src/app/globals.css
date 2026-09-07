@@ -706,6 +706,13 @@ body.perf-freeze .arc-animated-complete,
 body.perf-freeze .arc-animated-accent,
 body.perf-freeze .stroke-animated,
 body.perf-freeze .liquid-fill .lf-wave,
+/* The dialog ring animates `--aurora-angle`, i.e. a conic-gradient PAINT property: every
+   frame of the spin repaints the whole panel background on the main thread. Harmless while
+   a dialog just sits there, ruinous underneath a drag — the floating calculator/notepad are
+   `.aurora-dialog` panels and the repaint lands on exactly the frames the gesture needs.
+   Unlike the loops above this one is NOT scoped to #app-root for the overlay-blur case:
+   these panels are portaled to <body>, on top of the blur, where they stay visible. */
+body.perf-freeze .aurora-dialog,
 body.overlay-blur #app-root .ring-pulse,
 body.overlay-blur #app-root .bar-glow,
 body.overlay-blur #app-root .bar-animated,
@@ -905,4 +912,46 @@ body:not(.ui-glass):not(.ui-minimal):not(.ui-elevated) .aurora-dialog {
 /* Low-power devices keep the themed ring but drop the continuous repaint. */
 body.low-power .aurora-dialog {
   animation: none !important;
+}
+/* ═══════════════════════ Small / dense screens ═══════════════════════
+   A cramped viewport arrives from two directions and they are indistinguishable in CSS:
+   a genuinely small phone, and Android's Display size / Font size accessibility settings,
+   which shrink the CSS-pixel viewport on ANY phone (a 412px device at the largest display
+   size reports ~320px). So everything below keys off width, never off device.
+
+   Three layers, weakest first:
+     1. Fluid page gutters — the container's 2rem is a lot of a 320px screen.
+     2. Fluid tab strips   — the widest fixed-cost row in the app (5 labels across).
+     3. A root font-size step-down as a last resort, once 1+2 have run out of room. */
+
+/* 1. Page gutters. clamp's 8vw only bites below 400px, so every phone at or above that
+      width keeps the exact 2rem gutter it has today — this is purely a narrow-screen path. */
+.container {
+  padding-left: clamp(0.875rem, 8vw, 2rem);
+  padding-right: clamp(0.875rem, 8vw, 2rem);
+}
+
+/* 2. Tab strips that must fit four or five labels in one row (Money's
+      Tools/Expenses/Debts/Budget/Balance is the worst case). Text and padding scale with
+      the viewport instead of being fixed, capped at today's text-sm/px-3 so wide phones are
+      untouched; `min-width: 0` on the triggers (see ui/tabs.tsx) is the hard backstop that
+      turns any remaining overflow into an ellipsis INSIDE the strip rather than a label
+      pushed off the edge of the screen. */
+.tabs-fluid [role='tab'] {
+  padding-left: clamp(0.1875rem, 1.5vw, 0.75rem);
+  padding-right: clamp(0.1875rem, 1.5vw, 0.75rem);
+  font-size: clamp(0.6875rem, 3.4vw, 0.875rem);
+}
+
+/* 3. Root type scale. Every rem-based size in the app (Tailwind's spacing AND type scales)
+      rides this, so one step trims text, padding and gaps together and keeps their
+      proportions intact. Deliberately gentle, and deliberately BELOW the 360px that most
+      Android phones report at default display size: those are already handled by 1 + 2, and
+      shrinking text on a user who explicitly asked their phone for bigger text is a last
+      resort, not an opening move. */
+@media (max-width: 359px) {
+  :root { font-size: 15px; }
+}
+@media (max-width: 329px) {
+  :root { font-size: 14px; }
 }

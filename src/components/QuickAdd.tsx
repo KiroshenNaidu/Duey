@@ -631,8 +631,10 @@ export function QuickAdd() {
                       // Fades to nothing only at the very edge, so past the button's rim
                       // (24px, 28 while aimed) there's a real halo left to read as a fill.
                       // The old 72% stop died 3px past the rim — barely a fringe.
-                      background: 'radial-gradient(circle, hsl(var(--primary) / 0.6) 0%, hsl(var(--primary) / 0.34) 42%, hsl(var(--primary) / 0.12) 70%, hsl(var(--primary) / 0) 100%)',
-                      filter: 'drop-shadow(0 0 16px hsl(var(--primary) / 0.5))',
+                      // Alphas are the original ramp at 30% strength: at full it read as a
+                      // purple blob swallowing the button rather than a halo around it.
+                      background: 'radial-gradient(circle, hsl(var(--primary) / 0.18) 0%, hsl(var(--primary) / 0.1) 42%, hsl(var(--primary) / 0.036) 70%, hsl(var(--primary) / 0) 100%)',
+                      filter: 'drop-shadow(0 0 16px hsl(var(--primary) / 0.15))',
                     }}
                   />
                 </motion.div>
@@ -684,11 +686,22 @@ export function QuickAdd() {
                       <span
                         className={cn(
                           'relative h-12 w-12 rounded-full bg-card border shadow-xl text-accent flex items-center justify-center transition-colors',
-                          isAimed ? 'border-accent bg-accent/15' : 'border-accent/40'
+                          isAimed ? 'border-accent' : 'border-accent/40'
                         )}
                         style={fx.hoverGlow && isAimed ? { boxShadow: '0 0 18px 4px hsl(var(--accent) / 0.45)' } : undefined}
                       >
-                        <a.icon className="h-5 w-5" />
+                        {/* Aimed tint as its OWN layer, never as a bg-* class alongside
+                            bg-card: cn() is twMerge, so a conditional `bg-accent/15` in the
+                            same call REPLACES bg-card and the button stops being opaque.
+                            It then showed the aim-trail bar through itself — and the bar
+                            stops dead at the button's centre with a 12px rounded corner, so
+                            that corner read as an arc slicing the circle in half. As an
+                            overlay the tint covers the whole disc evenly and the opaque
+                            card stays underneath. Negative z-index keeps it behind the
+                            icon while still sitting above the parent's background; no
+                            overflow-hidden, which would clip the sparkles and ripple. */}
+                        {isAimed && <span className="absolute inset-0 -z-[1] rounded-full bg-accent/15 pointer-events-none" />}
+                        <a.icon className="relative h-5 w-5" />
                         {isAimed && <AimSparkles count={fx.sparkles} />}
                         {isAimed && fx.rippleBurst && <RippleBurst />}
                       </span>

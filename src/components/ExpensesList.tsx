@@ -71,8 +71,8 @@ function AddExpenseDialog({ children }: { children: React.ReactNode }) {
               <p className="text-sm font-semibold text-foreground">Recurring</p>
               <p className="text-[10px] text-muted-foreground mt-0.5">
                 {recurring
-                  ? 'Stays active every month until manually removed'
-                  : 'Auto-removed on the 1st of the next month'}
+                  ? 'Stays active every cycle until manually removed'
+                  : 'Auto-removed on your next pay date'}
               </p>
             </div>
             <Switch checked={recurring} onCheckedChange={setRecurring} />
@@ -115,7 +115,7 @@ export function ExpensesList() {
           </CardHeader>
           <CardContent>
             <p className="text-xs text-muted-foreground">Tap the + button to log one.</p>
-            <p className="text-xs text-muted-foreground mt-1">Recurring expenses persist each month. One-time expenses auto-clear on the 1st.</p>
+            <p className="text-xs text-muted-foreground mt-1">Recurring expenses persist each cycle. One-time expenses clear on your pay date.</p>
           </CardContent>
         </Card>
       ) : (
@@ -140,7 +140,7 @@ export function ExpensesList() {
           {/* One-time */}
           {oneTime.length > 0 && (
             <div className="space-y-2">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground px-1">This month</p>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground px-1">This cycle</p>
               {oneTime.map(expense => (
                 <ExpenseRow key={expense.id} expense={expense} onDelete={handleDelete} />
               ))}
@@ -154,6 +154,7 @@ export function ExpensesList() {
           <AddExpenseDialog>
             <button
               aria-label="Add expense"
+              data-tour="money-fab"
               className="fab-blurable fixed left-1/2 -translate-x-1/2 h-12 w-12 rounded-full focus:outline-none transition-transform hover:scale-105 z-40"
               style={{ bottom: 'calc(10px + var(--sab))', ...FAB_TOUCH_STYLE }}
               {...fabLongPress}
@@ -218,7 +219,7 @@ function EditExpenseDialog({ expense, open, onClose }: { expense: import('@/lib/
             <div className="flex-1 min-w-0 pr-3">
               <p className="text-sm font-semibold text-foreground">Recurring</p>
               <p className="text-[10px] text-muted-foreground mt-0.5">
-                {recurring ? 'Stays active every month until removed' : 'Auto-removed on the 1st of next month'}
+                {recurring ? 'Stays active every cycle until removed' : 'Auto-removed on your next pay date'}
               </p>
             </div>
             <Switch checked={recurring} onCheckedChange={setRecurring} />

@@ -34,12 +34,12 @@ export function MoneyPage() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="w-full mb-3">
-          <TabsTrigger value="tools" className="flex-1">Tools</TabsTrigger>
-          <TabsTrigger value="expenses" className="flex-1">Expenses</TabsTrigger>
-          <TabsTrigger value="debts" className="flex-1">Debts</TabsTrigger>
-          <TabsTrigger value="budget" className="flex-1">Budget</TabsTrigger>
-          <TabsTrigger value="balance" className="flex-1">Balance</TabsTrigger>
+        <TabsList data-tour="money-tabs" className="tabs-fluid w-full mb-3">
+          <TabsTrigger value="tools" className="flex-auto">Tools</TabsTrigger>
+          <TabsTrigger value="expenses" className="flex-auto">Expenses</TabsTrigger>
+          <TabsTrigger value="debts" className="flex-auto">Debts</TabsTrigger>
+          <TabsTrigger value="budget" className="flex-auto">Budget</TabsTrigger>
+          <TabsTrigger value="balance" className="flex-auto">Balance</TabsTrigger>
         </TabsList>
         <TabsContent value="debts">
           <DebtsList />

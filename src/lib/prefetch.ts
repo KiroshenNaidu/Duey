@@ -65,6 +65,7 @@ const tier2: Thunk[] = [
   () => import('@/components/settings/ThemeSettingsMenu'),
   () => import('@/components/settings/DataManagementMenu'),
   () => import('@/components/settings/NotificationsMenu'),
+  () => import('@/components/settings/PayDateMenu'),
 ];
 
 /**

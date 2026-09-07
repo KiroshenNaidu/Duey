@@ -2,9 +2,9 @@
 
 import { createContext, ReactNode, useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import type { AppState, Debt, HistoryEntry, AppData, ThemeSettings, TransportSettings, TransportOverrides, TransportMonthlyOverrides, DayState, UberRide, UserTheme, BudgetPlan, BudgetItem, UserProfile, NotificationSettings, AppError, Expense, ExtraIncome, DayNightSettings } from '@/lib/types';
-import { isSameDay, startOfDay, startOfMonth, format, add, endOfMonth } from 'date-fns';
+import { isSameDay, startOfDay, format, add } from 'date-fns';
 import { idbGet, idbSet, idbDel, setCurrencyCode, genId } from '@/lib/utils';
-import { calculateSealedMonthSummary, dayKey, legacyUtcDayKey } from '@/lib/calculations';
+import { calculateSealedCycleSummary, cycleStartFromKey, getPayCycle, nextCycleStart, normalizePayDay, dayKey, legacyUtcDayKey } from '@/lib/calculations';
 import { syncDebtReminders } from '@/lib/debtReminders';
 import { systemPresets } from '@/lib/systemThemes';
 import { DEFAULT_RADIAL_FX_ID } from '@/lib/radialFx';
@@ -89,10 +89,16 @@ function migrateState(raw: AppState): AppState {
     ? migrateDayKeys({ transportOverrides: overrides, uberRides: raw.uberRides ?? [] })
     : { transportOverrides: overrides, uberRides: raw.uberRides ?? [] };
 
+  // Existing users who already have data default to ZAR so they don't see the picker.
+  const currency = raw.currency ?? ((raw.debts?.length ?? 0) > 0 || (raw.history?.length ?? 0) > 0 ? 'ZAR' : '');
+
   return {
     ...raw,
-    // Existing users who already have data default to ZAR so they don't see the picker.
-    currency: raw.currency ?? ((raw.debts?.length ?? 0) > 0 || (raw.history?.length ?? 0) > 0 ? 'ZAR' : ''),
+    currency,
+    // The tour fires once, right after the currency picker. Anyone who ALREADY answered
+    // that picker is mid-flight in the app and must not be interrupted by it on upgrade —
+    // they get it from Profile -> "How to use Duey" if they want it.
+    tutorialSeen: raw.tutorialSeen ?? currency !== '',
     transportSettings,
     transportOverrides: dayKeyed.transportOverrides,
     transportMonthlyOverrides: raw.transportMonthlyOverrides ?? {},
@@ -184,6 +190,7 @@ const defaultState: AppState = {
   pageTransitionId: DEFAULT_PAGE_TRANSITION_ID,
   swipeActionsEnabled: true,
   hapticsStrength: DEFAULT_HAPTIC_STRENGTH,
+  tutorialSeen: false,
 };
 
 type NavGuard = { onAttempt: (href: string) => void } | null;
@@ -254,6 +261,7 @@ interface AppContextType extends AppState {
   setPageTransitionId: (id: string) => void;
   setSwipeActionsEnabled: (on: boolean) => void;
   setHapticsStrength: (s: HapticStrength) => void;
+  setTutorialSeen: (seen: boolean) => void;
   importData: (data: AppData) => void;
   deleteHistoryEntry: (entryId: string) => void;
   updateHistoryEntry: (entryId: string, data: Partial<Pick<HistoryEntry, 'label' | 'note' | 'amount' | 'date'>>) => void;
@@ -320,6 +328,7 @@ export const AppDataContext = createContext<AppContextType>({
   setPageTransitionId: () => {},
   setSwipeActionsEnabled: () => {},
   setHapticsStrength: () => {},
+  setTutorialSeen: () => {},
   importData: () => {},
   deleteHistoryEntry: () => {},
   updateHistoryEntry: () => {},
@@ -367,24 +376,39 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       try {
         let loaded = migrateState(JSON.parse(storedStateRaw));
 
-        // Month-end seal — finalize every month that has fully ended since we last sealed,
-        // writing one permanent summary per month. The loop catches up multi-month gaps
-        // (app not opened for a while), which the old single-month version got wrong.
+        // Pay-cycle seal — finalize every cycle that has fully ended since we last sealed,
+        // writing one permanent summary per cycle. A cycle runs pay date → day before the
+        // next pay date (Settings → Pay Date; payDay 1 is the calendar month this used to
+        // be, unchanged). The loop catches up multi-cycle gaps (app not opened for a while).
         // lastSnapshotMonth === '' means fresh install; skip to avoid a noisy first entry.
-        const currentMonthKey = format(new Date(), 'yyyy-MM');
-        if (loaded.lastSnapshotMonth && loaded.lastSnapshotMonth !== currentMonthKey) {
-          const currentMonthStart = startOfMonth(new Date());
+        const payDay = normalizePayDay(loaded.userProfile.paydayDay);
+        const currentCycle = getPayCycle(payDay);
+        if (loaded.lastSnapshotMonth && loaded.lastSnapshotMonth !== currentCycle.key) {
           const snapshots: HistoryEntry[] = [];
-          // Start at the month AFTER the last sealed one; seal up to (not incl.) the current month.
-          let cursor = startOfMonth(add(new Date(`${loaded.lastSnapshotMonth}-01T00:00:00`), { months: 1 }));
+          // Start AT the last recorded cycle, not after it: lastSnapshotMonth stores the
+          // cycle that was LIVE when we last looked, so that cycle is the first one that
+          // can have ended since. (Starting one past it — as this used to — meant a cycle
+          // was only ever sealed if the app went unopened for longer than one whole cycle.)
+          // Re-sealing is impossible regardless: an already-written summary is skipped by
+          // title below, which also protects against a stale/hand-edited key.
+          let cursor = cycleStartFromKey(loaded.lastSnapshotMonth, payDay);
           // Safety bound against a corrupt lastSnapshotMonth producing a runaway loop.
-          for (let guard = 0; cursor < currentMonthStart && guard < 120; guard++) {
-            const mk = format(cursor, 'yyyy-MM');
-            const s = calculateSealedMonthSummary(loaded, mk);
+          for (let guard = 0; cursor < currentCycle.start && guard < 120; guard++) {
+            const start = cursor;
+            const end = nextCycleStart(start, payDay);
+            cursor = end;
+            const lastDay = add(end, { days: -1 });
+            const title = `${payDay === 1
+              ? format(start, 'MMMM yyyy')
+              : `${format(start, 'd MMM')} – ${format(lastDay, 'd MMM yyyy')}`} Summary`;
+            if (loaded.history.some(h => h.type === 'snapshot' && h.debtTitle === title)) continue;
+            const s = calculateSealedCycleSummary({ ...loaded, payDay }, format(start, 'yyyy-MM'));
             snapshots.push({
               id: genId(),
-              debtTitle: `${format(cursor, 'MMMM yyyy')} Summary`,
-              date: endOfMonth(cursor).toISOString(),
+              debtTitle: title,
+              // Dated to the cycle's LAST day, so History files it under the month the
+              // cycle ended in and the breakdown sheet can recover the cycle from it.
+              date: lastDay.toISOString(),
               amount: Math.abs(s.remaining),
               type: 'snapshot',
               note: `Income: ${Math.round(s.income)} | Outgoings: ${Math.round(s.totalOutgoings)} | ${s.remaining >= 0 ? 'Surplus' : 'Deficit'}: ${Math.round(Math.abs(s.remaining))}`,
@@ -392,27 +416,26 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
               // once one-time extras/expenses are purged (recompute is only a fallback).
               snapshot: s,
             });
-            cursor = add(cursor, { months: 1 });
           }
           loaded = {
             ...loaded,
             history: [...snapshots, ...loaded.history],
-            lastSnapshotMonth: currentMonthKey,
+            lastSnapshotMonth: currentCycle.key,
           };
         } else if (!loaded.lastSnapshotMonth) {
-          // Fresh install — record the month so the next month-turn seals a real summary.
-          loaded = { ...loaded, lastSnapshotMonth: currentMonthKey };
+          // Fresh install — record the cycle so the next pay date seals a real summary.
+          loaded = { ...loaded, lastSnapshotMonth: currentCycle.key };
         }
 
-        // Auto-purge non-recurring expenses AND one-time extra incomes from previous months.
+        // Auto-purge non-recurring expenses AND one-time extra incomes from previous cycles
+        // — this is the "reset", and it now happens on the pay date rather than the 1st.
         // Runs AFTER the seal so sealed summaries still see them. One-time expenses keep
         // their original `expense` history entry as the permanent record; one-time extras
-        // were captured in the sealed month's income.
-        const firstOfThisMonth = startOfMonth(new Date());
+        // were captured in the sealed cycle's income.
         loaded = {
           ...loaded,
-          expenses: loaded.expenses.filter(e => e.recurring || new Date(e.createdAt) >= firstOfThisMonth),
-          extraIncomes: (loaded.extraIncomes ?? []).filter(e => e.recurring || new Date(e.createdAt) >= firstOfThisMonth),
+          expenses: loaded.expenses.filter(e => e.recurring || new Date(e.createdAt) >= currentCycle.start),
+          extraIncomes: (loaded.extraIncomes ?? []).filter(e => e.recurring || new Date(e.createdAt) >= currentCycle.start),
         };
 
         setAppState(loaded);
@@ -1054,7 +1077,10 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     // collections, and re-keying the merged result would have shifted the data already in
     // state (which is v9 already) a second day forward.
     const incoming = (data.schemaVersion ?? 0) < 9 ? migrateDayKeys(data) : data;
-    updateStateAndSync(prev => ({ ...prev, ...incoming, schemaVersion: CURRENT_SCHEMA_VERSION }));
+    // tutorialSeen is a property of this INSTALL, not of the data: restoring a backup
+    // written before the tour existed (or on a fresh device) must not replay it at someone
+    // already using the app.
+    updateStateAndSync(prev => ({ ...prev, ...incoming, tutorialSeen: prev.tutorialSeen, schemaVersion: CURRENT_SCHEMA_VERSION }));
   };
 
   const clearData = () => {
@@ -1159,6 +1185,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     setPageTransitionId: (id: string) => updateStateAndSync(p => ({ ...p, pageTransitionId: id })),
     setSwipeActionsEnabled: (on: boolean) => updateStateAndSync(p => ({ ...p, swipeActionsEnabled: on })),
     setHapticsStrength: (s: HapticStrength) => updateStateAndSync(p => ({ ...p, hapticsStrength: s })),
+    setTutorialSeen: (seen: boolean) => updateStateAndSync(p => ({ ...p, tutorialSeen: seen })),
     deleteHistoryEntry,
     updateHistoryEntry,
     importData,

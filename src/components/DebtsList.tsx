@@ -250,6 +250,7 @@ export function DebtsList() {
           <AddDebtDialog>
             <button
               aria-label="Add new debt"
+              data-tour="money-fab"
               className="fab-blurable fixed left-1/2 -translate-x-1/2 h-12 w-12 rounded-full focus:outline-none transition-transform hover:scale-105 z-40"
               style={{ bottom: 'calc(10px + var(--sab))', ...FAB_TOUCH_STYLE }}
               {...fabLongPress}

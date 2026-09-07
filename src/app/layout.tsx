@@ -9,6 +9,7 @@ import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { ErrorModal } from '@/components/ErrorModal';
 import { AppShell } from '@/components/AppShell';
 import { CurrencyPickerDialog } from '@/components/CurrencyPickerDialog';
+import { TutorialTour } from '@/components/TutorialTour';
 import { HardwareBackButton } from '@/components/HardwareBackButton';
 import { KeyboardInset } from '@/components/KeyboardInset';
 import { UndoToastHost } from '@/components/ui/undo-toast';
@@ -59,6 +60,7 @@ export default function RootLayout({
                 </div>
                 <ErrorModal />
                 <CurrencyPickerDialog />
+                <TutorialTour />
                 <HardwareBackButton />
                 <KeyboardInset />
                 <UndoToastHost />

@@ -44,6 +44,15 @@ export function BottomNav() {
   return (
     <nav className="fixed top-0 left-0 right-0 bg-card border-b border-border z-50 transition-colors duration-300" style={{ height: 'var(--top-nav-h)' }}>
       <div className="relative flex items-stretch h-full max-w-md mx-auto" style={{ paddingTop: 'var(--top-nav-pt)' }}>
+        {/* Tour anchor: the tab row alone. The <nav> itself bleeds up under the status bar,
+            so ringing it drew a box around the safe-area strip as well and left the ring
+            sitting low over the tabs. */}
+        <span
+          data-tour="nav"
+          aria-hidden
+          className="absolute left-0 right-0 bottom-0 pointer-events-none"
+          style={{ top: 'var(--top-nav-pt)' }}
+        />
         {/* Sliding highlight — driven by the live carousel progress, not route state */}
         {onMainRoute && (
           <div

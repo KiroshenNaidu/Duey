@@ -7,7 +7,7 @@ import { DebtProgressCharts } from '@/components/DebtProgressCharts';
 import { useReplayOnActive } from '@/hooks/useReplayOnActive';
 import { TransportStatusCard } from '@/components/TransportStatusCard';
 import { add, getDaysInMonth, isWeekend, startOfMonth } from 'date-fns';
-import { calculateGlobalStats, calculateLiveMonthly, displayProgressPct, isTransportPaidForMonth } from '@/lib/calculations';
+import { calculateGlobalStats, calculateLiveMonthly, displayProgressPct, getPayCycle, isTransportPaidForMonth } from '@/lib/calculations';
 import {
   TrendingUp, Car, CreditCard, TrendingDown,
   ReceiptText, PiggyBank, ArrowUpRight, ArrowDownRight, BadgeDollarSign,
@@ -143,33 +143,39 @@ function IncomeCard() {
   );
 }
 
-// ─── NEW: Monthly net overview ─────────────────────────────────────────────────
+// ─── NEW: Pay-cycle net overview ───────────────────────────────────────────────
 
 function MonthlyOverviewCard() {
   const {
     monthlyIncome, extraIncomes, expenses, budgetPlans, history, uberRides,
-    transportSettings, transportOverrides, transportMonthlyOverrides,
+    transportSettings, transportOverrides, transportMonthlyOverrides, userProfile,
   } = useContext(AppDataContext);
 
+  const payDay = userProfile.paydayDay;
   // Same live actuals the Balance tab shows (shared calculator) — reacts to edits and
-  // matches the month-end seal, instead of the old planned-installment × 22-day estimate.
+  // matches the seal, instead of the old planned-installment × 22-day estimate. The window
+  // is the current PAY CYCLE, so this card resets on pay day exactly as Balance does.
   const monthly = useMemo(
     () => calculateLiveMonthly({
-      monthlyIncome, extraIncomes, expenses, budgetPlans, history, uberRides,
+      payDay, monthlyIncome, extraIncomes, expenses, budgetPlans, history, uberRides,
       transportSettings, transportOverrides, transportMonthlyOverrides,
     }),
-    [monthlyIncome, extraIncomes, expenses, budgetPlans, history, uberRides,
+    [payDay, monthlyIncome, extraIncomes, expenses, budgetPlans, history, uberRides,
      transportSettings, transportOverrides, transportMonthlyOverrides],
   );
+  const cycle = useMemo(() => getPayCycle(payDay), [payDay]);
   const positive = monthly.remaining >= 0;
   const transportPaid = isTransportPaidForMonth(history, new Date());
 
   return (
     <div className="bg-card rounded-2xl p-4">
-      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Monthly Snapshot</p>
+      <div className="flex items-baseline justify-between gap-2 mb-2">
+        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Cycle Snapshot</p>
+        <p className="text-[10px] text-muted-foreground/60 shrink-0">{cycle.label}</p>
+      </div>
       <StatRow label="Income"        value={formatCurrency(monthly.income)}      color="text-[hsl(var(--positive))]" />
       <StatRow label="Expenses"      value={`− ${formatCurrency(monthly.expenses)}`}  color="text-[hsl(var(--negative))]" sub={`${expenses.length} item${expenses.length !== 1 ? 's' : ''}`} />
-      <StatRow label="Debt payments" value={`− ${formatCurrency(monthly.debt)}`}      color="text-[hsl(var(--cat-budget))]" sub="logged this month" />
+      <StatRow label="Debt payments" value={`− ${formatCurrency(monthly.debt)}`}      color="text-[hsl(var(--cat-budget))]" sub="logged this cycle" />
       <StatRow label="Transport"     value={`− ${formatCurrency(monthly.transport)}`} color="text-[hsl(var(--cat-transport))]" sub={transportPaid ? undefined : 'estimate · not yet paid'} />
       {monthly.uber > 0 && (
         <StatRow label="Uber / rides" value={`− ${formatCurrency(monthly.uber)}`} color="text-[hsl(var(--cat-transport))]" />
@@ -209,8 +215,8 @@ function ExpensesCard() {
         <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Expenses</p>
         <span className="ml-auto text-xs text-muted-foreground">{expenses.length} logged</span>
       </div>
-      <StatRow label="Recurring"  value={formatCurrency(recurring.reduce((s, e) => s + e.amount, 0))} sub={`${recurring.length} item${recurring.length !== 1 ? 's' : ''} · stays each month`}  color="text-[hsl(var(--cat-expense))]" />
-      <StatRow label="One-time"   value={formatCurrency(oneTime.reduce((s, e) => s + e.amount, 0))}  sub={`${oneTime.length} item${oneTime.length !== 1 ? 's' : ''} · clears on 1st`} />
+      <StatRow label="Recurring"  value={formatCurrency(recurring.reduce((s, e) => s + e.amount, 0))} sub={`${recurring.length} item${recurring.length !== 1 ? 's' : ''} · stays each cycle`}  color="text-[hsl(var(--cat-expense))]" />
+      <StatRow label="One-time"   value={formatCurrency(oneTime.reduce((s, e) => s + e.amount, 0))}  sub={`${oneTime.length} item${oneTime.length !== 1 ? 's' : ''} · clears on pay date`} />
       <div className="flex items-center justify-between pt-2 mt-1 border-t border-border/40">
         <p className="text-sm font-bold text-foreground">Total</p>
         <p className="text-base font-bold text-[hsl(var(--negative))]">{formatCurrency(total)}</p>

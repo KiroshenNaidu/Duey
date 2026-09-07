@@ -2,7 +2,7 @@ import type {
   Debt, HistoryEntry, TransportOverrides, TransportSettings, DayState,
   Expense, ExtraIncome, BudgetPlan, UberRide, TransportMonthlyOverrides,
 } from './types';
-import { isWeekend, getDaysInMonth, startOfMonth, add, isSameMonth, format, endOfMonth } from 'date-fns';
+import { isWeekend, getDaysInMonth, startOfMonth, startOfDay, add, isSameMonth, format, differenceInCalendarDays } from 'date-fns';
 
 // Debt Calculations
 export const getAmountPaid = (debt: Debt, history: HistoryEntry[]): number => {
@@ -123,6 +123,12 @@ export function getEffectiveDayState(
   return isWeekend(day) ? 0 : 1;
 }
 
+// A fee can reach storage as NaN (a cleared number input parsed with parseFloat) or
+// negative (typed with a minus). Either would poison every downstream total — the balance,
+// the Stats snapshot and the sealed summary all read this figure — so both are normalised
+// to 0 here rather than at each of the ~6 call sites.
+const safeFee = (v: number | undefined) => (Number.isFinite(v) && (v as number) > 0 ? (v as number) : 0);
+
 // Transport Page Calculations
 export const calculateTransportMonth = (
     currentDate: Date,
@@ -148,11 +154,6 @@ export const calculateTransportMonth = (
 
     const travelDaysCount = fullDaysCount + halfDaysCount;
     const unemployedFuture = !settings.employed && isFutureMonth;
-    // A fee can reach storage as NaN (a cleared number input parsed with parseFloat) or
-    // negative (typed with a minus). Either would poison every downstream total — the
-    // month balance, the Stats snapshot and the sealed summary all read this figure — so
-    // both are normalised to 0 here rather than at each of the ~6 call sites.
-    const safeFee = (v: number | undefined) => (Number.isFinite(v) && (v as number) > 0 ? (v as number) : 0);
     const effectiveMonthlyFee = monthlyOverride !== undefined ? safeFee(monthlyOverride) : safeFee(settings.monthlyFee);
     const totalDue = unemployedFuture
       ? 0
@@ -163,12 +164,146 @@ export const calculateTransportMonth = (
     return { daysInMonth, fullDaysCount, halfDaysCount, travelDaysCount, totalDue, isFutureMonth };
 }
 
+/**
+ * Travel cost across an ARBITRARY window [start, endExclusive) — what the pay-cycle money
+ * math uses. calculateTransportMonth above stays exactly as it was: it is the calendar
+ * grid the Transport page draws, and a month is what that page means.
+ *
+ * Daily pricing simply prices every day in the window, so a cycle straddling two months
+ * costs what those days cost. Flat ('monthly') pricing bills ONE fee per cycle — a flat
+ * fee is per pay period, not per day — using the fee in force for the month the cycle
+ * STARTS in, including that month's per-month override, since that is the month the user
+ * was editing when the cycle began.
+ *
+ * With payDay 1 the window IS a calendar month and this returns what
+ * calculateTransportMonth returns, by construction.
+ */
+export const calculateTransportRange = (
+    start: Date,
+    endExclusive: Date,
+    overrides: TransportOverrides,
+    settings: Pick<TransportSettings, 'dailyFee' | 'monthlyFee' | 'pricingMode' | 'employed'>,
+    monthlyOverrides: TransportMonthlyOverrides = {},
+    today: Date = new Date(),
+) => {
+    const todayMonth = startOfMonth(today);
+    let fullDaysCount = 0;
+    let halfDaysCount = 0;
+    // Guard: a corrupt/inverted window must not spin here.
+    for (let d = startOfDay(start), guard = 0; d < endExclusive && guard < 400; d = add(d, { days: 1 }), guard++) {
+      const state = getEffectiveDayState(d, overrides, settings.employed, startOfMonth(d) > todayMonth);
+      if (state === 1) fullDaysCount++;
+      else if (state === 1.5) halfDaysCount++;
+    }
+
+    const startKey = format(start, 'yyyy-MM');
+    const override = monthlyOverrides[startKey];
+    const effectiveMonthlyFee = override !== undefined ? safeFee(override) : safeFee(settings.monthlyFee);
+    const unemployedFuture = !settings.employed && startOfMonth(start) > todayMonth;
+    const totalDue = unemployedFuture
+      ? 0
+      : settings.pricingMode === 'monthly'
+        ? effectiveMonthlyFee
+        : (fullDaysCount + halfDaysCount * 0.5) * safeFee(settings.dailyFee);
+
+    return { fullDaysCount, halfDaysCount, travelDaysCount: fullDaysCount + halfDaysCount, totalDue };
+}
+
 // ─── Shared monthly money math ─────────────────────────────────────────────────
 // One place that computes a month's income + outgoings so Balance, Stats, the
 // transport status card and the month-end seal never drift apart.
 
 /** 'yyyy-MM' month key for a date. */
 export const getMonthKey = (date: Date): string => format(date, 'yyyy-MM');
+
+// ─── Pay cycles ────────────────────────────────────────────────────────────────
+// The money screens (Balance, Stats) and the seal used to run on the CALENDAR month, so
+// everything reset on the 1st — a date that means nothing to someone paid on the 25th:
+// the last five days of every month showed a balance already spent. A pay cycle runs pay
+// date → day before the next pay date, so "Remaining" is what is left of the money that
+// actually arrived, and the reset happens when the next pay lands.
+//
+// The day itself is userProfile.paydayDay, editable in Settings → Pay Date.
+//
+// Cycles are KEYED by the month they START in, so with payDay 1 a cycle IS its calendar
+// month and every key already in storage (lastSnapshotMonth, transportMonthlyOverrides)
+// keeps exactly the meaning it has today. Nothing needed migrating.
+
+/** Pay day of month, guarded. Anything outside 1–31 (a cleared input that reached storage)
+ *  falls back to 1, i.e. plain calendar months. */
+export const normalizePayDay = (day: number | undefined | null): number => {
+  const d = Math.trunc(Number(day));
+  return Number.isFinite(d) && d >= 1 && d <= 31 ? d : 1;
+};
+
+/** The pay date inside one month, clamped to that month's length — a 31st pay day lands on
+ *  the 30th (or 28th/29th) in shorter months, which is what banks do and what "the last
+ *  day I can be paid in February" means. `monthIndex` may be −1 or 12; Date rolls the year. */
+export function payDateIn(year: number, monthIndex: number, payDay: number): Date {
+  const first = new Date(year, monthIndex, 1);
+  return new Date(year, monthIndex, Math.min(normalizePayDay(payDay), getDaysInMonth(first)));
+}
+
+/** Start (inclusive, local midnight) of the pay cycle containing `date`. */
+export function cycleStart(date: Date, payDay: number): Date {
+  const thisMonths = payDateIn(date.getFullYear(), date.getMonth(), payDay);
+  return startOfDay(date) >= thisMonths
+    ? thisMonths
+    : payDateIn(date.getFullYear(), date.getMonth() - 1, payDay);
+}
+
+/** Start of the cycle that follows the one beginning at `start`. */
+export const nextCycleStart = (start: Date, payDay: number): Date =>
+  payDateIn(start.getFullYear(), start.getMonth() + 1, payDay);
+
+/** End (EXCLUSIVE) of the pay cycle containing `date` — i.e. the next pay date. */
+export const cycleEnd = (date: Date, payDay: number): Date =>
+  nextCycleStart(cycleStart(date, payDay), payDay);
+
+/** 'yyyy-MM' key for the cycle containing `date`, labelled by the month it starts in. */
+export const cycleKey = (date: Date, payDay: number): string =>
+  format(cycleStart(date, payDay), 'yyyy-MM');
+
+/** The cycle a 'yyyy-MM' key names, as its start date. */
+export function cycleStartFromKey(key: string, payDay: number): Date {
+  const [y, m] = key.split('-').map(Number);
+  return payDateIn(y, m - 1, payDay);
+}
+
+/** Everything a screen needs to talk about one pay cycle. `end` is exclusive (the next pay
+ *  date); `lastDay` is the last day the cycle actually covers, which is what labels read. */
+export interface PayCycle {
+  payDay: number;
+  start: Date;
+  end: Date;
+  lastDay: Date;
+  key: string;
+  /** "26 Aug – 25 Sep 2026", or just "September 2026" when the cycle IS a calendar month. */
+  label: string;
+  /** Whole days from `date` until the next pay date. 0 on pay day itself. */
+  daysLeft: number;
+  /** 0–1 through the cycle, for a progress bar. */
+  progress: number;
+}
+
+export function getPayCycle(payDay: number, date: Date = new Date()): PayCycle {
+  const day = normalizePayDay(payDay);
+  const start = cycleStart(date, day);
+  const end = nextCycleStart(start, day);
+  const lastDay = add(end, { days: -1 });
+  const total = Math.max(1, differenceInCalendarDays(end, start));
+  const elapsed = Math.min(total, Math.max(0, differenceInCalendarDays(startOfDay(date), start)));
+  return {
+    payDay: day,
+    start,
+    end,
+    lastDay,
+    key: format(start, 'yyyy-MM'),
+    label: day === 1 ? format(start, 'MMMM yyyy') : `${format(start, 'd MMM')} – ${format(lastDay, 'd MMM yyyy')}`,
+    daysLeft: Math.max(0, differenceInCalendarDays(end, startOfDay(date))),
+    progress: elapsed / total,
+  };
+}
 
 /** Whether "Mark as Paid" has been logged for the given month — the transport figure
  *  itself stays the calendar estimate either way; this only drives the "estimate" label. */
@@ -177,8 +312,11 @@ export const isTransportPaidForMonth = (history: HistoryEntry[], date: Date): bo
   return history.some(h => h.type === 'transport' && h.debtTitle === `Transport: ${monthLabel}`);
 };
 
-/** Fields the monthly calculators read — a subset of AppState. */
+/** Fields the cycle calculators read — a subset of AppState, plus the pay day (which lives
+ *  on userProfile, so callers pass it explicitly rather than the whole profile). */
 export interface MonthlyMoneyInput {
+  /** userProfile.paydayDay — the day of month the cycle turns over on. */
+  payDay: number;
   monthlyIncome: number;
   extraIncomes: ExtraIncome[];
   expenses: Expense[];
@@ -201,71 +339,93 @@ export interface MonthlyMoney {
   remaining: number;     // income − totalOutgoings
 }
 
-const sumInMonth = <T>(items: T[], monthKey: string, dateOf: (i: T) => string, amountOf: (i: T) => number): number =>
-  items.reduce((s, i) => (getMonthKey(new Date(dateOf(i))) === monthKey ? s + amountOf(i) : s), 0);
+/** Timestamp for a stored date. A bare 'yyyy-MM-dd' day key (uber rides) is parsed as LOCAL
+ *  midnight, not UTC: `new Date('2026-09-07')` is UTC midnight, which is the previous
+ *  evening west of UTC and would drop a ride into the wrong cycle at a boundary. Full ISO
+ *  stamps carry their own zone and parse normally. Same reasoning as `dayKey` above. */
+const parseStamp = (date: string): number => {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date);
+  return m ? new Date(+m[1], +m[2] - 1, +m[3]).getTime() : new Date(date).getTime();
+};
+
+/** Whether a stored date string falls inside [start, end). */
+const inWindow = (date: string, start: Date, end: Date): boolean => {
+  const t = parseStamp(date);
+  return t >= start.getTime() && t < end.getTime();
+};
+
+const sumInWindow = <T>(items: T[], start: Date, end: Date, dateOf: (i: T) => string, amountOf: (i: T) => number): number =>
+  items.reduce((s, i) => (inWindow(dateOf(i), start, end) ? s + amountOf(i) : s), 0);
 
 /**
- * Live money for the CURRENT month, read straight from the working arrays — this is
+ * Live money for the CURRENT pay cycle, read straight from the working arrays — this is
  * what Balance/Stats show and it reacts instantly to edits. Transport honours the
  * per-month flat-fee override. Expenses use the full active set (recurring + one-time),
  * matching what the user currently sees on their expenses list.
+ *
+ * `date` is any day inside the cycle you want (defaults to today); the window is derived
+ * from it and the pay day, so with payDay 1 this is the calendar month it always was.
  */
 export function calculateLiveMonthly(input: MonthlyMoneyInput, date: Date = new Date()): MonthlyMoney {
-  const monthKey = getMonthKey(date);
+  const start = cycleStart(date, input.payDay);
+  const end = nextCycleStart(start, input.payDay);
   const income = input.monthlyIncome + input.extraIncomes.reduce((s, e) => s + e.amount, 0);
-  const transport = calculateTransportMonth(
-    date, input.transportOverrides, input.transportSettings, date, input.transportMonthlyOverrides[monthKey],
+  const transport = calculateTransportRange(
+    start, end, input.transportOverrides, input.transportSettings, input.transportMonthlyOverrides, date,
   ).totalDue;
-  const uber = input.uberRides.reduce((s, r) => (r.date.slice(0, 7) === monthKey ? s + r.price : s), 0);
-  const debt = input.history.reduce(
-    (s, h) => (h.type === 'payment' && h.debtId && getMonthKey(new Date(h.date)) === monthKey ? s + h.amount : s), 0);
+  const uber = sumInWindow(input.uberRides, start, end, r => r.date, r => r.price);
+  const debt = sumInWindow(
+    input.history.filter(h => h.type === 'payment' && !!h.debtId), start, end, h => h.date, h => h.amount);
   const expenses = input.expenses.reduce((s, e) => s + e.amount, 0);
-  const budget = confirmedBudgetForMonth(input.budgetPlans, monthKey);
+  const budget = confirmedBudgetForWindow(input.budgetPlans, start, end);
   const totalOutgoings = transport + uber + debt + expenses + budget;
   return { income, transport, uber, debt, expenses, budget, totalOutgoings, remaining: income - totalOutgoings };
 }
 
 // Budgets only hit the balance once the user confirms the plan (bought the items), and only for
-// the month it was confirmed. The deduction is the spent total (Σ item prices), not the budget
+// the cycle it was confirmed in. The deduction is the spent total (Σ item prices), not the budget
 // ceiling — so an unspent remainder is never deducted.
-const confirmedBudgetForMonth = (plans: BudgetPlan[], monthKey: string): number =>
+const confirmedBudgetForWindow = (plans: BudgetPlan[], start: Date, end: Date): number =>
   plans.reduce(
-    (s, p) => (p.confirmed && p.confirmedAt && getMonthKey(new Date(p.confirmedAt)) === monthKey
+    (s, p) => (p.confirmed && p.confirmedAt && inWindow(p.confirmedAt, start, end)
       ? s + p.items.reduce((si, i) => si + i.price, 0) : s), 0);
 
 /**
- * Summary for a PAST (ended) month, reconstructed from month-dated stored data so it is
+ * Summary for a PAST (ended) pay cycle, reconstructed from dated stored data so it is
  * correct even after the working arrays have moved on (e.g. one-time expenses purged).
  * Best-effort: salary uses the current monthlyIncome (historical salary isn't stored).
+ *
+ * `cycleKeyStr` is the cycle's 'yyyy-MM' key — the month it STARTED in.
  */
-export function calculateSealedMonthSummary(input: MonthlyMoneyInput, monthKey: string): MonthlyMoney {
-  const monthDate = new Date(`${monthKey}-01T00:00:00`);
-  const monthEnd = endOfMonth(monthDate);
-  // Transport solidifies the same calendar-computed figure the Balance tab showed all month
-  // (the user's model: the live amount "solidifies via the month-end snapshot"), rather than
-  // only whatever happened to be marked paid — so the summary matches what was on screen.
-  const transport = calculateTransportMonth(
-    monthDate, input.transportOverrides, input.transportSettings, monthDate, input.transportMonthlyOverrides[monthKey],
+export function calculateSealedCycleSummary(input: MonthlyMoneyInput, cycleKeyStr: string): MonthlyMoney {
+  const start = cycleStartFromKey(cycleKeyStr, input.payDay);
+  const end = nextCycleStart(start, input.payDay);
+  // Transport solidifies the same calendar-computed figure the Balance tab showed all cycle
+  // (the user's model: the live amount "solidifies via the snapshot"), rather than only
+  // whatever happened to be marked paid — so the summary matches what was on screen.
+  const transport = calculateTransportRange(
+    start, end, input.transportOverrides, input.transportSettings, input.transportMonthlyOverrides, start,
   ).totalDue;
-  const debt = sumInMonth(input.history.filter(h => h.type === 'payment' && !!h.debtId), monthKey, h => h.date, h => h.amount);
-  // One-time expenses live on as month-dated `expense` history entries even after purge.
-  const oneTimeExpenses = sumInMonth(input.history.filter(h => h.type === 'expense'), monthKey, h => h.date, h => h.amount);
-  // Recurring expenses only get a single (creation-month) history entry, so add the current
-  // recurring set for any month at/after their creation — except the creation month itself,
+  const debt = sumInWindow(
+    input.history.filter(h => h.type === 'payment' && !!h.debtId), start, end, h => h.date, h => h.amount);
+  // One-time expenses live on as dated `expense` history entries even after purge.
+  const oneTimeExpenses = sumInWindow(
+    input.history.filter(h => h.type === 'expense'), start, end, h => h.date, h => h.amount);
+  // Recurring expenses only get a single (creation-cycle) history entry, so add the current
+  // recurring set for any cycle at/after their creation — except the creation cycle itself,
   // which is already covered by the history sum above (avoids double counting).
   const recurringExpenses = input.expenses
-    .filter(e => e.recurring && new Date(e.createdAt) <= monthEnd && getMonthKey(new Date(e.createdAt)) !== monthKey)
+    .filter(e => e.recurring && new Date(e.createdAt) < end && !inWindow(e.createdAt, start, end))
     .reduce((s, e) => s + e.amount, 0);
   const expenses = oneTimeExpenses + recurringExpenses;
-  const uber = input.uberRides.reduce((s, r) => (r.date.slice(0, 7) === monthKey ? s + r.price : s), 0);
-  const budget = confirmedBudgetForMonth(input.budgetPlans, monthKey);
-  // Recurring extras count for every month from creation onward; one-time extras only for
-  // their creation month. Relies on the seal running BEFORE the monthly purge removes
+  const uber = sumInWindow(input.uberRides, start, end, r => r.date, r => r.price);
+  const budget = confirmedBudgetForWindow(input.budgetPlans, start, end);
+  // Recurring extras count for every cycle from creation onward; one-time extras only for
+  // the cycle they were created in. Relies on the seal running BEFORE the purge removes
   // expired one-time extras (see load order in AppDataContext).
   const extra = input.extraIncomes.reduce((s, e) => {
-    const created = getMonthKey(new Date(e.createdAt));
-    if (e.recurring) return created <= monthKey ? s + e.amount : s;
-    return created === monthKey ? s + e.amount : s;
+    if (e.recurring) return new Date(e.createdAt) < end ? s + e.amount : s;
+    return inWindow(e.createdAt, start, end) ? s + e.amount : s;
   }, 0);
   const income = input.monthlyIncome + extra;
   const totalOutgoings = transport + uber + debt + expenses + budget;
