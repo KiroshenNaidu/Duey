@@ -2,24 +2,23 @@
 
 import { useContext, useState } from 'react';
 import { format } from 'date-fns';
-import { useRouter } from 'next/navigation';
 import { AppDataContext } from '@/context/AppDataContext';
 import { formatCurrency, cn } from '@/lib/utils';
 import { calculateLiveMonthly, getPayCycle, isTransportPaidForMonth } from '@/lib/calculations';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Pencil, Check, Plus, Trash2, X, RefreshCw, CalendarClock, ChevronRight } from 'lucide-react';
+import { Pencil, Check, Plus, Trash2, X, RefreshCw } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { showUndoToast } from '@/components/ui/undo-toast';
+import { useReplayOnActive } from '@/hooks/useReplayOnActive';
 
 export function MoneyOverview() {
   const {
     monthlyIncome, budgetPlans, expenses, extraIncomes, history, uberRides,
-    transportSettings, transportOverrides, transportMonthlyOverrides, userProfile,
+    transportSettings, transportOverrides, transportMonthlyOverrides, userProfile, savings,
     setMonthlyIncome, addExtraIncome, deleteExtraIncome, restoreExtraIncome,
   } = useContext(AppDataContext);
-  const router = useRouter();
 
   const [editingIncome, setEditingIncome] = useState(false);
   const [incomeInput, setIncomeInput] = useState('');
@@ -34,24 +33,49 @@ export function MoneyOverview() {
   const [extraRecurring, setExtraRecurring] = useState(false);
   const [extraError, setExtraError] = useState('');
 
+  // Re-arms the cycle hairline's fill every time this page becomes active, exactly as the
+  // Debts page re-arms its payoff bars — the carousel keeps pages mounted, so a plain mount
+  // effect would animate once and never again.
+  const barReady = useReplayOnActive('/');
+
   const now = new Date();
   // The window every figure below is measured over: pay date → day before the next one.
   // Editable in Settings → Pay Date; with a pay day of 1 it is the calendar month.
   const cycle = getPayCycle(userProfile.paydayDay, now);
+  // Last day of the cycle — the bar takes on the Debts page's "done" colours and glow, the
+  // same way a settled debt's bar does. daysLeft is never 0: on pay day itself a fresh
+  // cycle has already started, so the count is that cycle's full length.
+  const resetImminent = cycle.daysLeft <= 1;
   // Single shared calculator (also drives Stats + the pay-cycle seal) so every screen
   // agrees. It honours the live per-month transport override and counts only debt money
   // actually logged as a payment this cycle — nothing is deducted until you log a payment.
   const monthly = calculateLiveMonthly(
-    { payDay: userProfile.paydayDay, monthlyIncome, extraIncomes, expenses, budgetPlans, history, uberRides, transportSettings, transportOverrides, transportMonthlyOverrides },
+    { payDay: userProfile.paydayDay, monthlyIncome, extraIncomes, expenses, budgetPlans, history, uberRides, savings, transportSettings, transportOverrides, transportMonthlyOverrides },
     now,
   );
-  const { transport: transportCost, uber: uberSpend, debt: debtInstallments, expenses: totalExpenses, budget: budgetSpent } = monthly;
+  const { transport: transportCost, uber: uberSpend, debt: debtInstallments, expenses: totalExpenses, budget: budgetSpent, savings: savedThisCycle } = monthly;
   const transportPaid = isTransportPaidForMonth(history, now);
   const totalExtra = (extraIncomes ?? []).reduce((s, e) => s + e.amount, 0);
-  // Effective totals exclude tapped-out rows (local state only — no data is changed)
-  const effectiveDeductions = [transportCost, budgetSpent, debtInstallments, totalExpenses, uberSpend]
-    .filter((_, i) => !excludedIds.has(['transport', 'budget', 'debts', 'expenses', 'uber'][i]))
-    .reduce((s, v) => s + v, 0);
+
+  const deductions = [
+    { id: 'transport', label: 'Transport (this cycle)', value: transportCost, estimate: !transportPaid },
+    { id: 'uber',      label: 'Uber (this cycle)',       value: uberSpend },
+    { id: 'budget',    label: 'Budget (confirmed)',     value: budgetSpent },
+    { id: 'debts',     label: 'Debt payments (this cycle)', value: debtInstallments },
+    { id: 'expenses',  label: 'Expenses (active)',       value: totalExpenses },
+    // Money you told the app you put away this cycle (Stats -> Savings). It is out of
+    // your hands, so it comes off here — but only MANUAL entries: the automatic leftover
+    // IS this card's remainder, and deducting that would subtract the same money twice.
+    { id: 'savings',   label: 'Savings (put away)',      value: savedThisCycle },
+  ];
+
+  // Effective total excludes tapped-out rows (local state only — no data is changed).
+  // Derived from the rows themselves: the old version kept a second, parallel array of
+  // amounts that had to stay in the same order as the ids by hand, so a new row could be
+  // shown in one place and silently missed in the other.
+  const effectiveDeductions = deductions
+    .filter(d => !excludedIds.has(d.id))
+    .reduce((s, d) => s + d.value, 0);
   const remaining = monthlyIncome + totalExtra - effectiveDeductions;
 
   const startEdit = () => { setIncomeInput(monthlyIncome > 0 ? monthlyIncome.toString() : ''); setEditingIncome(true); };
@@ -77,44 +101,8 @@ export function MoneyOverview() {
     showUndoToast(`Removed "${item.label}"`, () => restoreExtraIncome(item));
   };
 
-  const deductions = [
-    { id: 'transport', label: 'Transport (this cycle)', value: transportCost, estimate: !transportPaid },
-    { id: 'uber',      label: 'Uber (this cycle)',       value: uberSpend },
-    { id: 'budget',    label: 'Budget (confirmed)',     value: budgetSpent },
-    { id: 'debts',     label: 'Debt payments (this cycle)', value: debtInstallments },
-    { id: 'expenses',  label: 'Expenses (active)',       value: totalExpenses },
-  ];
-
   return (
     <div className="space-y-3">
-      {/* Pay cycle — the window everything below is measured over. Tapping it jumps to the
-          editor in Settings, the same way the quick-add "Theme" shortcut opens its menu. */}
-      <Card>
-        <CardContent className="p-3">
-          <button
-            onClick={() => { router.push('/settings'); window.dispatchEvent(new Event('duey:open-paydate')); }}
-            className="w-full text-left group"
-          >
-            <div className="flex items-center gap-2">
-              <CalendarClock className="h-3.5 w-3.5 text-accent shrink-0" />
-              <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Pay Cycle</p>
-              <ChevronRight className="h-3.5 w-3.5 ml-auto text-muted-foreground/40 group-hover:text-muted-foreground transition-colors shrink-0" />
-            </div>
-            <p className="text-sm font-bold text-foreground mt-1.5">{cycle.label}</p>
-          </button>
-          {/* How far through the cycle today is — the same figure the countdown states,
-              drawn so it can be read without arithmetic. */}
-          <div className="h-1.5 w-full rounded-full bg-muted/50 overflow-hidden mt-2">
-            <div className="h-full rounded-full bg-accent" style={{ width: `${Math.round(cycle.progress * 100)}%` }} />
-          </div>
-          <p className="text-[10px] text-muted-foreground mt-1.5">
-            {cycle.daysLeft === 0
-              ? 'Payday — this cycle starts fresh today'
-              : `Resets in ${cycle.daysLeft} day${cycle.daysLeft === 1 ? '' : 's'}, on ${format(cycle.end, 'd MMM')}`}
-          </p>
-        </CardContent>
-      </Card>
-
       {/* Monthly Income */}
       <Card>
         <CardContent className="p-3">
@@ -139,89 +127,120 @@ export function MoneyOverview() {
               <Pencil className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
             </button>
           )}
-        </CardContent>
-      </Card>
 
-      {/* Extra Income */}
-      <Card>
-        <CardContent className="p-3 space-y-2">
-          <div className="flex items-center justify-between">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Extra Income</p>
-            {!addingExtra && (
-              <button
-                onClick={() => setAddingExtra(true)}
-                className="flex items-center gap-1 text-[10px] font-semibold text-foreground hover:text-foreground/70 transition-colors"
-              >
-                <Plus className="h-3 w-3" /> Add
-              </button>
-            )}
+          {/* How close the reset is, as a hairline under the figure it governs — the income
+              and the window it covers are one fact, so they are one card. This replaces a
+              whole Pay Cycle card: the countdown is the only part anyone reads day to day
+              (the dates live in Settings → Pay Date, and on this row's hover title).
+
+              Deliberately the SAME bar as the Debts page's payoff progress — flowing
+              gradient (bar-animated), 700ms width ease armed by useReplayOnActive, and the
+              switch to the completion gradient + bar-glow at the end — so "how far through
+              a thing am I" looks identical wherever the app asks it. Here the end is the
+              last day of the cycle rather than a settled debt. */}
+          <div className="mt-2.5 flex items-center gap-2" title={cycle.label}>
+            <span className="text-[10px] text-muted-foreground tabular-nums shrink-0">
+              {cycle.daysLeft} day{cycle.daysLeft === 1 ? '' : 's'} left
+            </span>
+            <div className="relative h-1 flex-1 overflow-hidden rounded-full bg-secondary">
+              <div
+                className={cn(
+                  'absolute inset-y-0 left-0 rounded-full bar-animated',
+                  barReady && 'transition-[width] duration-700',
+                  resetImminent && 'bar-glow',
+                )}
+                style={{
+                  width: `${barReady ? Math.round(cycle.progress * 100) : 0}%`,
+                  background: resetImminent
+                    ? 'repeating-linear-gradient(to right, hsl(var(--primary-b)) 0%, hsl(var(--primary-complete)) 25%, hsl(var(--primary-b)) 50%, hsl(var(--primary-complete)) 75%, hsl(var(--primary-b)) 100%)'
+                    : 'repeating-linear-gradient(to right, hsl(var(--primary-a)) 0%, hsl(var(--primary)) 25%, hsl(var(--primary-b)) 50%, hsl(var(--primary)) 75%, hsl(var(--primary-a)) 100%)',
+                }}
+              />
+            </div>
           </div>
 
-          {(extraIncomes ?? []).length === 0 && !addingExtra && (
-            <p className="text-[10px] text-muted-foreground/60 italic">No extra income added yet</p>
-          )}
-
-          {(extraIncomes ?? []).map(item => (
-            <div key={item.id} className="flex items-center justify-between gap-2">
-              <span className="text-xs text-foreground truncate flex-1 flex items-center gap-1.5">
-                {item.label}
-                {item.recurring && (
-                  <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-semibold bg-primary/15 text-primary shrink-0">
-                    <RefreshCw className="h-2 w-2" /> monthly
-                  </span>
-                )}
-              </span>
-              {/* min-w-0 (not shrink-0): a huge amount must wrap inside the row, never widen it */}
-              <span className="text-xs font-semibold text-primary tabular-nums min-w-0 text-right">+{formatCurrency(item.amount)}</span>
-              <button
-                onClick={() => handleDeleteExtra(item.id)}
-                className="p-1 rounded text-muted-foreground/40 hover:text-destructive hover:bg-destructive/10 transition-colors shrink-0"
-              >
-                <Trash2 className="h-3 w-3" />
-              </button>
+          {/* Extra income belongs to the salary it tops up, so it lives in the same card:
+              one card answers "what is coming in this cycle". A hairline rule rather than a
+              card gap keeps them one block while still separating the two questions. */}
+          <div className="mt-3 pt-3 border-t border-border/40 space-y-2">
+            <div className="flex items-center justify-between">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Extra Income</p>
+              {!addingExtra && (
+                <button
+                  onClick={() => setAddingExtra(true)}
+                  className="flex items-center gap-1 text-[10px] font-semibold text-foreground hover:text-foreground/70 transition-colors"
+                >
+                  <Plus className="h-3 w-3" /> Add
+                </button>
+              )}
             </div>
-          ))}
 
-          {addingExtra && (
-            <div className="space-y-2 pt-1 border-t border-border/40">
-              <Input
-                placeholder="Label (e.g., Freelance)"
-                value={extraLabel} onChange={e => setExtraLabel(e.target.value)}
-                className="h-8 text-xs"
-                autoFocus
-              />
-              <Input
-                type="number" placeholder="Amount"
-                value={extraAmount} onChange={e => setExtraAmount(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && submitExtra()}
-                className="h-8 text-xs"
-              />
-              <div className="flex items-center justify-between bg-muted/30 rounded-xl px-3 py-2">
-                <div>
-                  <p className="text-xs font-semibold text-foreground">Monthly</p>
-                  <p className="text-[9px] text-muted-foreground">
-                    {extraRecurring ? 'Counts every cycle until removed' : 'This cycle only — clears on your next pay date'}
-                  </p>
+            {(extraIncomes ?? []).length === 0 && !addingExtra && (
+              <p className="text-[10px] text-muted-foreground/60 italic">No extra income added yet</p>
+            )}
+
+            {(extraIncomes ?? []).map(item => (
+              <div key={item.id} className="flex items-center justify-between gap-2">
+                <span className="text-xs text-foreground truncate flex-1 flex items-center gap-1.5">
+                  {item.label}
+                  {item.recurring && (
+                    <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-semibold bg-primary/15 text-primary shrink-0">
+                      <RefreshCw className="h-2 w-2" /> monthly
+                    </span>
+                  )}
+                </span>
+                {/* min-w-0 (not shrink-0): a huge amount must wrap inside the row, never widen it */}
+                <span className="text-xs font-semibold text-primary tabular-nums min-w-0 text-right">+{formatCurrency(item.amount)}</span>
+                <button
+                  onClick={() => handleDeleteExtra(item.id)}
+                  className="p-1 rounded text-muted-foreground/40 hover:text-destructive hover:bg-destructive/10 transition-colors shrink-0"
+                >
+                  <Trash2 className="h-3 w-3" />
+                </button>
+              </div>
+            ))}
+
+            {addingExtra && (
+              <div className="space-y-2 pt-1 border-t border-border/40">
+                <Input
+                  placeholder="Label (e.g., Freelance)"
+                  value={extraLabel} onChange={e => setExtraLabel(e.target.value)}
+                  className="h-8 text-xs"
+                  autoFocus
+                />
+                <Input
+                  type="number" placeholder="Amount"
+                  value={extraAmount} onChange={e => setExtraAmount(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && submitExtra()}
+                  className="h-8 text-xs"
+                />
+                <div className="flex items-center justify-between bg-muted/30 rounded-xl px-3 py-2">
+                  <div>
+                    <p className="text-xs font-semibold text-foreground">Monthly</p>
+                    <p className="text-[9px] text-muted-foreground">
+                      {extraRecurring ? 'Counts every cycle until removed' : 'This cycle only — clears on your next pay date'}
+                    </p>
+                  </div>
+                  <Switch checked={extraRecurring} onCheckedChange={setExtraRecurring} />
                 </div>
-                <Switch checked={extraRecurring} onCheckedChange={setExtraRecurring} />
+                {extraError && <p className="text-[10px] text-destructive">{extraError}</p>}
+                <div className="flex gap-2">
+                  <Button size="sm" onClick={submitExtra} className="flex-1 h-7 text-xs">Add</Button>
+                  <Button size="sm" variant="ghost" onClick={() => { setAddingExtra(false); setExtraLabel(''); setExtraAmount(''); setExtraRecurring(false); setExtraError(''); }} className="h-7 text-xs px-2">
+                    <X className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
               </div>
-              {extraError && <p className="text-[10px] text-destructive">{extraError}</p>}
-              <div className="flex gap-2">
-                <Button size="sm" onClick={submitExtra} className="flex-1 h-7 text-xs">Add</Button>
-                <Button size="sm" variant="ghost" onClick={() => { setAddingExtra(false); setExtraLabel(''); setExtraAmount(''); setExtraRecurring(false); setExtraError(''); }} className="h-7 text-xs px-2">
-                  <X className="h-3.5 w-3.5" />
-                </Button>
-              </div>
-            </div>
-          )}
+            )}
 
-          {totalExtra > 0 && (
-            <div className="flex justify-between items-baseline border-t border-border/40 pt-2 mt-1">
-              {/* Label shrink-0 so a huge total wraps instead of crushing it letter-by-letter */}
-              <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground shrink-0">Total Extra</span>
-              <span className="text-sm font-bold text-primary tabular-nums min-w-0 text-right">+{formatCurrency(totalExtra)}</span>
-            </div>
-          )}
+            {totalExtra > 0 && (
+              <div className="flex justify-between items-baseline border-t border-border/40 pt-2 mt-1">
+                {/* Label shrink-0 so a huge total wraps instead of crushing it letter-by-letter */}
+                <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground shrink-0">Total Extra</span>
+                <span className="text-sm font-bold text-primary tabular-nums min-w-0 text-right">+{formatCurrency(totalExtra)}</span>
+              </div>
+            )}
+          </div>
         </CardContent>
       </Card>
 
@@ -272,6 +291,14 @@ export function MoneyOverview() {
             {remaining < 0 ? `−${formatCurrency(Math.abs(remaining))}` : formatCurrency(remaining)}
           </p>
           {remaining < 0 && <p className="text-[10px] text-destructive mt-0.5">You&apos;re over budget this cycle</p>}
+          {/* Closes the loop with Stats → Savings: what survives the cycle is swept there by
+              the seal. Deliberately phrased as "whatever's left", not the figure above —
+              that one moves with the deduction rows you tap out, the sweep never does. */}
+          {remaining > 0 && monthlyIncome > 0 && (
+            <p className="text-[10px] text-muted-foreground mt-0.5">
+              Whatever&apos;s left on {format(cycle.end, 'd MMM')} is banked in Savings
+            </p>
+          )}
           {monthlyIncome === 0 && <p className="text-[10px] text-muted-foreground mt-0.5">Set your monthly income above to see your balance</p>}
         </CardContent>
       </Card>

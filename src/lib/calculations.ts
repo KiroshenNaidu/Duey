@@ -1,6 +1,6 @@
 import type {
   Debt, HistoryEntry, TransportOverrides, TransportSettings, DayState,
-  Expense, ExtraIncome, BudgetPlan, UberRide, TransportMonthlyOverrides,
+  Expense, ExtraIncome, BudgetPlan, UberRide, TransportMonthlyOverrides, SavingEntry,
 } from './types';
 import { isWeekend, getDaysInMonth, startOfMonth, startOfDay, add, isSameMonth, format, differenceInCalendarDays } from 'date-fns';
 
@@ -209,6 +209,23 @@ export const calculateTransportRange = (
     return { fullDaysCount, halfDaysCount, travelDaysCount: fullDaysCount + halfDaysCount, totalDue };
 }
 
+/** The current cycle and the `back` cycles before it, newest first — what a "which cycle
+ *  was this for?" picker offers. */
+export function listRecentCycles(payDay: number, back = 11, from: Date = new Date()): PayCycle[] {
+  const out: PayCycle[] = [];
+  let cursor = cycleStart(from, payDay);
+  for (let i = 0; i <= back; i++) {
+    out.push(getPayCycle(payDay, cursor));
+    cursor = payDateIn(cursor.getFullYear(), cursor.getMonth() - 1, payDay);
+  }
+  return out;
+}
+
+/** The label a 'yyyy-MM' cycle key reads as, for rows filed against a cycle that is no
+ *  longer in the picker's range. */
+export const cycleLabelFromKey = (key: string, payDay: number): string =>
+  getPayCycle(payDay, cycleStartFromKey(key, payDay)).label;
+
 // ─── Shared monthly money math ─────────────────────────────────────────────────
 // One place that computes a month's income + outgoings so Balance, Stats, the
 // transport status card and the month-end seal never drift apart.
@@ -323,6 +340,7 @@ export interface MonthlyMoneyInput {
   budgetPlans: BudgetPlan[];
   history: HistoryEntry[];
   uberRides: UberRide[];
+  savings: SavingEntry[];
   transportSettings: TransportSettings;
   transportOverrides: TransportOverrides;
   transportMonthlyOverrides: TransportMonthlyOverrides;
@@ -335,6 +353,7 @@ export interface MonthlyMoney {
   debt: number;          // debt payments
   expenses: number;      // expense spend
   budget: number;        // budget item allocations
+  savings: number;       // money deliberately put away this cycle (manual entries only)
   totalOutgoings: number;
   remaining: number;     // income − totalOutgoings
 }
@@ -378,13 +397,28 @@ export function calculateLiveMonthly(input: MonthlyMoneyInput, date: Date = new 
     input.history.filter(h => h.type === 'payment' && !!h.debtId), start, end, h => h.date, h => h.amount);
   const expenses = input.expenses.reduce((s, e) => s + e.amount, 0);
   const budget = confirmedBudgetForWindow(input.budgetPlans, start, end);
-  const totalOutgoings = transport + uber + debt + expenses + budget;
-  return { income, transport, uber, debt, expenses, budget, totalOutgoings, remaining: income - totalOutgoings };
+  const savings = manualSavingsForCycle(input.savings, format(start, 'yyyy-MM'));
+  const totalOutgoings = transport + uber + debt + expenses + budget + savings;
+  return { income, transport, uber, debt, expenses, budget, savings, totalOutgoings, remaining: income - totalOutgoings };
 }
 
 // Budgets only hit the balance once the user confirms the plan (bought the items), and only for
 // the cycle it was confirmed in. The deduction is the spent total (Σ item prices), not the budget
 // ceiling — so an unspent remainder is never deducted.
+/**
+ * Money the user says they put away for a cycle, counted as an outgoing.
+ *
+ * Only MANUAL entries. An 'auto' entry is the leftover the cycle ENDED with — it is what
+ * remains after every deduction, so deducting it as well would subtract the same money
+ * twice and shrink the figure it was computed from.
+ *
+ * Matched on the entry's `cycleKey` — the cycle the user FILED it against — not on when
+ * they happened to type it in. Recording last cycle's transfer today puts it in last
+ * cycle, which is what picking that cycle in the form meant.
+ */
+const manualSavingsForCycle = (savings: SavingEntry[] | undefined, cycleKeyStr: string): number =>
+  (savings ?? []).reduce((s, v) => (v.source === 'manual' && v.cycleKey === cycleKeyStr ? s + v.amount : s), 0);
+
 const confirmedBudgetForWindow = (plans: BudgetPlan[], start: Date, end: Date): number =>
   plans.reduce(
     (s, p) => (p.confirmed && p.confirmedAt && inWindow(p.confirmedAt, start, end)
@@ -420,6 +454,10 @@ export function calculateSealedCycleSummary(input: MonthlyMoneyInput, cycleKeySt
   const expenses = oneTimeExpenses + recurringExpenses;
   const uber = sumInWindow(input.uberRides, start, end, r => r.date, r => r.price);
   const budget = confirmedBudgetForWindow(input.budgetPlans, start, end);
+  // Manual savings for this cycle are an outgoing here too, which is what keeps the
+  // automatic sweep honest: the leftover the seal banks is what was left AFTER them, so a
+  // cycle's savings total is "what I put away" + "what I had left", never one twice.
+  const savings = manualSavingsForCycle(input.savings, cycleKeyStr);
   // Recurring extras count for every cycle from creation onward; one-time extras only for
   // the cycle they were created in. Relies on the seal running BEFORE the purge removes
   // expired one-time extras (see load order in AppDataContext).
@@ -428,6 +466,6 @@ export function calculateSealedCycleSummary(input: MonthlyMoneyInput, cycleKeySt
     return inWindow(e.createdAt, start, end) ? s + e.amount : s;
   }, 0);
   const income = input.monthlyIncome + extra;
-  const totalOutgoings = transport + uber + debt + expenses + budget;
-  return { income, transport, uber, debt, expenses, budget, totalOutgoings, remaining: income - totalOutgoings };
+  const totalOutgoings = transport + uber + debt + expenses + budget + savings;
+  return { income, transport, uber, debt, expenses, budget, savings, totalOutgoings, remaining: income - totalOutgoings };
 }

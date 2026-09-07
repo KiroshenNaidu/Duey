@@ -1,13 +1,14 @@
 'use client';
 
 import { useContext, useEffect, useState } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
 import { format } from 'date-fns';
 import { AppDataContext } from '@/context/AppDataContext';
 import { Card, CardContent } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { CalendarClock } from 'lucide-react';
+import { CalendarClock, Info } from 'lucide-react';
 import { getPayCycle, normalizePayDay } from '@/lib/calculations';
 import { cn } from '@/lib/utils';
 
@@ -50,6 +51,7 @@ export function PayDateMenu({ onDirtyChange, onSaved, onCancel }: PayDateMenuPro
   const { userProfile, setUserProfile, notificationSettings } = useContext(AppDataContext);
 
   const [dayStr, setDayStr] = useState(String(userProfile.paydayDay));
+  const [infoOpen, setInfoOpen] = useState(false);
   const parsed = parseInt(dayStr, 10);
   const valid = !isNaN(parsed) && parsed >= 1 && parsed <= 31;
   const isDirty = valid && parsed !== userProfile.paydayDay;
@@ -93,7 +95,55 @@ export function PayDateMenu({ onDirtyChange, onSaved, onCancel }: PayDateMenuPro
           <div className="flex items-center gap-2">
             <CalendarClock className="h-4 w-4 text-accent shrink-0" />
             <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Pay Date</p>
+            {/* The consequences of this setting are worth reading ONCE and then never
+                again, so they sit behind an "i" rather than taking up a permanent card
+                below the editor. */}
+            <button
+              type="button"
+              onClick={() => setInfoOpen(v => !v)}
+              aria-expanded={infoOpen}
+              aria-controls="paydate-info"
+              aria-label={infoOpen ? 'Hide what resets on this day' : 'What resets on this day'}
+              className={cn(
+                'flex h-5 w-5 shrink-0 items-center justify-center rounded-full border transition-colors',
+                infoOpen
+                  ? 'border-accent bg-accent/15 text-accent'
+                  : 'border-border text-muted-foreground hover:text-foreground hover:border-foreground/40',
+              )}
+            >
+              <Info className="h-3 w-3" />
+            </button>
           </div>
+
+          {/* Slides down from under the heading, pushing the editor with it — the same
+              height reveal + easing the Day/Night card uses for its drop-down, so every
+              expanding panel in Settings moves the same way. */}
+          <AnimatePresence initial={false}>
+            {infoOpen && (
+              <motion.div
+                key="paydate-info"
+                id="paydate-info"
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ type: 'tween', ease: [0.25, 0.46, 0.45, 0.94], duration: 0.28 }}
+                className="overflow-hidden"
+              >
+                <div className="rounded-xl bg-muted/30 p-3 space-y-2">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">What resets on this day</p>
+                  <ul className="text-xs text-muted-foreground space-y-1.5 list-disc pl-4">
+                    <li><span className="text-foreground font-medium">Balance</span> — income, deductions and what&apos;s left are counted from this day.</li>
+                    <li><span className="text-foreground font-medium">Stats</span> — the cycle snapshot covers the same window.</li>
+                    <li><span className="text-foreground font-medium">One-time expenses and extra income</span> — cleared on this day instead of the 1st. Recurring ones stay.</li>
+                    <li><span className="text-foreground font-medium">History</span> — the finished cycle is sealed into a permanent summary.</li>
+                  </ul>
+                  <p className="text-[10px] text-muted-foreground/70 pt-1">
+                    Debts, transport days and Uber rides are untouched — they keep their own dates.
+                  </p>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           <div className="space-y-1.5">
             <Label className="text-xs">Day of month you get paid (1–31)</Label>
@@ -145,24 +195,9 @@ export function PayDateMenu({ onDirtyChange, onSaved, onCancel }: PayDateMenuPro
             <div className="h-full rounded-full bg-accent" style={{ width: `${Math.round(preview.progress * 100)}%` }} />
           </div>
           <p className="text-[10px] text-muted-foreground">
-            {preview.daysLeft === 0
-              ? 'Today is pay day — the cycle starts over.'
-              : `Starts over in ${preview.daysLeft} day${preview.daysLeft === 1 ? '' : 's'}, on ${format(preview.end, 'd MMMM')}.`}
-          </p>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardContent className="p-3 space-y-2">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">What resets on this day</p>
-          <ul className="text-xs text-muted-foreground space-y-1.5 list-disc pl-4">
-            <li><span className="text-foreground font-medium">Balance</span> — income, deductions and what&apos;s left are counted from this day.</li>
-            <li><span className="text-foreground font-medium">Stats</span> — the cycle snapshot covers the same window.</li>
-            <li><span className="text-foreground font-medium">One-time expenses and extra income</span> — cleared on this day instead of the 1st. Recurring ones stay.</li>
-            <li><span className="text-foreground font-medium">History</span> — the finished cycle is sealed into a permanent summary.</li>
-          </ul>
-          <p className="text-[10px] text-muted-foreground/70 pt-1">
-            Debts, transport days and Uber rides are untouched — they keep their own dates.
+            {/* daysLeft counts to the NEXT pay date, so it is never 0: on pay day itself the
+                new cycle has already begun and the count is that cycle's full length. */}
+            Starts over in {preview.daysLeft} day{preview.daysLeft === 1 ? '' : 's'}, on {format(preview.end, 'd MMMM')}.
           </p>
         </CardContent>
       </Card>

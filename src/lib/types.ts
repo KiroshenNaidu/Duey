@@ -32,6 +32,29 @@ export interface ExtraIncome {
   recurring?: boolean; // true = counts every month; false/undefined = auto-removed on 1st of next month (mirrors Expense)
 }
 
+/**
+ * Money set aside, filed against the pay cycle it belongs to.
+ *
+ * Two ways in, and the difference matters enough to record it:
+ *   • 'auto' — what was LEFT OVER when a cycle ended. The seal writes exactly one of these
+ *     per cycle, for the surplus it sealed, so savings grow on their own as cycles turn.
+ *   • 'manual' — money the user says they put away, for whatever cycle they choose.
+ *
+ * An auto entry is a claim about the past, not a live figure: it keeps the amount the
+ * cycle ended with even if that cycle's data is edited afterwards. Delete it if the
+ * leftover was actually spent — nothing else in the app depends on it.
+ */
+export interface SavingEntry {
+  id: string;
+  amount: number;
+  /** 'yyyy-MM' pay-cycle key (the month the cycle STARTS in) this saving belongs to. */
+  cycleKey: string;
+  label: string;
+  note?: string;
+  source: 'auto' | 'manual';
+  createdAt: string; // ISO 8601
+}
+
 export interface HistoryEntry {
   id: string;
   debtId?: string;
@@ -57,6 +80,9 @@ export interface HistoryEntry {
     debt: number;
     expenses: number;
     budget: number;
+    /** Manual savings filed against the cycle. Optional: snapshots sealed before savings
+     *  existed have none, and the breakdown sheet simply omits the row for them. */
+    savings?: number;
     totalOutgoings: number;
     remaining: number;
   };
@@ -197,6 +223,9 @@ export interface AppState {
   transportMonthlyOverrides: TransportMonthlyOverrides;
   uberRides: UberRide[];
   budgetPlans: BudgetPlan[];
+  /** Money set aside, per pay cycle. Fed automatically by each cycle's leftover (see the
+   *  seal in AppDataContext) and by hand from Stats → Savings. */
+  savings: SavingEntry[];
   monthlyIncome: number;
   userProfile: UserProfile;
   notificationSettings: NotificationSettings;

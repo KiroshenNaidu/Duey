@@ -1,11 +1,13 @@
 'use client';
 
-import { useContext, useMemo } from 'react';
+import { useContext, useMemo, useState } from 'react';
 import { AppDataContext } from '@/context/AppDataContext';
 import { formatCurrency, cn } from '@/lib/utils';
 import { DebtProgressCharts } from '@/components/DebtProgressCharts';
 import { useReplayOnActive } from '@/hooks/useReplayOnActive';
 import { TransportStatusCard } from '@/components/TransportStatusCard';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { SavingsTab } from '@/components/SavingsTab';
 import { add, getDaysInMonth, isWeekend, startOfMonth } from 'date-fns';
 import { calculateGlobalStats, calculateLiveMonthly, displayProgressPct, getPayCycle, isTransportPaidForMonth } from '@/lib/calculations';
 import {
@@ -148,7 +150,7 @@ function IncomeCard() {
 function MonthlyOverviewCard() {
   const {
     monthlyIncome, extraIncomes, expenses, budgetPlans, history, uberRides,
-    transportSettings, transportOverrides, transportMonthlyOverrides, userProfile,
+    transportSettings, transportOverrides, transportMonthlyOverrides, userProfile, savings,
   } = useContext(AppDataContext);
 
   const payDay = userProfile.paydayDay;
@@ -157,10 +159,10 @@ function MonthlyOverviewCard() {
   // is the current PAY CYCLE, so this card resets on pay day exactly as Balance does.
   const monthly = useMemo(
     () => calculateLiveMonthly({
-      payDay, monthlyIncome, extraIncomes, expenses, budgetPlans, history, uberRides,
+      payDay, monthlyIncome, extraIncomes, expenses, budgetPlans, history, uberRides, savings,
       transportSettings, transportOverrides, transportMonthlyOverrides,
     }),
-    [payDay, monthlyIncome, extraIncomes, expenses, budgetPlans, history, uberRides,
+    [payDay, monthlyIncome, extraIncomes, expenses, budgetPlans, history, uberRides, savings,
      transportSettings, transportOverrides, transportMonthlyOverrides],
   );
   const cycle = useMemo(() => getPayCycle(payDay), [payDay]);
@@ -182,6 +184,9 @@ function MonthlyOverviewCard() {
       )}
       {monthly.budget > 0 && (
         <StatRow label="Budget" value={`− ${formatCurrency(monthly.budget)}`} color="text-[hsl(var(--cat-completion))]" />
+      )}
+      {monthly.savings > 0 && (
+        <StatRow label="Savings" value={`− ${formatCurrency(monthly.savings)}`} color="text-[hsl(var(--positive))]" sub="put away this cycle" />
       )}
       <div className="flex items-center justify-between pt-2 mt-1 border-t border-border/40">
         <div className="flex items-center gap-1.5">
@@ -296,9 +301,24 @@ function TransportExtrasCard() {
 
 export function StatsPage() {
   const { debts, history, expenses, budgetPlans } = useContext(AppDataContext);
+  const [activeTab, setActiveTab] = useState('overview');
 
   return (
     <div className="container mx-auto max-w-md space-y-3 pt-11 pb-4">
+
+      {/* Two views of the same money: what it is doing now (Overview) and what survived
+          each pay cycle (Savings). Same tab strip the Money page uses. */}
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList className="tabs-fluid w-full">
+          <TabsTrigger value="overview" className="flex-auto">Overview</TabsTrigger>
+          <TabsTrigger value="savings" className="flex-auto">Savings</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="savings" className="space-y-3">
+          <SavingsTab />
+        </TabsContent>
+
+        <TabsContent value="overview" className="space-y-3">
 
       {/* ── ORIGINAL LAYOUT ── */}
       <DebtHeroCard />
@@ -346,6 +366,9 @@ export function StatsPage() {
         <SectionLabel>Transport</SectionLabel>
         <TransportExtrasCard />
       </div>
+
+        </TabsContent>
+      </Tabs>
 
     </div>
   );

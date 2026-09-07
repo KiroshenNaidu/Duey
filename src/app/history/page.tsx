@@ -882,7 +882,7 @@ export default function HistoryPage() {
   const {
     history, debts, expenses, uberRides, budgetPlans,
     updateHistoryEntry, deleteHistoryEntry, restoreHistoryEntry,
-    monthlyIncome, extraIncomes, transportSettings, transportOverrides, transportMonthlyOverrides,
+    monthlyIncome, extraIncomes, savings, transportSettings, transportOverrides, transportMonthlyOverrides,
     userProfile, exportFolderUri, exportFolderName, setExportFolder, setAppError,
     notificationSettings,
   } = useContext(AppDataContext);
@@ -1634,7 +1634,7 @@ export default function HistoryPage() {
             // recomputing drifts once one-time extra incomes/expenses have been purged.
             const recomputed = !snapshotEntry.snapshot;
             const s = snapshotEntry.snapshot ?? calculateSealedCycleSummary(
-              { payDay, monthlyIncome, extraIncomes, expenses, budgetPlans, history, uberRides, transportSettings, transportOverrides, transportMonthlyOverrides },
+              { payDay, monthlyIncome, extraIncomes, expenses, budgetPlans, history, uberRides, savings, transportSettings, transportOverrides, transportMonthlyOverrides },
               cycle.key,
             );
             const rows: { label: string; value: number; negative?: boolean }[] = [
@@ -1644,6 +1644,9 @@ export default function HistoryPage() {
               { label: 'Debt payments', value: s.debt, negative: true },
               { label: 'Expenses', value: s.expenses, negative: true },
               { label: 'Budget (confirmed)', value: s.budget, negative: true },
+              // Absent on snapshots sealed before savings existed — the row filter below
+              // drops a zero, so those simply show no savings line.
+              { label: 'Savings (put away)', value: s.savings ?? 0, negative: true },
             ];
             return (
               <>

@@ -1,7 +1,7 @@
 'use client';
 
 import { createContext, ReactNode, useEffect, useState, useMemo, useCallback, useRef } from 'react';
-import type { AppState, Debt, HistoryEntry, AppData, ThemeSettings, TransportSettings, TransportOverrides, TransportMonthlyOverrides, DayState, UberRide, UserTheme, BudgetPlan, BudgetItem, UserProfile, NotificationSettings, AppError, Expense, ExtraIncome, DayNightSettings } from '@/lib/types';
+import type { AppState, Debt, HistoryEntry, AppData, ThemeSettings, TransportSettings, TransportOverrides, TransportMonthlyOverrides, DayState, UberRide, UserTheme, BudgetPlan, BudgetItem, UserProfile, NotificationSettings, AppError, Expense, ExtraIncome, DayNightSettings, SavingEntry } from '@/lib/types';
 import { isSameDay, startOfDay, format, add } from 'date-fns';
 import { idbGet, idbSet, idbDel, setCurrencyCode, genId } from '@/lib/utils';
 import { calculateSealedCycleSummary, cycleStartFromKey, getPayCycle, nextCycleStart, normalizePayDay, dayKey, legacyUtcDayKey } from '@/lib/calculations';
@@ -106,6 +106,7 @@ function migrateState(raw: AppState): AppState {
     expenses: raw.expenses ?? [],
     extraIncomes: raw.extraIncomes ?? [],
     budgetPlans: raw.budgetPlans ?? [],
+    savings: raw.savings ?? [],
     monthlyIncome: raw.monthlyIncome ?? 0,
     userProfile: raw.userProfile
       ? { name: raw.userProfile.name ?? '', paydayDay: raw.userProfile.paydayDay ?? 26, bio: raw.userProfile.bio ?? '' }
@@ -146,6 +147,7 @@ const defaultState: AppState = {
   extraIncomes: [],
   budgetPlans: [],
   monthlyIncome: 0,
+  savings: [],
   userProfile: { name: '', paydayDay: 26, bio: '' },
   notificationSettings: { masterEnabled: false, enabled: false, paydayDay: 26, hour: 18, minute: 0, message: 'Time to log your monthly payments.' },
   // Default theme = the "System Rec" preset (deep slate-indigo base, violet primary, mint
@@ -227,6 +229,11 @@ interface AppContextType extends AppState {
   addExtraIncome: (label: string, amount: number, recurring?: boolean) => void;
   deleteExtraIncome: (id: string) => void;
   restoreExtraIncome: (item: ExtraIncome) => void;
+  /** Manual savings entry. `cycleKey` files it against a pay cycle; defaults to the current one. */
+  addSaving: (amount: number, cycleKey: string, label: string, note?: string) => void;
+  updateSaving: (id: string, data: Partial<Pick<SavingEntry, 'amount' | 'label' | 'note' | 'cycleKey'>>) => void;
+  deleteSaving: (id: string) => void;
+  restoreSaving: (item: SavingEntry) => void;
   restoreExpense: (item: Expense) => void;
   restoreHistoryEntry: (entry: HistoryEntry) => void;
   // Undo counterparts for the destructive actions above/below — see the implementations
@@ -296,6 +303,10 @@ export const AppDataContext = createContext<AppContextType>({
   addExtraIncome: () => {},
   deleteExtraIncome: () => {},
   restoreExtraIncome: () => {},
+  addSaving: () => {},
+  updateSaving: () => {},
+  deleteSaving: () => {},
+  restoreSaving: () => {},
   restoreExpense: () => {},
   restoreHistoryEntry: () => {},
   restoreDebt: () => {},
@@ -385,6 +396,11 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
         const currentCycle = getPayCycle(payDay);
         if (loaded.lastSnapshotMonth && loaded.lastSnapshotMonth !== currentCycle.key) {
           const snapshots: HistoryEntry[] = [];
+          // Whatever a cycle ends with becomes savings — the money survived the cycle, so
+          // it is money you kept. Written here, alongside the summary, so the two can never
+          // disagree about what was left. Only a SURPLUS sweeps: a deficit is a debt to the
+          // next cycle, not a negative deposit. One entry per cycle, guarded below.
+          const sweeps: SavingEntry[] = [];
           // Start AT the last recorded cycle, not after it: lastSnapshotMonth stores the
           // cycle that was LIVE when we last looked, so that cycle is the first one that
           // can have ended since. (Starting one past it — as this used to — meant a cycle
@@ -402,7 +418,22 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
               ? format(start, 'MMMM yyyy')
               : `${format(start, 'd MMM')} – ${format(lastDay, 'd MMM yyyy')}`} Summary`;
             if (loaded.history.some(h => h.type === 'snapshot' && h.debtTitle === title)) continue;
-            const s = calculateSealedCycleSummary({ ...loaded, payDay }, format(start, 'yyyy-MM'));
+            const cycleK = format(start, 'yyyy-MM');
+            const s = calculateSealedCycleSummary({ ...loaded, payDay }, cycleK);
+            // Sweep the leftover. Guarded against an entry that already exists for this
+            // cycle (a hand-edited key, a restored backup), so a relaunch can never bank
+            // the same surplus twice.
+            if (s.remaining > 0 && !(loaded.savings ?? []).some(v => v.source === 'auto' && v.cycleKey === cycleK)) {
+              sweeps.push({
+                id: genId(),
+                amount: s.remaining,
+                cycleKey: cycleK,
+                label: 'Leftover',
+                note: `Left at the end of ${payDay === 1 ? format(start, 'MMMM yyyy') : `${format(start, 'd MMM')} – ${format(lastDay, 'd MMM yyyy')}`}`,
+                source: 'auto',
+                createdAt: lastDay.toISOString(),
+              });
+            }
             snapshots.push({
               id: genId(),
               debtTitle: title,
@@ -420,6 +451,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
           loaded = {
             ...loaded,
             history: [...snapshots, ...loaded.history],
+            savings: [...sweeps, ...(loaded.savings ?? [])],
             lastSnapshotMonth: currentCycle.key,
           };
         } else if (!loaded.lastSnapshotMonth) {
@@ -832,6 +864,37 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     }));
   }, [updateStateAndSync]);
 
+  // ── Savings ──────────────────────────────────────────────────────────────────
+  // Leftovers arrive on their own from the seal (see the load effect); these are the
+  // by-hand entries and the edits/removals for either kind.
+  const addSaving = useCallback((amount: number, cycleKey: string, label: string, note?: string) => {
+    updateStateAndSync(prev => ({
+      ...prev,
+      savings: [
+        { id: genId(), amount, cycleKey, label, note, source: 'manual' as const, createdAt: new Date().toISOString() },
+        ...(prev.savings ?? []),
+      ],
+    }));
+  }, [updateStateAndSync]);
+
+  const updateSaving = useCallback((id: string, data: Partial<Pick<SavingEntry, 'amount' | 'label' | 'note' | 'cycleKey'>>) => {
+    updateStateAndSync(prev => ({
+      ...prev,
+      savings: (prev.savings ?? []).map(s => (s.id === id ? { ...s, ...data } : s)),
+    }));
+  }, [updateStateAndSync]);
+
+  const deleteSaving = useCallback((id: string) => {
+    updateStateAndSync(prev => ({
+      ...prev,
+      savings: (prev.savings ?? []).filter(s => s.id !== id),
+    }));
+  }, [updateStateAndSync]);
+
+  const restoreSaving = useCallback((item: SavingEntry) => {
+    updateStateAndSync(prev => ({ ...prev, savings: [item, ...(prev.savings ?? [])] }));
+  }, [updateStateAndSync]);
+
   const restoreExpense = useCallback((item: Expense) => {
     updateStateAndSync(prev => ({
       ...prev,
@@ -1150,6 +1213,10 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     addExtraIncome,
     deleteExtraIncome,
     restoreExtraIncome,
+    addSaving,
+    updateSaving,
+    deleteSaving,
+    restoreSaving,
     restoreExpense,
     restoreHistoryEntry,
     restoreDebt,
