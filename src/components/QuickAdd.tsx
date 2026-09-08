@@ -32,6 +32,29 @@ export function openQuickAdd(gesture = false) {
   window.dispatchEvent(new CustomEvent(OPEN_EVENT, { detail: { gesture } }));
 }
 
+// ── Page-owned FABs ──────────────────────────────────────────────────────────
+// The lightning FAB only exists on pages that have no + FAB of their own, and on /stats
+// that is now a per-TAB fact: the Savings tab shows a + (add a saving, exactly as the
+// money page's + adds a debt) while Overview shows the lightning. Pathname alone cannot
+// express that, so a page's FAB announces itself and the lightning one steps aside rather
+// than stacking on top of it. Counted, not a boolean, so an unmount racing a mount during
+// a tab change can't leave the app with no FAB at all.
+const PAGE_FAB_EVENT = 'duey:page-fab';
+let pageFabCount = 0;
+
+/** Call from a page that renders its own + FAB, with `active` true while it is on screen. */
+export function usePageFab(active: boolean) {
+  useEffect(() => {
+    if (!active) return;
+    pageFabCount++;
+    window.dispatchEvent(new CustomEvent(PAGE_FAB_EVENT));
+    return () => {
+      pageFabCount--;
+      window.dispatchEvent(new CustomEvent(PAGE_FAB_EVENT));
+    };
+  }, [active]);
+}
+
 // ═══════════════════ Radial menu tuning — everything adjustable lives here ═══════════════════
 const LONG_PRESS_MS = 300;   // hold time on a money-page + FAB before the radial opens.
                              // Android's own long-press is ~400ms, but this FAB has no
@@ -72,12 +95,12 @@ const AIM_MAX_DIST = 240;         // "safe area" radius — flick BEYOND this ai
 const SECTOR_TOLERANCE_DEG = 42;  // max angular distance from an item that still aims it
 
 /** Distance from the FAB centre at which aiming arms, for a fan of the given radius.
- *  Exported so the Theme → Style demo arms at the same point relative to its own
+ *  Exported so the Appearance → Style demo arms at the same point relative to its own
  *  (smaller) fan — a preview that engaged earlier than the real menu would mislead. */
 export const activateDist = (radius: number) => Math.max(AIM_MIN_DIST, radius - AIM_ACTIVATE_INSET);
 
 // Drag/touch visual effects live in lib/radialFx.ts as user-selectable presets
-// (Theme → Style, with a live demo). The active one comes from AppState.quickAddFxId.
+// (Appearance → Style, with a live demo). The active one comes from AppState.quickAddFxId.
 // ══════════════════════════════════════════════════════════════════════════════════════════════
 
 /**
@@ -170,7 +193,7 @@ export function FabPulse({ children }: { children: React.ReactNode }) {
 }
 
 // The set + order of shortcuts comes from AppState.quickAddShortcuts (user-configured in
-// Theme → Style → Quick Menu, 1–7 items). Geometry is computed per count: items spread
+// Appearance → Style → Quick Menu, 1–7 items). Geometry is computed per count: items spread
 // across the arc (a single item sits straight up), and the radius widens a little as the
 // fan gets crowded so 7 items don't overlap.
 export type RadialItem = QuickShortcut & { angleDeg: number; x: number; y: number };
@@ -212,6 +235,15 @@ export function QuickAdd() {
   const { quickAddFxId, quickAddShortcuts } = useContext(AppDataContext);
   const [radialOpen, setRadialOpen] = useState(false);
   const [action, setAction] = useState<string | null>(null);
+  // Whether some page is currently showing its own + FAB (see usePageFab).
+  const [pageFab, setPageFab] = useState(false);
+
+  useEffect(() => {
+    const sync = () => setPageFab(pageFabCount > 0);
+    sync(); // a page FAB may have mounted before this listener existed
+    window.addEventListener(PAGE_FAB_EVENT, sync);
+    return () => window.removeEventListener(PAGE_FAB_EVENT, sync);
+  }, []);
 
   // Active effect preset. Ref-mirrored so the gesture listeners (attached once per
   // gesture) always read the current value without re-binding mid-drag.
@@ -316,12 +348,10 @@ export function QuickAdd() {
     trailEnvelope.set(0);
   }, [ringOpacity, beamOpacity, trailOpacity, trailEnvelope]);
 
-  // Fan-out spring: the Elastic preset overshoots and settles; everything else is snappy.
-  // Light mass + high stiffness so the items are at rest within ~180ms — on Android the
-  // radial has to be aimable the instant the hold fires, not a third of a second later.
-  const fanSpring = fx.elasticFan
-    ? { stiffness: 560, damping: 15, mass: 0.7 }
-    : { stiffness: 700, damping: 32, mass: 0.6 };
+  // Fan-out spring. Light mass + high stiffness so the items are at rest within ~180ms —
+  // on Android the radial has to be aimable the instant the hold fires, not a third of a
+  // second later.
+  const fanSpring = { stiffness: 700, damping: 32, mass: 0.6 };
 
 
   // Gesture engine: while the opening pointer is still down, track it globally.
@@ -492,7 +522,7 @@ export function QuickAdd() {
           Idle-animated: a soft pulse ring plus an occasional icon shake.
           Press-down opens the radial immediately with slide-to-select armed:
           hold → slide to an action → release. A plain tap leaves it open. */}
-      {(pathname === '/transport' || pathname === '/stats') && (
+      {(pathname === '/transport' || pathname === '/stats') && !pageFab && (
         <button
           aria-label="Quick add"
           {...{ [FAB_GESTURE_ATTR]: '' }}
@@ -667,21 +697,15 @@ export function QuickAdd() {
                     className="absolute"
                     style={{ left: 0, top: 0, translateX: '-50%', translateY: '-50%' }}
                   >
-                    {/* Inner layer: instant aim feedback (grow + magnetic lean + wobble) */}
+                    {/* Inner layer: instant aim feedback (grow + magnetic lean) */}
                     <motion.span
                       className="relative flex items-center justify-center"
                       animate={{
                         x: (a.x / radial.radius) * pull,
                         y: (a.y / radial.radius) * pull,
                         scale: isAimed ? fx.hoverScale : 1,
-                        rotate: fx.wobble && isAimed ? [0, -5, 5, -3, 0] : 0,
                       }}
-                      transition={{
-                        type: 'spring', stiffness: 600, damping: 30,
-                        rotate: fx.wobble && isAimed
-                          ? { duration: 0.45, repeat: Infinity, ease: 'easeInOut' }
-                          : { duration: 0.15 },
-                      }}
+                      transition={{ type: 'spring', stiffness: 600, damping: 30 }}
                     >
                       <span
                         className={cn(

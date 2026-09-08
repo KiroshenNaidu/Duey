@@ -910,7 +910,7 @@ export default function HistoryPage() {
     showUndoToast(`Deleted ${entry.debtTitle}`, () => restoreHistoryEntry(entry));
   };
   const [exportOpen, setExportOpen] = useState(false);
-  const [choosingFolder, setChoosingFolder] = useState(false);
+  const [, setChoosingFolder] = useState(false);
   // Single-dialog export flow: 'idle' shows the picker, then preparing→saving→success/error.
   const [exportStatus, setExportStatus] = useState<'idle' | 'preparing' | 'saving' | 'success' | 'error'>('idle');
   const [exportResult, setExportResult] = useState<{ filename: string; folder: string; error?: string } | null>(null);
@@ -1008,7 +1008,6 @@ export default function HistoryPage() {
 
   const hasActiveFilter = !!query.trim() || filterThisMonth || filterBig || filterEdited;
 
-  const sortedUber = useMemo(() => [...uberRides].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()), [uberRides]);
   const sortedExpenses = useMemo(() => [...expenses].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()), [expenses]);
 
   // Transport tab: available months (from both transport entries + uber rides)

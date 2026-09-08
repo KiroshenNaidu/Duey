@@ -99,7 +99,6 @@ export function TransportHistoryLog({ history, uberRides, transportOverrides }: 
   if (!hasDriver && !hasUber) return null;
 
   const driverActiveMonths = driverMonths.filter(m => m.amount > 0).length;
-  const uberActiveMonths = uberMonths.filter(m => m.amount > 0).length;
 
   return (
     <Card>

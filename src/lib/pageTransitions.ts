@@ -1,7 +1,9 @@
-// Page-swipe transition presets for the AppShell carousel, selected in
-// Theme → Style → Page Transition and stored as AppState.pageTransitionId.
-// Mirrors the radialFx.ts preset pattern: adding a preset = one more entry here;
-// AppShell and the settings preview both consume it, nothing else needs touching.
+// How the AppShell carousel animates between pages, plus the swipe-gesture tuning shared
+// by every finger-tracked pager in the app.
+//
+// This was once a user-selectable preset (Slide / Depth / Parallax / Cube, stored as
+// AppState.pageTransitionId). The picker was removed — there is one animation now, the
+// former default, and reduced motion still gets the flat slide.
 
 import { motionValue } from 'framer-motion';
 
@@ -17,69 +19,22 @@ export interface PageFrame {
   x: string;       // CSS translateX (percentage of the page width)
   scale: number;
   opacity: number;
-  rotateY: number; // degrees — needs threeD on the preset to read as 3D
 }
 
-export interface PageTransitionPreset {
-  id: string;
-  name: string;
-  description: string;
-  /** Pages get a CSS perspective so rotateY renders with depth. */
-  threeD?: boolean;
-  frame: (offset: number) => PageFrame;
-}
-
-// Scale/opacity/rotate effects saturate at one page away; x keeps the raw offset so
-// far-away pages stay parked off-screen (offset 2 → 200%).
+// Scale/opacity effects saturate at one page away; x keeps the raw offset so far-away
+// pages stay parked off-screen (offset 2 → 200%).
 const clamp1 = (o: number) => Math.max(-1, Math.min(1, o));
 
-export const PAGE_TRANSITION_PRESETS: PageTransitionPreset[] = [
-  {
-    id: 'slide',
-    name: 'Slide',
-    description: 'Classic flat slide between pages',
-    frame: o => ({ x: `${o * 100}%`, scale: 1, opacity: 1, rotateY: 0 }),
-  },
-  {
-    id: 'depth',
-    name: 'Depth',
-    description: 'Pages sink back and dim as they leave, pop forward as they arrive',
-    frame: o => {
-      const t = Math.abs(clamp1(o));
-      return { x: `${o * 100}%`, scale: 1 - t * 0.14, opacity: 1 - t * 0.35, rotateY: 0 };
-    },
-  },
-  {
-    id: 'parallax',
-    name: 'Parallax',
-    description: 'New page slides over the top as the old one lags behind and dims',
-    frame: o => {
-      // Left neighbours crawl (30%) and dim UNDER; right neighbours slide full-speed on
-      // top (pages are z-ordered by index, so higher routes cover lower ones mid-swipe).
-      const t = Math.abs(clamp1(o));
-      return o < 0
-        ? { x: `${o * 30}%`, scale: 1 - t * 0.04, opacity: 1 - t * 0.45, rotateY: 0 }
-        : { x: `${o * 100}%`, scale: 1, opacity: 1, rotateY: 0 };
-    },
-  },
-  {
-    id: 'cube',
-    name: 'Cube',
-    description: 'Pages pivot in 3D as they pass — the boldest of the bunch',
-    threeD: true,
-    frame: o => {
-      const t = clamp1(o);
-      const a = Math.abs(t);
-      return { x: `${o * 100}%`, scale: 1 - a * 0.08, opacity: 1 - a * 0.3, rotateY: t * -55 };
-    },
-  },
-];
+/** Pages sink back and dim as they leave, and pop forward as they arrive. */
+export const pageFrame = (offset: number): PageFrame => {
+  const t = Math.abs(clamp1(offset));
+  return { x: `${offset * 100}%`, scale: 1 - t * 0.14, opacity: 1 - t * 0.35 };
+};
 
-export const DEFAULT_PAGE_TRANSITION_ID = 'depth';
-
-export function getPageTransition(id: string | undefined): PageTransitionPreset {
-  return PAGE_TRANSITION_PRESETS.find(p => p.id === id) ?? PAGE_TRANSITION_PRESETS[0];
-}
+/** Reduced motion: the pages still track the finger (that is direct manipulation, not an
+ *  animation) but nothing scales or fades. */
+export const flatPageFrame = (offset: number): PageFrame =>
+  ({ x: `${offset * 100}%`, scale: 1, opacity: 1 });
 
 // ── Shared swipe-gesture tuning ────────────────────────────────────────────────
 // One source of truth for every finger-tracked carousel in the app (the AppShell page

@@ -23,7 +23,7 @@ import { cn } from '@/lib/utils';
 //   devices (web and the Android WebView) and also makes rows mouse-draggable on web.
 // - The tray is revealed by GROWING a clipped container (width = drag distance) rather
 //   than sitting behind the card — translucent glass-style cards never leak the tray.
-// - Honours AppState.swipeActionsEnabled (Theme → Style → Gestures); when off, rows
+// - Honours AppState.swipeActionsEnabled (Appearance → Style → Gestures); when off, rows
 //   render exactly as before.
 
 export interface SwipeAction {

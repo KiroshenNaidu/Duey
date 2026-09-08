@@ -1,10 +1,9 @@
 'use client';
 import { useState, useEffect, useRef, useContext, useMemo, useCallback } from 'react';
-import type { ThemeSettings, UserTheme } from '@/lib/types';
+import type { ThemeSettings } from '@/lib/types';
 import { systemPresets } from '@/lib/systemThemes';
 import { RadialFxDemo } from '@/components/settings/RadialFxDemo';
 import { QuickMenuConfig } from '@/components/settings/QuickMenuConfig';
-import { PageTransitionDemo } from '@/components/settings/PageTransitionDemo';
 import { Switch } from '@/components/ui/switch';
 import { STATUS_COLOR_VARS, applyStatusColors } from '@/components/ThemeProvider';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -20,8 +19,6 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { SwipeTabView } from '@/components/SwipeTabView';
-import { HapticsCard } from '@/components/settings/HapticsCard';
-import { setHapticStrength } from '@/lib/haptics';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { showUndoToast } from '@/components/ui/undo-toast';
@@ -44,12 +41,10 @@ const defaultThemeSettings: Omit<ThemeSettings, 'backgroundImage' | 'backgroundV
   backgroundOpacity: 0.5,
   backgroundBlur: 0,
   uiScale: 1.0,
-  uiStyle: 'solid',
   useSafeAreaInsets: true,
   bgX: 50,
   bgY: 50,
   bgScale: 1,
-  glassOpacity: 0.55,
   positive: '161 50% 57%',
   negative: '0 70% 62%',
   catTransport: '217 91% 68%',
@@ -82,7 +77,7 @@ const areThemeSettingsEqual = (
   s1.background === s2.background && s1.surface === s2.surface &&
   s1.primary === s2.primary && s1.accent === s2.accent &&
   s1.foreground === s2.foreground && s1.accentForeground === s2.accentForeground &&
-  s1.font === s2.font && s1.uiScale === s2.uiScale && s1.uiStyle === s2.uiStyle &&
+  s1.font === s2.font && s1.uiScale === s2.uiScale &&
   (s1.bgX ?? 50) === (s2.bgX ?? 50) &&
   (s1.bgY ?? 50) === (s2.bgY ?? 50);
 
@@ -91,19 +86,17 @@ export function ThemeSettingsMenu({ onCancel, onDirtyChange, onSaved }: { onCanc
     themeSettings, setThemeSettings, userThemes, addUserTheme, deleteUserTheme, restoreUserTheme, setAppError,
     favouriteThemes, hiddenSystemPresets, setFavouriteThemes, setHiddenSystemPresets,
     quickAddFxId, setQuickAddFxId, quickAddShortcuts, setQuickAddShortcuts,
-    pageTransitionId, setPageTransitionId, swipeActionsEnabled, setSwipeActionsEnabled,
-    hapticsStrength, setHapticsStrength,
+    swipeActionsEnabled, setSwipeActionsEnabled,
   } = useContext(AppDataContext);
 
-  // Quick-add + preset + vibration drafts — same save-then-apply contract as the theme
-  // itself: edits live here (and drive the previews) but only reach app state on Save.
+  // Quick-add + preset drafts — same save-then-apply contract as the theme itself: edits
+  // live here (and drive the previews) but only reach app state on Save. Vibration is NOT
+  // among them any more: it moved out to the Settings hub, where it applies on tap.
   const [draftFxId, setDraftFxId] = useState(quickAddFxId);
   const [draftShortcuts, setDraftShortcuts] = useState<string[]>([...quickAddShortcuts]);
   const [draftFavourites, setDraftFavourites] = useState<string[]>([...favouriteThemes]);
   const [draftHidden, setDraftHidden] = useState<string[]>([...hiddenSystemPresets]);
-  const [draftPageTransitionId, setDraftPageTransitionId] = useState(pageTransitionId);
   const [draftSwipeActions, setDraftSwipeActions] = useState(swipeActionsEnabled);
-  const [draftHaptics, setDraftHaptics] = useState(hapticsStrength);
 
   const toggleDraftFavourite = (id: string) =>
     setDraftFavourites(f => f.includes(id) ? f.filter(x => x !== id) : [...f, id]);
@@ -165,9 +158,6 @@ export function ThemeSettingsMenu({ onCancel, onDirtyChange, onSaved }: { onCanc
       root.style.setProperty('--bg-y', `${saved.bgY ?? 50}%`);
       root.style.setProperty('--bg-scale', String(saved.bgScale ?? 1));
       root.style.setProperty('--bg-blur', `${saved.backgroundBlur ?? 0}px`);
-      root.style.setProperty('--glass-opacity', String(saved.glassOpacity ?? 0.55));
-      document.body.classList.remove('ui-glass', 'ui-minimal', 'ui-elevated');
-      if (saved.uiStyle !== 'solid') document.body.classList.add(`ui-${saved.uiStyle}`);
       document.body.style.zoom = `${saved.uiScale}`;
       const hadVideo = !!initialVideoRef.current;
       const bgDiv = document.getElementById('global-bg-image');
@@ -218,16 +208,8 @@ export function ThemeSettingsMenu({ onCancel, onDirtyChange, onSaved }: { onCanc
     root.style.setProperty('--bg-scale', String(previewTheme.bgScale ?? 1));
     root.style.setProperty('--bg-blur', `${previewTheme.backgroundBlur ?? 0}px`);
     document.body.classList.toggle('has-bg-image', hasBg);
-    document.body.classList.remove('ui-glass', 'ui-minimal', 'ui-elevated');
-    if (previewTheme.uiStyle !== 'solid') document.body.classList.add(`ui-${previewTheme.uiStyle}`);
     document.body.style.zoom = `${previewTheme.uiScale}`;
-    document.documentElement.style.setProperty('--glass-opacity', String(previewTheme.glassOpacity ?? 0.55));
   }, [previewTheme, isClient]);
-
-  const handleColorChange = (name: keyof Pick<ThemeSettings, 'background' | 'primary' | 'accent' | 'surface' | 'foreground' | 'accentForeground'>, value: string) => {
-    const hsl = hexToHsl(value);
-    if (hsl) setPreviewTheme(prev => ({ ...prev, [name]: hsl }));
-  };
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -300,12 +282,7 @@ export function ThemeSettingsMenu({ onCancel, onDirtyChange, onSaved }: { onCanc
       // Quick-add + preset drafts commit together with the theme — never before.
       setQuickAddFxId(draftFxId);
       setQuickAddShortcuts(draftShortcuts);
-      setPageTransitionId(draftPageTransitionId);
       setSwipeActionsEnabled(draftSwipeActions);
-      // Vibration commits with everything else — persist it AND push it to the haptics
-      // module now so the very next tick (and post-reload app) uses the saved strength.
-      setHapticsStrength(draftHaptics);
-      setHapticStrength(draftHaptics);
       // Hidden first (it prunes favourites for hidden presets), then favourites.
       setHiddenSystemPresets(draftHidden);
       setFavouriteThemes(draftFavourites);
@@ -346,14 +323,11 @@ export function ThemeSettingsMenu({ onCancel, onDirtyChange, onSaved }: { onCanc
       JSON.stringify(draftShortcuts) !== JSON.stringify(quickAddShortcuts) ||
       JSON.stringify(draftFavourites) !== JSON.stringify(favouriteThemes) ||
       JSON.stringify(draftHidden) !== JSON.stringify(hiddenSystemPresets) ||
-      draftPageTransitionId !== pageTransitionId ||
-      draftSwipeActions !== swipeActionsEnabled ||
-      draftHaptics !== hapticsStrength
+      draftSwipeActions !== swipeActionsEnabled
     );
   }, [previewTheme, draftFxId, quickAddFxId, draftShortcuts, quickAddShortcuts,
       draftFavourites, favouriteThemes, draftHidden, hiddenSystemPresets,
-      draftPageTransitionId, pageTransitionId, draftSwipeActions, swipeActionsEnabled,
-      draftHaptics, hapticsStrength]);
+      draftSwipeActions, swipeActionsEnabled]);
 
   useEffect(() => { onDirtyChange?.(isDirty); }, [isDirty, onDirtyChange]);
 
@@ -489,12 +463,6 @@ export function ThemeSettingsMenu({ onCancel, onDirtyChange, onSaved }: { onCanc
             <Check className="h-3 w-3 text-primary-foreground" />
           </div>
         )}
-        {settings.uiStyle === 'glass' && (
-          <span className="absolute bottom-2 left-2 text-[9px] font-semibold uppercase tracking-wider opacity-60"
-                style={{ color: hslToHex(...parseHsl(settings.foreground)) }}>
-            Glass
-          </span>
-        )}
       </button>
       <div className="flex items-center justify-between px-0.5 gap-1">
         <p className="text-xs font-medium truncate flex-1">{name}</p>
@@ -548,9 +516,6 @@ export function ThemeSettingsMenu({ onCancel, onDirtyChange, onSaved }: { onCanc
         </Button>
       </div>
 
-      {/* Vibration — drafted like everything else here; the Save bar above commits it. */}
-      <HapticsCard value={draftHaptics} onChange={setDraftHaptics} />
-
       <Tabs value={tab} onValueChange={(v) => goToTab(v as TabKey)} className="w-full">
         <TabsList className="grid w-full grid-cols-4 h-9">
           <TabsTrigger value="style" className="text-[11px]">Style</TabsTrigger>
@@ -594,122 +559,6 @@ export function ThemeSettingsMenu({ onCancel, onDirtyChange, onSaved }: { onCanc
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader className="pb-2"><CardTitle className="text-sm">UI Style</CardTitle></CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-2 gap-3">
-                {/* Solid */}
-                <button
-                  onClick={() => setPreviewTheme(p => ({ ...p, uiStyle: 'solid' }))}
-                  className={cn(
-                    'relative flex flex-col items-center gap-3 p-4 rounded-2xl border-2 transition-all',
-                    previewTheme.uiStyle === 'solid'
-                      ? 'border-primary bg-primary/5 sel-glow'
-                      : 'border-border hover:border-muted-foreground/30'
-                  )}
-                >
-                  {/* Mini preview */}
-                  <div className="w-full h-16 rounded-xl bg-card border border-accent/10 flex items-center justify-center shadow-sm">
-                    <div className="w-10 h-7 rounded-lg bg-primary/20 border border-primary/40" />
-                  </div>
-                  <span className="text-sm font-medium">Solid</span>
-                  {previewTheme.uiStyle === 'solid' && (
-                    <div className="absolute top-2.5 right-2.5 h-5 w-5 rounded-full bg-primary flex items-center justify-center">
-                      <Check className="h-3 w-3 text-primary-foreground" />
-                    </div>
-                  )}
-                </button>
-
-                {/* Glass */}
-                <button
-                  onClick={() => setPreviewTheme(p => ({ ...p, uiStyle: 'glass' }))}
-                  className={cn(
-                    'relative flex flex-col items-center gap-3 p-4 rounded-2xl border-2 transition-all',
-                    previewTheme.uiStyle === 'glass'
-                      ? 'border-primary bg-primary/5 sel-glow'
-                      : 'border-border hover:border-muted-foreground/30'
-                  )}
-                >
-                  <div className="w-full h-16 rounded-xl border border-accent/10 flex items-center justify-center overflow-hidden relative"
-                    style={{ background: 'linear-gradient(135deg, rgba(255,255,255,0.07) 0%, rgba(255,255,255,0.02) 100%)' }}>
-                    <div className="absolute inset-0" style={{ backdropFilter: 'blur(4px)' }} />
-                    <div className="w-10 h-7 rounded-lg border border-white/20 relative z-10"
-                      style={{ background: 'rgba(255,255,255,0.08)', backdropFilter: 'blur(8px)' }} />
-                  </div>
-                  <span className="text-sm font-medium">Glass</span>
-                  {previewTheme.uiStyle === 'glass' && (
-                    <div className="absolute top-2.5 right-2.5 h-5 w-5 rounded-full bg-primary flex items-center justify-center">
-                      <Check className="h-3 w-3 text-primary-foreground" />
-                    </div>
-                  )}
-                </button>
-
-                {/* Minimal */}
-                <button
-                  onClick={() => setPreviewTheme(p => ({ ...p, uiStyle: 'minimal' }))}
-                  className={cn(
-                    'relative flex flex-col items-center gap-3 p-4 rounded-2xl border-2 transition-all',
-                    previewTheme.uiStyle === 'minimal'
-                      ? 'border-primary bg-primary/5 sel-glow'
-                      : 'border-border hover:border-muted-foreground/30'
-                  )}
-                >
-                  <div className="w-full h-16 rounded-xl flex items-center justify-center">
-                    <div className="w-10 h-7 rounded-lg bg-primary/15" />
-                  </div>
-                  <span className="text-sm font-medium">Minimal</span>
-                  {previewTheme.uiStyle === 'minimal' && (
-                    <div className="absolute top-2.5 right-2.5 h-5 w-5 rounded-full bg-primary flex items-center justify-center">
-                      <Check className="h-3 w-3 text-primary-foreground" />
-                    </div>
-                  )}
-                </button>
-
-                {/* Elevated */}
-                <button
-                  onClick={() => setPreviewTheme(p => ({ ...p, uiStyle: 'elevated' }))}
-                  className={cn(
-                    'relative flex flex-col items-center gap-3 p-4 rounded-2xl border-2 transition-all',
-                    previewTheme.uiStyle === 'elevated'
-                      ? 'border-primary bg-primary/5 sel-glow'
-                      : 'border-border hover:border-muted-foreground/30'
-                  )}
-                >
-                  <div className="w-full h-16 rounded-xl bg-card flex items-center justify-center"
-                    style={{ boxShadow: '0 4px 12px rgba(0,0,0,0.5)' }}>
-                    <div className="w-10 h-7 rounded-lg bg-primary/20"
-                      style={{ boxShadow: '0 2px 6px rgba(0,0,0,0.3)' }} />
-                  </div>
-                  <span className="text-sm font-medium">Elevated</span>
-                  {previewTheme.uiStyle === 'elevated' && (
-                    <div className="absolute top-2.5 right-2.5 h-5 w-5 rounded-full bg-primary flex items-center justify-center">
-                      <Check className="h-3 w-3 text-primary-foreground" />
-                    </div>
-                  )}
-                </button>
-              </div>
-
-              {previewTheme.uiStyle === 'glass' && (
-                <div className="mt-4 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <Label className="text-xs">Glass Transparency</Label>
-                    <span className="text-xs tabular-nums text-muted-foreground">
-                      {Math.round((1 - (previewTheme.glassOpacity ?? 0.55)) * 100)}%
-                    </span>
-                  </div>
-                  <Slider
-                    value={[1 - (previewTheme.glassOpacity ?? 0.55)]}
-                    onValueChange={([v]) => setPreviewTheme(p => ({ ...p, glassOpacity: parseFloat((1 - v).toFixed(2)) }))}
-                    min={0.05}
-                    max={0.9}
-                    step={0.05}
-                  />
-                  <p className="text-[10px] text-muted-foreground">Higher = more see-through</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
           {/* Quick-add radial gesture effects — applies immediately (not part of theme save) */}
           <Card>
             <CardHeader className="pb-2">
@@ -727,16 +576,6 @@ export function ThemeSettingsMenu({ onCancel, onDirtyChange, onSaved }: { onCanc
             </CardHeader>
             <CardContent>
               <QuickMenuConfig value={draftShortcuts} onChange={setDraftShortcuts} />
-            </CardContent>
-          </Card>
-
-          {/* How the page carousel animates when swiping between the 4 main tabs */}
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm">Page Transition</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <PageTransitionDemo value={draftPageTransitionId} onChange={setDraftPageTransitionId} />
             </CardContent>
           </Card>
 

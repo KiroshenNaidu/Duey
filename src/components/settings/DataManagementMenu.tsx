@@ -465,6 +465,10 @@ export function DataManagementMenu() {
       s.expenses.forEach(e => {
         lines.push(`  ${formatDate(e.date)} — ${e.title}${e.category ? ` [${e.category}]` : ''}: R${e.amount}${e.note ? ` (${e.note})` : ''}`);
       });
+      lines.push('', '=== SAVINGS ===');
+      s.savings.forEach(e => {
+        lines.push(`  ${formatDate(e.createdAt)} — ${e.label}: R${e.amount} [cycle ${e.cycleKey}${e.source === 'auto' ? ', swept' : ''}]`);
+      });
       lines.push('', '=== BUDGET PLANS ===');
       s.budgetPlans.forEach(p => {
         const spent = p.items.reduce((s, i) => s + i.price, 0);
@@ -494,6 +498,12 @@ export function DataManagementMenu() {
       const expensesSheet = utils.json_to_sheet(s.expenses.map(e => ({ Date: formatDate(e.date), Title: e.title, Category: e.category ?? '', 'Amount (R)': e.amount, Note: e.note ?? '' })));
       expensesSheet['!cols'] = [{ wch: 12 }, { wch: 30 }, { wch: 16 }, { wch: 14 }, { wch: 30 }];
       utils.book_append_sheet(wb, expensesSheet, 'Expenses');
+
+      // Source is the column that matters here: 'auto' rows are cycle leftovers the app
+      // swept in, 'manual' rows are money the user moved themselves.
+      const savingsSheet = utils.json_to_sheet(s.savings.map(e => ({ Date: formatDate(e.createdAt), Label: e.label, Cycle: e.cycleKey, Source: e.source, 'Amount (R)': e.amount })));
+      savingsSheet['!cols'] = [{ wch: 12 }, { wch: 30 }, { wch: 10 }, { wch: 10 }, { wch: 14 }];
+      utils.book_append_sheet(wb, savingsSheet, 'Savings');
 
       const data = write(wb, { bookType: 'xlsx', type: 'array' });
       return new Blob([data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
@@ -642,6 +652,14 @@ export function DataManagementMenu() {
           ),
           new Paragraph({ text: '' }),
         ] : []),
+        ...(s.savings.length > 0 ? [
+          new Paragraph({ text: 'Savings', heading: HeadingLevel.HEADING_1 }),
+          make3ColTable(
+            ['Date', 'Label / Cycle', 'Amount (R)'],
+            s.savings.map(e => [formatDate(e.createdAt), `${e.label} [${e.cycleKey}${e.source === 'auto' ? ', swept' : ''}]`, `R ${e.amount.toFixed(2)}`] as [string, string, string])
+          ),
+          new Paragraph({ text: '' }),
+        ] : []),
         ...(employmentEntries.length > 0 || s.transportSettings.jobTitle || s.transportSettings.company ? [
           new Paragraph({ text: 'Employment', heading: HeadingLevel.HEADING_1 }),
           ...(s.transportSettings.jobTitle || s.transportSettings.company ? [
@@ -784,6 +802,21 @@ export function DataManagementMenu() {
         ]);
         const totalExpenses = s.expenses.reduce((a, e) => a + e.amount, 0);
         y = drawTable(doc, y, EXPENSE_COLS, expenseRows, ['', 'Total', `R  ${totalExpenses.toFixed(2)}`]);
+        y += 6;
+      }
+
+      // Savings — both the leftovers swept in at each cycle end and anything put away by
+      // hand, which no other section of the report accounts for.
+      if (s.savings.length > 0) {
+        const SAVINGS_COLS: ColDef[] = [{ header: 'Date', width: 28 }, { header: 'Label / Cycle', width: 110 }, { header: 'Amount (R)', width: 52, align: 'right' }];
+        sectionHeader('SAVINGS');
+        const savingsRows: RowData[] = s.savings.map(e => [
+          formatDate(e.createdAt),
+          `${e.label} [${e.cycleKey}${e.source === 'auto' ? ', swept' : ''}]`,
+          `R  ${e.amount.toFixed(2)}`,
+        ]);
+        const totalSaved = s.savings.reduce((a, e) => a + e.amount, 0);
+        y = drawTable(doc, y, SAVINGS_COLS, savingsRows, ['', 'Total', `R  ${totalSaved.toFixed(2)}`]);
         y += 6;
       }
 
@@ -1012,9 +1045,14 @@ export function DataManagementMenu() {
         idbGet<string>('backgroundVideo') ?? Promise.resolve(''),
         idbGet<string>('profileAvatar')   ?? Promise.resolve(''),
       ]);
+      // v3 adds the appearance/behaviour settings that arrived after v2: the day-night
+      // pairing, favourite and hidden presets, the quick-add radial's effect and shortcuts,
+      // swipe trays and haptic strength. They are settings, not data, so "all settings
+      // transfer between devices" was only true once they were in here. A v2 file simply
+      // lacks them, and the import leaves those alone rather than blanking them.
       return new Blob([JSON.stringify({
         type: 'duey-config',
-        v: 2,
+        v: 3,
         exportedAt: new Date().toISOString(),
         themeSettings:        s.themeSettings,
         userThemes:           s.userThemes,
@@ -1024,6 +1062,13 @@ export function DataManagementMenu() {
         monthlyIncome:        s.monthlyIncome,
         transportSettings:    s.transportSettings,
         notepadContent:       s.notepadContent,
+        dayNight:             s.dayNight,
+        favouriteThemes:      s.favouriteThemes,
+        hiddenSystemPresets:  s.hiddenSystemPresets,
+        quickAddFxId:         s.quickAddFxId,
+        quickAddShortcuts:    s.quickAddShortcuts,
+        swipeActionsEnabled:  s.swipeActionsEnabled,
+        hapticsStrength:      s.hapticsStrength,
         backgroundImage:      backgroundImage ?? '',
         backgroundVideo:      backgroundVideo ?? '',
         avatarImage:          avatarImage     ?? '',
@@ -1120,6 +1165,15 @@ export function DataManagementMenu() {
         if (data.monthlyIncome != null) partial.monthlyIncome       = data.monthlyIncome;
         if (data.transportSettings)    partial.transportSettings    = data.transportSettings;
         if (data.notepadContent != null) partial.notepadContent     = data.notepadContent;
+        // v3 settings. Each is applied only if the file carries it, so importing an older
+        // config never blanks a setting the file simply predates.
+        if (data.dayNight)             partial.dayNight             = data.dayNight;
+        if (data.favouriteThemes)      partial.favouriteThemes      = data.favouriteThemes;
+        if (data.hiddenSystemPresets)  partial.hiddenSystemPresets  = data.hiddenSystemPresets;
+        if (data.quickAddFxId)         partial.quickAddFxId         = data.quickAddFxId;
+        if (data.quickAddShortcuts?.length) partial.quickAddShortcuts = data.quickAddShortcuts;
+        if (typeof data.swipeActionsEnabled === 'boolean') partial.swipeActionsEnabled = data.swipeActionsEnabled;
+        if (data.hapticsStrength)      partial.hapticsStrength      = data.hapticsStrength;
         importData(partial);
       } else {
         // Strip the _meta envelope and image fields before passing to importData
@@ -1231,7 +1285,7 @@ export function DataManagementMenu() {
       <Card>
         <CardContent className="p-3 space-y-2">
           <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">User Config</p>
-          <p className="text-[10px] text-muted-foreground/70">All settings — themes, colours, wallpaper, profile, transport &amp; income config — transfer between devices</p>
+          <p className="text-[10px] text-muted-foreground/70">All settings — themes, colours, wallpaper, profile, transport &amp; income config, gestures &amp; haptics — transfer between devices</p>
           <div className="space-y-2 pt-1">
             <Button onClick={() => runExport('config', 'json', exportUserConfig)} className="w-full justify-start h-auto p-3 text-left">
               <Settings2 className="mr-3 h-4 w-4 shrink-0" />

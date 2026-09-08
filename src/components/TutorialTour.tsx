@@ -120,10 +120,10 @@ const STEPS: TourStep[] = [
   {
     id: 'profile',
     route: '/settings',
-    target: '[data-tour="tutorial-replay"]',
+    target: '[data-tour="settings-config"]',
     icon: SlidersHorizontal,
     title: 'Make it yours',
-    body: 'Settings holds themes, vibration and page animations. Data Management backs up and restores everything, and Notifications sets your payday reminder. And this row replays the tour whenever you want it.',
+    body: 'Settings & Configuration holds it all: your payday reminder, backups, the pay date your balance resets on, and every appearance setting. Replaying this tour lives in there too.',
     tip: 'You can always come back here',
   },
 ];

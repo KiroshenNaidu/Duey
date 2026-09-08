@@ -583,87 +583,6 @@ nav.fixed,
 }
 
 
-/* Glass UI Mode Styles - High Quality Frosted Look */
-.ui-glass .bg-card,
-.ui-glass .bg-popover,
-.ui-glass [role="dialog"],
-.ui-glass .bg-background[style*="--background"] {
-  background-color: hsla(var(--card) / var(--glass-opacity, 0.55)) !important;
-  backdrop-filter: blur(var(--glass-blur, 10px)) saturate(150%);
-  -webkit-backdrop-filter: blur(var(--glass-blur, 10px)) saturate(150%);
-  border: 1px solid hsla(var(--accent) / 0.15) !important;
-  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37) !important;
-}
-
-/* Tabs bar — always stays readable regardless of glass opacity slider */
-.ui-glass [role="tablist"] {
-  background-color: hsla(var(--card) / 0.88) !important;
-  backdrop-filter: blur(12px) saturate(150%);
-  -webkit-backdrop-filter: blur(12px) saturate(150%);
-}
-
-/* Navigation Bars and Floating Island Bars */
-.ui-glass nav.fixed,
-.ui-glass .fixed-bottom-bar {
-  background-color: hsla(var(--card) / var(--glass-opacity, 0.55)) !important;
-  backdrop-filter: blur(calc(var(--glass-blur, 10px) + 2px)) saturate(150%);
-  -webkit-backdrop-filter: blur(calc(var(--glass-blur, 10px) + 2px)) saturate(150%);
-  border-color: hsla(var(--accent) / 0.2) !important;
-}
-
-/* Semi-transparent Primary/Accent in Glass Mode */
-.ui-glass .bg-primary:not(.rounded-full) {
-  background-color: hsla(var(--primary) / 0.7) !important;
-  backdrop-filter: blur(12px);
-}
-
-.ui-glass .bg-accent:not(.rounded-full) {
-  background-color: hsla(var(--accent) / 0.7) !important;
-  backdrop-filter: blur(12px);
-}
-
-/* Enhanced legibility for glass mode */
-.ui-glass h1, 
-.ui-glass h2, 
-.ui-glass .text-foreground,
-.ui-glass .text-card-foreground,
-.ui-glass .text-base,
-.ui-glass .text-lg {
-    text-shadow: 0 1px 2px rgba(0,0,0,0.4);
-}
-
-.ui-glass .text-muted-foreground {
-    color: hsla(var(--foreground) / 0.7) !important;
-    text-shadow: 0 1px 1px rgba(0,0,0,0.3);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .ui-glass .bg-card,
-  .ui-glass .bg-popover,
-  .ui-glass [role="dialog"],
-  .ui-glass nav.fixed,
-  .ui-glass .fixed-bottom-bar {
-    backdrop-filter: none !important;
-    -webkit-backdrop-filter: none !important;
-    background-color: hsla(var(--card) / 0.92) !important;
-  }
-}
-
-/* Adaptive low-end devices: keep the glass look but make backdrop-filter cheaper
-   to composite (smaller blur radius, no saturate). Only applied when the runtime
-   probe in ThemeProvider flags a low-power device — flagships are untouched. */
-.low-power.ui-glass .bg-card,
-.low-power.ui-glass .bg-popover,
-.low-power.ui-glass [role="dialog"],
-.low-power.ui-glass [role="tablist"],
-.low-power.ui-glass nav.fixed,
-.low-power.ui-glass .fixed-bottom-bar,
-.low-power.ui-glass .bg-primary:not(.rounded-full),
-.low-power.ui-glass .bg-accent:not(.rounded-full) {
-  backdrop-filter: blur(6px) !important;
-  -webkit-backdrop-filter: blur(6px) !important;
-}
-
 /* Overlay blur — while any overlay (dialog, radial quick-add) is open, blur the whole
    app root with a real element filter instead of backdrop-filter on the overlay.
    backdrop-filter sampled page layers inconsistently (page titles stayed readable while
@@ -742,27 +661,6 @@ body.overlay-blur #app-root .liquid-fill .lf-wave {
 [data-page-offscreen] .stroke-animated,
 [data-page-offscreen] .liquid-fill .lf-wave {
   animation-play-state: paused !important;
-}
-
-/* Glass chrome (bottom nav, tab bar) sits OVER the scrolling content, so its live
-   backdrop-filter re-samples and re-blurs everything behind it on EVERY scroll/swipe
-   frame — the single biggest scroll cost in glass mode, and one the animation pause above
-   can't reach. At 120 Hz the frame budget halves (8.3ms), so this is exactly what tips a
-   smooth scroll into stutter. For the ~300ms a gesture runs (and under an open overlay,
-   where the whole app is already blurred in one static pass), swap the live blur for the
-   near-opaque fill reduced-motion already falls back to. The bars are 55–88% opaque card
-   colour to begin with, so the swap barely registers while your eyes track moving content,
-   and it turns a per-frame Gaussian into a static, compositor-cached layer. Restored the
-   instant motion stops. */
-body.perf-freeze.ui-glass nav.fixed,
-body.perf-freeze.ui-glass .fixed-bottom-bar,
-body.perf-freeze.ui-glass [role="tablist"],
-body.overlay-blur.ui-glass nav.fixed,
-body.overlay-blur.ui-glass .fixed-bottom-bar,
-body.overlay-blur.ui-glass [role="tablist"] {
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
-  background-color: hsla(var(--card) / 0.92) !important;
 }
 
 /* Skip layout/paint for off-screen rows in long history lists. `auto` caches the
@@ -879,7 +777,24 @@ body {
 @keyframes aurora-spin {
   to { --aurora-angle: 360deg; }
 }
-body:not(.ui-glass):not(.ui-minimal):not(.ui-elevated) .aurora-dialog {
+/* SPECIFICITY IS LOAD-BEARING on both aurora-dialog rules — the repeated class is not a
+   typo. DialogContent also carries Tailwind's `data-[state=open]:animate-in` and
+   `bg-background`, and these declarations have to outrank them:
+
+     .data-\[state\=open\]\:animate-in[data-state="open"]   (0,2,0)
+     .aurora-dialog                                        (0,1,0)   ← loses
+
+   Losing `background` would flatten the conic ring to a plain panel. Losing the animation
+   shorthand is worse and not obvious: `animate-in` sets only animation-name and
+   -duration, so the `infinite` from the shorthand below would survive and attach itself
+   to Tailwind's `enter` keyframes — the dialog then replays its zoom/fade entrance about
+   six times a second, forever, and cannot be used.
+
+   These used to outrank Tailwind by accident, via a `body:not(.ui-glass):not(.ui-minimal)
+   :not(.ui-elevated)` prefix that was there to exempt the UI-style modes. Those modes were
+   removed, the prefix went with them, and the entrance started looping. The intent is now
+   stated instead of being a side effect of an unrelated selector. */
+.aurora-dialog.aurora-dialog {
   border: 1.5px solid transparent;
   /* Inner solid panel (padding-box) sits over the conic ring (border-box); the ring
      only shows through the 1.5px transparent border. */
@@ -900,7 +815,7 @@ body:not(.ui-glass):not(.ui-minimal):not(.ui-elevated) .aurora-dialog {
   box-shadow: 0 10px 40px -12px hsl(var(--primary) / 0.28), 0 8px 24px rgba(0, 0, 0, 0.45);
 }
 @media (prefers-reduced-motion: no-preference) {
-  body:not(.ui-glass):not(.ui-minimal):not(.ui-elevated) .aurora-dialog {
+  .aurora-dialog.aurora-dialog.aurora-dialog {
     /* The delay is a PERF measure, not styling: the angle animates a paint property, so
        every frame of the spin repaints the dialog background on the main thread. Holding
        the ring static (initial 0deg paints once) until the dialog's ~200ms zoom/fade

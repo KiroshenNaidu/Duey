@@ -1,7 +1,9 @@
 'use client';
 
 import { useContext, useMemo, useState } from 'react';
+import { usePathname } from 'next/navigation';
 import { format } from 'date-fns';
+import { AnimatePresence, motion } from 'framer-motion';
 import { AppDataContext } from '@/context/AppDataContext';
 import { formatCurrency, cn } from '@/lib/utils';
 import {
@@ -11,8 +13,18 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { SavingsTrendCard } from '@/components/stats/CycleCharts';
+import { SwipeableRow } from '@/components/SwipeableRow';
+import { FixedPortal } from '@/components/FixedPortal';
+import { useFabLongPress, usePageFab, FAB_TOUCH_STYLE, FabPulse } from '@/components/QuickAdd';
+import { useReplayOnActive } from '@/hooks/useReplayOnActive';
 import { showUndoToast } from '@/components/ui/undo-toast';
-import { PiggyBank, Plus, Trash2, X, Sparkles } from 'lucide-react';
+import { hapticTap, hapticTick } from '@/lib/haptics';
+import type { SavingEntry } from '@/lib/types';
+import {
+  PiggyBank, Plus, Trash2, Sparkles, HandCoins, ChevronDown, TrendingUp, Trophy,
+} from 'lucide-react';
 
 /**
  * Stats → Savings. A ledger of money kept, filed by pay cycle.
@@ -29,7 +41,17 @@ import { PiggyBank, Plus, Trash2, X, Sparkles } from 'lucide-react';
  *   • AUTO leftovers never are. A leftover IS Remaining, already net of everything above
  *     it; deducting it as well would subtract the same money twice.
  * So a cycle's savings total reads "what I put away" + "what I had left", never one twice.
+ *
+ * The tab reads as three questions in order: how much is there (the hero, split by how it
+ * got there), what is this cycle adding (the forecast, against how far through the cycle
+ * it is), and where did each piece come from (the ledger, a cycle at a time).
  */
+
+// The two kinds of savings, in the same colours the trend chart stacks them in — so a bar
+// here and a column there are obviously the same two kinds of money.
+const AUTO_COLOR = 'hsl(var(--positive))';       // left over, swept at cycle end
+const MANUAL_COLOR = 'hsl(var(--cat-snapshot))'; // put away on purpose
+
 export function SavingsTab() {
   const { savings, userProfile, monthlyIncome, extraIncomes, expenses, budgetPlans, history, uberRides,
           transportSettings, transportOverrides, transportMonthlyOverrides,
@@ -39,14 +61,25 @@ export function SavingsTab() {
   const cycle = useMemo(() => getPayCycle(payDay), [payDay]);
   const cycleOptions = useMemo(() => listRecentCycles(payDay, 11), [payDay]);
 
-  const [adding, setAdding] = useState(false);
+  // The + FAB owns adding, exactly as it does on the money page: this tab's only add
+  // action is a manual entry, so it earns the page's FAB rather than a card of its own.
+  const pathname = usePathname();
+  const fabLongPress = useFabLongPress();
+  usePageFab(pathname === '/stats');   // stand the lightning FAB down while this one shows
+
+  const [addOpen, setAddOpen] = useState(false);
   const [amountStr, setAmountStr] = useState('');
   const [label, setLabel] = useState('');
   const [cycleKey, setCycleKey] = useState(cycle.key);
   const [error, setError] = useState('');
+  // Which ledger groups the user has explicitly opened or shut. Anything untouched follows
+  // the default: newest cycle open, older ones folded away.
+  const [openOverrides, setOpenOverrides] = useState<Record<string, boolean>>({});
 
-  const entries = savings ?? [];
+  const entries = useMemo(() => savings ?? [], [savings]);
   const total = entries.reduce((s, e) => s + e.amount, 0);
+  const autoTotal = entries.filter(e => e.source === 'auto').reduce((s, e) => s + e.amount, 0);
+  const manualTotal = total - autoTotal;
 
   // What this cycle is currently on course to bank, straight from the Balance calculator —
   // the same number the Remaining card shows, because it is the same number.
@@ -62,7 +95,7 @@ export function SavingsTab() {
   // Newest cycle first; entries inside a cycle newest first. Grouping by cycle is the whole
   // filing system — "what did I keep out of that pay?" is the question this tab answers.
   const groups = useMemo(() => {
-    const byCycle = new Map<string, typeof entries>();
+    const byCycle = new Map<string, SavingEntry[]>();
     for (const e of entries) {
       const list = byCycle.get(e.cycleKey);
       if (list) list.push(e); else byCycle.set(e.cycleKey, [e]);
@@ -78,12 +111,34 @@ export function SavingsTab() {
       }));
   }, [entries, payDay, cycle.key]);
 
+  const best = useMemo(
+    () => groups.reduce<(typeof groups)[number] | null>((b, g) => (!b || g.subtotal > b.subtotal ? g : b), null),
+    [groups],
+  );
+
   const submit = () => {
     const amt = parseFloat(amountStr);
     if (isNaN(amt) || amt <= 0) { setError('Enter a valid positive amount.'); return; }
+    hapticTap();
     addSaving(amt, cycleKey, label.trim() || 'Savings');
-    setAmountStr(''); setLabel(''); setCycleKey(cycle.key); setError(''); setAdding(false);
+    setAmountStr(''); setLabel(''); setCycleKey(cycle.key); setError(''); setAddOpen(false);
   };
+
+  // Reopening starts clean, and on the cycle you are actually in — a half-typed amount left
+  // over from a dialog you dismissed is never what you meant to add next time.
+  const onOpenChange = (open: boolean) => {
+    setAddOpen(open);
+    if (!open) { setAmountStr(''); setLabel(''); setCycleKey(cycle.key); setError(''); }
+  };
+
+  // Oldest first for the chart — `groups` is newest first, which is the right order for a
+  // ledger and the wrong one for a timeline.
+  const trend = useMemo(() => [...groups].reverse().map(g => ({
+    key: g.key,
+    manual: g.entries.filter(e => e.source === 'manual').reduce((s, e) => s + e.amount, 0),
+    auto:   g.entries.filter(e => e.source === 'auto').reduce((s, e) => s + e.amount, 0),
+  })), [groups]);
+  const ready = useReplayOnActive('/stats');
 
   const remove = (id: string) => {
     const item = entries.find(e => e.id === id);
@@ -93,166 +148,307 @@ export function SavingsTab() {
   };
 
   return (
+    <>
     <div className="space-y-3">
-      {/* Total */}
-      <div className="bg-card rounded-2xl p-4">
-        <div className="flex items-center gap-2 mb-2">
-          <PiggyBank className="h-4 w-4 text-[hsl(var(--positive))]" />
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Total Saved</p>
-        </div>
-        <p className="text-3xl font-bold text-[hsl(var(--positive))] tabular-nums leading-tight">
-          {formatCurrency(total)}
-        </p>
-        <p className="text-[10px] text-muted-foreground mt-1">
-          {entries.length === 0
-            ? 'Nothing banked yet'
-            : `${entries.length} entr${entries.length === 1 ? 'y' : 'ies'} across ${groups.length} cycle${groups.length === 1 ? '' : 's'}`}
-        </p>
-      </div>
-
-      {/* What the live cycle is on course to add. Framed as a forecast, never as banked
-          money: it only becomes an entry when the cycle actually ends with it intact. */}
-      <div className="bg-card rounded-2xl p-4">
-        <div className="flex items-center gap-2 mb-2">
-          <Sparkles className="h-4 w-4 text-accent" />
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">This Cycle</p>
-        </div>
-        {live.remaining > 0 ? (
-          <>
-            <p className="text-xl font-bold text-foreground tabular-nums leading-tight">
-              {formatCurrency(live.remaining)}
+      {/* ── Hero: the pile, and how it got there ─────────────────────────────── */}
+      <div className="bg-card rounded-3xl p-5">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Total saved</p>
+            <p className="text-[32px] leading-none font-bold text-[hsl(var(--positive))] tabular-nums mt-2 truncate">
+              {formatCurrency(total)}
             </p>
-            <p className="text-[10px] text-muted-foreground mt-1">
-              Left over so far — banked automatically on {format(cycle.end, 'd MMM')} if it survives the cycle.
+            <p className="text-[10px] text-muted-foreground mt-2">
+              {entries.length === 0
+                ? 'Nothing banked yet'
+                : `${entries.length} ${entries.length === 1 ? 'entry' : 'entries'} across ${groups.length} cycle${groups.length === 1 ? '' : 's'}`}
             </p>
-          </>
-        ) : (
-          <>
-            <p className="text-xl font-bold text-muted-foreground tabular-nums leading-tight">
-              {formatCurrency(0)}
-            </p>
-            <p className="text-[10px] text-muted-foreground mt-1">
-              {live.remaining < 0
-                ? `Over budget by ${formatCurrency(Math.abs(live.remaining))} — a cycle that ends short banks nothing.`
-                : 'Nothing left over yet this cycle.'}
-            </p>
-          </>
-        )}
-      </div>
-
-      {/* Add by hand */}
-      <div className="bg-card rounded-2xl p-4 space-y-2">
-        <div className="flex items-center justify-between">
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Add Savings</p>
-          {!adding && (
-            <button
-              onClick={() => setAdding(true)}
-              className="flex items-center gap-1 text-[10px] font-semibold text-foreground hover:text-foreground/70 transition-colors"
-            >
-              <Plus className="h-3 w-3" /> Add
-            </button>
-          )}
-        </div>
-
-        {!adding ? (
-          <p className="text-[10px] text-muted-foreground/60 italic">
-            Money you put away yourself — leftovers arrive on their own.
-          </p>
-        ) : (
-          <div className="space-y-2 pt-1">
-            <div className="space-y-1.5">
-              <Label className="text-xs">Amount</Label>
-              <Input
-                type="number" inputMode="decimal" placeholder="e.g., 1500"
-                value={amountStr} onChange={e => setAmountStr(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && submit()}
-                className="h-9 text-sm" autoFocus
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs">Label (optional)</Label>
-              <Input
-                placeholder="e.g., Emergency fund"
-                value={label} onChange={e => setLabel(e.target.value)}
-                className="h-9 text-sm"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs">Cycle</Label>
-              {/* Defaults to the cycle you are in — the overwhelmingly common case — with the
-                  last year of cycles available for money you are recording after the fact. */}
-              <Select value={cycleKey} onValueChange={setCycleKey}>
-                <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {cycleOptions.map(c => (
-                    <SelectItem key={c.key} value={c.key} className="text-xs">
-                      {c.label}{c.key === cycle.key ? ' · current' : ''}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            {error && <p className="text-[10px] text-destructive">{error}</p>}
-            <div className="flex gap-2">
-              <Button size="sm" onClick={submit} className="flex-1 h-8 text-xs">Add</Button>
-              <Button
-                size="sm" variant="ghost" className="h-8 text-xs px-2"
-                onClick={() => { setAdding(false); setAmountStr(''); setLabel(''); setCycleKey(cycle.key); setError(''); }}
-              >
-                <X className="h-3.5 w-3.5" />
-              </Button>
-            </div>
           </div>
+          <div
+            className="h-11 w-11 rounded-2xl grid place-items-center shrink-0"
+            style={{ background: 'hsl(var(--positive) / 0.14)' }}
+          >
+            <PiggyBank className="h-5 w-5 text-[hsl(var(--positive))]" />
+          </div>
+        </div>
+
+        {/* The split is the tab's premise made visible: for most cycles the swept half is
+            the story. Widths animate in on every visit, the same 700ms ease every other
+            bar in the app fills on. */}
+        {total > 0 && (
+          <>
+            <div className="flex h-2 w-full overflow-hidden rounded-full bg-secondary mt-4">
+              {autoTotal > 0 && (
+                <div
+                  className={cn('h-full first:rounded-l-full last:rounded-r-full', ready && 'transition-[width] duration-700')}
+                  style={{ width: `${ready ? (autoTotal / total) * 100 : 0}%`, background: AUTO_COLOR }}
+                />
+              )}
+              {manualTotal > 0 && (
+                <div
+                  className={cn('h-full first:rounded-l-full last:rounded-r-full', ready && 'transition-[width] duration-700')}
+                  style={{ width: `${ready ? (manualTotal / total) * 100 : 0}%`, background: MANUAL_COLOR }}
+                />
+              )}
+            </div>
+            <div className="flex items-center gap-4 mt-2.5">
+              <SplitKey color={AUTO_COLOR} label="Left over" value={autoTotal} />
+              <SplitKey color={MANUAL_COLOR} label="Put away" value={manualTotal} />
+            </div>
+          </>
         )}
       </div>
 
-      {/* The ledger */}
+      {/* ── This cycle's forecast ────────────────────────────────────────────────
+          Framed as a forecast, never as banked money: it only becomes an entry when the
+          cycle actually ends with it intact — so how far through the cycle you are sits
+          right under the figure. */}
+      <div className="bg-card rounded-2xl p-4">
+        <div className="flex items-center gap-2">
+          <Sparkles className="h-4 w-4 text-accent shrink-0" />
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">This cycle</p>
+          <span className="ml-auto text-[10px] font-semibold tabular-nums text-muted-foreground shrink-0">
+            {cycle.daysLeft} day{cycle.daysLeft === 1 ? '' : 's'} left
+          </span>
+        </div>
+
+        <p className={cn(
+          'text-2xl font-bold tabular-nums leading-tight mt-2',
+          live.remaining > 0 ? 'text-foreground' : 'text-muted-foreground',
+        )}>
+          {formatCurrency(Math.max(0, live.remaining))}
+        </p>
+
+        <div className="h-1 w-full rounded-full bg-secondary overflow-hidden mt-3">
+          <div
+            className={cn('h-full rounded-full', ready && 'transition-[width] duration-700')}
+            style={{ width: `${ready ? cycle.progress * 100 : 0}%`, background: 'hsl(var(--accent))' }}
+          />
+        </div>
+
+        <p className="text-[10px] text-muted-foreground mt-2">
+          {live.remaining > 0
+            ? `Left over so far, banked automatically on ${format(cycle.end, 'd MMM')} if it survives the cycle.`
+            : live.remaining < 0
+              ? `Over budget by ${formatCurrency(Math.abs(live.remaining))} — a cycle that ends short banks nothing.`
+              : 'Nothing left over yet this cycle.'}
+        </p>
+      </div>
+
+      {/* Two figures the ledger cannot show at a glance — only worth the space once there
+          is more than one cycle to compare. */}
+      {groups.length > 1 && best && (
+        <div className="grid grid-cols-2 gap-2">
+          <StatPill icon={TrendingUp} label="Avg / cycle" value={formatCurrency(total / groups.length)} />
+          <StatPill icon={Trophy} label="Best cycle" value={formatCurrency(best.subtotal)} sub={best.label} />
+        </div>
+      )}
+
+      <SavingsTrendCard cycles={trend} payDay={payDay} ready={ready} />
+
+      {/* ── The ledger ───────────────────────────────────────────────────────── */}
       {groups.length === 0 ? (
-        <div className="bg-card rounded-2xl p-4 text-center">
-          <p className="text-xs text-muted-foreground">No savings recorded yet.</p>
-          <p className="text-[10px] text-muted-foreground/60 mt-1">
-            Whatever is left when a cycle ends lands here on its own.
+        <div className="bg-card rounded-2xl p-6 text-center">
+          <div
+            className="h-10 w-10 rounded-2xl grid place-items-center mx-auto"
+            style={{ background: 'hsl(var(--positive) / 0.12)' }}
+          >
+            <PiggyBank className="h-5 w-5 text-[hsl(var(--positive))]" />
+          </div>
+          <p className="text-xs text-foreground mt-3">No savings recorded yet.</p>
+          <p className="text-[10px] text-muted-foreground/70 mt-1">
+            Whatever is left when a cycle ends lands here on its own — tap the + button to
+            add money you put away yourself.
           </p>
         </div>
       ) : (
-        groups.map(group => (
-          <div key={group.key} className="bg-card rounded-2xl p-4">
-            <div className="flex items-baseline justify-between gap-2 mb-1">
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide truncate">
-                {group.label}{group.isCurrent && <span className="text-accent"> · current</span>}
-              </p>
-              <p className="text-sm font-bold text-[hsl(var(--positive))] tabular-nums shrink-0">
-                {formatCurrency(group.subtotal)}
-              </p>
-            </div>
-            {group.entries.map(e => (
-              <div key={e.id} className="flex items-center justify-between gap-2 py-2 border-b border-border/30 last:border-0">
-                <div className="min-w-0">
-                  <p className="text-sm text-foreground truncate">{e.label}</p>
-                  {/* Where it came from, rather than a badge repeating the label: an auto
-                      entry is always labelled "Leftover", so a "leftover" chip beside it
-                      said the same word twice. */}
-                  <p className="text-[10px] text-muted-foreground/60 mt-0.5">
-                    {e.source === 'auto' ? 'Swept at cycle end · ' : ''}{format(new Date(e.createdAt), 'd MMM yyyy')}
+        <div className="space-y-2">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground px-1">Ledger</p>
+          {groups.map((group, i) => {
+            // Newest cycle open, the rest folded: older cycles are history you go looking
+            // for, not something to scroll past on every visit.
+            const open = openOverrides[group.key] ?? i === 0;
+            return (
+              <div key={group.key} className="bg-card rounded-2xl overflow-hidden">
+                <button
+                  onClick={() => { hapticTick(); setOpenOverrides(o => ({ ...o, [group.key]: !open })); }}
+                  aria-expanded={open}
+                  className="w-full flex items-center gap-2 p-3.5 text-left active:bg-muted/40 transition-colors"
+                >
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-semibold text-foreground truncate">
+                      {group.label}{group.isCurrent && <span className="text-accent"> · current</span>}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground/60 mt-0.5">
+                      {group.entries.length} {group.entries.length === 1 ? 'entry' : 'entries'}
+                    </p>
+                  </div>
+                  <p className="text-sm font-bold text-[hsl(var(--positive))] tabular-nums shrink-0">
+                    {formatCurrency(group.subtotal)}
                   </p>
-                </div>
-                <div className="flex items-center gap-1 shrink-0">
-                  <p className={cn('text-sm font-semibold tabular-nums', 'text-[hsl(var(--positive))]')}>
-                    +{formatCurrency(e.amount)}
-                  </p>
-                  <button
-                    onClick={() => remove(e.id)}
-                    className="p-1 rounded text-muted-foreground/40 hover:text-destructive hover:bg-destructive/10 transition-colors"
-                    aria-label={`Remove ${e.label}`}
-                  >
-                    <Trash2 className="h-3 w-3" />
-                  </button>
-                </div>
+                  <ChevronDown className={cn(
+                    'h-4 w-4 shrink-0 text-muted-foreground/60 transition-transform duration-200',
+                    open && 'rotate-180',
+                  )} />
+                </button>
+
+                <AnimatePresence initial={false}>
+                  {open && (
+                    <motion.div
+                      key={`${group.key}-entries`}
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: 'auto', opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={{ type: 'tween', ease: [0.25, 0.46, 0.45, 0.94], duration: 0.28 }}
+                      className="overflow-hidden"
+                    >
+                      <div className="px-2.5 pb-2.5 space-y-1.5">
+                        {group.entries.map(e => (
+                          <SavingRow key={e.id} entry={e} onDelete={remove} />
+                        ))}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
-            ))}
-          </div>
-        ))
+            );
+          })}
+        </div>
       )}
+    </div>
+
+    {/* The page's + FAB, same control the money page uses to add a debt: same position,
+        same pulse, same long-press-for-the-quick-add-radial. Pathname-gated because the
+        carousel keeps /stats mounted behind other pages, and this tab is only mounted
+        while Savings is the open tab — so the FAB is present exactly when it is useful. */}
+    {pathname === '/stats' && (
+      <FixedPortal>
+        <button
+          aria-label="Add savings"
+          onClick={() => setAddOpen(true)}
+          className="fab-blurable fixed left-1/2 -translate-x-1/2 h-12 w-12 rounded-full focus:outline-none transition-transform hover:scale-105 z-40"
+          style={{ bottom: 'calc(10px + var(--sab))', ...FAB_TOUCH_STYLE }}
+          {...fabLongPress}
+        >
+          <FabPulse><Plus className="h-5 w-5" /></FabPulse>
+        </button>
+      </FixedPortal>
+    )}
+
+    <Dialog open={addOpen} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-sm">
+        <DialogHeader>
+          <DialogTitle>Add savings</DialogTitle>
+          <DialogDescription>Money you put away yourself — leftovers arrive on their own.</DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-2.5">
+          <div className="space-y-1.5">
+            <Label className="text-xs">Amount</Label>
+            <Input
+              type="number" inputMode="decimal" placeholder="e.g., 1500"
+              value={amountStr} onChange={e => setAmountStr(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && submit()}
+              className="h-9 text-sm" autoFocus
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs">Label (optional)</Label>
+            <Input
+              placeholder="e.g., Emergency fund"
+              value={label} onChange={e => setLabel(e.target.value)}
+              className="h-9 text-sm"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs">Cycle</Label>
+            {/* Defaults to the cycle you are in — the overwhelmingly common case — with the
+                last year of cycles available for money recorded after the fact. */}
+            <Select value={cycleKey} onValueChange={setCycleKey}>
+              <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {cycleOptions.map(c => (
+                  <SelectItem key={c.key} value={c.key} className="text-xs">
+                    {c.label}{c.key === cycle.key ? ' · current' : ''}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          {error && <p className="text-[10px] text-destructive">{error}</p>}
+        </div>
+
+        <DialogFooter>
+          <Button onClick={submit} className="w-full h-9 text-xs">Add to savings</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+    </>
+  );
+}
+
+/** One ledger line. Swipe left to delete (the undo toast is the 5s safety net) or use the
+ *  button — the tray is absent entirely when swipe actions are off in settings. */
+function SavingRow({ entry, onDelete }: { entry: SavingEntry; onDelete: (id: string) => void }) {
+  const auto = entry.source === 'auto';
+  return (
+    <SwipeableRow
+      rightActions={[{ icon: Trash2, label: 'Delete', tone: 'destructive', onAction: () => onDelete(entry.id) }]}
+    >
+      <div className="flex items-center gap-2.5 rounded-xl bg-muted/25 px-3 py-2.5">
+        {/* Where it came from, as a mark rather than a badge repeating the label: an auto
+            entry is always labelled "Leftover", so a "leftover" chip beside it said the
+            same word twice. */}
+        <div
+          className="h-7 w-7 rounded-lg grid place-items-center shrink-0"
+          style={{ background: auto ? 'hsl(var(--positive) / 0.14)' : 'hsl(var(--cat-snapshot) / 0.16)' }}
+        >
+          {auto
+            ? <Sparkles className="h-3.5 w-3.5" style={{ color: AUTO_COLOR }} />
+            : <HandCoins className="h-3.5 w-3.5" style={{ color: MANUAL_COLOR }} />}
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm text-foreground truncate">{entry.label}</p>
+          <p className="text-[10px] text-muted-foreground/60 mt-0.5 truncate">
+            {auto ? 'Swept at cycle end · ' : ''}{format(new Date(entry.createdAt), 'd MMM yyyy')}
+          </p>
+        </div>
+        <p className="text-sm font-semibold tabular-nums text-[hsl(var(--positive))] shrink-0">
+          +{formatCurrency(entry.amount)}
+        </p>
+        <button
+          onClick={() => onDelete(entry.id)}
+          className="p-1.5 rounded-lg text-muted-foreground/40 hover:text-destructive hover:bg-destructive/10 transition-colors shrink-0"
+          aria-label={`Remove ${entry.label}`}
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+        </button>
+      </div>
+    </SwipeableRow>
+  );
+}
+
+function SplitKey({ color, label, value }: { color: string; label: string; value: number }) {
+  return (
+    <span className="flex items-center gap-1.5 min-w-0">
+      <span className="h-2 w-2 rounded-full shrink-0" style={{ background: color }} />
+      <span className="text-[10px] text-muted-foreground truncate">{label}</span>
+      <span className="text-[10px] font-semibold tabular-nums text-foreground shrink-0">{formatCurrency(value)}</span>
+    </span>
+  );
+}
+
+function StatPill({ icon: Icon, label, value, sub }: {
+  icon: React.ElementType; label: string; value: string; sub?: string;
+}) {
+  return (
+    <div className="bg-card rounded-2xl p-3">
+      <div className="flex items-center gap-1.5">
+        <Icon className="h-3.5 w-3.5 text-accent shrink-0" />
+        <p className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground truncate">{label}</p>
+      </div>
+      <p className="text-sm font-bold text-foreground tabular-nums mt-1.5 truncate">{value}</p>
+      {sub && <p className="text-[10px] text-muted-foreground/60 mt-0.5 truncate">{sub}</p>}
     </div>
   );
 }

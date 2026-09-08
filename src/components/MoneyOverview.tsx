@@ -23,6 +23,7 @@ export function MoneyOverview() {
   const [editingIncome, setEditingIncome] = useState(false);
   const [incomeInput, setIncomeInput] = useState('');
   const [excludedIds, setExcludedIds] = useState<Set<string>>(new Set());
+  const [showAllDeductions, setShowAllDeductions] = useState(false);
   const toggleExclude = (id: string) =>
     setExcludedIds(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
 
@@ -69,11 +70,21 @@ export function MoneyOverview() {
     { id: 'savings',   label: 'Savings (put away)',      value: savedThisCycle },
   ];
 
+  // Only what is actually coming off. A zero row states nothing — six of them state it
+  // six times — so they are dropped, and with nothing to deduct the card goes entirely.
+  // Rows tapped out are NOT dropped: their value is still real, so they stay visible (and
+  // struck through) or you could never tap them back in.
+  const activeDeductions = deductions.filter(d => d.value > 0);
+  // What the list actually shows: the ones with money in them, or every category once you
+  // ask. The toggle is only offered when there is something hidden to reveal.
+  const shownDeductions = showAllDeductions ? deductions : activeDeductions;
+  const hiddenCount = deductions.length - activeDeductions.length;
+
   // Effective total excludes tapped-out rows (local state only — no data is changed).
   // Derived from the rows themselves: the old version kept a second, parallel array of
   // amounts that had to stay in the same order as the ids by hand, so a new row could be
   // shown in one place and silently missed in the other.
-  const effectiveDeductions = deductions
+  const effectiveDeductions = activeDeductions
     .filter(d => !excludedIds.has(d.id))
     .reduce((s, d) => s + d.value, 0);
   const remaining = monthlyIncome + totalExtra - effectiveDeductions;
@@ -189,8 +200,10 @@ export function MoneyOverview() {
                     </span>
                   )}
                 </span>
-                {/* min-w-0 (not shrink-0): a huge amount must wrap inside the row, never widen it */}
-                <span className="text-xs font-semibold text-primary tabular-nums min-w-0 text-right">+{formatCurrency(item.amount)}</span>
+                {/* Muted: an individual extra is detail. The accent is spent on the total
+                    below, so the eye lands on the one number that matters.
+                    min-w-0 (not shrink-0): a huge amount must wrap inside the row, never widen it */}
+                <span className="text-xs font-semibold text-muted-foreground tabular-nums min-w-0 text-right">+{formatCurrency(item.amount)}</span>
                 <button
                   onClick={() => handleDeleteExtra(item.id)}
                   className="p-1 rounded text-muted-foreground/40 hover:text-destructive hover:bg-destructive/10 transition-colors shrink-0"
@@ -237,7 +250,7 @@ export function MoneyOverview() {
               <div className="flex justify-between items-baseline border-t border-border/40 pt-2 mt-1">
                 {/* Label shrink-0 so a huge total wraps instead of crushing it letter-by-letter */}
                 <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground shrink-0">Total Extra</span>
-                <span className="text-sm font-bold text-primary tabular-nums min-w-0 text-right">+{formatCurrency(totalExtra)}</span>
+                <span className="text-sm font-bold text-accent tabular-nums min-w-0 text-right">+{formatCurrency(totalExtra)}</span>
               </div>
             )}
           </div>
@@ -252,11 +265,22 @@ export function MoneyOverview() {
         </CardContent>
       </Card>
 
-      {/* Deductions */}
+      {/* Deductions — absent entirely until something is being deducted. */}
+      {activeDeductions.length > 0 && (
       <Card>
         <CardContent className="p-3 space-y-2">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Deductions</p>
-          {deductions.map(d => {
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Deductions</p>
+            {hiddenCount > 0 && (
+              <button
+                onClick={() => setShowAllDeductions(v => !v)}
+                className="text-[10px] font-semibold text-muted-foreground/60 hover:text-muted-foreground transition-colors shrink-0"
+              >
+                {showAllDeductions ? 'Show less' : 'Show all'}
+              </button>
+            )}
+          </div>
+          {shownDeductions.map(d => {
             const off = excludedIds.has(d.id);
             return (
               <button
@@ -268,7 +292,8 @@ export function MoneyOverview() {
                   {d.label}
                   {d.estimate && <span className="ml-1 text-[9px] font-medium text-muted-foreground/50">(estimate)</span>}
                 </span>
-                <span className={cn('text-sm font-semibold text-foreground tabular-nums min-w-0 text-right', off && 'line-through')}>
+                <span className={cn('text-sm font-semibold tabular-nums min-w-0 text-right', off && 'line-through',
+                  d.value > 0 ? 'text-foreground' : 'text-muted-foreground/50')}>
                   {d.value > 0 ? `−${formatCurrency(d.value)}` : formatCurrency(0)}
                 </span>
               </button>
@@ -282,6 +307,7 @@ export function MoneyOverview() {
           </div>
         </CardContent>
       </Card>
+      )}
 
       {/* Remaining */}
       <Card className={cn('border-2', remaining >= 0 ? 'border-accent/40' : 'border-destructive/40')}>

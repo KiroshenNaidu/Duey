@@ -1,6 +1,6 @@
 'use client';
 
-import { useContext, useMemo, useState } from 'react';
+import { useCallback, useContext, useMemo, useState } from 'react';
 import { AppDataContext } from '@/context/AppDataContext';
 import { formatCurrency, cn } from '@/lib/utils';
 import { DebtProgressCharts } from '@/components/DebtProgressCharts';
@@ -8,10 +8,18 @@ import { useReplayOnActive } from '@/hooks/useReplayOnActive';
 import { TransportStatusCard } from '@/components/TransportStatusCard';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { SavingsTab } from '@/components/SavingsTab';
-import { add, getDaysInMonth, isWeekend, startOfMonth } from 'date-fns';
-import { calculateGlobalStats, calculateLiveMonthly, displayProgressPct, getPayCycle, isTransportPaidForMonth } from '@/lib/calculations';
+import { add, format, getDaysInMonth, isWeekend, startOfMonth } from 'date-fns';
 import {
-  TrendingUp, Car, CreditCard, TrendingDown,
+  calculateGlobalStats, calculateLiveMonthly, calculateSealedCycleSummary, cycleKey,
+  cycleLabelFromKey, cycleStartFromKey, displayProgressPct, getPayCycle, isTransportPaidForMonth,
+  listRecentCycles, type MonthlyMoney,
+} from '@/lib/calculations';
+import {
+  CycleNavigatorCard, SpendBreakdownCard, cycleKeysBetween, sumMonthlyMoney,
+  type CyclePoint, type CycleSelection,
+} from '@/components/stats/CycleCharts';
+import {
+  TrendingUp, Car, CreditCard,
   ReceiptText, PiggyBank, ArrowUpRight, ArrowDownRight, BadgeDollarSign,
 } from 'lucide-react';
 
@@ -145,20 +153,80 @@ function IncomeCard() {
   );
 }
 
-// ─── NEW: Pay-cycle net overview ───────────────────────────────────────────────
+// ─── NEW: Pay-cycle section (picker + charts) ─────────────────────────────────
 
-function MonthlyOverviewCard() {
+/** The three figures the cycle comes down to, before any chart explains them. Over a span
+ *  of cycles they are that span's totals — and the per-cycle average is worth a line,
+ *  because "R42 000 out" means nothing until you know it covers six pays. */
+function CycleSummaryCard({ money, live, transportPaid, span }: {
+  money: MonthlyMoney; live: boolean; transportPaid: boolean; span: number;
+}) {
+  const positive = money.remaining >= 0;
+  return (
+    <div className="bg-card rounded-2xl p-4">
+      <div className="grid grid-cols-3 gap-2">
+        <Figure label="In" value={money.income} color="text-[hsl(var(--positive))]" />
+        <Figure label="Out" value={money.totalOutgoings} color="text-[hsl(var(--negative))]" />
+        <Figure
+          label="Net"
+          value={money.remaining}
+          color={positive ? 'text-[hsl(var(--positive))]' : 'text-[hsl(var(--negative))]'}
+          icon={positive ? ArrowUpRight : ArrowDownRight}
+        />
+      </div>
+      {/* One footnote rule, however many notes sit under it. */}
+      {(span > 1 || (live && !transportPaid)) && (
+        <div className="mt-3 pt-2.5 border-t border-border/30 space-y-1">
+          {span > 1 && (
+            <p className="text-[10px] text-muted-foreground/60">
+              Totals across {span} cycles · {formatCurrency(money.totalOutgoings / span)} out per cycle on average.
+            </p>
+          )}
+          {/* The one figure on this card that is not yet fact — worth saying so, and only
+              while the cycle is still open (a sealed cycle's transport is settled). */}
+          {live && !transportPaid && (
+            <p className="text-[10px] text-muted-foreground/60">
+              Transport is an estimate until it is marked paid.
+            </p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Figure({ label, value, color, icon: Icon }: {
+  label: string; value: number; color: string; icon?: React.ElementType;
+}) {
+  return (
+    <div className="min-w-0 text-center">
+      <p className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground flex items-center justify-center gap-1">
+        {Icon && <Icon className={cn('h-3 w-3', color)} />}
+        {label}
+      </p>
+      <p className={cn('text-sm font-bold tabular-nums truncate mt-1', color)}>{formatCurrency(value)}</p>
+    </div>
+  );
+}
+
+/**
+ * Everything that is measured per pay cycle, under one picker.
+ *
+ * The timeline is every cycle the app has sealed plus the one still running, oldest first.
+ * A sealed cycle reads its own stored snapshot rather than being recomputed, so a figure
+ * here is the figure that was on screen the day it sealed — recomputing drifts once
+ * one-time extras and expenses are purged. (Snapshots written before that field existed
+ * have none, and only those fall back to a recompute.)
+ */
+function CycleSection() {
   const {
     monthlyIncome, extraIncomes, expenses, budgetPlans, history, uberRides,
     transportSettings, transportOverrides, transportMonthlyOverrides, userProfile, savings,
   } = useContext(AppDataContext);
 
   const payDay = userProfile.paydayDay;
-  // Same live actuals the Balance tab shows (shared calculator) — reacts to edits and
-  // matches the seal, instead of the old planned-installment × 22-day estimate. The window
-  // is the current PAY CYCLE, so this card resets on pay day exactly as Balance does.
-  const monthly = useMemo(
-    () => calculateLiveMonthly({
+  const input = useMemo(
+    () => ({
       payDay, monthlyIncome, extraIncomes, expenses, budgetPlans, history, uberRides, savings,
       transportSettings, transportOverrides, transportMonthlyOverrides,
     }),
@@ -166,39 +234,88 @@ function MonthlyOverviewCard() {
      transportSettings, transportOverrides, transportMonthlyOverrides],
   );
   const cycle = useMemo(() => getPayCycle(payDay), [payDay]);
-  const positive = monthly.remaining >= 0;
+  // The same live calculator the Balance tab runs, so the open cycle's figures here and
+  // there can never disagree.
+  const live = useMemo(() => calculateLiveMonthly(input), [input]);
+
+  // Snapshots are dated to their cycle's last day, so the cycle is recoverable from it.
+  const snapshots = useMemo(() => {
+    const out = new Map<string, MonthlyMoney>();
+    for (const h of history) {
+      if (h.type !== 'snapshot' || !h.snapshot) continue;
+      const key = cycleKey(new Date(h.date), payDay);
+      if (!out.has(key)) out.set(key, { ...h.snapshot, savings: h.snapshot.savings ?? 0 });
+    }
+    return out;
+  }, [history, payDay]);
+
+  // Any cycle, named by key. A recompute for a cycle from before you had data still
+  // derives an income from today's salary, so "has income" proves nothing — `recorded`
+  // means it is running, it was sealed, or money actually left it.
+  const readCycle = useCallback((key: string) => {
+    if (key === cycle.key) return { money: live, recorded: true };
+    const snapshot = snapshots.get(key);
+    const money = snapshot ?? calculateSealedCycleSummary(input, key);
+    return { money, recorded: !!snapshot || money.totalOutgoings > 0 };
+  }, [cycle.key, live, snapshots, input]);
+
+  // The selection is a SPAN of cycle keys, not indices: the date picker can name cycles
+  // from any year, which no fixed window would have contained. null follows the running
+  // cycle, so a cycle rolling over never strands you on a stale one. Both ends the same key
+  // is a single cycle — the ordinary case, and what the chevrons and the chart produce.
+  const [picked, setPicked] = useState<{ fromKey: string; toKey: string } | null>(null);
+  const fromKey = picked?.fromKey ?? cycle.key;
+  const toKey = picked?.toKey ?? cycle.key;
+
+  const selected: CycleSelection = useMemo(() => {
+    const keys = cycleKeysBetween(fromKey, toKey, payDay);
+    const read = keys.map(readCycle);
+    return {
+      fromKey: keys[0],
+      toKey: keys[keys.length - 1],
+      keys,
+      // A span is named by the days it actually covers; a single cycle keeps its own label.
+      label: keys.length === 1
+        ? (keys[0] === cycle.key ? cycle.label : cycleLabelFromKey(keys[0], payDay))
+        : `${format(cycleStartFromKey(keys[0], payDay), 'd MMM')} – ${format(getPayCycle(payDay, cycleStartFromKey(keys[keys.length - 1], payDay)).lastDay, 'd MMM yyyy')}`,
+      live: keys.includes(cycle.key),
+      recorded: read.some(r => r.recorded),
+      // Every figure on a cycle is a flow over that window, so a span is simply their sum.
+      money: keys.length === 1 ? read[0].money : sumMonthlyMoney(read.map(r => r.money)),
+    };
+  }, [fromKey, toKey, readCycle, cycle.key, cycle.label, payDay]);
+
+  // A rolling year for the trend chart only — it bounds what is DRAWN, never what can be
+  // selected.
+  const points: CyclePoint[] = useMemo(
+    () => listRecentCycles(payDay, 11).slice().reverse().map(c => {
+      const { money, recorded } = readCycle(c.key);
+      return { key: c.key, label: c.label, live: c.key === cycle.key, recorded, money };
+    }),
+    [payDay, readCycle, cycle.key],
+  );
+
+  const ready = useReplayOnActive('/stats');
   const transportPaid = isTransportPaidForMonth(history, new Date());
 
   return (
-    <div className="bg-card rounded-2xl p-4">
-      <div className="flex items-baseline justify-between gap-2 mb-2">
-        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Cycle Snapshot</p>
-        <p className="text-[10px] text-muted-foreground/60 shrink-0">{cycle.label}</p>
-      </div>
-      <StatRow label="Income"        value={formatCurrency(monthly.income)}      color="text-[hsl(var(--positive))]" />
-      <StatRow label="Expenses"      value={`− ${formatCurrency(monthly.expenses)}`}  color="text-[hsl(var(--negative))]" sub={`${expenses.length} item${expenses.length !== 1 ? 's' : ''}`} />
-      <StatRow label="Debt payments" value={`− ${formatCurrency(monthly.debt)}`}      color="text-[hsl(var(--cat-budget))]" sub="logged this cycle" />
-      <StatRow label="Transport"     value={`− ${formatCurrency(monthly.transport)}`} color="text-[hsl(var(--cat-transport))]" sub={transportPaid ? undefined : 'estimate · not yet paid'} />
-      {monthly.uber > 0 && (
-        <StatRow label="Uber / rides" value={`− ${formatCurrency(monthly.uber)}`} color="text-[hsl(var(--cat-transport))]" />
-      )}
-      {monthly.budget > 0 && (
-        <StatRow label="Budget" value={`− ${formatCurrency(monthly.budget)}`} color="text-[hsl(var(--cat-completion))]" />
-      )}
-      {monthly.savings > 0 && (
-        <StatRow label="Savings" value={`− ${formatCurrency(monthly.savings)}`} color="text-[hsl(var(--positive))]" sub="put away this cycle" />
-      )}
-      <div className="flex items-center justify-between pt-2 mt-1 border-t border-border/40">
-        <div className="flex items-center gap-1.5">
-          {positive
-            ? <ArrowUpRight className="h-4 w-4 text-[hsl(var(--positive))]" />
-            : <ArrowDownRight className="h-4 w-4 text-[hsl(var(--negative))]" />}
-          <p className="text-sm font-bold text-foreground">Net</p>
-        </div>
-        <p className={cn('text-base font-bold', positive ? 'text-[hsl(var(--positive))]' : 'text-[hsl(var(--negative))]')}>
-          {formatCurrency(monthly.remaining)}
-        </p>
-      </div>
+    <div className="space-y-2">
+      <SectionLabel>{selected.keys.length > 1 ? 'Pay cycles' : 'Pay cycle'}</SectionLabel>
+      <CycleNavigatorCard
+        selected={selected}
+        points={points}
+        liveKey={cycle.key}
+        payDay={payDay}
+        onSelectRange={(a, b) => setPicked({ fromKey: a, toKey: b })}
+        ready={ready}
+      />
+      <CycleSummaryCard
+        money={selected.money}
+        live={selected.live}
+        transportPaid={transportPaid}
+        span={selected.keys.length}
+      />
+      <SpendBreakdownCard money={selected.money} ready={ready} />
     </div>
   );
 }
@@ -300,7 +417,7 @@ function TransportExtrasCard() {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export function StatsPage() {
-  const { debts, history, expenses, budgetPlans } = useContext(AppDataContext);
+  const { debts, expenses, budgetPlans } = useContext(AppDataContext);
   const [activeTab, setActiveTab] = useState('overview');
 
   return (
@@ -319,6 +436,10 @@ export function StatsPage() {
         </TabsContent>
 
         <TabsContent value="overview" className="space-y-3">
+
+      {/* Dated content first — the picker at its head re-dates everything down to the
+          trend chart. Everything below that section is all-time or as-things-stand-now. */}
+      <CycleSection />
 
       {/* ── ORIGINAL LAYOUT ── */}
       <DebtHeroCard />
@@ -341,11 +462,6 @@ export function StatsPage() {
       <div className="space-y-2 pt-1">
         <SectionLabel>Income</SectionLabel>
         <IncomeCard />
-      </div>
-
-      <div className="space-y-2">
-        <SectionLabel>Monthly Overview</SectionLabel>
-        <MonthlyOverviewCard />
       </div>
 
       {expenses.length > 0 && (

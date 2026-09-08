@@ -8,7 +8,7 @@ import { AppDataContext } from '@/context/AppDataContext';
 import { warmBackgroundChunks } from '@/lib/prefetch';
 import { acquirePerfFreeze, releasePerfFreeze } from '@/lib/perfFreeze';
 import {
-  pageProgress, getPageTransition, type PageTransitionPreset,
+  pageProgress, pageFrame, flatPageFrame, type PageFrame,
   SWIPE_SETTLE_SPRING as SETTLE_SPRING,
   SWIPE_PROJECTION_MS as PROJECTION_MS,
   SWIPE_COMMIT_FRACTION as COMMIT_FRACTION,
@@ -105,7 +105,7 @@ function isOverlayOpen(): boolean {
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { navGuard, pageSwipeLocked, pageTransitionId } = useContext(AppDataContext);
+  const { navGuard, pageSwipeLocked } = useContext(AppDataContext);
   const reduceMotion = useReducedMotion();
 
   const pathnameRef = useRef(pathname);
@@ -126,7 +126,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   // Under reduced motion the pages still track the finger (direct manipulation, not an
   // animation), but the transition style stays a plain flat slide.
-  const preset = getPageTransition(reduceMotion ? 'slide' : pageTransitionId);
+  const frame = reduceMotion ? flatPageFrame : pageFrame;
   const containerRef = useRef<HTMLDivElement | null>(null);
   // Held for the whole swipe+settle window so the ambient decorative loops pause and
   // don't fight the finger-tracked pager for the main thread (see perfFreeze.ts).
@@ -502,7 +502,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         }}
       >
         {PAGES.map(({ href, element }, i) => (
-          <CarouselPage key={href} index={i} active={i === activeIdx} preset={preset}>
+          <CarouselPage key={href} index={i} active={i === activeIdx} frame={frame}>
             {element}
           </CarouselPage>
         ))}
@@ -514,14 +514,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   );
 }
 
-/** Compose one page's inline styles for a given carousel position. Perspective is baked
- *  into the element's own transform (only 3D presets need it), matching what framer's
- *  transformPerspective produced before. */
-function frameStyles(preset: PageTransitionPreset, index: number, p: number) {
-  const f = preset.frame(index - p);
-  const perspective = preset.threeD ? 'perspective(1100px) ' : '';
+/** Compose one page's inline styles for a given carousel position. */
+function frameStyles(frame: (offset: number) => PageFrame, index: number, p: number) {
+  const f = frame(index - p);
   return {
-    transform: `${perspective}translateX(${f.x}) scale(${f.scale}) rotateY(${f.rotateY}deg)`,
+    transform: `translateX(${f.x}) scale(${f.scale})`,
     opacity: f.opacity,
     visibility: (Math.abs(index - p) < VISIBLE_RANGE ? 'visible' : 'hidden') as 'visible' | 'hidden',
   };
@@ -540,15 +537,15 @@ function frameStyles(preset: PageTransitionPreset, index: number, p: number) {
  * (their `active` flipped) — and thanks to the stable children elements even those
  * re-renders stop at this wrapper div instead of descending into the page tree.
  */
-const CarouselPage = memo(function CarouselPage({ index, active, preset, children }: {
+const CarouselPage = memo(function CarouselPage({ index, active, frame, children }: {
   index: number;
   active: boolean;
-  preset: PageTransitionPreset;
+  frame: (offset: number) => PageFrame;
   children: React.ReactNode;
 }) {
   const ref = useRef<HTMLDivElement | null>(null);
-  const presetRef = useRef(preset);
-  presetRef.current = preset;
+  const frameRef = useRef(frame);
+  frameRef.current = frame;
 
   useLayoutEffect(() => {
     // Last committed visibility. `null` until the first apply, so a preset change (which
@@ -564,7 +561,7 @@ const CarouselPage = memo(function CarouselPage({ index, active, preset, childre
       // screen. Android's touchscreen samples well above the refresh rate, so this is
       // several style invalidations saved per FRAME on a 120 Hz drag.
       if (nowOffscreen && offscreen === true) return;
-      const s = frameStyles(presetRef.current, index, p);
+      const s = frameStyles(frameRef.current, index, p);
       el.style.transform = s.transform;
       el.style.opacity = String(s.opacity);
       el.style.visibility = s.visibility;
@@ -575,9 +572,9 @@ const CarouselPage = memo(function CarouselPage({ index, active, preset, childre
         el.toggleAttribute('data-page-offscreen', nowOffscreen);
       }
     };
-    apply(pageProgress.get()); // first paint, and re-style immediately on preset change
+    apply(pageProgress.get()); // first paint, and re-style immediately on frame change
     return pageProgress.on('change', apply);
-  }, [index, preset]);
+  }, [index, frame]);
 
   // First-paint frame, FROZEN at mount. The style prop must present the exact same
   // frame values on every render so React's diff never rewrites transform/opacity/
@@ -586,7 +583,7 @@ const CarouselPage = memo(function CarouselPage({ index, active, preset, childre
   // captured mid-settle values, and by the time that commit reached the DOM the spring
   // had finished — React stamped the stale mid-swipe frame back on with nothing left
   // running to correct it, leaving the outgoing page half-visible under the new one.)
-  const initialFrame = useRef(frameStyles(preset, index, pageProgress.get())).current;
+  const initialFrame = useRef(frameStyles(frame, index, pageProgress.get())).current;
 
   return (
     <div

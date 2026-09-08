@@ -7,11 +7,13 @@ import { cn } from '@/lib/utils';
 // Vibration feedback picker — Off / Light / Medium / Strong, matching the standard
 // haptic-strength options on Android.
 //
-// PRESENTATIONAL ONLY: it does not persist anything. The parent owns the value and, like
-// every other control in the Settings/Theme editor, only commits it to app state on Save.
+// PRESENTATIONAL ONLY: it does not persist anything — the parent owns the value. It used
+// to be drafted inside the theme editor and committed by its Save bar; it now lives on the
+// Settings hub, whose owner applies each pick immediately.
+//
 // Picking a strength previews it with a one-off tick at that strength (temporarily nudging
-// the module strength, then restoring the live value) so the choice can be felt without
-// changing what the rest of the app currently uses.
+// the module strength, then restoring the live value) so the choice can be felt even when
+// the parent has not applied it yet.
 
 const OPTIONS: { id: HapticStrength; label: string }[] = [
   { id: 'off',    label: 'Off' },

@@ -11,8 +11,8 @@ const Card = React.forwardRef<
     className={cn(
       // Flat shell — no border/shadow, and the same 1rem corners as the app's hand-rolled
       // `bg-card rounded-2xl` cards (Stats, Profile hero, Settings menu). Cards that want
-      // an outline opt in with explicit `border border-*` classes; glass mode adds its own
-      // via .ui-glass. Radius overrides (rounded-3xl etc.) still win through twMerge.
+      // an outline opt in with explicit `border border-*` classes. Radius overrides
+      // (rounded-3xl etc.) still win through twMerge.
       "rounded-2xl bg-card text-card-foreground",
       className
     )}

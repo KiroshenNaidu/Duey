@@ -3,7 +3,7 @@
 // permission the bare Vibration API silently lacked. In a plain browser it falls back
 // to navigator.vibrate where available, and no-ops everywhere else.
 //
-// Strength is user-configurable (Settings → Vibration): off / light / medium / strong,
+// Strength is user-configurable (Settings & Configuration → Vibration): off / light / medium / strong,
 // mapped to the platform-standard impact styles (Light / Medium / Heavy) so it matches
 // what every other app's "haptic strength" slider does. AppDataContext pushes the saved
 // value in via setHapticStrength on load and whenever the setting changes.

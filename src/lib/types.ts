@@ -161,8 +161,6 @@ export interface ThemeSettings {
   foreground: string;
   accentForeground: string;
   uiScale: number;
-  uiStyle: 'solid' | 'glass' | 'minimal' | 'elevated';
-  glassOpacity?: number; // 0.1–0.95, only used when uiStyle === 'glass'
   useSafeAreaInsets?: boolean;
   bgX?: number; // 0–100, default 50 (background-position-x %)
   bgY?: number; // 0–100, default 50 (background-position-y %)
@@ -251,8 +249,6 @@ export interface AppState {
   /** Ordered shortcut ids shown in the quick-add radial (see lib/quickShortcuts.ts).
    *  Order = position along the arc. Min 1, max 7 (enforced in AppDataContext). */
   quickAddShortcuts: string[];
-  /** Selected page-swipe transition preset (see lib/pageTransitions.ts). */
-  pageTransitionId: string;
   /** Swipe-to-reveal action trays on list cards (see components/SwipeableRow.tsx). */
   swipeActionsEnabled: boolean;
   /** Vibration feedback strength for buttons/gestures (see lib/haptics.ts). */

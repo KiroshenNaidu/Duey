@@ -59,9 +59,18 @@ function PresetChips({ label, icon, options, selectedId, onPick }: {
   );
 }
 
-export function DayNightToggle() {
+export function DayNightToggle({ embedded = false, onExpandedChange }: {
+  /** Rendered as the bottom row of another card (the Profile hero) rather than as its own
+   *  card: drops the card shell and separates itself with a hairline instead. */
+  embedded?: boolean;
+  /** Lets that host card square its own bottom corners while the picker is open, so the
+   *  panel floating out from under it reads as the same surface. */
+  onExpandedChange?: (open: boolean) => void;
+} = {}) {
   const { themeSettings, setThemeSettings, userThemes, dayNight, setDayNight, favouriteThemes } = useContext(AppDataContext);
   const [expanded, setExpanded] = useState(false);
+
+  const setOpen = (open: boolean) => { setExpanded(open); onExpandedChange?.(open); };
 
   // Full catalogue — used to resolve/apply an already-bound theme even if it was unstarred.
   const options: PresetOption[] = useMemo(() => [
@@ -69,7 +78,7 @@ export function DayNightToggle() {
     ...userThemes.map(t => ({ id: t.id, name: `${t.name} (yours)`, settings: t.settings })),
   ], [userThemes]);
 
-  // Only starred themes are offered as chips (star them in Theme → Presets).
+  // Only starred themes are offered as chips (star them in Appearance → Presets).
   const favouriteOptions = useMemo(
     () => options.filter(o => favouriteThemes.includes(o.id)),
     [options, favouriteThemes],
@@ -90,7 +99,7 @@ export function DayNightToggle() {
   const handleToggle = () => {
     const nextMode = dayNight.mode === 'day' ? 'night' : 'day';
     const targetId = nextMode === 'day' ? dayNight.dayThemeId : dayNight.nightThemeId;
-    if (!targetId) { setExpanded(true); return; }
+    if (!targetId) { setOpen(true); return; }
     applyThemeById(targetId);
     setDayNight({ ...dayNight, mode: nextMode });
   };
@@ -110,7 +119,11 @@ export function DayNightToggle() {
     <div className="relative">
       {/* Bottom corners square off while open so the floating panel below reads as one
           connected drop-down surface. */}
-      <div className={cn('bg-card rounded-2xl transition-[border-radius] duration-300', expanded && 'rounded-b-none')}>
+      <div className={cn(
+        'transition-[border-radius] duration-300',
+        embedded ? 'border-t border-border/40' : 'bg-card rounded-2xl',
+        expanded && !embedded && 'rounded-b-none',
+      )}>
         {/* Two big tap zones for small screens: the whole row opens/closes the config
             panel; the padded block around the switch flips day/night. Padding lives on
             the zones (not the card) so each target reaches the card edges. Each zone gets
@@ -118,10 +131,13 @@ export function DayNightToggle() {
             content) so pressing one half never draws a hard seam against the other. */}
         <div className="flex items-stretch">
           <button
-            onClick={() => setExpanded(v => !v)}
+            onClick={() => setOpen(!expanded)}
             aria-expanded={expanded}
             aria-label="Configure day/night themes"
-            className="group relative flex flex-1 min-w-0 items-center gap-4 p-3 pr-2 text-left rounded-l-2xl transition-transform active:scale-[0.98]"
+            className={cn(
+              'group relative flex flex-1 min-w-0 items-center gap-4 p-3 pr-2 text-left transition-transform active:scale-[0.98]',
+              embedded ? 'rounded-bl-2xl' : 'rounded-l-2xl',
+            )}
           >
             <span aria-hidden className="tap-glow opacity-0 transition-opacity duration-200 group-active:opacity-100" />
             {dayNight.mode === 'day'
@@ -143,7 +159,10 @@ export function DayNightToggle() {
               switch never double-fires; keyboard users still toggle the Switch itself. */}
           <div
             onClick={handleToggle}
-            className="group relative flex items-center shrink-0 p-3 pl-2 cursor-pointer rounded-r-2xl transition-transform active:scale-[0.98]"
+            className={cn(
+              'group relative flex items-center shrink-0 p-3 pl-2 cursor-pointer transition-transform active:scale-[0.98]',
+              embedded ? 'rounded-br-2xl' : 'rounded-r-2xl',
+            )}
           >
             <span aria-hidden className="tap-glow opacity-0 transition-opacity duration-200 group-active:opacity-100" />
             {/* Same goo Switch used everywhere else — daynight-switch variant keeps the track
@@ -177,7 +196,7 @@ export function DayNightToggle() {
               {favouriteOptions.length === 0 ? (
                 <p className="text-xs text-muted-foreground">
                   No favourite themes yet. Star themes in{' '}
-                  <span className="font-semibold text-foreground">Theme → Presets</span>{' '}
+                  <span className="font-semibold text-foreground">Settings &rarr; Appearance &rarr; Presets</span>{' '}
                   (<Star className="inline h-3 w-3 -mt-0.5 text-yellow-400 fill-yellow-400" />) and they&apos;ll show up here to pick from.
                 </p>
               ) : (

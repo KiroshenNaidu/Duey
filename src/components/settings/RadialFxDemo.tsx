@@ -9,7 +9,7 @@ import { hapticTick } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
 import { Zap, CreditCard, Receipt, BadgeDollarSign, Car, Check } from 'lucide-react';
 
-// Live playground for the quick-add radial effects (Theme → Style). A dummy FAB you can
+// Live playground for the quick-add radial effects (Appearance → Style). A dummy FAB you can
 // actually hold + flick, running the exact same aim math as the real menu but selecting
 // nothing — flicking an item just flashes a check and resets.
 //
@@ -292,9 +292,9 @@ export function RadialFxDemo({ value, onChange }: {
                       animate={{ x: item.x, y: item.y, scale: 1, opacity: somethingAimed && !isAimed ? fx.dimOthers : 1 }}
                       exit={{ x: 0, y: 0, scale: 0.2, opacity: 0 }}
                       transition={{
-                        x: { type: 'spring', ...(fx.elasticFan ? { stiffness: 500, damping: 15 } : { stiffness: 550, damping: 30 }), delay: i * 0.028 },
-                        y: { type: 'spring', ...(fx.elasticFan ? { stiffness: 500, damping: 15 } : { stiffness: 550, damping: 30 }), delay: i * 0.028 },
-                        scale: { type: 'spring', ...(fx.elasticFan ? { stiffness: 500, damping: 15 } : { stiffness: 550, damping: 30 }), delay: i * 0.028 },
+                        x: { type: 'spring', stiffness: 550, damping: 30, delay: i * 0.028 },
+                        y: { type: 'spring', stiffness: 550, damping: 30, delay: i * 0.028 },
+                        scale: { type: 'spring', stiffness: 550, damping: 30, delay: i * 0.028 },
                         opacity: { duration: 0.12 },
                       }}
                       className="absolute"
@@ -309,14 +309,8 @@ export function RadialFxDemo({ value, onChange }: {
                           x: (item.x / DEMO_RADIUS) * pull,
                           y: (item.y / DEMO_RADIUS) * pull,
                           scale: isFlash ? 1.3 : isAimed ? fx.hoverScale : 1,
-                          rotate: fx.wobble && isAimed ? [0, -5, 5, -3, 0] : 0,
                         }}
-                        transition={{
-                          type: 'spring', stiffness: 600, damping: 30,
-                          rotate: fx.wobble && isAimed
-                            ? { duration: 0.45, repeat: Infinity, ease: 'easeInOut' }
-                            : { duration: 0.15 },
-                        }}
+                        transition={{ type: 'spring', stiffness: 600, damping: 30 }}
                         style={fx.hoverGlow && (isAimed || isFlash) ? { boxShadow: '0 0 16px 3px hsl(var(--accent) / 0.45)' } : undefined}
                       >
                         {/* Aimed tint as an overlay, never as a bg-* class next to bg-card:

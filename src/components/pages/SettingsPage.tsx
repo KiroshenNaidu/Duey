@@ -4,10 +4,13 @@ import { useState, useContext, useEffect, useRef } from 'react';
 import dynamic from 'next/dynamic';
 import { usePathname, useRouter } from 'next/navigation';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Database, Bell, ChevronLeft, User, Pencil, History, SlidersHorizontal, GraduationCap, CalendarClock } from 'lucide-react';
+import { Database, Bell, ChevronLeft, User, Pencil, History, SlidersHorizontal, GraduationCap, CalendarClock, Palette } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { AppDataContext } from '@/context/AppDataContext';
 import { startTutorial } from '@/components/TutorialTour';
+import { HapticsCard } from '@/components/settings/HapticsCard';
+import { setHapticStrength } from '@/lib/haptics';
+import { cn } from '@/lib/utils';
 
 // Settings sub-menus are heavy (Theme + Data Management are ~1,400 lines each, and Data
 // Management pulls in jsPDF) but are only opened occasionally. Code-split them out of the
@@ -27,30 +30,44 @@ const PayDateMenu = dynamic(() => import('@/components/settings/PayDateMenu').th
 import { DayNightToggle } from '@/components/settings/DayNightToggle';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 
-type ActiveMenu = 'main' | 'profile' | 'settings' | 'data' | 'notifications' | 'paydate';
+type ActiveMenu = 'main' | 'profile' | 'config' | 'appearance' | 'data' | 'notifications' | 'paydate';
 
 type MenuItem = {
   id: Exclude<ActiveMenu, 'main' | 'profile'>;
   title: string;
   description: string;
   icon: React.ElementType;
+  tour?: string;
 };
 
-// Top-level Profile menu. Vibration + Theme both live together inside "Settings".
-const menuItems: MenuItem[] = [
-  { id: 'settings',      title: 'Settings',        description: 'Vibration and appearance',            icon: SlidersHorizontal },
-  { id: 'paydate',       title: 'Pay Date',        description: 'When your balance starts over',        icon: CalendarClock },
-  { id: 'data',          title: 'Data Management', description: 'Backup, restore, or reset your data', icon: Database },
-  { id: 'notifications', title: 'Notifications',   description: 'Payment reminders on Android',         icon: Bell },
+// The top level stays deliberately short — who you are (profile + day/night), one door to
+// everything configurable, and the payment log. Every knob nests one level deeper.
+const mainItems: MenuItem[] = [
+  { id: 'config', title: 'Settings & Configuration', description: 'Reminders, data, pay date and appearance', icon: SlidersHorizontal, tour: 'settings-config' },
 ];
 
+// Inside that door, ordered the way they come up: the reminder you set once, the backup you
+// reach for, the pay date that drives the cycle. "How to use Duey" and Appearance are
+// rendered after these (see the config screen) — the tutorial is an action, not a menu.
+const configItems: MenuItem[] = [
+  { id: 'notifications', title: 'Notifications',   description: 'Payment reminders on Android',        icon: Bell },
+  { id: 'data',          title: 'Data Management', description: 'Backup, restore, or reset your data', icon: Database },
+  { id: 'paydate',       title: 'Pay Date',        description: 'When your balance starts over',       icon: CalendarClock },
+];
+
+// Last in the list because it is a whole editor of its own (four swipeable tabs and a
+// Save bar), not a single setting.
+const appearanceItem: MenuItem = {
+  id: 'appearance', title: 'Appearance', description: 'Themes, colours and quick-add effects', icon: Palette,
+};
+
 // Menu tree: depth drives the slide direction (deeper = forward) and each sub-menu's
-// parent is where its back button / hardware-back returns to (all sub-menus → main).
+// parent is where its back button / hardware-back returns to.
 const MENU_DEPTH: Record<ActiveMenu, number> = {
-  main: 0, profile: 1, settings: 1, data: 1, notifications: 1, paydate: 1,
+  main: 0, profile: 1, config: 1, appearance: 2, data: 2, notifications: 2, paydate: 2,
 };
 const MENU_PARENT: Record<Exclude<ActiveMenu, 'main'>, ActiveMenu> = {
-  profile: 'main', settings: 'main', data: 'main', notifications: 'main', paydate: 'main',
+  profile: 'main', config: 'main', appearance: 'config', data: 'config', notifications: 'config', paydate: 'config',
 };
 
 const ordinal = (n: number) => {
@@ -58,6 +75,28 @@ const ordinal = (n: number) => {
   const v = n % 100;
   return n + (s[(v - 20) % 10] || s[v] || s[0]);
 };
+
+// Every row in these menus is the same card-button; only the icon, the two lines and what
+// tapping it does differ.
+const MenuRow = ({ icon: Icon, title, description, onClick, tour }: {
+  icon: React.ElementType;
+  title: string;
+  description: string;
+  onClick: () => void;
+  tour?: string;
+}) => (
+  <button
+    data-tour={tour}
+    onClick={onClick}
+    className="w-full text-left p-3 bg-card rounded-2xl flex items-center gap-4 transition-transform active:scale-[0.98] hover:scale-[1.02] focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background"
+  >
+    <Icon className="h-5 w-5 text-accent shrink-0" />
+    <div>
+      <p className="text-base font-semibold text-card-foreground">{title}</p>
+      <p className="text-xs text-muted-foreground">{description}</p>
+    </div>
+  </button>
+);
 
 const PageHeader = ({ title, onBack }: { title: string; onBack?: () => void }) => (
   <div className="relative flex items-center justify-center pt-0 pb-4">
@@ -72,54 +111,64 @@ const PageHeader = ({ title, onBack }: { title: string; onBack?: () => void }) =
 
 const ProfileHeroCard = ({ onEdit }: { onEdit: () => void }) => {
   const { userProfile, avatarDataUrl } = useContext(AppDataContext);
+  const [dayNightOpen, setDayNightOpen] = useState(false);
   const initial = userProfile.name.trim().charAt(0).toUpperCase();
   const s = userProfile.avatarSettings;
 
   return (
-    <div className="relative bg-card rounded-2xl p-4 flex items-center gap-4 mb-4">
-      <div className="h-14 w-14 rounded-full bg-primary/15 flex items-center justify-center shrink-0 border border-primary/25 overflow-hidden relative">
-        {avatarDataUrl ? (
-          <img
-            src={avatarDataUrl}
-            alt="avatar"
-            draggable={false}
-            style={{
-              position: 'absolute',
-              objectFit: 'cover',
-              maxWidth: 'none',
-              userSelect: 'none',
-              width:  `${(s?.scale ?? 1) * 100}%`,
-              height: `${(s?.scale ?? 1) * 100}%`,
-              left: '50%',
-              top: '50%',
-              transform: `translate(calc(-50% + ${(s?.offsetX ?? 0) * 100}%), calc(-50% + ${(s?.offsetY ?? 0) * 100}%))`,
-            }}
-          />
-        ) : initial ? (
-          <span className="text-2xl font-bold text-primary">{initial}</span>
-        ) : (
-          <User className="h-6 w-6 text-primary/50" />
-        )}
-      </div>
-      <div className="flex-1 min-w-0 pr-6">
-        <p className="text-lg font-bold text-foreground truncate leading-tight">
-          {userProfile.name.trim() || 'Set your name'}
-        </p>
-        {userProfile.bio?.trim() ? (
-          <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{userProfile.bio}</p>
-        ) : (
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Payday: {ordinal(userProfile.paydayDay)} — balance resets then
+    // Who you are and how the app looks are one block, so they share a card with a hairline
+    // between them rather than sitting as two. The bottom corners square off while the theme
+    // picker is open so the panel floating out from under it reads as the same surface.
+    <div className={cn(
+      'relative bg-card rounded-2xl mb-4 transition-[border-radius] duration-300',
+      dayNightOpen && 'rounded-b-none',
+    )}>
+      <div className="flex items-center gap-4 p-4">
+        <div className="h-14 w-14 rounded-full bg-primary/15 flex items-center justify-center shrink-0 border border-primary/25 overflow-hidden relative">
+          {avatarDataUrl ? (
+            <img
+              src={avatarDataUrl}
+              alt="avatar"
+              draggable={false}
+              style={{
+                position: 'absolute',
+                objectFit: 'cover',
+                maxWidth: 'none',
+                userSelect: 'none',
+                width:  `${(s?.scale ?? 1) * 100}%`,
+                height: `${(s?.scale ?? 1) * 100}%`,
+                left: '50%',
+                top: '50%',
+                transform: `translate(calc(-50% + ${(s?.offsetX ?? 0) * 100}%), calc(-50% + ${(s?.offsetY ?? 0) * 100}%))`,
+              }}
+            />
+          ) : initial ? (
+            <span className="text-2xl font-bold text-primary">{initial}</span>
+          ) : (
+            <User className="h-6 w-6 text-primary/50" />
+          )}
+        </div>
+        <div className="flex-1 min-w-0 pr-6">
+          <p className="text-lg font-bold text-foreground truncate leading-tight">
+            {userProfile.name.trim() || 'Set your name'}
           </p>
-        )}
+          {userProfile.bio?.trim() ? (
+            <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{userProfile.bio}</p>
+          ) : (
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Payday: {ordinal(userProfile.paydayDay)} — balance resets then
+            </p>
+          )}
+        </div>
+        <button
+          onClick={onEdit}
+          className="absolute top-3 right-3 p-1.5 rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+          aria-label="Edit profile"
+        >
+          <Pencil className="h-4 w-4" />
+        </button>
       </div>
-      <button
-        onClick={onEdit}
-        className="absolute top-3 right-3 p-1.5 rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
-        aria-label="Edit profile"
-      >
-        <Pencil className="h-4 w-4" />
-      </button>
+      <DayNightToggle embedded onExpandedChange={setDayNightOpen} />
     </div>
   );
 };
@@ -135,7 +184,7 @@ const menuTransition = { type: 'tween' as const, ease: [0.25, 0.46, 0.45, 0.94] 
 export function SettingsPage() {
   const router = useRouter();
   const pathname = usePathname();
-  const { setNavGuard, setPageSwipeLocked } = useContext(AppDataContext);
+  const { setNavGuard, setPageSwipeLocked, hapticsStrength, setHapticsStrength } = useContext(AppDataContext);
   const [activeMenu, setActiveMenu] = useState<ActiveMenu>('main');
   const menuDirectionRef = useRef(1);
   const [menuIsDirty, setMenuIsDirty] = useState(false);
@@ -144,8 +193,9 @@ export function SettingsPage() {
   // SettingsPage stays mounted (AppShell carousel), so this listener is live even from other
   // pages; QuickAdd navigates to /settings alongside dispatching the event.
   useEffect(() => {
-    const onOpenTheme = () => { menuDirectionRef.current = 1; setActiveMenu('settings'); };
-    // Balance's pay-cycle card jumps straight here, the same way the Theme shortcut does.
+    const onOpenTheme = () => { menuDirectionRef.current = 1; setActiveMenu('appearance'); };
+    // Balance's cycle hairline points here, the same way the Theme shortcut does. Both skip
+    // the Settings hub on the way in; Back still steps up through it.
     const onOpenPayDate = () => { menuDirectionRef.current = 1; setActiveMenu('paydate'); };
     window.addEventListener('duey:open-theme', onOpenTheme);
     window.addEventListener('duey:open-paydate', onOpenPayDate);
@@ -220,7 +270,7 @@ export function SettingsPage() {
     return () => setPageSwipeLocked(false);
   }, [activeMenu, pathname, setPageSwipeLocked]);
 
-  // On-screen back always steps up one level (Theme → Settings → main).
+  // On-screen back always steps up one level (Pay Date → Settings → main).
   const handleBack = () => tryNavigate(activeMenu === 'main' ? 'main' : MENU_PARENT[activeMenu]);
 
   // Intercept Android hardware back button while inside a sub-menu.
@@ -228,7 +278,7 @@ export function SettingsPage() {
     const onPop = () => {
       if (activeMenu !== 'main') {
         // Re-push so the popped entry is restored, then animate up one level to the
-        // current menu's parent (Theme → Settings → main), not straight to main.
+        // current menu's parent (Pay Date → Settings → main), not straight to main.
         window.history.pushState({ __duey_settings: activeMenu }, '', window.location.href);
         tryNavigate(MENU_PARENT[activeMenu]);
       }
@@ -254,7 +304,9 @@ export function SettingsPage() {
 
   const handleSaved = (msg: string) => {
     showToast(msg);
-    navigateTo('main');
+    // Back up one level, not all the way out: a saved Pay Date lands you in Settings, where
+    // you were, rather than skipping the hub you came through.
+    navigateTo(activeMenu === 'main' ? 'main' : MENU_PARENT[activeMenu]);
   };
 
   const handleThemeSaved = (msg: string) => {
@@ -308,9 +360,9 @@ export function SettingsPage() {
               <ProfileMenu onDirtyChange={setMenuIsDirty} onSaved={handleSaved} onCancel={() => navigateTo('main')} />
             </>
           )}
-          {activeMenu === 'settings' && (
+          {activeMenu === 'appearance' && (
             <>
-              <PageHeader title="Settings" onBack={handleBack} />
+              <PageHeader title="Appearance" onBack={handleBack} />
               {/* One editor governs the whole page: Vibration + all appearance settings are
                   drafts committed together by its Cancel/Save bar — nothing applies until
                   Save. See ThemeSettingsMenu. */}
@@ -326,54 +378,55 @@ export function SettingsPage() {
           {activeMenu === 'paydate' && (
             <>
               <PageHeader title="Pay Date" onBack={handleBack} />
-              <PayDateMenu onDirtyChange={setMenuIsDirty} onSaved={handleSaved} onCancel={() => navigateTo('main')} />
+              <PayDateMenu onDirtyChange={setMenuIsDirty} onSaved={handleSaved} onCancel={() => navigateTo('config')} />
             </>
           )}
           {activeMenu === 'notifications' && (
             <>
               <PageHeader title="Notifications" onBack={handleBack} />
-              <NotificationsMenu onDirtyChange={setMenuIsDirty} onSaved={handleSaved} onCancel={() => navigateTo('main')} />
+              <NotificationsMenu onDirtyChange={setMenuIsDirty} onSaved={handleSaved} onCancel={() => navigateTo('config')} />
+            </>
+          )}
+          {activeMenu === 'config' && (
+            <>
+              <PageHeader title="Settings & Configuration" onBack={handleBack} />
+              <div className="space-y-3">
+                {configItems.map(item => (
+                  <MenuRow key={item.id} {...item} onClick={() => tryNavigate(item.id)} />
+                ))}
+                <MenuRow
+                  tour="tutorial-replay"
+                  icon={GraduationCap}
+                  title="How to use Duey"
+                  description="Show the feature tutorial again"
+                  onClick={startTutorial}
+                />
+                <MenuRow {...appearanceItem} onClick={() => tryNavigate(appearanceItem.id)} />
+                {/* The one setting on this screen rather than behind another row: it is a
+                    single four-way choice, and it belongs with the app's behaviour, not with
+                    its colours (it used to be drafted inside the theme editor). No Save bar
+                    here, so each pick applies straight away — to app state AND to the
+                    haptics module, so the very next tap already uses it. */}
+                <HapticsCard
+                  value={hapticsStrength}
+                  onChange={s => { setHapticsStrength(s); setHapticStrength(s); }}
+                />
+              </div>
             </>
           )}
           {activeMenu === 'main' && (
             <>
               <ProfileHeroCard onEdit={() => tryNavigate('profile')} />
               <div className="space-y-3">
-                <DayNightToggle />
-                {menuItems.map((item) => (
-                  <button
-                    key={item.id}
-                    onClick={() => tryNavigate(item.id)}
-                    className="w-full text-left p-3 bg-card rounded-2xl flex items-center gap-4 transition-transform active:scale-[0.98] hover:scale-[1.02] focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background"
-                  >
-                    <item.icon className="h-5 w-5 text-accent shrink-0" />
-                    <div>
-                      <p className="text-base font-semibold text-card-foreground">{item.title}</p>
-                      <p className="text-xs text-muted-foreground">{item.description}</p>
-                    </div>
-                  </button>
+                {mainItems.map(item => (
+                  <MenuRow key={item.id} {...item} onClick={() => tryNavigate(item.id)} />
                 ))}
-                <button
-                  data-tour="tutorial-replay"
-                  onClick={startTutorial}
-                  className="w-full text-left p-3 bg-card rounded-2xl flex items-center gap-4 transition-transform active:scale-[0.98] hover:scale-[1.02] focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background"
-                >
-                  <GraduationCap className="h-5 w-5 text-accent shrink-0" />
-                  <div>
-                    <p className="text-base font-semibold text-card-foreground">How to use Duey</p>
-                    <p className="text-xs text-muted-foreground">Show the feature tutorial again</p>
-                  </div>
-                </button>
-                <button
+                <MenuRow
+                  icon={History}
+                  title="Payment History"
+                  description="View and edit all recorded payments"
                   onClick={() => router.push('/history')}
-                  className="w-full text-left p-3 bg-card rounded-2xl flex items-center gap-4 transition-transform active:scale-[0.98] hover:scale-[1.02] focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:ring-offset-background"
-                >
-                  <History className="h-5 w-5 text-accent shrink-0" />
-                  <div>
-                    <p className="text-base font-semibold text-card-foreground">Payment History</p>
-                    <p className="text-xs text-muted-foreground">View and edit all recorded payments</p>
-                  </div>
-                </button>
+                />
               </div>
               <div className="mt-4 p-3 rounded-2xl text-center">
                 <p className="text-[10px] text-muted-foreground/60">Duey · Personal finance tracker</p>

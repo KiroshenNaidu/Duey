@@ -5,7 +5,7 @@ import {
 } from 'lucide-react';
 
 // Catalogue of every shortcut the quick-add radial can hold. The user picks which ones
-// (and their arc order) in Theme → Style → Quick Menu; the selection is stored as
+// (and their arc order) in Appearance → Style → Quick Menu; the selection is stored as
 // AppState.quickAddShortcuts (ordered ids).
 //
 // kind 'form' → opens a mini-form dialog that logs data for today (default).

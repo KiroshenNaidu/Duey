@@ -1,18 +1,17 @@
 'use client';
 
-import { useContext, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import { animate, motionValue, useReducedMotion, type MotionValue } from 'framer-motion';
-import { AppDataContext } from '@/context/AppDataContext';
 import { acquirePerfFreeze, releasePerfFreeze } from '@/lib/perfFreeze';
 import {
-  getPageTransition, type PageTransitionPreset,
+  pageFrame, flatPageFrame, type PageFrame,
   SWIPE_SETTLE_SPRING, SWIPE_PROJECTION_MS, SWIPE_COMMIT_FRACTION,
   SWIPE_VELOCITY_WINDOW_MS, SWIPE_MIN_COMMIT_PX, SWIPE_FLING_VELOCITY,
   swipeRubberBand,
 } from '@/lib/pageTransitions';
 
 // Finger-tracked tab carousel — the SAME direct-manipulation pager the AppShell page
-// carousel uses (shared SWIPE_* tuning and the user's selected page-transition preset),
+// carousel uses (shared SWIPE_* tuning and the same page frame),
 // applied to in-page tab sets: History's All/Debts/… tabs and the Theme menu's sub-tabs.
 // Panels track the finger 1:1 (styles written synchronously from the touch handler, no
 // rAF hop), rubber-band at the ends, and commit with velocity projection.
@@ -49,11 +48,10 @@ function isInDialog(el: EventTarget | null): boolean {
   return false;
 }
 
-function frameStyles(preset: PageTransitionPreset, index: number, p: number) {
-  const f = preset.frame(index - p);
-  const perspective = preset.threeD ? 'perspective(1100px) ' : '';
+function frameStyles(frame: (offset: number) => PageFrame, index: number, p: number) {
+  const f = frame(index - p);
   return {
-    transform: `${perspective}translateX(${f.x}) scale(${f.scale}) rotateY(${f.rotateY}deg)`,
+    transform: `translateX(${f.x}) scale(${f.scale})`,
     opacity: f.opacity,
     visibility: (Math.abs(index - p) < VISIBLE_RANGE ? 'visible' : 'hidden') as 'visible' | 'hidden',
   };
@@ -87,11 +85,10 @@ export function SwipeTabView<T extends string>({
    *  settles with the panels on a tap. Omitted, an internal value is used. */
   progress?: MotionValue<number>;
 }) {
-  const { pageTransitionId } = useContext(AppDataContext);
   const reduceMotion = useReducedMotion();
   // Under reduced motion the panels still track the finger (direct manipulation, not an
   // animation), but the transition style stays a plain flat slide.
-  const preset = getPageTransition(reduceMotion ? 'slide' : pageTransitionId);
+  const frame = reduceMotion ? flatPageFrame : pageFrame;
 
   const activeIdx = Math.max(0, tabs.indexOf(active));
   const activeIdxRef = useRef(activeIdx);
@@ -325,7 +322,7 @@ export function SwipeTabView<T extends string>({
       style={{ position: 'relative', overflow: 'hidden' }}
     >
       {tabs.map((tab, i) => (
-        <TabPanel key={tab} index={i} active={i === activeIdx} preset={preset} progress={progress}>
+        <TabPanel key={tab} index={i} active={i === activeIdx} frame={frame} progress={progress}>
           {renderTab(tab)}
         </TabPanel>
       ))}
@@ -336,35 +333,35 @@ export function SwipeTabView<T extends string>({
 /** One always-mounted tab panel. Styles are written straight to el.style from the
  *  progress subscription — no React re-render and no rAF hop, so panels stick to the
  *  finger (see CarouselPage in AppShell for the full rationale). */
-function TabPanel({ index, active, preset, progress, children }: {
+function TabPanel({ index, active, frame, progress, children }: {
   index: number;
   active: boolean;
-  preset: PageTransitionPreset;
+  frame: (offset: number) => PageFrame;
   progress: MotionValue<number>;
   children: React.ReactNode;
 }) {
   const ref = useRef<HTMLDivElement | null>(null);
-  const presetRef = useRef(preset);
-  presetRef.current = preset;
+  const frameRef = useRef(frame);
+  frameRef.current = frame;
 
   useLayoutEffect(() => {
     const apply = (p: number) => {
       const el = ref.current;
       if (!el) return;
-      const s = frameStyles(presetRef.current, index, p);
+      const s = frameStyles(frameRef.current, index, p);
       el.style.transform = s.transform;
       el.style.opacity = String(s.opacity);
       el.style.visibility = s.visibility;
     };
-    apply(progress.get()); // re-style immediately when the preset changes
+    apply(progress.get()); // re-style immediately when the frame changes
     return progress.on('change', apply);
-  }, [index, preset, progress]);
+  }, [index, frame, progress]);
 
   return (
     <div
       ref={ref}
       style={{
-        ...frameStyles(preset, index, progress.get()),
+        ...frameStyles(frame, index, progress.get()),
         willChange: 'transform',
         position: active ? 'relative' : 'absolute',
         top: 0,

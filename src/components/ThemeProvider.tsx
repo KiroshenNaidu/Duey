@@ -163,7 +163,6 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     applyStatusColors(root, themeSettings);
     root.style.setProperty('--bg-x', `${themeSettings.bgX ?? 50}%`);
     root.style.setProperty('--bg-y', `${themeSettings.bgY ?? 50}%`);
-    root.style.setProperty('--glass-opacity', String(themeSettings.glassOpacity ?? 0.55));
 
     // `zoom` on <body> forces a non-composited render path in the Android WebView, so
     // only pay for it when the user has actually changed the UI scale — at the default
@@ -176,8 +175,6 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
     const body = document.body;
     body.classList.toggle('has-bg-image', !!backgroundImage || !!backgroundVideo);
-    body.classList.remove('ui-glass', 'ui-minimal', 'ui-elevated');
-    if (themeSettings.uiStyle !== 'solid') body.classList.add(`ui-${themeSettings.uiStyle}`);
 
   }, [themeSettings, backgroundImage, backgroundVideo, isImageReady]);
 

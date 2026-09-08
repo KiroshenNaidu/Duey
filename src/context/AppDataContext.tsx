@@ -7,8 +7,7 @@ import { idbGet, idbSet, idbDel, setCurrencyCode, genId } from '@/lib/utils';
 import { calculateSealedCycleSummary, cycleStartFromKey, getPayCycle, nextCycleStart, normalizePayDay, dayKey, legacyUtcDayKey } from '@/lib/calculations';
 import { syncDebtReminders } from '@/lib/debtReminders';
 import { systemPresets } from '@/lib/systemThemes';
-import { DEFAULT_RADIAL_FX_ID } from '@/lib/radialFx';
-import { DEFAULT_PAGE_TRANSITION_ID } from '@/lib/pageTransitions';
+import { DEFAULT_RADIAL_FX_ID, RADIAL_FX_PRESETS } from '@/lib/radialFx';
 import { DEFAULT_HAPTIC_STRENGTH, setHapticStrength, type HapticStrength } from '@/lib/haptics';
 import { DEFAULT_QUICK_SHORTCUTS, sanitizeShortcuts } from '@/lib/quickShortcuts';
 import { personKey, debtPersonName, entryPersonName, PERSON_ENTRY_TYPES } from '@/lib/persons';
@@ -65,6 +64,15 @@ function migrateDayKeys<T extends { transportOverrides?: TransportOverrides; ube
 // unload flush (see the persistence effects) guarantees nothing buffered here is ever lost.
 const PERSIST_DEBOUNCE_MS = 500;
 
+// Settings that no longer exist: the UI Style picker (only Solid was ever implemented —
+// Minimal and Elevated had no styles at all, and Glass fought every other setting) with its
+// glass-transparency slider, and the page-transition preset. Stripped on load so they leave
+// saved state and JSON backups instead of riding along forever as dead keys.
+const dropRemovedThemeFields = <T,>(settings: T): T => {
+  const { uiStyle, glassOpacity, ...rest } = settings as T & { uiStyle?: unknown; glassOpacity?: unknown };
+  return rest as T;
+};
+
 function migrateState(raw: AppState): AppState {
   const overrides: TransportOverrides = {};
   for (const [k, v] of Object.entries(raw.transportOverrides ?? {})) {
@@ -92,8 +100,12 @@ function migrateState(raw: AppState): AppState {
   // Existing users who already have data default to ZAR so they don't see the picker.
   const currency = raw.currency ?? ((raw.debts?.length ?? 0) > 0 || (raw.history?.length ?? 0) > 0 ? 'ZAR' : '');
 
+  // pageTransitionId is pulled out of the spread rather than deleted after it: the field
+  // is gone from AppState, so it can only leave here.
+  const { pageTransitionId: _removedPageTransition, ...rest } = raw as AppState & { pageTransitionId?: string };
+
   return {
-    ...raw,
+    ...rest,
     currency,
     // The tour fires once, right after the currency picker. Anyone who ALREADY answered
     // that picker is mid-flight in the app and must not be interrupted by it on upgrade —
@@ -116,8 +128,9 @@ function migrateState(raw: AppState): AppState {
       // permission by enabling the monthly reminder, so inherit `enabled` as the default.
       ? { masterEnabled: raw.notificationSettings.masterEnabled ?? raw.notificationSettings.enabled ?? false, enabled: raw.notificationSettings.enabled ?? false, paydayDay: raw.notificationSettings.paydayDay ?? 26, hour: raw.notificationSettings.hour ?? 18, minute: raw.notificationSettings.minute ?? 0, message: raw.notificationSettings.message ?? 'Time to log your monthly payments.' }
       : { masterEnabled: false, enabled: false, paydayDay: 26, hour: 18, minute: 0, message: 'Time to log your monthly payments.' },
+    userThemes: (raw.userThemes ?? []).map(t => ({ ...t, settings: dropRemovedThemeFields(t.settings) })),
     themeSettings: raw.themeSettings
-      ? { ...raw.themeSettings, useSafeAreaInsets: true, bgX: raw.themeSettings.bgX ?? 50, bgY: raw.themeSettings.bgY ?? 50, bgScale: raw.themeSettings.bgScale ?? 1, backgroundBlur: raw.themeSettings.backgroundBlur ?? 0 }
+      ? { ...dropRemovedThemeFields(raw.themeSettings), useSafeAreaInsets: true, bgX: raw.themeSettings.bgX ?? 50, bgY: raw.themeSettings.bgY ?? 50, bgScale: raw.themeSettings.bgScale ?? 1, backgroundBlur: raw.themeSettings.backgroundBlur ?? 0 }
       : defaultState.themeSettings,
     exportFolderUri: raw.exportFolderUri ?? '',
     exportFolderName: raw.exportFolderName ?? '',
@@ -125,9 +138,10 @@ function migrateState(raw: AppState): AppState {
     dayNight: raw.dayNight ?? { dayThemeId: '', nightThemeId: '', mode: 'night' },
     favouriteThemes: raw.favouriteThemes ?? [],
     hiddenSystemPresets: raw.hiddenSystemPresets ?? [],
-    quickAddFxId: raw.quickAddFxId ?? DEFAULT_RADIAL_FX_ID,
+    // A stored id can name an effect that no longer exists (Magnetic and Elastic were
+    // removed): fall back rather than leaving the picker with nothing selected.
+    quickAddFxId: RADIAL_FX_PRESETS.some(p => p.id === raw.quickAddFxId) ? raw.quickAddFxId : DEFAULT_RADIAL_FX_ID,
     quickAddShortcuts: sanitizeShortcuts(raw.quickAddShortcuts),
-    pageTransitionId: raw.pageTransitionId ?? DEFAULT_PAGE_TRANSITION_ID,
     swipeActionsEnabled: raw.swipeActionsEnabled ?? true,
     hapticsStrength: raw.hapticsStrength ?? DEFAULT_HAPTIC_STRENGTH,
     schemaVersion: CURRENT_SCHEMA_VERSION,
@@ -163,13 +177,11 @@ const defaultState: AppState = {
     accentForeground: '230 8% 63%',
     backgroundOpacity: 0.5,
     uiScale: 1.0,
-    uiStyle: 'solid',
     useSafeAreaInsets: true,
     bgX: 50,
     bgY: 50,
     bgScale: 1,
     backgroundBlur: 0,
-    glassOpacity: 0.55,
     positive: '158 55% 56%',
     negative: '354 72% 62%',
     catTransport: '213 90% 68%',
@@ -189,7 +201,6 @@ const defaultState: AppState = {
   hiddenSystemPresets: [],
   quickAddFxId: DEFAULT_RADIAL_FX_ID,
   quickAddShortcuts: [...DEFAULT_QUICK_SHORTCUTS],
-  pageTransitionId: DEFAULT_PAGE_TRANSITION_ID,
   swipeActionsEnabled: true,
   hapticsStrength: DEFAULT_HAPTIC_STRENGTH,
   tutorialSeen: false,
@@ -265,7 +276,6 @@ interface AppContextType extends AppState {
   setHiddenSystemPresets: (names: string[]) => void;
   setQuickAddFxId: (id: string) => void;
   setQuickAddShortcuts: (ids: string[]) => void;
-  setPageTransitionId: (id: string) => void;
   setSwipeActionsEnabled: (on: boolean) => void;
   setHapticsStrength: (s: HapticStrength) => void;
   setTutorialSeen: (seen: boolean) => void;
@@ -336,7 +346,6 @@ export const AppDataContext = createContext<AppContextType>({
   setHiddenSystemPresets: () => {},
   setQuickAddFxId: () => {},
   setQuickAddShortcuts: () => {},
-  setPageTransitionId: () => {},
   setSwipeActionsEnabled: () => {},
   setHapticsStrength: () => {},
   setTutorialSeen: () => {},
@@ -1249,7 +1258,6 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     setQuickAddFxId: (id: string) => updateStateAndSync(p => ({ ...p, quickAddFxId: id })),
     // sanitize enforces known ids, dedupe, and the 1–7 count bounds.
     setQuickAddShortcuts: (ids: string[]) => updateStateAndSync(p => ({ ...p, quickAddShortcuts: sanitizeShortcuts(ids) })),
-    setPageTransitionId: (id: string) => updateStateAndSync(p => ({ ...p, pageTransitionId: id })),
     setSwipeActionsEnabled: (on: boolean) => updateStateAndSync(p => ({ ...p, swipeActionsEnabled: on })),
     setHapticsStrength: (s: HapticStrength) => updateStateAndSync(p => ({ ...p, hapticsStrength: s })),
     setTutorialSeen: (seen: boolean) => updateStateAndSync(p => ({ ...p, tutorialSeen: seen })),
