@@ -122,10 +122,25 @@ npm run dev        # runs on port 9002
 To build and sync to Android:
 
 ```bash
-npm run sync:android         # patch bump && clean && next build && cap sync android
-npm run sync:android:norev   # same, without bumping the version
-npm run android              # opens Android Studio
+npm run sync:full            # bump + build + sync + open Android Studio — the whole thing
+npm run sync                 # same without the version bump (the loop you run all afternoon)
+npm run sync:android         # bump + build + sync, no Studio
+npm run sync:android:norev   # build + sync only
+npm run android              # opens Android Studio on its own
 ```
+
+|  | bump | build | sync | opens Studio |
+|---|:-:|:-:|:-:|:-:|
+| `sync:full` | ✓ | ✓ | ✓ | ✓ |
+| `sync` | — | ✓ | ✓ | ✓ |
+| `sync:android` | ✓ | ✓ | ✓ | — |
+| `sync:android:norev` | — | ✓ | ✓ | — |
+| `android` | — | — | — | ✓ |
+
+`cap sync` is a CLI step — Android Studio does **not** need to be open for it, and syncing
+before opening means Studio reads the fresh files instead of asking you to reload them, which
+is why every command above opens it last. Reach for `sync:full` when you are cutting an APK
+that needs a fresh `versionCode`, and `sync` while you are just iterating.
 
 ---
 
@@ -200,18 +215,29 @@ The file is generated, not hand-written — four and a half years of interlockin
 something to maintain by hand:
 
 ```bash
-node scripts/generate-test-data.mjs
+npm run testdata      # regenerate, then print + copy the console loader
+npm run testdata:load # just the loader snippet, without regenerating
+npm run reset:db      # the opposite: wipe all app data back to a fresh install
 ```
 
 It anchors on today's date (so the current cycle always has live data and nothing gets
 auto-purged) and writes `public/test-data.json` — one copy, under `public/` so the dev server
 can serve it. Everything random comes from a seeded PRNG, so two runs on the same day produce
-identical output. To change what
-the dataset contains, edit the spec tables at the top of the script — `DEBT_SPECS`,
-`LOAN_SPECS`, the expense and budget lists — rather than the JSON.
+identical output. To change what the dataset contains, edit the spec tables at the top of the
+script — `DEBT_SPECS`, `LOAN_SPECS`, the expense and budget lists — rather than the JSON.
 
-On the dev server you can skip the import dialog entirely: paste `load-test-data.js` into the
-browser console and it fetches `/test-data.json` straight into `localStorage`.
+On the dev server you can skip the import dialog entirely: `npm run testdata` copies
+`load-test-data.js` to your clipboard — paste it into the browser console and it fetches
+`/test-data.json` straight into `localStorage`.
+
+To go the other way, `npm run reset:db` hands you `reset-app-data.js`, which clears
+`localStorage` and the IndexedDB store and reloads into a fresh install — the same thing
+**Settings → Data Management → Clear All Data** does, without the taps. (For the Android
+build: `adb shell pm clear com.duey.app`.)
+
+> The app has no server and no database — state lives in the browser's `localStorage` and
+> IndexedDB — so both of these are console snippets rather than something the terminal can do
+> on its own. The npm scripts print them and put them on your clipboard.
 
 ---
 
