@@ -3,7 +3,6 @@
 import { useContext, useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { format } from 'date-fns';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { DebtSemiGauge } from '@/components/DebtSemiGauge';
 import { AppDataContext } from '@/context/AppDataContext';
@@ -34,8 +33,9 @@ import {
 } from "@/components/ui/dialog"
 import { PaymentCalendarDialog } from './PaymentCalendarDialog';
 import { DebtCompletionDialog } from './DebtCompletionDialog';
+import { LedgerRow } from '@/components/ledger/LedgerRow';
+import { LedgerDetailContent } from '@/components/ledger/LedgerDetailContent';
 import { getPaymentCount, getTotalInstallments, getAmountPaid, displayProgressPct } from '@/lib/calculations';
-import { useReplayOnActive } from '@/hooks/useReplayOnActive';
 
 interface DebtCardProps {
   debt: Debt;
@@ -154,11 +154,6 @@ export function DebtCard({ debt, grouped = false, selectMode = false, selected =
     const c = history.find(h => h.type === 'creation' && h.debtId === debt.id);
     return c ? format(new Date(c.date), 'd MMM yyyy') : null;
   }, [history, debt.id]);
-
-  // Bar fills from 0 → progress. Replays every time the Money page (route '/') becomes
-  // active — swipe or tab — not just on first mount, since the carousel keeps all pages
-  // permanently mounted. Mirrors the BudgetGauge load fill.
-  const barReady = useReplayOnActive('/');
 
   const prevIsPaidOff = useRef(isPaidOff);
   useEffect(() => {
@@ -402,58 +397,56 @@ export function DebtCard({ debt, grouped = false, selectMode = false, selected =
           live inside the edit dialog, and DebtsList's selection bar handles the batch
           versions. select-none keeps the hold from starting a text selection instead. */}
       <div className="relative select-none" {...longPress}>
-      <Card className={cn("overflow-hidden transition-all duration-300", grouped ? "rounded-[0.7rem]" : "rounded-[1rem]", selected && "sel-glow")}>
-        <CardHeader>
-          <div className="flex justify-between items-center gap-2">
-            <div className="min-w-0 pr-2">
-              <CardTitle
-                className="text-base font-bold truncate"
-                style={isPaidOff ? { color: 'hsl(var(--primary-complete))' } : undefined}
-              >{grouped
-                // Inside a person group the header already names the person, so the card
-                // shows WHAT the debt is for (falling back to the old date stamp when the
-                // title is just the person name repeated).
-                ? debt.person && debt.person !== debt.title
-                  // Real reason present: show it at full title weight (the person's name is
-                  // already up in the group header), with the creation date trailing in grey.
-                  ? <>{debt.title}{createdLabel && <span className="text-xs font-medium text-muted-foreground"> · {createdLabel}</span>}</>
-                  // No real reason (title just repeats the person): keep the muted date stamp.
-                  : <span className="text-xs font-medium text-muted-foreground">{createdLabel ? `Added ${createdLabel}` : debt.title}</span>
-                // Ungrouped card with a distinct person: "Person - reason" on one line, the
-                // reason styled with the same grey used for the grouped title above.
-                : debt.person && debt.person !== debt.title
-                ? <>{debt.person}<span className="text-xs font-medium text-muted-foreground"> - {debt.title}</span></>
-                : debt.title}</CardTitle>
-            </div>
-            <div className="flex items-center gap-2 shrink-0">
-              {debt.dueDay != null && !isPaidOff && (
-                <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-muted-foreground whitespace-nowrap">
-                  <CalendarDays className="h-3 w-3" /> Due {ordinal(debt.dueDay)}
-                </span>
-              )}
-              <span className="text-xs text-muted-foreground whitespace-nowrap tabular-nums">
-                {paymentCount} of {totalInstallments} ({displayProgressPct(progress)}%)
-              </span>
+      {/* Edit dialog — its trigger is LedgerRow's {action} slot, its content is the
+          shared LedgerDetailContent frame (same one the Receivable ledger uses). */}
+      <Dialog open={isDialogOpen} onOpenChange={handleDialogOpenChange}>
+        <LedgerRow
+          grouped={grouped}
+          selected={selected}
+          paidOff={isPaidOff}
+          progress={progress}
+          title={grouped
+            // Inside a person group the header already names the person, so the card
+            // shows WHAT the debt is for (falling back to the old date stamp when the
+            // title is just the person name repeated).
+            ? debt.person && debt.person !== debt.title
+              ? <>{debt.title}{createdLabel && <span className="text-xs font-medium text-muted-foreground"> · {createdLabel}</span>}</>
+              : <span className="text-xs font-medium text-muted-foreground">{createdLabel ? `Added ${createdLabel}` : debt.title}</span>
+            // Ungrouped card with a distinct person: "Person - reason" on one line.
+            : debt.person && debt.person !== debt.title
+            ? <>{debt.person}<span className="text-xs font-medium text-muted-foreground"> - {debt.title}</span></>
+            : debt.title}
+          badge={debt.dueDay != null && !isPaidOff ? (
+            <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-muted-foreground whitespace-nowrap">
+              <CalendarDays className="h-3 w-3" /> Due {ordinal(debt.dueDay)}
+            </span>
+          ) : undefined}
+          meta={`${paymentCount} of ${totalInstallments} (${displayProgressPct(progress)}%)`}
+          action={
+            <button
+              onClick={() => setIsDialogOpen(true)}
+              className={cn(buttonVariants({ variant: 'ghost', size: 'icon' }), "h-8 w-8 flex-shrink-0")}
+            >
+              <CreditCard className="h-4 w-4" />
+            </button>
+          }
+          ghost={pendingProgressPct > 0 ? (
+            <div
+              className="absolute inset-y-0 left-0 rounded-full bg-primary transition-all duration-500"
+              style={{
+                width: `${Math.min(100, progress + pendingProgressPct)}%`,
+                opacity: 0.38,
+                ...(isPaidOff && { backgroundColor: 'hsl(var(--primary-complete))' }),
+              }}
+            />
+          ) : undefined}
+          footerLeft={`${formatCurrency(amountPaid)} Paid`}
+          footerRight={`/ ${formatCurrency(debt.total_owed)}`}
+        />
 
-              {/* Edit dialog */}
-              <Dialog open={isDialogOpen} onOpenChange={handleDialogOpenChange}>
-                <button
-                  onClick={() => setIsDialogOpen(true)}
-                  className={cn(buttonVariants({ variant: 'ghost', size: 'icon' }), "h-8 w-8 flex-shrink-0")}
-                >
-                  <CreditCard className="h-4 w-4" />
-                </button>
-
-                <DialogContent className="sm:max-w-[425px] p-0 gap-0 overflow-hidden flex flex-col">
-                  <DialogHeader className="sr-only">
-                    <DialogTitle>{debt.title}</DialogTitle>
-                  </DialogHeader>
-
-                  {/*
-                    Nested dialogs live inside this DialogContent so Radix UI treats them
-                    as children of this dialog — preventing it from closing when they open.
-                  */}
-
+        <LedgerDetailContent
+          a11yTitle={debt.title}
+          nested={<>
                   {/* Make Payment — nested dialog, standard layout for keyboard handling */}
                   <Dialog
                     open={showPaymentDialog}
@@ -623,12 +616,8 @@ export function DebtCard({ debt, grouped = false, selectMode = false, selected =
                       </AlertDialogFooter>
                     </AlertDialogContent>
                   </AlertDialog>
-
-                  {/* Everything except the action row lives in ONE scroll region, so on
-                      short viewports (keyboard open) the hero scrolls away rather than
-                      squeezing the form into an unreachable sliver. */}
-                  <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
-                  {/* Hero progress header */}
+          </>}
+          hero={
                   <div className="px-5 pt-5 pb-4">
                     <div className="flex items-center gap-4">
                       <DebtSemiGauge progress={progress} pendingProgress={pendingProgressPct} paidOff={isPaidOff} />
@@ -675,9 +664,51 @@ export function DebtCard({ debt, grouped = false, selectMode = false, selected =
                       </div>
                     )}
                   </div>
-
-                  {/* Form fields */}
-                  <div className="px-5 pb-5 space-y-4 border-t pt-4">
+          }
+          actions={<>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        className="h-10 w-10"
+                        onClick={() => { setIsDialogOpen(false); setTimeout(() => setShowDeleteConfirm(true), 150); }}
+                      >
+                        <Trash2 className="text-destructive" />
+                      </Button>
+                      <PaymentCalendarDialog debt={debt}>
+                        <Button variant="outline" size="icon" className="h-10 w-10">
+                          <CalendarDays />
+                        </Button>
+                      </PaymentCalendarDialog>
+                    </div>
+                    <div className="flex gap-2">
+                      {isPaidOff ? (
+                        <Button
+                          variant="secondary"
+                          onClick={() => { setIsDialogOpen(false); setTimeout(() => setShowArchiveConfirm(true), 150); }}
+                        >
+                          Archive
+                        </Button>
+                      ) : (
+                        <Button variant="secondary" onClick={openPaymentDialog}>
+                          Make Payment
+                        </Button>
+                      )}
+                      <Button
+                        className="bg-primary"
+                        onClick={() => {
+                          if (hasChanges) {
+                            setShowSaveConfirm(true);
+                          } else {
+                            setIsDialogOpen(false);
+                          }
+                        }}
+                      >
+                        Save
+                      </Button>
+                    </div>
+          </>}
+        >
                     <div className="space-y-2">
                       <Label htmlFor={`title-${debt.id}`} className="text-xs">Title</Label>
                       <Input
@@ -732,96 +763,8 @@ export function DebtCard({ debt, grouped = false, selectMode = false, selected =
                         onChange={(e) => setEditedDueDay(e.target.value)}
                       />
                     </div>
-
-                  </div>
-                  </div>
-
-                  {/* Pinned action row — outside the scroll area so it's never clipped,
-                      however tall the form gets on a short screen. */}
-                  <div className="shrink-0 flex justify-between items-center gap-2 border-t px-5 py-4">
-                    <div className="flex gap-2">
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        className="h-10 w-10"
-                        onClick={() => { setIsDialogOpen(false); setTimeout(() => setShowDeleteConfirm(true), 150); }}
-                      >
-                        <Trash2 className="text-destructive" />
-                      </Button>
-                      <PaymentCalendarDialog debt={debt}>
-                        <Button variant="outline" size="icon" className="h-10 w-10">
-                          <CalendarDays />
-                        </Button>
-                      </PaymentCalendarDialog>
-                    </div>
-                    <div className="flex gap-2">
-                      {isPaidOff ? (
-                        <Button
-                          variant="secondary"
-                          onClick={() => { setIsDialogOpen(false); setTimeout(() => setShowArchiveConfirm(true), 150); }}
-                        >
-                          Archive
-                        </Button>
-                      ) : (
-                        <Button variant="secondary" onClick={openPaymentDialog}>
-                          Make Payment
-                        </Button>
-                      )}
-                      <Button
-                        className="bg-primary"
-                        onClick={() => {
-                          if (hasChanges) {
-                            setShowSaveConfirm(true);
-                          } else {
-                            setIsDialogOpen(false);
-                          }
-                        }}
-                      >
-                        Save
-                      </Button>
-                    </div>
-                  </div>
-                </DialogContent>
-              </Dialog>
-            </div>
-          </div>
-        </CardHeader>
-
-        <CardContent className="space-y-2">
-          {/* Custom progress bar — includes ghost segment for staged payment preview */}
-          <div className="relative h-1.5 w-full overflow-hidden rounded-full bg-secondary">
-            {/* Ghost: extends to where the staged payment would reach */}
-            {pendingProgressPct > 0 && (
-              <div
-                className="absolute inset-y-0 left-0 rounded-full bg-primary transition-all duration-500"
-                style={{
-                  width: `${Math.min(100, progress + pendingProgressPct)}%`,
-                  opacity: 0.38,
-                  ...(isPaidOff && { backgroundColor: 'hsl(var(--primary-complete))' }),
-                }}
-              />
-            )}
-            {/* Solid: real current progress — flowing gradient between --primary and
-                --primary-complete so it stays in-theme and updates on theme change. */}
-            <div
-              className={cn('absolute inset-y-0 left-0 rounded-full bar-animated', barReady && 'transition-[width] duration-700', isPaidOff && 'bar-glow')}
-              style={{
-                width: `${barReady ? progress : 0}%`,
-                background: isPaidOff
-                  ? 'repeating-linear-gradient(to right, hsl(var(--primary-b)) 0%, hsl(var(--primary-complete)) 25%, hsl(var(--primary-b)) 50%, hsl(var(--primary-complete)) 75%, hsl(var(--primary-b)) 100%)'
-                  : 'repeating-linear-gradient(to right, hsl(var(--primary-a)) 0%, hsl(var(--primary)) 25%, hsl(var(--primary-b)) 50%, hsl(var(--primary)) 75%, hsl(var(--primary-a)) 100%)',
-              }}
-            />
-          </div>
-          <div className="flex justify-between items-baseline gap-2">
-            <span
-              className="text-xs font-medium text-muted-foreground min-w-0 truncate tabular-nums"
-              style={isPaidOff ? { color: 'hsl(var(--primary-complete))' } : undefined}
-            >{formatCurrency(amountPaid)} Paid</span>
-            <span className="text-xs text-muted-foreground whitespace-nowrap tabular-nums shrink-0">/ {formatCurrency(debt.total_owed)}</span>
-          </div>
-        </CardContent>
-      </Card>
+        </LedgerDetailContent>
+      </Dialog>
 
       {/* Selection chrome — the overlay owns EVERY tap while selecting so the card's own
           controls can't fire, and the corner badge is the visible selected/unselected state.

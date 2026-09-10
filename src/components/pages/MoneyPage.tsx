@@ -4,7 +4,7 @@ import { useState } from 'react';
 import dynamic from 'next/dynamic';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
-import { DebtsList } from '@/components/DebtsList';
+import { DebtsSection } from '@/components/DebtsSection';
 import { BudgetPlanner } from '@/components/BudgetPlanner';
 import { TimeCalculator } from '@/components/TimeCalculator';
 import { ExpensesList } from '@/components/ExpensesList';
@@ -15,7 +15,7 @@ const MoneyOverview = dynamic(() => import('@/components/MoneyOverview').then(m 
 });
 
 const TAB_LABELS: Record<string, { label: string; description: string }> = {
-  debts:    { label: 'Debts',    description: 'Track what you owe' },
+  debts:    { label: 'Debts',    description: 'What you owe, and what you are owed' },
   budget:   { label: 'Budget',   description: 'Plan your monthly spending' },
   tools:    { label: 'Tools',    description: 'Calculators & converters' },
   expenses: { label: 'Expenses', description: 'Log your spending' },
@@ -42,7 +42,7 @@ export function MoneyPage() {
           <TabsTrigger value="balance" className="flex-auto">Balance</TabsTrigger>
         </TabsList>
         <TabsContent value="debts">
-          <DebtsList />
+          <DebtsSection />
         </TabsContent>
         <TabsContent value="budget">
           <BudgetPlanner />

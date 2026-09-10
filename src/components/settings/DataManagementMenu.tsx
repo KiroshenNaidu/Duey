@@ -465,6 +465,15 @@ export function DataManagementMenu() {
       s.expenses.forEach(e => {
         lines.push(`  ${formatDate(e.date)} — ${e.title}${e.category ? ` [${e.category}]` : ''}: R${e.amount}${e.note ? ` (${e.note})` : ''}`);
       });
+      lines.push('', '=== LENT OUT (OWED TO ME) ===');
+      s.loans.forEach(l => {
+        const lent = l.events.filter(e => e.type === 'lent').reduce((a, e) => a + e.amount, 0);
+        const back = l.events.filter(e => e.type === 'repaid').reduce((a, e) => a + e.amount, 0);
+        lines.push(`\n  ${l.person}${l.reason ? ` \u2014 ${l.reason}` : ''}: lent R${lent}, paid back R${back}, outstanding R${Math.max(0, lent - back)}`);
+        [...l.events]
+          .sort((a, b) => (a.date < b.date ? -1 : 1))
+          .forEach(e => lines.push(`    ${formatDate(e.date)} ${e.type === 'repaid' ? 'paid back' : 'lent'} R${e.amount}${e.note ? ` (${e.note})` : ''}`));
+      });
       lines.push('', '=== SAVINGS ===');
       s.savings.forEach(e => {
         lines.push(`  ${formatDate(e.createdAt)} — ${e.label}: R${e.amount} [cycle ${e.cycleKey}${e.source === 'auto' ? ', swept' : ''}]`);
@@ -501,6 +510,19 @@ export function DataManagementMenu() {
 
       // Source is the column that matters here: 'auto' rows are cycle leftovers the app
       // swept in, 'manual' rows are money the user moved themselves.
+      // One row per MOVEMENT rather than per loan: a loan's meaning is its history, and a
+      // spreadsheet can pivot rows back into totals but cannot unpack a total into rows.
+      const loansSheet = utils.json_to_sheet(s.loans.flatMap(l => l.events.map(e => ({
+        Date: formatDate(e.date),
+        Person: l.person,
+        Reason: l.reason ?? '',
+        Type: e.type === 'repaid' ? 'Paid back' : 'Lent',
+        'Amount (R)': e.amount,
+        Note: e.note ?? '',
+      }))));
+      loansSheet['!cols'] = [{ wch: 12 }, { wch: 20 }, { wch: 24 }, { wch: 10 }, { wch: 14 }, { wch: 24 }];
+      utils.book_append_sheet(wb, loansSheet, 'Lent Out');
+
       const savingsSheet = utils.json_to_sheet(s.savings.map(e => ({ Date: formatDate(e.createdAt), Label: e.label, Cycle: e.cycleKey, Source: e.source, 'Amount (R)': e.amount })));
       savingsSheet['!cols'] = [{ wch: 12 }, { wch: 30 }, { wch: 10 }, { wch: 10 }, { wch: 14 }];
       utils.book_append_sheet(wb, savingsSheet, 'Savings');
@@ -649,6 +671,18 @@ export function DataManagementMenu() {
           make3ColTable(
             ['Date', 'Title / Category', 'Amount (R)'],
             s.expenses.map(e => [formatDate(e.date), e.title + (e.category ? ` [${e.category}]` : ''), `R ${e.amount.toFixed(2)}`] as [string, string, string])
+          ),
+          new Paragraph({ text: '' }),
+        ] : []),
+        ...(s.loans.length > 0 ? [
+          new Paragraph({ text: 'Lent Out', heading: HeadingLevel.HEADING_1 }),
+          make3ColTable(
+            ['Date', 'Person / Movement', 'Amount (R)'],
+            s.loans.flatMap(l => l.events.map(e => [
+              formatDate(e.date),
+              `${l.person} \u2014 ${e.type === 'repaid' ? 'paid back' : 'lent'}${e.note ? ` (${e.note})` : ''}`,
+              `R ${e.amount.toFixed(2)}`,
+            ] as [string, string, string]))
           ),
           new Paragraph({ text: '' }),
         ] : []),
@@ -802,6 +836,24 @@ export function DataManagementMenu() {
         ]);
         const totalExpenses = s.expenses.reduce((a, e) => a + e.amount, 0);
         y = drawTable(doc, y, EXPENSE_COLS, expenseRows, ['', 'Total', `R  ${totalExpenses.toFixed(2)}`]);
+        y += 6;
+      }
+
+      // Lent out — money owed TO the user, which lives nowhere else in this report.
+      if (s.loans.length > 0) {
+        const LOAN_COLS: ColDef[] = [{ header: 'Date', width: 28 }, { header: 'Person / Movement', width: 110 }, { header: 'Amount (R)', width: 52, align: 'right' }];
+        sectionHeader('LENT OUT (OWED TO ME)');
+        const loanRows: RowData[] = s.loans.flatMap(l => l.events.map(e => [
+          formatDate(e.date),
+          `${l.person} \u2014 ${e.type === 'repaid' ? 'paid back' : 'lent'}${e.note ? ` (${e.note})` : ''}`,
+          `R  ${e.amount.toFixed(2)}`,
+        ] as RowData));
+        const outstanding = s.loans.reduce((a, l) => {
+          const lent = l.events.filter(e => e.type === 'lent').reduce((x, e) => x + e.amount, 0);
+          const back = l.events.filter(e => e.type === 'repaid').reduce((x, e) => x + e.amount, 0);
+          return a + Math.max(0, lent - back);
+        }, 0);
+        y = drawTable(doc, y, LOAN_COLS, loanRows, ['', 'Still owed to you', `R  ${outstanding.toFixed(2)}`]);
         y += 6;
       }
 

@@ -13,6 +13,54 @@ export interface Debt {
   dueDay?: number | null;
 }
 
+/**
+ * One movement on a loan: money going out to the borrower, or coming back.
+ *
+ * `date` is when it actually happened and is picked by the user — people log a loan days
+ * after handing over the cash — while `createdAt` is when the row was written. The two are
+ * kept apart so the timeline can be ordered by the real event while an undo still knows
+ * which row is which.
+ */
+export interface LoanEvent {
+  id: string;
+  type: 'lent' | 'repaid';
+  amount: number;
+  /** 'yyyy-MM-dd' — the day it happened. */
+  date: string;
+  note?: string;
+  createdAt: string; // ISO 8601
+}
+
+/**
+ * Money the user LENT OUT — the mirror of `Debt`, which is money the user owes.
+ *
+ * Deliberately its own type rather than a flag on Debt: a debt is a monthly commitment the
+ * Balance calculator budgets for, and money owed TO you is neither owed nor spendable. A
+ * loan therefore has no installment and never reaches `calculateLiveMonthly` — repayments
+ * that arrive are recorded here, and it is up to the user to log any of it as income if
+ * they want it in the cycle's figures.
+ *
+ * The amount lent is not a field: it is the sum of the 'lent' events, so lending the same
+ * person more later is one loan with two events rather than a number edited behind your
+ * back (see lib/loans.ts for every derived figure).
+ */
+export interface Loan {
+  id: string;
+  /** Who borrowed. Identity is personKey(person), same canonical rule debts use. */
+  person: string;
+  /** What it was for. Optional — many loans are just "money". */
+  reason?: string;
+  /** 'yyyy-MM-dd' they said they would pay it back. Purely informational: nothing is
+   *  scheduled off it, it only drives the "overdue" mark on the card. */
+  dueDate?: string;
+  note?: string;
+  createdAt: string; // ISO 8601
+  /** Set when closed by hand — a loan written off, or one settled outside the ledger. A
+   *  loan whose repayments cover it counts as settled without this. */
+  settledAt?: string;
+  events: LoanEvent[];
+}
+
 export interface Expense {
   id: string;
   title: string;
@@ -224,6 +272,9 @@ export interface AppState {
   /** Money set aside, per pay cycle. Fed automatically by each cycle's leftover (see the
    *  seal in AppDataContext) and by hand from Stats → Savings. */
   savings: SavingEntry[];
+  /** Money lent OUT to other people (Money → Debts → Owed to me). Tracked on its own and
+   *  never mixed into the debt/Balance math — see the Loan doc comment. */
+  loans: Loan[];
   monthlyIncome: number;
   userProfile: UserProfile;
   notificationSettings: NotificationSettings;

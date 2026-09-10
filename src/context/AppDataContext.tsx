@@ -1,7 +1,7 @@
 'use client';
 
 import { createContext, ReactNode, useEffect, useState, useMemo, useCallback, useRef } from 'react';
-import type { AppState, Debt, HistoryEntry, AppData, ThemeSettings, TransportSettings, TransportOverrides, TransportMonthlyOverrides, DayState, UberRide, UserTheme, BudgetPlan, BudgetItem, UserProfile, NotificationSettings, AppError, Expense, ExtraIncome, DayNightSettings, SavingEntry } from '@/lib/types';
+import type { AppState, Debt, HistoryEntry, AppData, ThemeSettings, TransportSettings, TransportOverrides, TransportMonthlyOverrides, DayState, UberRide, UserTheme, BudgetPlan, BudgetItem, UserProfile, NotificationSettings, AppError, Expense, ExtraIncome, DayNightSettings, SavingEntry, Loan, LoanEvent } from '@/lib/types';
 import { isSameDay, startOfDay, format, add } from 'date-fns';
 import { idbGet, idbSet, idbDel, setCurrencyCode, genId } from '@/lib/utils';
 import { calculateSealedCycleSummary, cycleStartFromKey, getPayCycle, nextCycleStart, normalizePayDay, dayKey, legacyUtcDayKey } from '@/lib/calculations';
@@ -119,6 +119,8 @@ function migrateState(raw: AppState): AppState {
     extraIncomes: raw.extraIncomes ?? [],
     budgetPlans: raw.budgetPlans ?? [],
     savings: raw.savings ?? [],
+    // Backups written before the lending ledger existed simply have none.
+    loans: (raw.loans ?? []).map(l => ({ ...l, events: l.events ?? [] })),
     monthlyIncome: raw.monthlyIncome ?? 0,
     userProfile: raw.userProfile
       ? { name: raw.userProfile.name ?? '', paydayDay: raw.userProfile.paydayDay ?? 26, bio: raw.userProfile.bio ?? '' }
@@ -162,6 +164,7 @@ const defaultState: AppState = {
   budgetPlans: [],
   monthlyIncome: 0,
   savings: [],
+  loans: [],
   userProfile: { name: '', paydayDay: 26, bio: '' },
   notificationSettings: { masterEnabled: false, enabled: false, paydayDay: 26, hour: 18, minute: 0, message: 'Time to log your monthly payments.' },
   // Default theme = the "System Rec" preset (deep slate-indigo base, violet primary, mint
@@ -242,6 +245,16 @@ interface AppContextType extends AppState {
   restoreExtraIncome: (item: ExtraIncome) => void;
   /** Manual savings entry. `cycleKey` files it against a pay cycle; defaults to the current one. */
   addSaving: (amount: number, cycleKey: string, label: string, note?: string) => void;
+  /** Open a loan: one person, one first 'lent' event. Everything after is addLoanEvent. */
+  addLoan: (person: string, amount: number, opts?: { reason?: string; date?: string; dueDate?: string; note?: string }) => void;
+  updateLoan: (loanId: string, data: Partial<Pick<Loan, 'person' | 'reason' | 'dueDate' | 'note'>>) => void;
+  deleteLoan: (loanId: string) => void;
+  restoreLoan: (loan: Loan) => void;
+  addLoanEvent: (loanId: string, event: { type: LoanEvent['type']; amount: number; date: string; note?: string }) => void;
+  deleteLoanEvent: (loanId: string, eventId: string) => void;
+  restoreLoanEvent: (loanId: string, event: LoanEvent) => void;
+  /** Close a loan by hand (written off / settled off-app), or reopen it. */
+  setLoanSettled: (loanId: string, settled: boolean) => void;
   updateSaving: (id: string, data: Partial<Pick<SavingEntry, 'amount' | 'label' | 'note' | 'cycleKey'>>) => void;
   deleteSaving: (id: string) => void;
   restoreSaving: (item: SavingEntry) => void;
@@ -314,6 +327,14 @@ export const AppDataContext = createContext<AppContextType>({
   deleteExtraIncome: () => {},
   restoreExtraIncome: () => {},
   addSaving: () => {},
+  addLoan: () => {},
+  updateLoan: () => {},
+  deleteLoan: () => {},
+  restoreLoan: () => {},
+  addLoanEvent: () => {},
+  deleteLoanEvent: () => {},
+  restoreLoanEvent: () => {},
+  setLoanSettled: () => {},
   updateSaving: () => {},
   deleteSaving: () => {},
   restoreSaving: () => {},
@@ -904,6 +925,88 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     updateStateAndSync(prev => ({ ...prev, savings: [item, ...(prev.savings ?? [])] }));
   }, [updateStateAndSync]);
 
+  // ── Loans (money lent OUT) ────────────────────────────────────────────────
+  // Deliberately isolated from debts and from the Balance calculator: see the Loan doc
+  // comment in lib/types.ts. Every figure is derived from `events` (lib/loans.ts), so these
+  // actions only ever append to or filter that log.
+
+  const addLoan = useCallback((person: string, amount: number, opts?: { reason?: string; date?: string; dueDate?: string; note?: string }) => {
+    const now = new Date();
+    const day = opts?.date || format(now, 'yyyy-MM-dd');
+    const loan: Loan = {
+      id: genId(),
+      person: person.trim(),
+      reason: opts?.reason?.trim() || undefined,
+      dueDate: opts?.dueDate || undefined,
+      note: opts?.note?.trim() || undefined,
+      createdAt: now.toISOString(),
+      events: [{ id: genId(), type: 'lent', amount, date: day, note: opts?.note?.trim() || undefined, createdAt: now.toISOString() }],
+    };
+    updateStateAndSync(prev => ({ ...prev, loans: [loan, ...(prev.loans ?? [])] }));
+  }, [updateStateAndSync]);
+
+  const updateLoan = useCallback((loanId: string, data: Partial<Pick<Loan, 'person' | 'reason' | 'dueDate' | 'note'>>) => {
+    updateStateAndSync(prev => ({
+      ...prev,
+      loans: (prev.loans ?? []).map(l => (l.id === loanId ? { ...l, ...data } : l)),
+    }));
+  }, [updateStateAndSync]);
+
+  const deleteLoan = useCallback((loanId: string) => {
+    updateStateAndSync(prev => ({ ...prev, loans: (prev.loans ?? []).filter(l => l.id !== loanId) }));
+  }, [updateStateAndSync]);
+
+  // Undo a delete. The id guard makes a double-tapped UNDO a no-op rather than a duplicate.
+  const restoreLoan = useCallback((loan: Loan) => {
+    updateStateAndSync(prev => (
+      (prev.loans ?? []).some(l => l.id === loan.id)
+        ? prev
+        : { ...prev, loans: [loan, ...(prev.loans ?? [])] }
+    ));
+  }, [updateStateAndSync]);
+
+  const addLoanEvent = useCallback((loanId: string, event: { type: LoanEvent['type']; amount: number; date: string; note?: string }) => {
+    const row: LoanEvent = {
+      id: genId(),
+      type: event.type,
+      amount: event.amount,
+      date: event.date,
+      note: event.note?.trim() || undefined,
+      createdAt: new Date().toISOString(),
+    };
+    updateStateAndSync(prev => ({
+      ...prev,
+      loans: (prev.loans ?? []).map(l => (l.id === loanId ? { ...l, events: [...l.events, row] } : l)),
+    }));
+  }, [updateStateAndSync]);
+
+  const deleteLoanEvent = useCallback((loanId: string, eventId: string) => {
+    updateStateAndSync(prev => ({
+      ...prev,
+      loans: (prev.loans ?? []).map(l => (l.id === loanId ? { ...l, events: l.events.filter(e => e.id !== eventId) } : l)),
+    }));
+  }, [updateStateAndSync]);
+
+  const restoreLoanEvent = useCallback((loanId: string, event: LoanEvent) => {
+    updateStateAndSync(prev => ({
+      ...prev,
+      loans: (prev.loans ?? []).map(l => (
+        l.id === loanId && !l.events.some(e => e.id === event.id)
+          ? { ...l, events: [...l.events, event] }
+          : l
+      )),
+    }));
+  }, [updateStateAndSync]);
+
+  const setLoanSettled = useCallback((loanId: string, settled: boolean) => {
+    updateStateAndSync(prev => ({
+      ...prev,
+      loans: (prev.loans ?? []).map(l => (
+        l.id === loanId ? { ...l, settledAt: settled ? new Date().toISOString() : undefined } : l
+      )),
+    }));
+  }, [updateStateAndSync]);
+
   const restoreExpense = useCallback((item: Expense) => {
     updateStateAndSync(prev => ({
       ...prev,
@@ -1223,6 +1326,14 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     deleteExtraIncome,
     restoreExtraIncome,
     addSaving,
+    addLoan,
+    updateLoan,
+    deleteLoan,
+    restoreLoan,
+    addLoanEvent,
+    deleteLoanEvent,
+    restoreLoanEvent,
+    setLoanSettled,
     updateSaving,
     deleteSaving,
     restoreSaving,

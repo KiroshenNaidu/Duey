@@ -156,7 +156,7 @@ const ProfileHeroCard = ({ onEdit }: { onEdit: () => void }) => {
             <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{userProfile.bio}</p>
           ) : (
             <p className="text-xs text-muted-foreground mt-0.5">
-              Payday: {ordinal(userProfile.paydayDay)} — balance resets then
+              Payday: {ordinal(userProfile.paydayDay)} - balance resets then
             </p>
           )}
         </div>

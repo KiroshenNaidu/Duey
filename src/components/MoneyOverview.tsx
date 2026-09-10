@@ -5,6 +5,7 @@ import { format } from 'date-fns';
 import { AppDataContext } from '@/context/AppDataContext';
 import { formatCurrency, cn } from '@/lib/utils';
 import { calculateLiveMonthly, getPayCycle, isTransportPaidForMonth } from '@/lib/calculations';
+import { summariseLoans } from '@/lib/loans';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -15,7 +16,7 @@ import { useReplayOnActive } from '@/hooks/useReplayOnActive';
 
 export function MoneyOverview() {
   const {
-    monthlyIncome, budgetPlans, expenses, extraIncomes, history, uberRides,
+    monthlyIncome, budgetPlans, expenses, extraIncomes, history, uberRides, loans,
     transportSettings, transportOverrides, transportMonthlyOverrides, userProfile, savings,
     setMonthlyIncome, addExtraIncome, deleteExtraIncome, restoreExtraIncome,
   } = useContext(AppDataContext);
@@ -57,12 +58,17 @@ export function MoneyOverview() {
   const { transport: transportCost, uber: uberSpend, debt: debtInstallments, expenses: totalExpenses, budget: budgetSpent, savings: savedThisCycle } = monthly;
   const transportPaid = isTransportPaidForMonth(history, now);
   const totalExtra = (extraIncomes ?? []).reduce((s, e) => s + e.amount, 0);
+  // Money handed to other people and not yet back (Debts → Receivable). It is out of your
+  // hands, so it comes off the balance — and because this is OUTSTANDING (lent minus
+  // repaid, settled loans excluded), every repayment you log shrinks the deduction.
+  const lentOut = summariseLoans(loans ?? []).outstanding;
 
   const deductions = [
     { id: 'transport', label: 'Transport (this cycle)', value: transportCost, estimate: !transportPaid },
     { id: 'uber',      label: 'Uber (this cycle)',       value: uberSpend },
     { id: 'budget',    label: 'Budget (confirmed)',     value: budgetSpent },
     { id: 'debts',     label: 'Debt payments (this cycle)', value: debtInstallments },
+    { id: 'loans',     label: 'Money lent out (unpaid)', value: lentOut },
     { id: 'expenses',  label: 'Expenses (active)',       value: totalExpenses },
     // Money you told the app you put away this cycle (Stats -> Savings). It is out of
     // your hands, so it comes off here — but only MANUAL entries: the automatic leftover
@@ -254,14 +260,14 @@ export function MoneyOverview() {
               </div>
             )}
           </div>
-        </CardContent>
-      </Card>
 
-      {/* Total income (salary + extras) */}
-      <Card>
-        <CardContent className="p-3 flex justify-between items-baseline">
-          <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground shrink-0">Total Income</span>
-          <span className="text-lg font-bold text-primary tabular-nums min-w-0 text-right">+{formatCurrency(monthlyIncome + totalExtra)}</span>
+          {/* Total income (salary + extras) — the bottom line of the same card that
+              builds it, on its own hairline rule rather than floating in a card of
+              its own: it is the answer to this card's question, not a new one. */}
+          <div className="mt-3 pt-3 border-t border-border/40 flex justify-between items-baseline">
+            <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground shrink-0">Total Income</span>
+            <span className="text-lg font-bold text-primary tabular-nums min-w-0 text-right">+{formatCurrency(monthlyIncome + totalExtra)}</span>
+          </div>
         </CardContent>
       </Card>
 

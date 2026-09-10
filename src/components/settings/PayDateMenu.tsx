@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { CalendarClock, Info } from 'lucide-react';
-import { getPayCycle, normalizePayDay } from '@/lib/calculations';
+import { getPayCycle } from '@/lib/calculations';
 import { cn } from '@/lib/utils';
 
 /**
@@ -31,16 +31,6 @@ const ordinal = (n: number) => {
   return n + (s[(v - 20) % 10] || s[v] || s[0]);
 };
 
-// The days people actually get paid on, one tap each. 31 is offered as "Last day" because
-// that is what it means: a 31st pay day clamps to the 30th/28th in shorter months.
-const QUICK_DAYS: { day: number; label: string }[] = [
-  { day: 1, label: '1st' },
-  { day: 15, label: '15th' },
-  { day: 25, label: '25th' },
-  { day: 26, label: '26th' },
-  { day: 31, label: 'Last day' },
-];
-
 interface PayDateMenuProps {
   onDirtyChange?: (dirty: boolean) => void;
   onSaved?: (msg: string) => void;
@@ -48,7 +38,7 @@ interface PayDateMenuProps {
 }
 
 export function PayDateMenu({ onDirtyChange, onSaved, onCancel }: PayDateMenuProps) {
-  const { userProfile, setUserProfile, notificationSettings } = useContext(AppDataContext);
+  const { userProfile, setUserProfile } = useContext(AppDataContext);
 
   const [dayStr, setDayStr] = useState(String(userProfile.paydayDay));
   const [infoOpen, setInfoOpen] = useState(false);
@@ -61,7 +51,6 @@ export function PayDateMenu({ onDirtyChange, onSaved, onCancel }: PayDateMenuPro
   // Preview runs off the DRAFT, so the window and the countdown move as you try days out —
   // the fastest way to see that "the 26th" means "26 Aug – 25 Sep", not "August".
   const preview = getPayCycle(valid ? parsed : userProfile.paydayDay);
-  const previewDay = normalizePayDay(valid ? parsed : userProfile.paydayDay);
 
   const handleSave = () => {
     if (!valid) return;
@@ -164,23 +153,6 @@ export function PayDateMenu({ onDirtyChange, onSaved, onCancel }: PayDateMenuPro
               <p className="text-[10px] text-destructive">Enter a day between 1 and 31.</p>
             )}
           </div>
-
-          <div className="flex flex-wrap gap-1.5">
-            {QUICK_DAYS.map(({ day, label }) => (
-              <button
-                key={day}
-                onClick={() => setDayStr(String(day))}
-                className={cn(
-                  'px-2.5 py-1 rounded-full text-[11px] font-semibold border transition-colors',
-                  previewDay === day && valid
-                    ? 'border-accent bg-accent/15 text-foreground'
-                    : 'border-border text-muted-foreground hover:text-foreground hover:bg-secondary',
-                )}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
         </CardContent>
       </Card>
 
@@ -198,15 +170,6 @@ export function PayDateMenu({ onDirtyChange, onSaved, onCancel }: PayDateMenuPro
             {/* daysLeft counts to the NEXT pay date, so it is never 0: on pay day itself the
                 new cycle has already begun and the count is that cycle's full length. */}
             Starts over in {preview.daysLeft} day{preview.daysLeft === 1 ? '' : 's'}, on {format(preview.end, 'd MMMM')}.
-          </p>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardContent className="p-3">
-          <p className="text-[10px] text-muted-foreground">
-            Your payment reminder is set separately, on the {ordinal(notificationSettings.paydayDay || userProfile.paydayDay)} —
-            change it under Notifications.
           </p>
         </CardContent>
       </Card>
