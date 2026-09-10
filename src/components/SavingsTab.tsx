@@ -12,9 +12,11 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardHeading, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { SavingsTrendCard } from '@/components/stats/CycleCharts';
+import { LegendDot, StatPill } from '@/components/stats/StatPrimitives';
 import { SwipeableRow } from '@/components/SwipeableRow';
 import { FixedPortal } from '@/components/FixedPortal';
 import { useFabLongPress, usePageFab, FAB_TOUCH_STYLE, FabPulse } from '@/components/QuickAdd';
@@ -152,25 +154,20 @@ export function SavingsTab() {
     <div className="space-y-3">
       {/* ── Hero: the pile, and how it got there ─────────────────────────────── */}
       <div className="bg-card rounded-3xl p-5">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Total saved</p>
-            <p className="text-[32px] leading-none font-bold text-[hsl(var(--positive))] tabular-nums mt-2 truncate">
-              {formatCurrency(total)}
-            </p>
-            <p className="text-[10px] text-muted-foreground mt-2">
-              {entries.length === 0
-                ? 'Nothing banked yet'
-                : `${entries.length} ${entries.length === 1 ? 'entry' : 'entries'} across ${groups.length} cycle${groups.length === 1 ? '' : 's'}`}
-            </p>
-          </div>
-          <div
-            className="h-11 w-11 rounded-2xl grid place-items-center shrink-0"
-            style={{ background: 'hsl(var(--positive) / 0.14)' }}
-          >
-            <PiggyBank className="h-5 w-5 text-[hsl(var(--positive))]" />
-          </div>
-        </div>
+        <CardHeading
+          icon={PiggyBank}
+          title="Total saved"
+          iconClassName="text-[hsl(var(--positive))]"
+          aside={entries.length === 0
+            ? undefined
+            : `${entries.length} ${entries.length === 1 ? 'entry' : 'entries'} · ${groups.length} cycle${groups.length === 1 ? '' : 's'}`}
+        />
+        <p className="text-3xl font-bold text-[hsl(var(--positive))] tabular-nums truncate">
+          {formatCurrency(total)}
+        </p>
+        {entries.length === 0 && (
+          <p className="text-[10px] text-muted-foreground mt-1">Nothing banked yet</p>
+        )}
 
         {/* The split is the tab's premise made visible: for most cycles the swept half is
             the story. Widths animate in on every visit, the same 700ms ease every other
@@ -192,8 +189,8 @@ export function SavingsTab() {
               )}
             </div>
             <div className="flex items-center gap-4 mt-2.5">
-              <SplitKey color={AUTO_COLOR} label="Left over" value={autoTotal} />
-              <SplitKey color={MANUAL_COLOR} label="Put away" value={manualTotal} />
+              <LegendDot color={AUTO_COLOR} label="Left over" value={formatCurrency(autoTotal)} />
+              <LegendDot color={MANUAL_COLOR} label="Put away" value={formatCurrency(manualTotal)} />
             </div>
           </>
         )}
@@ -204,16 +201,14 @@ export function SavingsTab() {
           cycle actually ends with it intact — so how far through the cycle you are sits
           right under the figure. */}
       <div className="bg-card rounded-2xl p-4">
-        <div className="flex items-center gap-2">
-          <Sparkles className="h-4 w-4 text-accent shrink-0" />
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">This cycle</p>
-          <span className="ml-auto text-[10px] font-semibold tabular-nums text-muted-foreground shrink-0">
-            {cycle.daysLeft} day{cycle.daysLeft === 1 ? '' : 's'} left
-          </span>
-        </div>
+        <CardHeading
+          icon={Sparkles}
+          title="This cycle"
+          aside={`${cycle.daysLeft} day${cycle.daysLeft === 1 ? '' : 's'} left`}
+        />
 
         <p className={cn(
-          'text-2xl font-bold tabular-nums leading-tight mt-2',
+          'text-2xl font-bold tabular-nums leading-tight',
           live.remaining > 0 ? 'text-foreground' : 'text-muted-foreground',
         )}>
           {formatCurrency(Math.max(0, live.remaining))}
@@ -248,19 +243,15 @@ export function SavingsTab() {
 
       {/* ── The ledger ───────────────────────────────────────────────────────── */}
       {groups.length === 0 ? (
-        <div className="bg-card rounded-2xl p-6 text-center">
-          <div
-            className="h-10 w-10 rounded-2xl grid place-items-center mx-auto"
-            style={{ background: 'hsl(var(--positive) / 0.12)' }}
-          >
-            <PiggyBank className="h-5 w-5 text-[hsl(var(--positive))]" />
-          </div>
-          <p className="text-xs text-foreground mt-3">No savings recorded yet.</p>
-          <p className="text-[10px] text-muted-foreground/70 mt-1">
-            Whatever is left when a cycle ends lands here on its own — tap the + button to
-            add money you put away yourself.
-          </p>
-        </div>
+        <Card className="text-center">
+          <CardHeader>
+            <CardTitle className="text-base">Nothing put away yet</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-xs text-muted-foreground">Whatever is left when a cycle ends lands here on its own.</p>
+            <p className="text-xs text-muted-foreground mt-1">Tap the + button to add money you put away yourself.</p>
+          </CardContent>
+        </Card>
       ) : (
         <div className="space-y-2">
           <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground px-1">Ledger</p>
@@ -395,60 +386,40 @@ function SavingRow({ entry, onDelete }: { entry: SavingEntry; onDelete: (id: str
     <SwipeableRow
       rightActions={[{ icon: Trash2, label: 'Delete', tone: 'destructive', onAction: () => onDelete(entry.id) }]}
     >
-      <div className="flex items-center gap-2.5 rounded-xl bg-muted/25 px-3 py-2.5">
-        {/* Where it came from, as a mark rather than a badge repeating the label: an auto
-            entry is always labelled "Leftover", so a "leftover" chip beside it said the
-            same word twice. */}
-        <div
-          className="h-7 w-7 rounded-lg grid place-items-center shrink-0"
-          style={{ background: auto ? 'hsl(var(--positive) / 0.14)' : 'hsl(var(--cat-snapshot) / 0.16)' }}
-        >
-          {auto
-            ? <Sparkles className="h-3.5 w-3.5" style={{ color: AUTO_COLOR }} />
-            : <HandCoins className="h-3.5 w-3.5" style={{ color: MANUAL_COLOR }} />}
-        </div>
+      <div className="flex items-center gap-3 rounded-xl bg-muted/30 px-3 py-2.5">
         <div className="min-w-0 flex-1">
-          <p className="text-sm text-foreground truncate">{entry.label}</p>
-          <p className="text-[10px] text-muted-foreground/60 mt-0.5 truncate">
-            {auto ? 'Swept at cycle end · ' : ''}{format(new Date(entry.createdAt), 'd MMM yyyy')}
-          </p>
+          {/* Title on its own line, then the chip and the date under it — the expense row's
+              layout, because it is the same kind of line. */}
+          <span className="block text-sm font-semibold text-foreground truncate">{entry.label}</span>
+          <div className="flex items-center gap-2 mt-1 min-w-0">
+            {/* Where it came from, in the app's category chip rather than a colour tile:
+                every other kind-marker in the app (recurring expenses, history types) is
+                this pill. */}
+            <span className={cn(
+              'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold shrink-0',
+              auto ? 'bg-positive/15 text-positive' : 'bg-snapshot/15 text-snapshot',
+            )}>
+              {auto ? <Sparkles className="h-2.5 w-2.5" /> : <HandCoins className="h-2.5 w-2.5" />}
+              {auto ? 'Swept' : 'Put away'}
+            </span>
+            <p className="text-xs text-muted-foreground truncate">
+              {format(new Date(entry.createdAt), 'd MMM yyyy')}
+            </p>
+          </div>
         </div>
-        <p className="text-sm font-semibold tabular-nums text-[hsl(var(--positive))] shrink-0">
-          +{formatCurrency(entry.amount)}
-        </p>
-        <button
-          onClick={() => onDelete(entry.id)}
-          className="p-1.5 rounded-lg text-muted-foreground/40 hover:text-destructive hover:bg-destructive/10 transition-colors shrink-0"
-          aria-label={`Remove ${entry.label}`}
-        >
-          <Trash2 className="h-3.5 w-3.5" />
-        </button>
+        <div className="flex items-center gap-1 shrink-0">
+          <span className="text-sm font-bold tabular-nums text-[hsl(var(--positive))]">
+            +{formatCurrency(entry.amount)}
+          </span>
+          <button
+            onClick={() => onDelete(entry.id)}
+            className="p-1.5 rounded-lg text-muted-foreground/40 hover:text-destructive hover:bg-destructive/10 transition-colors"
+            aria-label={`Remove ${entry.label}`}
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </button>
+        </div>
       </div>
     </SwipeableRow>
-  );
-}
-
-function SplitKey({ color, label, value }: { color: string; label: string; value: number }) {
-  return (
-    <span className="flex items-center gap-1.5 min-w-0">
-      <span className="h-2 w-2 rounded-full shrink-0" style={{ background: color }} />
-      <span className="text-[10px] text-muted-foreground truncate">{label}</span>
-      <span className="text-[10px] font-semibold tabular-nums text-foreground shrink-0">{formatCurrency(value)}</span>
-    </span>
-  );
-}
-
-function StatPill({ icon: Icon, label, value, sub }: {
-  icon: React.ElementType; label: string; value: string; sub?: string;
-}) {
-  return (
-    <div className="bg-card rounded-2xl p-3">
-      <div className="flex items-center gap-1.5">
-        <Icon className="h-3.5 w-3.5 text-accent shrink-0" />
-        <p className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground truncate">{label}</p>
-      </div>
-      <p className="text-sm font-bold text-foreground tabular-nums mt-1.5 truncate">{value}</p>
-      {sub && <p className="text-[10px] text-muted-foreground/60 mt-0.5 truncate">{sub}</p>}
-    </div>
   );
 }

@@ -1,7 +1,9 @@
 // Paste this entire block into the browser DevTools console while the app is open.
-// It loads the bundled Alex Dlamini sample dataset (a full duey-backup: debts, history,
-// budgets, transport, custom themes, favourites, day/night + all quick-menu settings) and
-// reloads the app. The file is served from /public, so this works on the dev server.
+// It loads the bundled Jhon Skyrim sample dataset (a full duey-backup: every pay cycle back
+// to January 2022 — debts, loans out, savings, history, budgets, transport, custom themes,
+// favourites, day/night + all quick-menu settings) and reloads the app. The file is served
+// from /public, so this works on the dev server. Regenerate it with
+// `node scripts/generate-test-data.mjs`.
 
 fetch('/test-data.json')
   .then(r => r.json())

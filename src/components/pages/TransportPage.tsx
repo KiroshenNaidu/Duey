@@ -22,6 +22,7 @@ import {
   DialogClose,
 } from '@/components/ui/dialog';
 import { DatePickerInput } from '@/components/ui/date-picker';
+import { LiquidFill, TODAY_DISC } from '@/components/ui/liquid-fill';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -437,33 +438,18 @@ export function TransportPage() {
                       state === 1 && 'bg-primary/15 text-primary-foreground',
                       state === 1.5 && 'bg-primary/15 text-foreground',
                       state === 0 && 'bg-muted text-muted-foreground opacity-60',
-                      // Today ALWAYS colours from the accent family (never the primary's):
-                      // arc-animated-accent flows the cell's `color` from the accent into its
-                      // analogous hue (water and ring paint with currentColor, so they ride
-                      // along), bar-glow composites in the accent halo pulse, and the static
-                      // text colour is the reduced-motion fallback. bg-accent/15 replaces the
-                      // per-state tint (it shows through the translucent water and above the
-                      // waterline on half days); opacity-100 beats the off-day dim so the
-                      // halo/ring never fade — the empty water still reads as "off".
-                      isToday && "arc-animated-accent bar-glow text-[hsl(var(--accent))] bg-accent/15 opacity-100 ring-1 ring-current ring-offset-1 ring-offset-background",
+                      // Today ALWAYS colours from the accent family (never the primary's) —
+                      // see TODAY_DISC. bg-accent/15 replaces the per-state tint (it shows
+                      // through the translucent water and above the waterline on half days);
+                      // opacity-100 beats the off-day dim so the halo/ring never fade — the
+                      // empty water still reads as "off".
+                      isToday && TODAY_DISC,
                     )}
                   >
                     {/* Water level renders the day state (full/half/empty) and eases
-                        between marks on tap — see .liquid-fill in globals.css. Mounted in
-                        every state so drain-to-empty animates too. Back wave first so the
-                        front surface paints over it. */}
-                    <span
-                      aria-hidden
-                      className={cn(
-                        "liquid-fill",
-                        state === 1 && "lf-full",      // solid, still, completely filled
-                        state === 1.5 && "lf-animate", // only half-days slosh
-                      )}
-                      style={{ '--fill': state === 1 ? 1.08 : state === 1.5 ? 0.5 : -0.08 } as React.CSSProperties}
-                    >
-                      <span className="lf-wave lf-wave2" />
-                      <span className="lf-wave" />
-                    </span>
+                        between marks on tap. Mounted in every state so drain-to-empty
+                        animates too. */}
+                    <LiquidFill level={state === 1 ? 'full' : state === 1.5 ? 'half' : 'empty'} />
                     {/* Today's button `color` is the animated water colour, so the number
                         re-asserts its per-state colour to stay readable on the water. Full
                         days sit ON the accent water, so contrast comes from --btn-on-accent
@@ -498,19 +484,13 @@ export function TransportPage() {
                       // bg-accent/15 tint under a full water level, so it picks up the same
                       // accent → accent-complete diagonal blend (.arc-animated-accent .lf-wave)
                       // instead of the flat single-hue disc bg-current used to paint.
-                      isToday && "arc-animated-accent bar-glow text-[hsl(var(--accent))] bg-accent/15 opacity-100 ring-1 ring-current ring-offset-1 ring-offset-background",
+                      isToday && TODAY_DISC,
                     )}
                   >
                     {/* Today's multicolour water. Always at a FULL level — an Uber day is
                         either logged or not, so there is no half state for a level to show;
-                        the two-colour blend, ring and halo are what mark it as today. Back
-                        wave first so the front surface paints over it (lf-full hides it). */}
-                    {isToday && (
-                      <span aria-hidden className="liquid-fill lf-full" style={{ '--fill': 1.08 } as React.CSSProperties}>
-                        <span className="lf-wave lf-wave2" />
-                        <span className="lf-wave" />
-                      </span>
-                    )}
+                        the two-colour blend, ring and halo are what mark it as today. */}
+                    {isToday && <LiquidFill level="full" />}
                     {/* On today's disc the type sits ON the accent water, so it takes the
                         accent's auto black/white contrast colour instead of the flowing hue,
                         and z-10 keeps it above the water. */}

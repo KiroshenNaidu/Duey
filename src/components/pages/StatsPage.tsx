@@ -7,6 +7,8 @@ import { DebtProgressCharts } from '@/components/DebtProgressCharts';
 import { useReplayOnActive } from '@/hooks/useReplayOnActive';
 import { TransportStatusCard } from '@/components/TransportStatusCard';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { CardHeading } from '@/components/ui/card';
+import { StatPill } from '@/components/stats/StatPrimitives';
 import { SavingsTab } from '@/components/SavingsTab';
 import { add, format, getDaysInMonth, isWeekend, startOfMonth } from 'date-fns';
 import {
@@ -20,7 +22,7 @@ import {
 } from '@/components/stats/CycleCharts';
 import {
   TrendingUp, Car, CreditCard,
-  ReceiptText, PiggyBank, ArrowUpRight, ArrowDownRight, BadgeDollarSign,
+  ReceiptText, Wallet, ArrowUpRight, ArrowDownRight, BadgeDollarSign,
 } from 'lucide-react';
 
 // ─── Original hero constants ───────────────────────────────────────────────────
@@ -97,12 +99,8 @@ function StatPills() {
 
   return (
     <div className="grid grid-cols-3 gap-2">
-      {pills.map(({ label, value, icon: Icon, color }) => (
-        <div key={label} className="bg-card rounded-2xl p-3 flex flex-col gap-1.5">
-          <Icon className={cn('h-3.5 w-3.5', color)} />
-          <p className={cn('text-sm font-bold leading-tight truncate', color)}>{value}</p>
-          <p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-wide">{label}</p>
-        </div>
+      {pills.map(({ label, value, icon, color }) => (
+        <StatPill key={label} icon={icon} label={label} value={value} color={color} />
       ))}
     </div>
   );
@@ -137,10 +135,7 @@ function IncomeCard() {
 
   return (
     <div className="bg-card rounded-2xl p-4">
-      <div className="flex items-center gap-2 mb-2">
-        <BadgeDollarSign className="h-4 w-4 text-[hsl(var(--positive))]" />
-        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Income</p>
-      </div>
+      <CardHeading icon={BadgeDollarSign} title="Income" iconClassName="text-[hsl(var(--positive))]" />
       <StatRow label="Monthly salary" value={formatCurrency(monthlyIncome)} />
       {extraIncomes.map(e => (
         <StatRow key={e.id} label={e.label} value={`+ ${formatCurrency(e.amount)}`} color="text-[hsl(var(--positive))]" />
@@ -198,13 +193,22 @@ function CycleSummaryCard({ money, live, transportPaid, span }: {
 function Figure({ label, value, color, icon: Icon }: {
   label: string; value: number; color: string; icon?: React.ElementType;
 }) {
+  // A span of four years tots up to seven figures, which does not fit a third of the row at
+  // text-sm — so the type steps down with the length rather than truncating the amount.
+  const text = formatCurrency(value);
   return (
     <div className="min-w-0 text-center">
       <p className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground flex items-center justify-center gap-1">
         {Icon && <Icon className={cn('h-3 w-3', color)} />}
         {label}
       </p>
-      <p className={cn('text-sm font-bold tabular-nums truncate mt-1', color)}>{formatCurrency(value)}</p>
+      <p className={cn(
+        'font-bold tabular-nums truncate mt-1',
+        text.length > 12 ? 'text-[10px]' : text.length > 9 ? 'text-xs' : 'text-sm',
+        color,
+      )}>
+        {text}
+      </p>
     </div>
   );
 }
@@ -275,9 +279,17 @@ function CycleSection() {
       toKey: keys[keys.length - 1],
       keys,
       // A span is named by the days it actually covers; a single cycle keeps its own label.
+      // The start carries its own year whenever the span crosses one — without it a range
+      // reaching years back reads as this year's ("25 Aug – 24 Sep 2026") and hides that it
+      // starts in 2022. Same-year spans stay short, since the end already names the year.
       label: keys.length === 1
         ? (keys[0] === cycle.key ? cycle.label : cycleLabelFromKey(keys[0], payDay))
-        : `${format(cycleStartFromKey(keys[0], payDay), 'd MMM')} – ${format(getPayCycle(payDay, cycleStartFromKey(keys[keys.length - 1], payDay)).lastDay, 'd MMM yyyy')}`,
+        : (() => {
+            const spanStart = cycleStartFromKey(keys[0], payDay);
+            const spanEnd = getPayCycle(payDay, cycleStartFromKey(keys[keys.length - 1], payDay)).lastDay;
+            const sameYear = spanStart.getFullYear() === spanEnd.getFullYear();
+            return `${format(spanStart, sameYear ? 'd MMM' : 'd MMM yyyy')} – ${format(spanEnd, 'd MMM yyyy')}`;
+          })(),
       live: keys.includes(cycle.key),
       recorded: read.some(r => r.recorded),
       // Every figure on a cycle is a flow over that window, so a span is simply their sum.
@@ -332,11 +344,12 @@ function ExpensesCard() {
 
   return (
     <div className="bg-card rounded-2xl p-4">
-      <div className="flex items-center gap-2 mb-2">
-        <ReceiptText className="h-4 w-4 text-[hsl(var(--cat-expense))]" />
-        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Expenses</p>
-        <span className="ml-auto text-xs text-muted-foreground">{expenses.length} logged</span>
-      </div>
+      <CardHeading
+        icon={ReceiptText}
+        title="Expenses"
+        iconClassName="text-[hsl(var(--cat-expense))]"
+        aside={`${expenses.length} logged`}
+      />
       <StatRow label="Recurring"  value={formatCurrency(recurring.reduce((s, e) => s + e.amount, 0))} sub={`${recurring.length} item${recurring.length !== 1 ? 's' : ''} · stays each cycle`}  color="text-[hsl(var(--cat-expense))]" />
       <StatRow label="One-time"   value={formatCurrency(oneTime.reduce((s, e) => s + e.amount, 0))}  sub={`${oneTime.length} item${oneTime.length !== 1 ? 's' : ''} · clears on pay date`} />
       <div className="flex items-center justify-between pt-2 mt-1 border-t border-border/40">
@@ -364,11 +377,12 @@ function BudgetCard() {
 
   return (
     <div className="bg-card rounded-2xl p-4">
-      <div className="flex items-center gap-2 mb-2">
-        <PiggyBank className="h-4 w-4 text-[hsl(var(--cat-completion))]" />
-        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Budget Plans</p>
-        <span className="ml-auto text-xs text-muted-foreground">{activePlans.length} plan{activePlans.length !== 1 ? 's' : ''}</span>
-      </div>
+      <CardHeading
+        icon={Wallet}
+        title="Budget Plans"
+        iconClassName="text-[hsl(var(--cat-budget))]"
+        aside={`${activePlans.length} plan${activePlans.length !== 1 ? 's' : ''}`}
+      />
       <StatRow label="Total budgeted"     value={formatCurrency(totalBudget)} />
       <StatRow label="Allocated to items" value={formatCurrency(totalSpent)}  color="text-[hsl(var(--cat-expense))]" />
       <div className="flex items-center justify-between pt-2 mt-1 border-t border-border/40">
@@ -403,10 +417,7 @@ function TransportExtrasCard() {
 
   return (
     <div className="bg-card rounded-2xl p-4">
-      <div className="flex items-center gap-2 mb-2">
-        <Car className="h-4 w-4 text-[hsl(var(--cat-transport))]" />
-        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Transport Totals</p>
-      </div>
+      <CardHeading icon={Car} title="Transport Totals" iconClassName="text-[hsl(var(--cat-transport))]" />
       <StatRow label="All-time paid"     value={formatCurrency(stats.totalTransportPaid)} color="text-[hsl(var(--cat-transport))]" />
       <StatRow label="Uber / rides"      value={formatCurrency(uberTotal)} sub={`${uberRides.length} trip${uberRides.length !== 1 ? 's' : ''}`} />
       <StatRow label="Monthly estimate"  value={formatCurrency(monthlyEstimate)} sub={transportSettings.pricingMode === 'monthly' ? 'Fixed fee' : `${formatCurrency(transportSettings.dailyFee)}/day × ${workdaysThisMonth} weekdays`} />
@@ -450,10 +461,7 @@ export function StatsPage() {
         // Same flat shell as every other Stats card (bg-card rounded-2xl p-4, no border/shadow)
         // with the icon + uppercase muted title header the other section cards use.
         <div className="bg-card rounded-2xl p-4">
-          <div className="flex items-center gap-2 mb-3">
-            <CreditCard className="h-4 w-4 text-primary" />
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Debt Progress</p>
-          </div>
+          <CardHeading icon={CreditCard} title="Debt Progress" iconClassName="text-primary" className="mb-3" />
           <DebtProgressCharts />
         </div>
       )}

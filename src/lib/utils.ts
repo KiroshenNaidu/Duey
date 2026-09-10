@@ -93,6 +93,32 @@ export function hexToHsl(hex: string): string | null {
 }
 
 
+function parseHsl(hsl: string): [number, number, number] {
+  const parts = hsl.trim().split(/\s+/);
+  return [parseFloat(parts[0]), parseFloat(parts[1]), parseFloat(parts[2])];
+}
+
+// Analogous palette: hues rotate around the theme's primary so each ring/legend
+// entry is clearly distinct while staying in the same colour family. Driven by
+// the active theme, so it re-colours automatically when the theme changes.
+//
+// `spread` is the degrees between adjacent entries and `lightStep` the lightness
+// walk across them — a legend that has to be read as a key (the Stats spend
+// breakdown) turns both up so neighbouring swatches are unmistakable, while the
+// budget rings keep the tighter default.
+export function buildAnalogous(primary: string, count: number, spread = 18, lightStep = 5): string[] {
+  const [h, s, l] = parseHsl(primary);
+  const norm = (x: number) => ((x % 360) + 360) % 360;
+  const n = Math.max(1, count);
+  const clampL = (v: number) => Math.max(30, Math.min(66, v));
+  return Array.from({ length: n }, (_, i) => {
+    const offset = i - (n - 1) / 2;
+    const hue = norm(h + offset * spread);
+    const light = clampL(l + offset * lightStep);
+    return `hsl(${Math.round(hue)}, ${Math.round(s)}%, ${Math.round(light)}%)`;
+  });
+}
+
 export function hslToHex(h: number, s: number, l: number): string {
   s /= 100;
   l /= 100;

@@ -17,7 +17,7 @@ import { LedgerDetailContent } from '@/components/ledger/LedgerDetailContent';
 import { DebtSemiGauge } from '@/components/DebtSemiGauge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
@@ -155,7 +155,7 @@ export function LoansList() {
                     <button
                       key={loan.id}
                       onClick={() => openDetail(loan.id)}
-                      className="w-full flex items-center gap-2.5 rounded-xl bg-muted/25 px-3 py-2.5 text-left"
+                      className="w-full flex items-center gap-2.5 rounded-xl bg-muted/30 px-3 py-2.5 text-left"
                     >
                       <CheckCircle2 className="h-4 w-4 text-[hsl(var(--positive))] shrink-0" />
                       <div className="min-w-0 flex-1">
@@ -248,6 +248,16 @@ function LoanRow({ loan, onOpen, onRepay, onDelete }: {
             </span>
           ) : undefined}
           meta={`${displayProgressPct(pct)}%`}
+          // The Payable row ends in a card icon (its edit button). This row opens on tap, so
+          // the slot carries a plain marker instead — same ghost-icon box as DebtCard so the
+          // two ledgers line up and the icon picks up the same auto-contrast colour, with
+          // HandCoins standing in for CreditCard: money handed over, not paid off. Pointer
+          // events off because it is a marker, not a button — the whole row is the target.
+          action={
+            <span className={cn(buttonVariants({ variant: 'ghost', size: 'icon' }), 'h-8 w-8 flex-shrink-0 pointer-events-none')}>
+              <HandCoins className="h-4 w-4" />
+            </span>
+          }
           footerLeft={repaid > 0 ? `${formatCurrency(repaid)} Back` : 'Nothing back yet'}
           footerRight={`/ ${formatCurrency(lent)}`}
         />
@@ -524,37 +534,34 @@ function LoanDetailDialog({ loan, initialMode, onClose, onDelete }: {
           {events.length === 0 ? (
             <p className="text-xs text-muted-foreground py-2">Nothing recorded yet.</p>
           ) : events.map(e => (
-            <div key={e.id} className="flex items-center gap-2.5 rounded-xl bg-muted/25 px-3 py-2.5">
-              <div
-                className="h-7 w-7 rounded-lg grid place-items-center shrink-0"
-                style={{ background: e.type === 'repaid' ? 'hsl(var(--positive) / 0.14)' : 'hsl(var(--primary) / 0.14)' }}
-              >
-                {e.type === 'repaid'
-                  ? <ArrowDownLeft className="h-3.5 w-3.5 text-[hsl(var(--positive))]" />
-                  : <ArrowUpRight className="h-3.5 w-3.5 text-primary" />}
-              </div>
+            // Which way the money went is already in the line's own words and in the
+            // signed, coloured amount — the same way an expense row reads — so the row
+            // carries no separate kind marker.
+            <div key={e.id} className="flex items-center gap-3 rounded-xl bg-muted/30 px-3 py-2.5">
               <div className="min-w-0 flex-1">
-                <p className="text-sm text-foreground truncate">
+                <span className="block text-sm font-semibold text-foreground truncate">
                   {e.type === 'repaid' ? 'Paid back' : 'Lent'}
-                  {e.note ? <span className="text-muted-foreground"> · {e.note}</span> : null}
-                </p>
-                <p className="text-[10px] text-muted-foreground/60 mt-0.5">
+                  {e.note ? <span className="font-normal text-muted-foreground"> · {e.note}</span> : null}
+                </span>
+                <p className="text-xs text-muted-foreground mt-1">
                   {format(new Date(`${e.date}T00:00:00`), 'd MMM yyyy')}
                 </p>
               </div>
-              <p className={cn(
-                'text-sm font-semibold tabular-nums shrink-0',
-                e.type === 'repaid' ? 'text-[hsl(var(--positive))]' : 'text-foreground',
-              )}>
-                {e.type === 'repaid' ? '+' : '−'}{formatCurrency(e.amount)}
-              </p>
-              <button
-                onClick={() => removeEvent(e)}
-                className="p-1.5 rounded-lg text-muted-foreground/40 hover:text-destructive hover:bg-destructive/10 transition-colors shrink-0"
-                aria-label="Remove entry"
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-              </button>
+              <div className="flex items-center gap-1 shrink-0">
+                <span className={cn(
+                  'text-sm font-bold tabular-nums',
+                  e.type === 'repaid' ? 'text-[hsl(var(--positive))]' : 'text-foreground',
+                )}>
+                  {e.type === 'repaid' ? '+' : '−'}{formatCurrency(e.amount)}
+                </span>
+                <button
+                  onClick={() => removeEvent(e)}
+                  className="p-1.5 rounded-lg text-muted-foreground/40 hover:text-destructive hover:bg-destructive/10 transition-colors"
+                  aria-label="Remove entry"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+              </div>
             </div>
           ))}
         </div>

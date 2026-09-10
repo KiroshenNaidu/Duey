@@ -374,7 +374,7 @@ export function ProfileMenu({ onDirtyChange, onSaved, onCancel }: ProfileMenuPro
             {!isNaN(parsedDay) && parsedDay >= 1 && parsedDay <= 31 && (
               <p className="text-[10px] text-muted-foreground">
                 You get paid on the {ordinal(parsedDay)} of each month. This is the same day
-                Balance and Stats reset on — see Settings → Pay Date.
+                Balance and Stats reset on - see Settings - Pay Date.
               </p>
             )}
           </div>
@@ -382,7 +382,7 @@ export function ProfileMenu({ onDirtyChange, onSaved, onCancel }: ProfileMenuPro
           <div className="space-y-1.5">
             <Label className="text-xs">About me</Label>
             <Textarea
-              placeholder="e.g., Saving towards a debt-free life..."
+              placeholder="e.g., Savisng towards a debt-free life..."
               value={bio}
               onChange={e => setBio(e.target.value)}
               rows={3}

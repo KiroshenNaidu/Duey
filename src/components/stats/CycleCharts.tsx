@@ -1,15 +1,17 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useContext, useEffect, useMemo, useState } from 'react';
 import { add, format, getDaysInMonth, startOfDay } from 'date-fns';
 import { AnimatePresence, motion } from 'framer-motion';
 import { ChevronLeft, ChevronRight, ChevronDown, CalendarRange, PieChart, BarChart3 } from 'lucide-react';
-import { cn, formatCurrency } from '@/lib/utils';
+import { buildAnalogous, cn, formatCurrency } from '@/lib/utils';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
+import { CardHeading } from '@/components/ui/card';
+import { Calendar } from '@/components/ui/calendar';
+import { LegendDot } from '@/components/stats/StatPrimitives';
 import { cycleKey, cycleStartFromKey, getPayCycle, listRecentCycles, type MonthlyMoney } from '@/lib/calculations';
+import { AppDataContext } from '@/context/AppDataContext';
 
 /**
  * The Stats page's charts, all hand-drawn from the app's own primitives — no chart
@@ -165,7 +167,7 @@ export function CycleNavigatorCard({ selected, points, liveKey, payDay, onSelect
         </button>
 
         {/* Stepping is fine for last month and useless for a date two years back, so the
-            label opens a picker where the day, month and year are each set directly. */}
+            label opens a calendar you tap through — day, month, then year. */}
         <button onClick={() => setPickerOpen(true)} className="flex-1 min-w-0 px-1 text-center">
           <p className="text-xs font-semibold text-foreground truncate flex items-center justify-center gap-1.5">
             <CalendarRange className="h-3 w-3 text-accent shrink-0" />
@@ -228,7 +230,7 @@ export function CycleNavigatorCard({ selected, points, liveKey, payDay, onSelect
                              onSelectKey={key => onSelectRange(key, key)} ready={ready} />
                 ) : (
                   <p className="text-[10px] text-muted-foreground/60 pb-2">
-                    Not enough history yet — each cycle joins the line as it ends.
+                    Not enough history yet, each cycle joins the line as it ends.
                   </p>
                 )}
               </div>
@@ -366,9 +368,6 @@ function SpendLine({ points, selectedKeys, payDay, onSelectKey, ready }: {
   );
 }
 
-const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June',
-                'July', 'August', 'September', 'October', 'November', 'December'];
-
 /** The three numbers a date is picked as. Kept apart from `Date` so a half-set month never
  *  rolls the year over behind the user's back. */
 interface DateParts { y: number; m: number; d: number }
@@ -403,19 +402,18 @@ function CycleRangePickerDialog({ open, onOpenChange, payDay, fromDate, toDate, 
 }) {
   const [from, setFrom] = useState<DateParts>(() => toParts(fromDate));
   const [to, setTo] = useState<DateParts>(() => toParts(toDate));
+  /** Which end the calendar is filling in. */
+  const [editing, setEditing] = useState<'from' | 'to'>('from');
 
   // Re-seed each time it opens, so it always starts from what you are looking at.
   useEffect(() => {
     if (!open) return;
     setFrom(toParts(fromDate));
     setTo(toParts(toDate));
+    setEditing('from');
   }, [open, fromDate, toDate]);
 
   const today = startOfDay(new Date());
-  const years = useMemo(() => {
-    const now = today.getFullYear();
-    return Array.from({ length: 11 }, (_, i) => now - 10 + i);
-  }, [today]);
 
   const a = partsToDate(from);
   const b = partsToDate(to);
@@ -441,7 +439,7 @@ function CycleRangePickerDialog({ open, onOpenChange, payDay, fromDate, toDate, 
           <DialogDescription>Covers every pay cycle these dates touch.</DialogDescription>
         </DialogHeader>
 
-        {/* The spans people actually ask for, without setting six fields to get them. */}
+        {/* The spans people actually ask for, without picking two dates to get them. */}
         <div className="flex gap-1.5">
           {[{ label: 'This cycle', n: 1 }, { label: 'Last 3', n: 3 }, { label: 'Last 6', n: 6 }, { label: 'Last 12', n: 12 }].map(p => (
             <button
@@ -459,10 +457,38 @@ function CycleRangePickerDialog({ open, onOpenChange, payDay, fromDate, toDate, 
           ))}
         </div>
 
-        <div className="space-y-2.5">
-          <DateRow label="From" value={from} onChange={setFrom} years={years} />
-          <DateRow label="To" value={to} onChange={setTo} years={years} />
+        {/* One calendar, two ends. Tapping an end arms it; picking a day fills it and hands
+            the calendar to the other end, so the ordinary case — from, then to — is two
+            taps and no mode switching to think about. */}
+        <div className="grid grid-cols-2 gap-2">
+          <EndTab
+            label="From"
+            date={a}
+            active={editing === 'from'}
+            onClick={() => setEditing('from')}
+          />
+          <EndTab
+            label="To"
+            date={b}
+            active={editing === 'to'}
+            onClick={() => setEditing('to')}
+          />
         </div>
+
+        <Calendar
+          value={editing === 'from' ? a : b}
+          max={today}
+          onSelect={(d, via) => {
+            if (editing === 'from') {
+              setFrom(toParts(d));
+              // A tap on the grid means that end is settled — hand the calendar to the
+              // other one. A quick-jump nudge is still aimed at THIS end, so it stays.
+              if (via === 'day') setEditing('to');
+            } else {
+              setTo(toParts(d));
+            }
+          }}
+        />
 
         <div className="rounded-xl bg-muted/30 p-3">
           <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
@@ -499,46 +525,30 @@ function CycleRangePickerDialog({ open, onOpenChange, payDay, fromDate, toDate, 
   );
 }
 
-/** One labelled date, as day / month / year set independently. */
-function DateRow({ label, value, onChange, years }: {
-  label: string;
-  value: DateParts;
-  onChange: (parts: DateParts) => void;
-  years: number[];
+/** One end of the range: which end it is, the day it currently holds, and whether the
+ *  calendar below is filling it in. */
+function EndTab({ label, date, active, onClick }: {
+  label: string; date: Date; active: boolean; onClick: () => void;
 }) {
-  const daysInMonth = getDaysInMonth(new Date(value.y, value.m, 1));
-  const safeDay = Math.min(value.d, daysInMonth);
-
   return (
-    <div className="space-y-1.5">
-      <Label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{label}</Label>
-      <div className="grid grid-cols-[1fr_1.6fr_1.2fr] gap-2">
-        <Select value={String(safeDay)} onValueChange={v => onChange({ ...value, d: Number(v) })}>
-          <SelectTrigger className="h-9 text-xs" aria-label={`${label} day`}><SelectValue /></SelectTrigger>
-          <SelectContent>
-            {Array.from({ length: daysInMonth }, (_, i) => i + 1).map(d => (
-              <SelectItem key={d} value={String(d)} className="text-xs">{d}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Select value={String(value.m)} onValueChange={v => onChange({ ...value, m: Number(v) })}>
-          <SelectTrigger className="h-9 text-xs" aria-label={`${label} month`}><SelectValue /></SelectTrigger>
-          <SelectContent>
-            {MONTHS.map((m, i) => (
-              <SelectItem key={m} value={String(i)} className="text-xs">{m}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Select value={String(value.y)} onValueChange={v => onChange({ ...value, y: Number(v) })}>
-          <SelectTrigger className="h-9 text-xs" aria-label={`${label} year`}><SelectValue /></SelectTrigger>
-          <SelectContent>
-            {years.map(y => (
-              <SelectItem key={y} value={String(y)} className="text-xs">{y}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-    </div>
+    <button
+      onClick={onClick}
+      aria-pressed={active}
+      className={cn(
+        'rounded-xl px-3 py-2 text-left transition-colors',
+        active ? 'bg-accent/15 ring-1 ring-accent' : 'bg-muted/30 active:bg-muted/50',
+      )}
+    >
+      <p className={cn(
+        'text-[10px] font-bold uppercase tracking-widest',
+        active ? 'text-accent' : 'text-muted-foreground',
+      )}>
+        {label}
+      </p>
+      <p className="text-sm font-semibold text-foreground tabular-nums mt-0.5">
+        {format(date, 'd MMM yyyy')}
+      </p>
+    </button>
   );
 }
 
@@ -551,6 +561,7 @@ function DateRow({ label, value, onChange, years }: {
  * what the plain row list used to do on its own.
  */
 export function SpendBreakdownCard({ money, ready }: { money: MonthlyMoney; ready: boolean }) {
+  const { themeSettings } = useContext(AppDataContext);
   const kept = Math.max(0, money.remaining);
   // Over-spent cycles have no room for a "kept" tail, and the shares must still add to the
   // bar's width — so the denominator becomes what was actually spent.
@@ -563,6 +574,17 @@ export function SpendBreakdownCard({ money, ready }: { money: MonthlyMoney; read
     if (kept > 0) rows.push({ id: 'remaining', label: 'Left over', color: 'hsl(var(--positive))', value: kept });
     return rows;
   }, [money, kept]);
+
+  // This legend IS the key — a reader matches a swatch to a bar segment — so it takes the
+  // same theme-driven analogous family the budget rings use, opened up: the hues fan across
+  // a ~130 degree band around --primary (capped so a two-row cycle does not land on opposite
+  // sides of the wheel) with a wider lightness walk, so neighbours never read as one colour.
+  // Rotating with the theme is the point: recolour the app and this recolours with it.
+  const colors = useMemo(() => {
+    const n = parts.length;
+    const spread = n > 1 ? Math.min(42, 130 / (n - 1)) : 0;
+    return buildAnalogous(themeSettings.primary, n, spread, 9);
+  }, [themeSettings.primary, parts.length]);
 
   if (total <= 0 || parts.length === 0) {
     return (
@@ -584,26 +606,26 @@ export function SpendBreakdownCard({ money, ready }: { money: MonthlyMoney; read
         icon={PieChart}
         title="Where it goes"
         aside={overspent ? 'over budget' : `${Math.round((kept / total) * 100)}% kept`}
-        asideColor={overspent ? 'text-[hsl(var(--negative))]' : 'text-[hsl(var(--positive))]'}
+        asideClassName={overspent ? 'text-[hsl(var(--negative))]' : 'text-[hsl(var(--positive))]'}
       />
 
       {/* Segments animate their width in from zero on every visit, the same 700ms ease the
           debt bars use. Widths are percentages of one flex row rather than a stacked SVG so
           the whole thing stays one compositor-friendly layer. */}
       <div className="flex h-2.5 w-full overflow-hidden rounded-full bg-secondary mt-1">
-        {parts.map(p => (
+        {parts.map((p, i) => (
           <div
             key={p.id}
             className={cn('h-full first:rounded-l-full last:rounded-r-full', ready && 'transition-[width] duration-700')}
-            style={{ width: `${ready ? (p.value / total) * 100 : 0}%`, background: p.color }}
+            style={{ width: `${ready ? (p.value / total) * 100 : 0}%`, background: colors[i] }}
           />
         ))}
       </div>
 
       <div className="mt-3 space-y-0.5">
-        {parts.map(p => (
+        {parts.map((p, i) => (
           <div key={p.id} className="flex items-center gap-2 py-1">
-            <span className="h-2 w-2 rounded-full shrink-0" style={{ background: p.color }} />
+            <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ background: colors[i] }} />
             <p className="text-xs text-muted-foreground flex-1 min-w-0 truncate">{p.label}</p>
             <p className="text-[10px] text-muted-foreground/60 tabular-nums shrink-0 w-9 text-right">
               {Math.round((p.value / total) * 100)}%
@@ -671,39 +693,11 @@ export function SavingsTrendCard({ cycles, payDay, ready }: {
       </div>
 
       <div className="flex items-center gap-3 mt-2.5">
-        <Key color="hsl(var(--positive))" label="Left over" />
-        <Key color="hsl(var(--cat-snapshot))" label="Put away" />
+        <LegendDot color="hsl(var(--positive))" label="Left over" />
+        <LegendDot color="hsl(var(--cat-snapshot))" label="Put away" />
       </div>
     </div>
   );
 }
 
-function Key({ color, label }: { color: string; label: string }) {
-  return (
-    <span className="flex items-center gap-1.5">
-      <span className="h-2 w-2 rounded-full" style={{ background: color }} />
-      <span className="text-[10px] text-muted-foreground">{label}</span>
-    </span>
-  );
-}
 
-// ─── shared ───────────────────────────────────────────────────────────────────
-
-function CardHeading({ icon: Icon, title, aside, asideColor }: {
-  icon: React.ElementType;
-  title: string;
-  aside?: string;
-  asideColor?: string;
-}) {
-  return (
-    <div className="flex items-center gap-2 mb-2">
-      <Icon className="h-4 w-4 text-accent shrink-0" />
-      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{title}</p>
-      {aside && (
-        <span className={cn('ml-auto text-[10px] font-semibold tabular-nums', asideColor ?? 'text-muted-foreground')}>
-          {aside}
-        </span>
-      )}
-    </div>
-  );
-}

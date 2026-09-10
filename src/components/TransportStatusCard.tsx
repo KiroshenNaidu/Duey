@@ -5,6 +5,7 @@ import { format } from 'date-fns';
 import { Car } from 'lucide-react';
 import { formatCurrency, cn } from '@/lib/utils';
 import { Skeleton } from './ui/skeleton';
+import { CardHeading } from './ui/card';
 import { calculateTransportMonth } from '@/lib/calculations';
 
 export function TransportStatusCard() {
@@ -57,20 +58,16 @@ export function TransportStatusCard() {
 
   return (
     <div className="bg-card rounded-2xl p-4">
-      <div className="flex items-center gap-2 mb-2">
-        <Car className="h-4 w-4 text-[hsl(var(--cat-transport))]" />
-        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Monthly Transport</p>
-        <span
-          className={cn(
-            'ml-auto text-[10px] font-semibold px-2 py-0.5 rounded-full',
-            isPaid
-              ? 'bg-[hsl(var(--positive))]/15 text-[hsl(var(--positive))]'
-              : 'bg-[hsl(var(--negative))]/15 text-[hsl(var(--negative))]',
-          )}
-        >
-          {statusText}
-        </span>
-      </div>
+      <CardHeading
+        icon={Car}
+        title="Monthly Transport"
+        iconClassName="text-[hsl(var(--cat-transport))]"
+        aside={statusText}
+        asideClassName={cn(
+          'px-2 py-0.5 rounded-full',
+          isPaid ? 'bg-positive/15 text-positive' : 'bg-negative/15 text-negative',
+        )}
+      />
       <div className="flex items-center justify-between pt-1">
         <p className="text-sm text-muted-foreground">{format(currentDate, 'MMMM yyyy')}</p>
         <p className="text-base font-bold text-[hsl(var(--cat-transport))] tabular-nums">

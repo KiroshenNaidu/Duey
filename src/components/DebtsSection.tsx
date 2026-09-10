@@ -20,8 +20,8 @@ export function DebtsSection() {
   return (
     <Tabs value={side} onValueChange={setSide}>
       <TabsList className="tabs-fluid w-full">
-        <TabsTrigger value="owed" className="flex-auto">Payable</TabsTrigger>
-        <TabsTrigger value="lent" className="flex-auto">Receivable</TabsTrigger>
+        <TabsTrigger value="owed" className="flex-auto">Outgoing</TabsTrigger>
+        <TabsTrigger value="lent" className="flex-auto">Incoming</TabsTrigger>
       </TabsList>
 
       <TabsContent value="owed">

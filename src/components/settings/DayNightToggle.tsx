@@ -147,7 +147,7 @@ export function DayNightToggle({ embedded = false, onExpandedChange }: {
               <p className="text-base font-semibold text-card-foreground">Day / Night</p>
               <p className="text-xs text-muted-foreground">
                 {configured
-                  ? `${dayNight.mode === 'day' ? 'Day' : 'Night'} theme active — tap to switch`
+                  ? `${dayNight.mode === 'day' ? 'Day' : 'Night'} theme active - tap to switch`
                   : 'Pick a theme for each mode to enable'}
               </p>
             </div>

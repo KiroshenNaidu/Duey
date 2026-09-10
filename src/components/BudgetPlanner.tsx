@@ -6,7 +6,7 @@ import { format } from 'date-fns';
 import { AppDataContext } from '@/context/AppDataContext';
 import { useFabLongPress, FAB_TOUCH_STYLE, FabPulse } from '@/components/QuickAdd';
 import type { BudgetPlan, BudgetItem } from '@/lib/types';
-import { formatCurrency, cn } from '@/lib/utils';
+import { buildAnalogous, formatCurrency, cn } from '@/lib/utils';
 import { displayProgressPct } from '@/lib/calculations';
 import { Plus, Trash2, ExternalLink, Edit2, Check, Maximize2, Minimize2, Archive } from 'lucide-react';
 import { FixedPortal } from '@/components/FixedPortal';
@@ -39,28 +39,6 @@ import {
 } from '@/components/ui/alert-dialog';
 import { buttonVariants } from '@/components/ui/button';
 import { showUndoToast } from '@/components/ui/undo-toast';
-
-function parseHsl(hsl: string): [number, number, number] {
-  const parts = hsl.split(' ');
-  return [parseFloat(parts[0]), parseFloat(parts[1]), parseFloat(parts[2])];
-}
-
-// Analogous palette: hues rotate around the theme's primary so each ring/legend
-// entry is clearly distinct while staying in the same colour family. Driven by
-// the active theme, so it re-colours automatically when the theme changes.
-function buildAnalogous(primary: string, count: number): string[] {
-  const [h, s, l] = parseHsl(primary);
-  const norm = (x: number) => ((x % 360) + 360) % 360;
-  const n = Math.max(1, count);
-  const spread = 18; // degrees between adjacent entries
-  const clampL = (v: number) => Math.max(30, Math.min(66, v));
-  return Array.from({ length: n }, (_, i) => {
-    const offset = i - (n - 1) / 2;
-    const hue = norm(h + offset * spread);
-    const light = clampL(l + offset * 5);
-    return `hsl(${Math.round(hue)}, ${Math.round(s)}%, ${Math.round(light)}%)`;
-  });
-}
 
 function ItemRow({ item, planBudget, color, onDelete }: {
   item: BudgetItem;
