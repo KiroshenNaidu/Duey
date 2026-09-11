@@ -112,6 +112,12 @@ export function getDayState(day: Date, overrides: TransportOverrides): DayState 
 // consulted here, so days outside the employment window still bill as travel. A future change
 // could return 0 for days before start / after end.
 
+/** Whether `day` falls in a month AFTER today's — the flag the day-state defaults use for
+ *  the "unemployed, so future days don't bill" rule. Exported so the Transport grid and
+ *  the range calculator ask the same question rather than each rolling their own. */
+export const isFutureMonthDay = (day: Date, today: Date = new Date()): boolean =>
+  startOfMonth(day) > startOfMonth(today);
+
 export function getEffectiveDayState(
   day: Date,
   overrides: TransportOverrides,
@@ -187,12 +193,11 @@ export const calculateTransportRange = (
     monthlyOverrides: TransportMonthlyOverrides = {},
     today: Date = new Date(),
 ) => {
-    const todayMonth = startOfMonth(today);
     let fullDaysCount = 0;
     let halfDaysCount = 0;
     // Guard: a corrupt/inverted window must not spin here.
     for (let d = startOfDay(start), guard = 0; d < endExclusive && guard < 400; d = add(d, { days: 1 }), guard++) {
-      const state = getEffectiveDayState(d, overrides, settings.employed, startOfMonth(d) > todayMonth);
+      const state = getEffectiveDayState(d, overrides, settings.employed, isFutureMonthDay(d, today));
       if (state === 1) fullDaysCount++;
       else if (state === 1.5) halfDaysCount++;
     }
@@ -200,7 +205,12 @@ export const calculateTransportRange = (
     const startKey = format(start, 'yyyy-MM');
     const override = monthlyOverrides[startKey];
     const effectiveMonthlyFee = override !== undefined ? safeFee(override) : safeFee(settings.monthlyFee);
-    const unemployedFuture = !settings.employed && startOfMonth(start) > todayMonth;
+    // A window that STARTS after today is a future one. This used to compare calendar
+    // months, which reads the same for payDay 1 (a future month's window starts on its
+    // 1st) but not for any other pay day: the cycle beginning on the 26th of THIS month
+    // is still to come, yet a month comparison called it current and billed an
+    // unemployed user for it.
+    const unemployedFuture = !settings.employed && startOfDay(start) > startOfDay(today);
     const totalDue = unemployedFuture
       ? 0
       : settings.pricingMode === 'monthly'
