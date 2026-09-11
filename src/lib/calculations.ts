@@ -1,8 +1,9 @@
 import type {
   Debt, HistoryEntry, TransportOverrides, TransportSettings, DayState,
-  Expense, ExtraIncome, BudgetPlan, UberRide, TransportMonthlyOverrides, SavingEntry,
+  Expense, ExtraIncome, BudgetPlan, UberRide, TransportMonthlyOverrides, SavingEntry, RecurringSaving,
 } from './types';
 import { isWeekend, getDaysInMonth, startOfMonth, startOfDay, add, isSameMonth, format, differenceInCalendarDays } from 'date-fns';
+import { savingsMovementForCycle } from './piggybanks';
 
 // Debt Calculations
 export const getAmountPaid = (debt: Debt, history: HistoryEntry[]): number => {
@@ -341,6 +342,7 @@ export interface MonthlyMoneyInput {
   history: HistoryEntry[];
   uberRides: UberRide[];
   savings: SavingEntry[];
+  recurringSavings?: RecurringSaving[];
   transportSettings: TransportSettings;
   transportOverrides: TransportOverrides;
   transportMonthlyOverrides: TransportMonthlyOverrides;
@@ -397,7 +399,7 @@ export function calculateLiveMonthly(input: MonthlyMoneyInput, date: Date = new 
     input.history.filter(h => h.type === 'payment' && !!h.debtId), start, end, h => h.date, h => h.amount);
   const expenses = input.expenses.reduce((s, e) => s + e.amount, 0);
   const budget = confirmedBudgetForWindow(input.budgetPlans, start, end);
-  const savings = manualSavingsForCycle(input.savings, format(start, 'yyyy-MM'));
+  const savings = savingsLineForCycle(input.savings, input.recurringSavings, format(start, 'yyyy-MM'));
   const totalOutgoings = transport + uber + debt + expenses + budget + savings;
   return { income, transport, uber, debt, expenses, budget, savings, totalOutgoings, remaining: income - totalOutgoings };
 }
@@ -406,18 +408,19 @@ export function calculateLiveMonthly(input: MonthlyMoneyInput, date: Date = new 
 // the cycle it was confirmed in. The deduction is the spent total (Σ item prices), not the budget
 // ceiling — so an unspent remainder is never deducted.
 /**
- * Money the user says they put away for a cycle, counted as an outgoing.
- *
- * Only MANUAL entries. An 'auto' entry is the leftover the cycle ENDED with — it is what
- * remains after every deduction, so deducting it as well would subtract the same money
- * twice and shrink the figure it was computed from.
+ * The cycle's savings line: money put away, less money taken back out, plus whatever the
+ * standing orders charge it. Signed — a cycle you drew from lifts Remaining rather than
+ * sinking it. See `savingsMovementForCycle` in lib/piggybanks for the full reasoning.
  *
  * Matched on the entry's `cycleKey` — the cycle the user FILED it against — not on when
  * they happened to type it in. Recording last cycle's transfer today puts it in last
  * cycle, which is what picking that cycle in the form meant.
  */
-const manualSavingsForCycle = (savings: SavingEntry[] | undefined, cycleKeyStr: string): number =>
-  (savings ?? []).reduce((s, v) => (v.source === 'manual' && v.cycleKey === cycleKeyStr ? s + v.amount : s), 0);
+const savingsLineForCycle = (
+  savings: SavingEntry[] | undefined,
+  recurring: RecurringSaving[] | undefined,
+  cycleKeyStr: string,
+): number => savingsMovementForCycle(savings, recurring, cycleKeyStr);
 
 const confirmedBudgetForWindow = (plans: BudgetPlan[], start: Date, end: Date): number =>
   plans.reduce(
@@ -454,10 +457,10 @@ export function calculateSealedCycleSummary(input: MonthlyMoneyInput, cycleKeySt
   const expenses = oneTimeExpenses + recurringExpenses;
   const uber = sumInWindow(input.uberRides, start, end, r => r.date, r => r.price);
   const budget = confirmedBudgetForWindow(input.budgetPlans, start, end);
-  // Manual savings for this cycle are an outgoing here too, which is what keeps the
+  // Savings movement for this cycle is an outgoing here too, which is what keeps the
   // automatic sweep honest: the leftover the seal banks is what was left AFTER them, so a
   // cycle's savings total is "what I put away" + "what I had left", never one twice.
-  const savings = manualSavingsForCycle(input.savings, cycleKeyStr);
+  const savings = savingsLineForCycle(input.savings, input.recurringSavings, cycleKeyStr);
   // Recurring extras count for every cycle from creation onward; one-time extras only for
   // the cycle they were created in. Relies on the seal running BEFORE the purge removes
   // expired one-time extras (see load order in AppDataContext).

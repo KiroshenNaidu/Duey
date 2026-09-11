@@ -9,7 +9,6 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Button } from '@/components/ui/button';
 import { CardHeading } from '@/components/ui/card';
 import { Calendar } from '@/components/ui/calendar';
-import { LegendDot } from '@/components/stats/StatPrimitives';
 import { cycleKey, cycleStartFromKey, getPayCycle, listRecentCycles, type MonthlyMoney } from '@/lib/calculations';
 import { AppDataContext } from '@/context/AppDataContext';
 
@@ -40,6 +39,10 @@ export interface CyclePoint {
 
 /** Short axis label for a cycle: the month its pay date falls in. */
 const shortLabel = (key: string, payDay: number) => format(cycleStartFromKey(key, payDay), 'MMM');
+
+/** Fewest points worth drawing a line through. A one- or two-cycle selection is padded out
+ *  to this with its neighbours; a span wider than it draws every cycle it covers. */
+const MIN_LINE_POINTS = 6;
 
 /**
  * What the page is currently reporting on: one cycle, or a span of them. A single cycle is
@@ -142,18 +145,43 @@ export function CycleNavigatorCard({ selected, points, liveKey, payDay, onSelect
     stepCycleKey(selected.toKey, payDay, dir),
   );
 
-  // Only cycles that actually happened. A cycle from before you had data still recomputes
-  // an income from your CURRENT salary, which would draw a full-height empty column for a
-  // month the app never saw — worse than nothing, because it reads as a month you spent
-  // nothing in.
+  // What the line draws: the cycles you asked for, whatever span that is.
+  //
+  // Only cycles that actually happened are eligible. A cycle from before you had data still
+  // recomputes an income from your CURRENT salary, which would draw a full-height empty
+  // column for a month the app never saw — worse than nothing, because it reads as a month
+  // you spent nothing in.
+  //
+  // A narrow selection is padded with its neighbours rather than drawn as one lonely dot: a
+  // single cycle has no shape, and the point of the chart is what the figure looks like
+  // NEXT to the ones around it. The selection stays marked (band + filled dots) either way,
+  // so padding never hides which cycles the figures above actually cover.
   const columns = useMemo(() => {
     const real = points.filter(p => p.recorded);
-    return real.slice(Math.max(0, real.length - 12));
-  }, [points]);
+    if (real.length === 0) return [];
 
-  const avgSpend = columns.length
-    ? columns.reduce((s, p) => s + p.money.totalOutgoings, 0) / columns.length
-    : 0;
+    const flags = real.map(p => selectedKeys.has(p.key));
+    let lo = flags.indexOf(true);
+    let hi = flags.lastIndexOf(true);
+    // Selection outside the recorded range (a span reaching back before your data): fall
+    // back to the most recent stretch so the card still says something.
+    if (lo < 0) return real.slice(Math.max(0, real.length - MIN_LINE_POINTS));
+
+    while (hi - lo + 1 < MIN_LINE_POINTS && (lo > 0 || hi < real.length - 1)) {
+      if (lo > 0) lo -= 1;
+      if (hi - lo + 1 < MIN_LINE_POINTS && hi < real.length - 1) hi += 1;
+    }
+    return real.slice(lo, hi + 1);
+  }, [points, selectedKeys]);
+
+  // Averaged over the SELECTION, not over what is drawn: the padding either side of a
+  // narrow selection is context for the eye, and quoting a figure that included it would
+  // disagree with the summary card directly below.
+  const avgSpend = useMemo(() => {
+    const inSelection = columns.filter(p => selectedKeys.has(p.key));
+    const basis = inSelection.length ? inSelection : columns;
+    return basis.length ? basis.reduce((s, p) => s + p.money.totalOutgoings, 0) / basis.length : 0;
+  }, [columns, selectedKeys]);
 
   return (
     <div className="bg-card rounded-2xl p-1.5">
@@ -282,10 +310,17 @@ function SpendLine({ points, selectedKeys, payDay, onSelectKey, ready }: {
   const area = `${line} L${x(points.length - 1).toFixed(1)},${BASE} L${x(0).toFixed(1)},${BASE} Z`;
   const firstSelIdx = points.findIndex(p => selectedKeys.has(p.key));
   const lastSelIdx = points.length - 1 - [...points].reverse().findIndex(p => selectedKeys.has(p.key));
-  // A span is worth shading: the line then says which stretch of it the figures above cover.
+  // Marking the selection only says something when there is something else to tell it
+  // apart FROM. Select the whole window — which is what picking a wide span does — and the
+  // emphasis marks every point, which is a caterpillar of fat dots under a wash, and no
+  // more informative than the plain line.
+  const allSelected = firstSelIdx === 0 && lastSelIdx === points.length - 1;
+  // Dots stop being marks and start being noise once they touch. Past that the line alone
+  // carries the shape, which is the whole message at this width.
+  const showDots = points.length <= 14;
   const bandFrom = firstSelIdx >= 0 ? x(firstSelIdx) : 0;
   const bandTo = firstSelIdx >= 0 ? x(lastSelIdx) : 0;
-  const showBand = firstSelIdx >= 0 && lastSelIdx > firstSelIdx;
+  const showBand = firstSelIdx >= 0 && lastSelIdx > firstSelIdx && !allSelected;
 
   return (
     <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-auto" role="img" aria-label="Spent per cycle">
@@ -323,7 +358,10 @@ function SpendLine({ points, selectedKeys, payDay, onSelectKey, ready }: {
           and a 2px circle sitting over the hit area meant tapping a point you can SEE did
           nothing while tapping beside it worked. Marks first, hit areas last. */}
       {points.map((p, i) => {
-        const isSelected = selectedKeys.has(p.key);
+        const isSelected = selectedKeys.has(p.key) && !allSelected;
+        // A dense window keeps only the marks that mean something: the ends of a selection
+        // that is narrower than what is drawn.
+        if (!showDots && !isSelected) return null;
         return (
           <circle
             key={p.key}
@@ -353,7 +391,7 @@ function SpendLine({ points, selectedKeys, payDay, onSelectKey, ready }: {
           this width, and the selected cycle is named in full above anyway. */}
       {points.map((p, i) => {
         if (i !== 0 && i !== points.length - 1 && i !== firstSelIdx && i !== lastSelIdx) return null;
-        const inSelection = selectedKeys.has(p.key);
+        const inSelection = selectedKeys.has(p.key) && !allSelected;
         return (
           <text
             key={p.key} x={x(i)} y={H - 4} textAnchor={i === 0 ? 'start' : i === points.length - 1 ? 'end' : 'middle'}
@@ -644,9 +682,12 @@ export function SpendBreakdownCard({ money, ready }: { money: MonthlyMoney; read
 
 /**
  * The Savings tab's ledger answers "what did I keep, and when". This answers the question
- * the ledger cannot: is the pile growing. Each column is one cycle's total, split by how
- * the money got there — put away on purpose (bottom) versus left over and swept (top) —
- * which makes the tab's whole premise visible: for most cycles the top half is the story.
+ * the ledger cannot: is the pile growing. One point per cycle, drawn as the same line the
+ * navigator uses for spending — the shape of the trend is the whole message, and a line
+ * carries it where a row of stacked columns only carried the last one or two.
+ *
+ * The split between swept and deliberate money lives in the hero's bar above, which is
+ * where a total belongs; repeating it here cost the line its legibility.
  */
 export function SavingsTrendCard({ cycles, payDay, ready }: {
   /** Oldest first. */
@@ -654,8 +695,9 @@ export function SavingsTrendCard({ cycles, payDay, ready }: {
   payDay: number;
   ready: boolean;
 }) {
-  const window = useMemo(() => cycles.slice(Math.max(0, cycles.length - 6)), [cycles]);
-  const max = Math.max(...window.map(c => c.manual + c.auto), 1);
+  const window = useMemo(() => cycles.slice(Math.max(0, cycles.length - 12)), [cycles]);
+  const totals = window.map(c => c.manual + c.auto);
+  const peak = Math.max(...totals, 1);
 
   if (window.length < 2) return null;
 
@@ -664,39 +706,92 @@ export function SavingsTrendCard({ cycles, payDay, ready }: {
       <CardHeading
         icon={BarChart3}
         title="Saved per cycle"
-        aside={`peak ${formatCurrency(max)}`}
+        aside={`peak ${formatCurrency(peak)}`}
+      />
+      {/* The same line the cycle navigator draws for spending, in the savings colour: two
+          charts a swipe apart that answer "how has this moved" should be read the same way. */}
+      <TrendLine
+        points={window.map((c, i) => ({ key: c.key, value: totals[i] }))}
+        payDay={payDay}
+        ready={ready}
+        color="hsl(var(--positive))"
+        gradientId="saved-fill"
+        label="Saved per cycle"
+      />
+    </div>
+  );
+}
+
+/**
+ * A bare version of the navigator's spend line — same geometry, same 700ms self-drawing
+ * stroke, no selection or hit targets. For charts that are read rather than driven.
+ */
+function TrendLine({ points, payDay, ready, color, gradientId, label }: {
+  points: { key: string; value: number }[];
+  payDay: number;
+  ready: boolean;
+  color: string;
+  gradientId: string;
+  label: string;
+}) {
+  const W = 320, H = 96, PAD_X = 10, PAD_TOP = 10, BASE = H - 18;
+  const max = Math.max(...points.map(p => p.value), 1);
+  const x = (i: number) => PAD_X + (i * (W - PAD_X * 2)) / Math.max(1, points.length - 1);
+  const y = (v: number) => PAD_TOP + (1 - v / max) * (BASE - PAD_TOP);
+
+  const line = points.map((p, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)},${y(p.value).toFixed(1)}`).join(' ');
+  const area = `${line} L${x(points.length - 1).toFixed(1)},${BASE} L${x(0).toFixed(1)},${BASE} Z`;
+  const peakIdx = points.reduce((best, p, i) => (p.value > points[best].value ? i : best), 0);
+
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-auto mt-2" role="img" aria-label={label}>
+      <defs>
+        <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={color} stopOpacity="0.28" />
+          <stop offset="100%" stopColor={color} stopOpacity="0" />
+        </linearGradient>
+      </defs>
+
+      <line x1={PAD_X} y1={BASE} x2={W - PAD_X} y2={BASE} stroke="hsl(var(--border))" strokeWidth="1" />
+
+      <path d={area} fill={`url(#${gradientId})`} opacity={ready ? 1 : 0}
+            style={{ transition: ready ? 'opacity 700ms ease' : undefined }} />
+
+      <path
+        d={line} fill="none" stroke={color} strokeWidth="2"
+        strokeLinecap="round" strokeLinejoin="round" pathLength={1}
+        strokeDasharray={1} strokeDashoffset={ready ? 0 : 1}
+        style={{ transition: ready ? 'stroke-dashoffset 700ms ease' : undefined }}
       />
 
-      <div className="flex items-end gap-1.5 h-20 mt-2">
-        {window.map(c => (
-          <div key={c.key} className="flex-1 min-w-0 h-full flex flex-col items-stretch gap-1.5">
-            <div className="relative flex-1 rounded-md overflow-hidden bg-secondary">
-              {/* One stack, drawn bottom-up: manual sits under the swept leftover so the
-                  two are always in the same order to compare across columns. */}
-              <div
-                className={cn('absolute inset-x-0 bottom-0 flex flex-col justify-end', ready && 'transition-[height] duration-700')}
-                style={{ height: `${ready ? ((c.manual + c.auto) / max) * 100 : 0}%` }}
-              >
-                {c.auto > 0 && (
-                  <div className="w-full rounded-t-md" style={{ height: `${(c.auto / (c.manual + c.auto)) * 100}%`, background: 'hsl(var(--positive))' }} />
-                )}
-                {c.manual > 0 && (
-                  <div className="w-full" style={{ height: `${(c.manual / (c.manual + c.auto)) * 100}%`, background: 'hsl(var(--cat-snapshot))' }} />
-                )}
-              </div>
-            </div>
-            <span className="text-[9px] tabular-nums text-muted-foreground/60 text-center">
-              {shortLabel(c.key, payDay)}
-            </span>
-          </div>
-        ))}
-      </div>
+      {points.map((p, i) => (
+        <circle
+          key={p.key}
+          cx={x(i)} cy={y(p.value)} r={i === peakIdx ? 3.5 : 2}
+          fill={i === peakIdx ? color : 'hsl(var(--background))'}
+          stroke={color} strokeWidth={i === peakIdx ? 2 : 1.5}
+          opacity={ready ? 1 : 0}
+          style={{ transition: ready ? 'opacity 700ms ease' : undefined }}
+        >
+          <title>{`${shortLabel(p.key, payDay)}: ${formatCurrency(p.value)}`}</title>
+        </circle>
+      ))}
 
-      <div className="flex items-center gap-3 mt-2.5">
-        <LegendDot color="hsl(var(--positive))" label="Left over" />
-        <LegendDot color="hsl(var(--cat-snapshot))" label="Put away" />
-      </div>
-    </div>
+      {/* Ends and the peak only — a label per point is unreadable at this width. */}
+      {points.map((p, i) => {
+        if (i !== 0 && i !== points.length - 1 && i !== peakIdx) return null;
+        return (
+          <text
+            key={p.key} x={x(i)} y={H - 4}
+            textAnchor={i === 0 ? 'start' : i === points.length - 1 ? 'end' : 'middle'}
+            className={cn('text-[9px]', i === peakIdx ? 'fill-foreground font-semibold' : 'fill-muted-foreground')}
+            style={{ fontSize: 9 }}
+          >
+            {shortLabel(p.key, payDay)}
+          </text>
+        );
+      })}
+    </svg>
   );
 }
 

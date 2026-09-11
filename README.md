@@ -32,10 +32,14 @@
 - Log repayments as they trickle in, with an optional due date that marks a loan overdue
 - Outstanding loans come off your balance: money you've lent isn't money you can spend
 
-### Savings
-- Whatever a pay cycle ends with is swept into savings automatically when it seals — saving is the default outcome of not spending, not something you have to remember
-- Add money you put away yourself against any cycle
-- The Savings tab splits the pile into what you kept and what you set aside, with a per-cycle trend
+### Savings & Piggybanks
+- Money lives in **piggybanks** — named jars you create, rename and close, each with an optional goal it fills toward like a debt card pays down
+- Whatever a pay cycle ends with is swept into the Leftovers jar automatically when it seals — saving is the default outcome of not spending, not something you have to remember
+- Put money in or **take it back out** of any jar; a withdrawal comes off the jar and back onto that cycle's balance
+- **Standing orders** — "R750 every cycle to the emergency fund" — charge every cycle on their own and become real ledger rows as each cycle seals. Pause one without losing it
+- The same gestures as the debts page: swipe a jar for its actions, press and hold to multi-select, tap to open it
+- Every movement is written to History with its own Savings badge
+- The tab splits the pile into what you kept and what you set aside, with a per-cycle trend line
 
 ### Transport Calculator
 - Tap days on a custom calendar to mark days you traveled — full days or half days
@@ -48,6 +52,7 @@
 ### Income & Expenses
 - Track recurring and one-off expenses alongside your monthly income
 - Add extra income sources on top of your main salary
+- Balance updates live as you move money: deposits into a piggybank come off Remaining, withdrawals go back on
 
 ### Stats & History
 - View payment history: what was paid, how much, and when
@@ -185,15 +190,15 @@ Want to try the app with realistic data already loaded? A sample backup is inclu
 **[Download test-data.json](public/test-data.json)**
 
 It belongs to **Jhon Skyrim**, a developer paid on the 26th, and covers **every pay cycle from
-January 2022 to the current one** — 56 cycles, ~134 KB, 431 history entries. Enough history that
+January 2022 to the current one** — 56 cycles, ~188 KB, 462 history entries. Enough history that
 the charts, the trends and the year-back jumps all have something real to draw.
 
 | | |
 |---|---|
 | **Debts** | 18 in total — 10 still open (student loan, bakkie finance, a home-loan top-up, phone contract, credit card) and 8 paid off and closed. Two people (Sarah Oblivion, Mike Fallout) hold two debts each, so the grouped person cards show up |
 | **Money lent out** | 8 loans to Geralt Rivia, Ciri Nova, Kratos Mbeki, Zelda Naicker, Ellie Lastly, Duke Nukemzi, Nathan Drakeford and Aloy Nkosi — 23 events between them, two settled, one overdue, one with a second hand-out on the same loan |
-| **History** | 246 payments, 55 sealed cycle summaries, 55 transport months, 34 expenses, 18 debt creations, 14 confirmed budgets, 8 completions — R467,550 paid across four and a half years, with missed months, late notes and labelled extra payments |
-| **Savings** | 80 entries, R431,556 — 53 swept automatically at cycle end plus 27 put away by hand |
+| **History** | 246 payments, 55 sealed cycle summaries, 55 transport months, 34 expenses, 31 savings movements, 18 debt creations, 14 confirmed budgets, 8 completions — R467,550 paid across four and a half years, with missed months, late notes and labelled extra payments |
+| **Savings** | 6 piggybanks holding R408,752 across 103 movements — Leftovers (swept automatically), a general jar, and four with goals: Emergency fund R16,200/R60,000, Holiday fund, New laptop, Tax stash. Includes 18 standing-order contributions, one paused order, and 3 withdrawals |
 | **Transport** | 1,072 days ticked since Jan 2022 at R96/day, including 108 half-days, public holidays, annual leave and the December shutdown |
 | **Uber** | 77 rides with routes and distances |
 | **Budgets** | 15 plans — 14 confirmed and archived across past cycles, plus live ones on the current cycle |
@@ -215,9 +220,7 @@ The file is generated, not hand-written — four and a half years of interlockin
 something to maintain by hand:
 
 ```bash
-npm run testdata      # regenerate, then print + copy the console loader
-npm run testdata:load # just the loader snippet, without regenerating
-npm run reset:db      # the opposite: wipe all app data back to a fresh install
+node scripts/generate-test-data.mjs
 ```
 
 It anchors on today's date (so the current cycle always has live data and nothing gets
@@ -226,18 +229,16 @@ can serve it. Everything random comes from a seeded PRNG, so two runs on the sam
 identical output. To change what the dataset contains, edit the spec tables at the top of the
 script — `DEBT_SPECS`, `LOAN_SPECS`, the expense and budget lists — rather than the JSON.
 
-On the dev server you can skip the import dialog entirely: `npm run testdata` copies
-`load-test-data.js` to your clipboard — paste it into the browser console and it fetches
-`/test-data.json` straight into `localStorage`.
+On the dev server you can skip the import dialog entirely: paste `load-test-data.js` into the
+browser console and it fetches `/test-data.json` straight into `localStorage`.
 
-To go the other way, `npm run reset:db` hands you `reset-app-data.js`, which clears
-`localStorage` and the IndexedDB store and reloads into a fresh install — the same thing
-**Settings → Data Management → Clear All Data** does, without the taps. (For the Android
-build: `adb shell pm clear com.duey.app`.)
+To go the other way, `reset-app-data.js` clears `localStorage` and the IndexedDB store and
+reloads into a fresh install — the same thing **Settings → Data Management → Clear All Data**
+does, without the taps. (For the Android build: `adb shell pm clear com.duey.app`.)
 
 > The app has no server and no database — state lives in the browser's `localStorage` and
-> IndexedDB — so both of these are console snippets rather than something the terminal can do
-> on its own. The npm scripts print them and put them on your clipboard.
+> IndexedDB — so both of these are console snippets rather than something the terminal can
+> reach.
 
 ---
 

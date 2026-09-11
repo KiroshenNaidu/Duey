@@ -20,6 +20,10 @@ export interface LedgerRowProps {
   ghost?: ReactNode;
   /** 0–100. */
   progress: number;
+  /** Off for a row with nothing to fill toward — a piggybank with no goal has a balance
+   *  but no denominator, and an always-empty track reads as broken rather than as "no
+   *  target". Defaults on, which is every debt and every loan. */
+  showBar?: boolean;
   paidOff?: boolean;
   footerLeft: ReactNode;
   footerRight: ReactNode;
@@ -38,7 +42,7 @@ export interface LedgerRowProps {
  * the two sides stay pixel-identical.
  */
 export function LedgerRow({
-  title, meta, badge, action, ghost, progress, paidOff = false,
+  title, meta, badge, action, ghost, progress, paidOff = false, showBar = true,
   footerLeft, footerRight, grouped = false, selected = false, className,
 }: LedgerRowProps) {
   const barReady = useReplayOnActive('/');
@@ -75,6 +79,7 @@ export function LedgerRow({
       <CardContent className="space-y-2">
         {/* Payoff bar — ghost segment (staged payment) sits behind the solid fill;
             solid fill is a flowing gradient that stays in-theme and glows when done. */}
+        {showBar && (
         <div className="relative h-1.5 w-full overflow-hidden rounded-full bg-secondary">
           {ghost}
           <div
@@ -91,6 +96,7 @@ export function LedgerRow({
             }}
           />
         </div>
+        )}
         <div className="flex justify-between items-baseline gap-2">
           <span
             className="text-xs font-medium text-muted-foreground min-w-0 truncate tabular-nums"

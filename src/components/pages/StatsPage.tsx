@@ -225,17 +225,17 @@ function Figure({ label, value, color, icon: Icon }: {
 function CycleSection() {
   const {
     monthlyIncome, extraIncomes, expenses, budgetPlans, history, uberRides,
-    transportSettings, transportOverrides, transportMonthlyOverrides, userProfile, savings,
+    transportSettings, transportOverrides, transportMonthlyOverrides, userProfile, savings, recurringSavings,
   } = useContext(AppDataContext);
 
   const payDay = userProfile.paydayDay;
   const input = useMemo(
     () => ({
       payDay, monthlyIncome, extraIncomes, expenses, budgetPlans, history, uberRides, savings,
-      transportSettings, transportOverrides, transportMonthlyOverrides,
+      recurringSavings, transportSettings, transportOverrides, transportMonthlyOverrides,
     }),
     [payDay, monthlyIncome, extraIncomes, expenses, budgetPlans, history, uberRides, savings,
-     transportSettings, transportOverrides, transportMonthlyOverrides],
+     recurringSavings, transportSettings, transportOverrides, transportMonthlyOverrides],
   );
   const cycle = useMemo(() => getPayCycle(payDay), [payDay]);
   // The same live calculator the Balance tab runs, so the open cycle's figures here and
@@ -297,15 +297,22 @@ function CycleSection() {
     };
   }, [fromKey, toKey, readCycle, cycle.key, cycle.label, payDay]);
 
-  // A rolling year for the trend chart only — it bounds what is DRAWN, never what can be
-  // selected.
-  const points: CyclePoint[] = useMemo(
-    () => listRecentCycles(payDay, 11).slice().reverse().map(c => {
-      const { money, recorded } = readCycle(c.key);
-      return { key: c.key, label: c.label, live: c.key === cycle.key, recorded, money };
-    }),
-    [payDay, readCycle, cycle.key],
-  );
+  // Every cycle the chart could be asked to draw: from the oldest one there is data for (or
+  // the start of the current selection, if that reaches further back) up to the live one.
+  // It used to be a fixed rolling year, which meant picking a four-year span still drew the
+  // last twelve cycles — the figures moved and the line did not.
+  const points: CyclePoint[] = useMemo(() => {
+    let earliest = cycle.key;
+    for (const h of history) {
+      const k = cycleKey(new Date(h.date), payDay);
+      if (k < earliest) earliest = k;
+    }
+    if (fromKey < earliest) earliest = fromKey;
+    return cycleKeysBetween(earliest, cycle.key, payDay).map(key => {
+      const { money, recorded } = readCycle(key);
+      return { key, label: cycleLabelFromKey(key, payDay), live: key === cycle.key, recorded, money };
+    });
+  }, [history, payDay, fromKey, cycle.key, readCycle]);
 
   const ready = useReplayOnActive('/stats');
   const transportPaid = isTransportPaidForMonth(history, new Date());

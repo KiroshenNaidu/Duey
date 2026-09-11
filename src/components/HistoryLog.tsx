@@ -27,6 +27,7 @@ const TYPE_BADGE_CONFIG: Record<HistoryEntry['type'], { label: string; className
   expense:    { label: 'Expense',    className: 'bg-expense/15 text-expense' },
   employment: { label: 'Employment', className: 'bg-employment/15 text-employment' },
   snapshot:   { label: 'Summary',   className: 'bg-snapshot/15 text-snapshot' },
+  savings:    { label: 'Savings',    className: 'bg-positive/15 text-positive' },
 };
 
 function TypeBadge({ type }: { type: HistoryEntry['type'] }) {
@@ -54,6 +55,7 @@ const ENTRY_BORDER: Record<HistoryEntry['type'], string> = {
   expense:    'border-l-expense',
   employment: 'border-l-employment',
   snapshot:   'border-l-snapshot',
+  savings:    'border-l-positive',
 };
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -4,7 +4,7 @@
   "v": 2,
   "exportedAt": "2026-09-11T06:00:00.000Z"
  },
- "schemaVersion": 9,
+ "schemaVersion": 10,
  "currency": "ZAR",
  "monthlyIncome": 32000,
  "debts": [
@@ -345,697 +345,1182 @@
  ],
  "savings": [
   {
-   "id": "s-000028",
-   "amount": 13124,
+   "id": "s-000050",
+   "amount": 16124,
    "cycleKey": "2022-01",
    "source": "auto",
+   "direction": "in",
+   "bankId": "bank-leftovers",
    "label": "Leftover",
    "note": "Left at the end of 26 Jan – 25 Feb 2022",
    "createdAt": "2022-02-24T22:00:00.000Z"
   },
   {
    "id": "s-000001",
-   "amount": 1400,
+   "amount": 1000,
    "cycleKey": "2022-02",
    "source": "manual",
-   "label": "Emergency fund",
-   "createdAt": "2022-03-19T10:00:00.000Z"
+   "direction": "in",
+   "bankId": "bank-general",
+   "label": "Transfer",
+   "createdAt": "2022-03-09T12:00:00.000Z"
   },
   {
-   "id": "s-000029",
-   "amount": 8996,
+   "id": "s-000051",
+   "amount": 9396,
    "cycleKey": "2022-02",
    "source": "auto",
+   "direction": "in",
+   "bankId": "bank-leftovers",
    "label": "Leftover",
    "note": "Left at the end of 26 Feb – 25 Mar 2022",
    "createdAt": "2022-03-24T22:00:00.000Z"
   },
   {
-   "id": "s-000030",
-   "amount": 13087,
+   "id": "s-000002",
+   "amount": 2700,
+   "cycleKey": "2022-03",
+   "source": "manual",
+   "direction": "in",
+   "bankId": "bank-holiday",
+   "label": "Payday set-aside",
+   "createdAt": "2022-04-15T08:00:00.000Z"
+  },
+  {
+   "id": "s-000052",
+   "amount": 7387,
    "cycleKey": "2022-03",
    "source": "auto",
+   "direction": "in",
+   "bankId": "bank-leftovers",
    "label": "Leftover",
    "note": "Left at the end of 26 Mar – 25 Apr 2022",
    "createdAt": "2022-04-24T22:00:00.000Z"
   },
   {
-   "id": "s-000031",
-   "amount": 7224,
+   "id": "s-000003",
+   "amount": 1200,
+   "cycleKey": "2022-04",
+   "source": "manual",
+   "direction": "in",
+   "bankId": "bank-general",
+   "label": "Transfer",
+   "createdAt": "2022-05-16T17:00:00.000Z"
+  },
+  {
+   "id": "s-000053",
+   "amount": 5324,
    "cycleKey": "2022-04",
    "source": "auto",
+   "direction": "in",
+   "bankId": "bank-leftovers",
    "label": "Leftover",
    "note": "Left at the end of 26 Apr – 25 May 2022",
    "createdAt": "2022-05-24T22:00:00.000Z"
   },
   {
-   "id": "s-000002",
-   "amount": 2400,
-   "cycleKey": "2022-05",
-   "source": "manual",
-   "label": "New laptop fund",
-   "createdAt": "2022-06-19T17:00:00.000Z"
-  },
-  {
-   "id": "s-000032",
-   "amount": 4215,
+   "id": "s-000054",
+   "amount": 8315,
    "cycleKey": "2022-05",
    "source": "auto",
+   "direction": "in",
+   "bankId": "bank-leftovers",
    "label": "Leftover",
    "note": "Left at the end of 26 May – 25 Jun 2022",
    "createdAt": "2022-06-24T22:00:00.000Z"
   },
   {
-   "id": "s-000033",
-   "amount": 6963,
+   "id": "s-000005",
+   "amount": 1300,
+   "cycleKey": "2022-06",
+   "source": "manual",
+   "direction": "out",
+   "bankId": "bank-holiday",
+   "label": "Car repair",
+   "createdAt": "2022-07-13T10:00:00.000Z"
+  },
+  {
+   "id": "s-000004",
+   "amount": 1400,
+   "cycleKey": "2022-06",
+   "source": "manual",
+   "direction": "in",
+   "bankId": "bank-tax",
+   "label": "Rounded up",
+   "createdAt": "2022-07-14T14:00:00.000Z"
+  },
+  {
+   "id": "s-000055",
+   "amount": 1963,
    "cycleKey": "2022-06",
    "source": "auto",
+   "direction": "in",
+   "bankId": "bank-leftovers",
    "label": "Leftover",
    "note": "Left at the end of 26 Jun – 25 Jul 2022",
    "createdAt": "2022-07-24T22:00:00.000Z"
   },
   {
-   "id": "s-000034",
-   "amount": 5045,
+   "id": "s-000056",
+   "amount": 4645,
    "cycleKey": "2022-07",
    "source": "auto",
+   "direction": "in",
+   "bankId": "bank-leftovers",
    "label": "Leftover",
    "note": "Left at the end of 26 Jul – 25 Aug 2022",
    "createdAt": "2022-08-24T22:00:00.000Z"
   },
   {
-   "id": "s-000003",
-   "amount": 2400,
+   "id": "s-000006",
+   "amount": 3000,
    "cycleKey": "2022-08",
    "source": "manual",
-   "label": "Emergency fund",
-   "createdAt": "2022-09-11T10:00:00.000Z"
+   "direction": "in",
+   "bankId": "bank-laptop",
+   "label": "Bonus",
+   "createdAt": "2022-09-05T17:00:00.000Z"
   },
   {
-   "id": "s-000035",
-   "amount": 4348,
+   "id": "s-000057",
+   "amount": 948,
    "cycleKey": "2022-08",
    "source": "auto",
+   "direction": "in",
+   "bankId": "bank-leftovers",
    "label": "Leftover",
    "note": "Left at the end of 26 Aug – 25 Sep 2022",
    "createdAt": "2022-09-24T22:00:00.000Z"
   },
   {
-   "id": "s-000036",
-   "amount": 2851,
+   "id": "s-000058",
+   "amount": 3251,
    "cycleKey": "2022-09",
    "source": "auto",
+   "direction": "in",
+   "bankId": "bank-leftovers",
    "label": "Leftover",
    "note": "Left at the end of 26 Sep – 25 Oct 2022",
    "createdAt": "2022-10-24T22:00:00.000Z"
   },
   {
-   "id": "s-000004",
-   "amount": 800,
-   "cycleKey": "2022-10",
-   "source": "manual",
-   "label": "Bakkie service fund",
-   "createdAt": "2022-11-19T15:00:00.000Z"
-  },
-  {
-   "id": "s-000037",
-   "amount": 5134,
+   "id": "s-000059",
+   "amount": 2234,
    "cycleKey": "2022-10",
    "source": "auto",
+   "direction": "in",
+   "bankId": "bank-leftovers",
    "label": "Leftover",
    "note": "Left at the end of 26 Oct – 25 Nov 2022",
    "createdAt": "2022-11-24T22:00:00.000Z"
   },
   {
-   "id": "s-000005",
-   "amount": 1400,
-   "cycleKey": "2022-11",
-   "source": "manual",
-   "label": "Bakkie service fund",
-   "createdAt": "2022-12-21T14:00:00.000Z"
-  },
-  {
-   "id": "s-000038",
-   "amount": 3653,
+   "id": "s-000060",
+   "amount": 6853,
    "cycleKey": "2022-11",
    "source": "auto",
+   "direction": "in",
+   "bankId": "bank-leftovers",
    "label": "Leftover",
    "note": "Left at the end of 26 Nov – 25 Dec 2022",
    "createdAt": "2022-12-24T22:00:00.000Z"
   },
   {
-   "id": "s-000039",
-   "amount": 5059,
+   "id": "s-000061",
+   "amount": 5759,
    "cycleKey": "2022-12",
    "source": "auto",
+   "direction": "in",
+   "bankId": "bank-leftovers",
    "label": "Leftover",
    "note": "Left at the end of 26 Dec – 25 Jan 2023",
    "createdAt": "2023-01-24T22:00:00.000Z"
   },
   {
-   "id": "s-000006",
-   "amount": 2600,
+   "id": "s-000007",
+   "amount": 1000,
    "cycleKey": "2023-01",
    "source": "manual",
-   "label": "Tax stash",
-   "createdAt": "2023-02-10T10:00:00.000Z"
+   "direction": "in",
+   "bankId": "bank-holiday",
+   "label": "Cash put by",
+   "createdAt": "2023-02-18T11:00:00.000Z"
   },
   {
-   "id": "s-000040",
-   "amount": 2493,
+   "id": "s-000062",
+   "amount": 4093,
    "cycleKey": "2023-01",
    "source": "auto",
+   "direction": "in",
+   "bankId": "bank-leftovers",
    "label": "Leftover",
    "note": "Left at the end of 26 Jan – 25 Feb 2023",
    "createdAt": "2023-02-24T22:00:00.000Z"
   },
   {
-   "id": "s-000041",
-   "amount": 4504,
+   "id": "s-000008",
+   "amount": 600,
    "cycleKey": "2023-02",
-   "source": "auto",
-   "label": "Leftover",
-   "note": "Left at the end of 26 Feb – 25 Mar 2023",
-   "createdAt": "2023-03-24T22:00:00.000Z"
-  },
-  {
-   "id": "s-000007",
-   "amount": 1300,
-   "cycleKey": "2023-03",
    "source": "manual",
-   "label": "Rainy day",
-   "createdAt": "2023-04-19T18:00:00.000Z"
+   "direction": "in",
+   "bankId": "bank-tax",
+   "label": "Rounded up",
+   "createdAt": "2023-03-14T14:00:00.000Z"
   },
   {
-   "id": "s-000042",
-   "amount": 5649,
+   "id": "s-000063",
+   "amount": 7149,
    "cycleKey": "2023-03",
    "source": "auto",
+   "direction": "in",
+   "bankId": "bank-leftovers",
    "label": "Leftover",
    "note": "Left at the end of 26 Mar – 25 Apr 2023",
    "createdAt": "2023-04-24T22:00:00.000Z"
   },
   {
-   "id": "s-000008",
-   "amount": 2000,
+   "id": "s-000009",
+   "amount": 600,
    "cycleKey": "2023-04",
    "source": "manual",
-   "label": "Holiday fund",
-   "createdAt": "2023-05-17T15:00:00.000Z"
+   "direction": "in",
+   "bankId": "bank-laptop",
+   "label": "Transfer",
+   "createdAt": "2023-05-08T15:00:00.000Z"
   },
   {
-   "id": "s-000043",
-   "amount": 5956,
+   "id": "s-000064",
+   "amount": 7856,
    "cycleKey": "2023-04",
    "source": "auto",
+   "direction": "in",
+   "bankId": "bank-leftovers",
    "label": "Leftover",
    "note": "Left at the end of 26 Apr – 25 May 2023",
    "createdAt": "2023-05-24T22:00:00.000Z"
   },
   {
-   "id": "s-000044",
-   "amount": 8119,
+   "id": "s-000065",
+   "amount": 6319,
    "cycleKey": "2023-05",
    "source": "auto",
+   "direction": "in",
+   "bankId": "bank-leftovers",
    "label": "Leftover",
    "note": "Left at the end of 26 May – 25 Jun 2023",
    "createdAt": "2023-06-24T22:00:00.000Z"
   },
   {
-   "id": "s-000045",
+   "id": "s-000066",
    "amount": 3699,
    "cycleKey": "2023-06",
    "source": "auto",
+   "direction": "in",
+   "bankId": "bank-leftovers",
    "label": "Leftover",
    "note": "Left at the end of 26 Jun – 25 Jul 2023",
    "createdAt": "2023-07-24T22:00:00.000Z"
   },
   {
-   "id": "s-000046",
-   "amount": 4149,
+   "id": "s-000010",
+   "amount": 300,
+   "cycleKey": "2023-07",
+   "source": "manual",
+   "direction": "in",
+   "bankId": "bank-general",
+   "label": "Bonus",
+   "createdAt": "2023-08-15T08:00:00.000Z"
+  },
+  {
+   "id": "s-000067",
+   "amount": 6349,
    "cycleKey": "2023-07",
    "source": "auto",
+   "direction": "in",
+   "bankId": "bank-leftovers",
    "label": "Leftover",
    "note": "Left at the end of 26 Jul – 25 Aug 2023",
    "createdAt": "2023-08-24T22:00:00.000Z"
   },
   {
-   "id": "s-000009",
-   "amount": 300,
+   "id": "s-000011",
+   "amount": 2800,
    "cycleKey": "2023-08",
    "source": "manual",
-   "label": "Tax stash",
-   "createdAt": "2023-08-31T10:00:00.000Z"
+   "direction": "in",
+   "bankId": "bank-general",
+   "label": "Rounded up",
+   "createdAt": "2023-09-12T11:00:00.000Z"
   },
   {
-   "id": "s-000047",
-   "amount": 3949,
+   "id": "s-000068",
+   "amount": 2549,
    "cycleKey": "2023-08",
    "source": "auto",
+   "direction": "in",
+   "bankId": "bank-leftovers",
    "label": "Leftover",
    "note": "Left at the end of 26 Aug – 25 Sep 2023",
    "createdAt": "2023-09-24T22:00:00.000Z"
   },
   {
-   "id": "s-000010",
-   "amount": 1400,
-   "cycleKey": "2023-09",
-   "source": "manual",
-   "label": "Tax stash",
-   "createdAt": "2023-10-19T13:00:00.000Z"
-  },
-  {
-   "id": "s-000048",
-   "amount": 3854,
+   "id": "s-000069",
+   "amount": 6154,
    "cycleKey": "2023-09",
    "source": "auto",
+   "direction": "in",
+   "bankId": "bank-leftovers",
    "label": "Leftover",
    "note": "Left at the end of 26 Sep – 25 Oct 2023",
    "createdAt": "2023-10-24T22:00:00.000Z"
   },
   {
-   "id": "s-000049",
-   "amount": 1734,
+   "id": "s-000070",
+   "amount": 2134,
    "cycleKey": "2023-10",
    "source": "auto",
+   "direction": "in",
+   "bankId": "bank-leftovers",
    "label": "Leftover",
    "note": "Left at the end of 26 Oct – 25 Nov 2023",
    "createdAt": "2023-11-24T22:00:00.000Z"
   },
   {
-   "id": "s-000011",
-   "amount": 2000,
+   "id": "s-000012",
+   "amount": 900,
    "cycleKey": "2023-11",
    "source": "manual",
-   "label": "Christmas money",
-   "createdAt": "2023-12-12T08:00:00.000Z"
+   "direction": "in",
+   "bankId": "bank-emerg",
+   "label": "Rounded up",
+   "createdAt": "2023-12-09T13:00:00.000Z"
   },
   {
-   "id": "s-000050",
-   "amount": 4781,
+   "id": "s-000071",
+   "amount": 3781,
    "cycleKey": "2023-11",
    "source": "auto",
+   "direction": "in",
+   "bankId": "bank-leftovers",
    "label": "Leftover",
    "note": "Left at the end of 26 Nov – 25 Dec 2023",
    "createdAt": "2023-12-24T22:00:00.000Z"
   },
   {
-   "id": "s-000012",
-   "amount": 1200,
-   "cycleKey": "2023-12",
-   "source": "manual",
-   "label": "Tax stash",
-   "createdAt": "2024-01-12T16:00:00.000Z"
-  },
-  {
-   "id": "s-000051",
-   "amount": 4547,
+   "id": "s-000072",
+   "amount": 5747,
    "cycleKey": "2023-12",
    "source": "auto",
+   "direction": "in",
+   "bankId": "bank-leftovers",
    "label": "Leftover",
    "note": "Left at the end of 26 Dec – 25 Jan 2024",
    "createdAt": "2024-01-24T22:00:00.000Z"
   },
   {
-   "id": "s-000013",
-   "amount": 1900,
-   "cycleKey": "2024-01",
-   "source": "manual",
-   "label": "Emergency fund",
-   "createdAt": "2024-02-07T08:00:00.000Z"
-  },
-  {
-   "id": "s-000052",
-   "amount": 7257,
+   "id": "s-000073",
+   "amount": 6157,
    "cycleKey": "2024-01",
    "source": "auto",
+   "direction": "in",
+   "bankId": "bank-leftovers",
    "label": "Leftover",
    "note": "Left at the end of 26 Jan – 25 Feb 2024",
    "createdAt": "2024-02-24T22:00:00.000Z"
   },
   {
-   "id": "s-000014",
-   "amount": 400,
-   "cycleKey": "2024-02",
-   "source": "manual",
-   "label": "Tax stash",
-   "createdAt": "2024-03-04T13:00:00.000Z"
-  },
-  {
-   "id": "s-000053",
-   "amount": 10413,
+   "id": "s-000074",
+   "amount": 8913,
    "cycleKey": "2024-02",
    "source": "auto",
+   "direction": "in",
+   "bankId": "bank-leftovers",
    "label": "Leftover",
    "note": "Left at the end of 26 Feb – 25 Mar 2024",
    "createdAt": "2024-03-24T22:00:00.000Z"
   },
   {
-   "id": "s-000015",
-   "amount": 2500,
-   "cycleKey": "2024-03",
-   "source": "manual",
-   "label": "Emergency fund",
-   "createdAt": "2024-04-20T07:00:00.000Z"
-  },
-  {
-   "id": "s-000054",
-   "amount": 3579,
+   "id": "s-000075",
+   "amount": 8279,
    "cycleKey": "2024-03",
    "source": "auto",
+   "direction": "in",
+   "bankId": "bank-leftovers",
    "label": "Leftover",
    "note": "Left at the end of 26 Mar – 25 Apr 2024",
    "createdAt": "2024-04-24T22:00:00.000Z"
   },
   {
-   "id": "s-000016",
-   "amount": 2000,
+   "id": "s-000013",
+   "amount": 2700,
    "cycleKey": "2024-04",
    "source": "manual",
-   "label": "Christmas money",
-   "createdAt": "2024-04-30T15:00:00.000Z"
+   "direction": "in",
+   "bankId": "bank-tax",
+   "label": "Transfer",
+   "createdAt": "2024-05-01T07:00:00.000Z"
   },
   {
-   "id": "s-000055",
-   "amount": 110,
+   "id": "s-000076",
+   "amount": 310,
    "cycleKey": "2024-04",
    "source": "auto",
+   "direction": "in",
+   "bankId": "bank-leftovers",
    "label": "Leftover",
    "note": "Left at the end of 26 Apr – 25 May 2024",
    "createdAt": "2024-05-24T22:00:00.000Z"
   },
   {
-   "id": "s-000056",
-   "amount": 4829,
+   "id": "s-000014",
+   "amount": 2500,
+   "cycleKey": "2024-05",
+   "source": "manual",
+   "direction": "in",
+   "bankId": "bank-general",
+   "label": "Bonus",
+   "createdAt": "2024-05-29T15:00:00.000Z"
+  },
+  {
+   "id": "s-000077",
+   "amount": 329,
    "cycleKey": "2024-05",
    "source": "auto",
+   "direction": "in",
+   "bankId": "bank-leftovers",
    "label": "Leftover",
    "note": "Left at the end of 26 May – 25 Jun 2024",
    "createdAt": "2024-06-24T22:00:00.000Z"
   },
   {
-   "id": "s-000017",
-   "amount": 1400,
+   "id": "s-000015",
+   "amount": 1500,
    "cycleKey": "2024-06",
    "source": "manual",
-   "label": "Tax stash",
-   "createdAt": "2024-07-17T07:00:00.000Z"
+   "direction": "in",
+   "bankId": "bank-laptop",
+   "label": "Payday set-aside",
+   "createdAt": "2024-07-19T18:00:00.000Z"
   },
   {
-   "id": "s-000057",
-   "amount": 3406,
+   "id": "s-000078",
+   "amount": 949,
+   "cycleKey": "2024-06",
+   "source": "auto",
+   "direction": "in",
+   "bankId": "bank-leftovers",
+   "label": "Leftover",
+   "note": "Left at the end of 26 Jun – 25 Jul 2024",
+   "createdAt": "2024-07-24T22:00:00.000Z"
+  },
+  {
+   "id": "s-000079",
+   "amount": 4706,
    "cycleKey": "2024-07",
    "source": "auto",
+   "direction": "in",
+   "bankId": "bank-leftovers",
    "label": "Leftover",
    "note": "Left at the end of 26 Jul – 25 Aug 2024",
    "createdAt": "2024-08-24T22:00:00.000Z"
   },
   {
-   "id": "s-000058",
-   "amount": 2623,
+   "id": "s-000080",
+   "amount": 2223,
    "cycleKey": "2024-08",
    "source": "auto",
+   "direction": "in",
+   "bankId": "bank-leftovers",
    "label": "Leftover",
    "note": "Left at the end of 26 Aug – 25 Sep 2024",
    "createdAt": "2024-09-24T22:00:00.000Z"
   },
   {
-   "id": "s-000059",
-   "amount": 4881,
+   "id": "s-000081",
+   "amount": 2181,
    "cycleKey": "2024-09",
    "source": "auto",
+   "direction": "in",
+   "bankId": "bank-leftovers",
    "label": "Leftover",
    "note": "Left at the end of 26 Sep – 25 Oct 2024",
    "createdAt": "2024-10-24T22:00:00.000Z"
   },
   {
-   "id": "s-000018",
-   "amount": 1300,
+   "id": "s-000016",
+   "amount": 1800,
    "cycleKey": "2024-10",
    "source": "manual",
-   "label": "Tax stash",
-   "createdAt": "2024-11-08T18:00:00.000Z"
+   "direction": "in",
+   "bankId": "bank-laptop",
+   "label": "Cash put by",
+   "createdAt": "2024-11-04T11:00:00.000Z"
   },
   {
-   "id": "s-000060",
-   "amount": 4851,
+   "id": "s-000082",
+   "amount": 451,
+   "cycleKey": "2024-10",
+   "source": "auto",
+   "direction": "in",
+   "bankId": "bank-leftovers",
+   "label": "Leftover",
+   "note": "Left at the end of 26 Oct – 25 Nov 2024",
+   "createdAt": "2024-11-24T22:00:00.000Z"
+  },
+  {
+   "id": "s-000017",
+   "amount": 1100,
+   "cycleKey": "2024-11",
+   "source": "manual",
+   "direction": "in",
+   "bankId": "bank-general",
+   "label": "Rounded up",
+   "createdAt": "2024-12-04T14:00:00.000Z"
+  },
+  {
+   "id": "s-000083",
+   "amount": 3751,
    "cycleKey": "2024-11",
    "source": "auto",
+   "direction": "in",
+   "bankId": "bank-leftovers",
    "label": "Leftover",
    "note": "Left at the end of 26 Nov – 25 Dec 2024",
    "createdAt": "2024-12-24T22:00:00.000Z"
   },
   {
-   "id": "s-000019",
-   "amount": 2400,
-   "cycleKey": "2024-12",
-   "source": "manual",
-   "label": "New laptop fund",
-   "createdAt": "2025-01-09T09:00:00.000Z"
-  },
-  {
-   "id": "s-000061",
-   "amount": 3146,
+   "id": "s-000084",
+   "amount": 5546,
    "cycleKey": "2024-12",
    "source": "auto",
+   "direction": "in",
+   "bankId": "bank-leftovers",
    "label": "Leftover",
    "note": "Left at the end of 26 Dec – 25 Jan 2025",
    "createdAt": "2025-01-24T22:00:00.000Z"
   },
   {
-   "id": "s-000062",
-   "amount": 7935,
+   "id": "s-000018",
+   "amount": 600,
+   "cycleKey": "2025-01",
+   "source": "manual",
+   "direction": "in",
+   "bankId": "bank-tax",
+   "label": "Bonus",
+   "createdAt": "2025-02-05T09:00:00.000Z"
+  },
+  {
+   "id": "s-000019",
+   "amount": 1100,
+   "cycleKey": "2025-01",
+   "source": "manual",
+   "direction": "out",
+   "bankId": "bank-holiday",
+   "label": "Vet bill",
+   "createdAt": "2025-02-06T12:00:00.000Z"
+  },
+  {
+   "id": "s-000085",
+   "amount": 7335,
    "cycleKey": "2025-01",
    "source": "auto",
+   "direction": "in",
+   "bankId": "bank-leftovers",
    "label": "Leftover",
    "note": "Left at the end of 26 Jan – 25 Feb 2025",
    "createdAt": "2025-02-24T22:00:00.000Z"
   },
   {
-   "id": "s-000063",
-   "amount": 5630,
+   "id": "s-000020",
+   "amount": 2900,
+   "cycleKey": "2025-02",
+   "source": "manual",
+   "direction": "in",
+   "bankId": "bank-tax",
+   "label": "Bonus",
+   "createdAt": "2025-03-22T07:00:00.000Z"
+  },
+  {
+   "id": "s-000021",
+   "amount": 750,
+   "cycleKey": "2025-02",
+   "source": "recurring",
+   "direction": "in",
+   "bankId": "bank-emerg",
+   "recurringId": "ro-emerg",
+   "label": "Payday transfer",
+   "note": "Standing order",
+   "createdAt": "2025-03-24T22:00:00.000Z"
+  },
+  {
+   "id": "s-000086",
+   "amount": 2480,
    "cycleKey": "2025-02",
    "source": "auto",
+   "direction": "in",
+   "bankId": "bank-leftovers",
    "label": "Leftover",
    "note": "Left at the end of 26 Feb – 25 Mar 2025",
    "createdAt": "2025-03-24T22:00:00.000Z"
   },
   {
-   "id": "s-000064",
-   "amount": 7261,
+   "id": "s-000022",
+   "amount": 900,
+   "cycleKey": "2025-03",
+   "source": "manual",
+   "direction": "in",
+   "bankId": "bank-holiday",
+   "label": "Bonus",
+   "createdAt": "2025-04-08T13:00:00.000Z"
+  },
+  {
+   "id": "s-000023",
+   "amount": 750,
+   "cycleKey": "2025-03",
+   "source": "recurring",
+   "direction": "in",
+   "bankId": "bank-emerg",
+   "recurringId": "ro-emerg",
+   "label": "Payday transfer",
+   "note": "Standing order",
+   "createdAt": "2025-04-24T22:00:00.000Z"
+  },
+  {
+   "id": "s-000087",
+   "amount": 6511,
    "cycleKey": "2025-03",
    "source": "auto",
+   "direction": "in",
+   "bankId": "bank-leftovers",
    "label": "Leftover",
    "note": "Left at the end of 26 Mar – 25 Apr 2025",
    "createdAt": "2025-04-24T22:00:00.000Z"
   },
   {
-   "id": "s-000020",
-   "amount": 700,
+   "id": "s-000024",
+   "amount": 750,
    "cycleKey": "2025-04",
-   "source": "manual",
-   "label": "Christmas money",
-   "createdAt": "2025-05-13T17:00:00.000Z"
+   "source": "recurring",
+   "direction": "in",
+   "bankId": "bank-emerg",
+   "recurringId": "ro-emerg",
+   "label": "Payday transfer",
+   "note": "Standing order",
+   "createdAt": "2025-05-24T22:00:00.000Z"
   },
   {
-   "id": "s-000065",
-   "amount": 8625,
+   "id": "s-000088",
+   "amount": 10075,
    "cycleKey": "2025-04",
    "source": "auto",
+   "direction": "in",
+   "bankId": "bank-leftovers",
    "label": "Leftover",
    "note": "Left at the end of 26 Apr – 25 May 2025",
    "createdAt": "2025-05-24T22:00:00.000Z"
   },
   {
-   "id": "s-000066",
-   "amount": 8409,
+   "id": "s-000025",
+   "amount": 750,
+   "cycleKey": "2025-05",
+   "source": "recurring",
+   "direction": "in",
+   "bankId": "bank-emerg",
+   "recurringId": "ro-emerg",
+   "label": "Payday transfer",
+   "note": "Standing order",
+   "createdAt": "2025-06-24T22:00:00.000Z"
+  },
+  {
+   "id": "s-000089",
+   "amount": 7759,
    "cycleKey": "2025-05",
    "source": "auto",
+   "direction": "in",
+   "bankId": "bank-leftovers",
    "label": "Leftover",
    "note": "Left at the end of 26 May – 25 Jun 2025",
    "createdAt": "2025-06-24T22:00:00.000Z"
   },
   {
-   "id": "s-000067",
-   "amount": 12087,
+   "id": "s-000026",
+   "amount": 750,
+   "cycleKey": "2025-06",
+   "source": "recurring",
+   "direction": "in",
+   "bankId": "bank-emerg",
+   "recurringId": "ro-emerg",
+   "label": "Payday transfer",
+   "note": "Standing order",
+   "createdAt": "2025-07-24T22:00:00.000Z"
+  },
+  {
+   "id": "s-000090",
+   "amount": 8037,
    "cycleKey": "2025-06",
    "source": "auto",
+   "direction": "in",
+   "bankId": "bank-leftovers",
    "label": "Leftover",
    "note": "Left at the end of 26 Jun – 25 Jul 2025",
    "createdAt": "2025-07-24T22:00:00.000Z"
   },
   {
-   "id": "s-000021",
-   "amount": 600,
+   "id": "s-000027",
+   "amount": 1300,
    "cycleKey": "2025-07",
    "source": "manual",
-   "label": "Emergency fund",
-   "createdAt": "2025-08-12T16:00:00.000Z"
+   "direction": "in",
+   "bankId": "bank-holiday",
+   "label": "Cash put by",
+   "createdAt": "2025-08-17T10:00:00.000Z"
   },
   {
-   "id": "s-000068",
-   "amount": 9249,
+   "id": "s-000028",
+   "amount": 750,
+   "cycleKey": "2025-07",
+   "source": "recurring",
+   "direction": "in",
+   "bankId": "bank-emerg",
+   "recurringId": "ro-emerg",
+   "label": "Payday transfer",
+   "note": "Standing order",
+   "createdAt": "2025-08-24T22:00:00.000Z"
+  },
+  {
+   "id": "s-000091",
+   "amount": 8299,
    "cycleKey": "2025-07",
    "source": "auto",
+   "direction": "in",
+   "bankId": "bank-leftovers",
    "label": "Leftover",
    "note": "Left at the end of 26 Jul – 25 Aug 2025",
    "createdAt": "2025-08-24T22:00:00.000Z"
   },
   {
-   "id": "s-000022",
-   "amount": 1400,
+   "id": "s-000029",
+   "amount": 900,
    "cycleKey": "2025-08",
    "source": "manual",
-   "label": "Rainy day",
-   "createdAt": "2025-09-14T17:00:00.000Z"
+   "direction": "in",
+   "bankId": "bank-laptop",
+   "label": "Transfer",
+   "createdAt": "2025-09-02T10:00:00.000Z"
   },
   {
-   "id": "s-000069",
-   "amount": 7917,
+   "id": "s-000030",
+   "amount": 750,
+   "cycleKey": "2025-08",
+   "source": "recurring",
+   "direction": "in",
+   "bankId": "bank-emerg",
+   "recurringId": "ro-emerg",
+   "label": "Payday transfer",
+   "note": "Standing order",
+   "createdAt": "2025-09-24T22:00:00.000Z"
+  },
+  {
+   "id": "s-000092",
+   "amount": 7667,
    "cycleKey": "2025-08",
    "source": "auto",
+   "direction": "in",
+   "bankId": "bank-leftovers",
    "label": "Leftover",
    "note": "Left at the end of 26 Aug – 25 Sep 2025",
    "createdAt": "2025-09-24T22:00:00.000Z"
   },
   {
-   "id": "s-000023",
-   "amount": 900,
+   "id": "s-000031",
+   "amount": 1900,
    "cycleKey": "2025-09",
    "source": "manual",
-   "label": "Christmas money",
-   "createdAt": "2025-10-08T17:00:00.000Z"
+   "direction": "in",
+   "bankId": "bank-tax",
+   "label": "Cash put by",
+   "createdAt": "2025-10-13T12:00:00.000Z"
   },
   {
-   "id": "s-000070",
-   "amount": 14376,
+   "id": "s-000032",
+   "amount": 750,
+   "cycleKey": "2025-09",
+   "source": "recurring",
+   "direction": "in",
+   "bankId": "bank-emerg",
+   "recurringId": "ro-emerg",
+   "label": "Payday transfer",
+   "note": "Standing order",
+   "createdAt": "2025-10-24T22:00:00.000Z"
+  },
+  {
+   "id": "s-000093",
+   "amount": 9926,
    "cycleKey": "2025-09",
    "source": "auto",
+   "direction": "in",
+   "bankId": "bank-leftovers",
    "label": "Leftover",
    "note": "Left at the end of 26 Sep – 25 Oct 2025",
    "createdAt": "2025-10-24T22:00:00.000Z"
   },
   {
-   "id": "s-000071",
-   "amount": 12237,
+   "id": "s-000033",
+   "amount": 750,
+   "cycleKey": "2025-10",
+   "source": "recurring",
+   "direction": "in",
+   "bankId": "bank-emerg",
+   "recurringId": "ro-emerg",
+   "label": "Payday transfer",
+   "note": "Standing order",
+   "createdAt": "2025-11-24T22:00:00.000Z"
+  },
+  {
+   "id": "s-000094",
+   "amount": 13087,
    "cycleKey": "2025-10",
    "source": "auto",
+   "direction": "in",
+   "bankId": "bank-leftovers",
    "label": "Leftover",
    "note": "Left at the end of 26 Oct – 25 Nov 2025",
    "createdAt": "2025-11-24T22:00:00.000Z"
   },
   {
-   "id": "s-000072",
-   "amount": 13277,
+   "id": "s-000034",
+   "amount": 750,
+   "cycleKey": "2025-11",
+   "source": "recurring",
+   "direction": "in",
+   "bankId": "bank-emerg",
+   "recurringId": "ro-emerg",
+   "label": "Payday transfer",
+   "note": "Standing order",
+   "createdAt": "2025-12-24T22:00:00.000Z"
+  },
+  {
+   "id": "s-000095",
+   "amount": 12927,
    "cycleKey": "2025-11",
    "source": "auto",
+   "direction": "in",
+   "bankId": "bank-leftovers",
    "label": "Leftover",
    "note": "Left at the end of 26 Nov – 25 Dec 2025",
    "createdAt": "2025-12-24T22:00:00.000Z"
   },
   {
-   "id": "s-000073",
-   "amount": 11975,
+   "id": "s-000035",
+   "amount": 750,
+   "cycleKey": "2025-12",
+   "source": "recurring",
+   "direction": "in",
+   "bankId": "bank-emerg",
+   "recurringId": "ro-emerg",
+   "label": "Payday transfer",
+   "note": "Standing order",
+   "createdAt": "2026-01-24T22:00:00.000Z"
+  },
+  {
+   "id": "s-000096",
+   "amount": 9325,
    "cycleKey": "2025-12",
    "source": "auto",
+   "direction": "in",
+   "bankId": "bank-leftovers",
    "label": "Leftover",
    "note": "Left at the end of 26 Dec – 25 Jan 2026",
    "createdAt": "2026-01-24T22:00:00.000Z"
   },
   {
-   "id": "s-000074",
-   "amount": 18823,
+   "id": "s-000036",
+   "amount": 900,
+   "cycleKey": "2026-01",
+   "source": "manual",
+   "direction": "in",
+   "bankId": "bank-emerg",
+   "label": "Transfer",
+   "createdAt": "2026-02-01T11:00:00.000Z"
+  },
+  {
+   "id": "s-000037",
+   "amount": 750,
+   "cycleKey": "2026-01",
+   "source": "recurring",
+   "direction": "in",
+   "bankId": "bank-emerg",
+   "recurringId": "ro-emerg",
+   "label": "Payday transfer",
+   "note": "Standing order",
+   "createdAt": "2026-02-24T22:00:00.000Z"
+  },
+  {
+   "id": "s-000097",
+   "amount": 20773,
    "cycleKey": "2026-01",
    "source": "auto",
+   "direction": "in",
+   "bankId": "bank-leftovers",
    "label": "Leftover",
    "note": "Left at the end of 26 Jan – 25 Feb 2026",
    "createdAt": "2026-02-24T22:00:00.000Z"
   },
   {
-   "id": "s-000075",
-   "amount": 14475,
+   "id": "s-000038",
+   "amount": 1500,
+   "cycleKey": "2026-02",
+   "source": "manual",
+   "direction": "in",
+   "bankId": "bank-laptop",
+   "label": "Payday set-aside",
+   "createdAt": "2026-03-02T18:00:00.000Z"
+  },
+  {
+   "id": "s-000039",
+   "amount": 750,
+   "cycleKey": "2026-02",
+   "source": "recurring",
+   "direction": "in",
+   "bankId": "bank-emerg",
+   "recurringId": "ro-emerg",
+   "label": "Payday transfer",
+   "note": "Standing order",
+   "createdAt": "2026-03-24T22:00:00.000Z"
+  },
+  {
+   "id": "s-000098",
+   "amount": 10425,
    "cycleKey": "2026-02",
    "source": "auto",
+   "direction": "in",
+   "bankId": "bank-leftovers",
    "label": "Leftover",
    "note": "Left at the end of 26 Feb – 25 Mar 2026",
    "createdAt": "2026-03-24T22:00:00.000Z"
   },
   {
-   "id": "s-000024",
-   "amount": 1200,
+   "id": "s-000040",
+   "amount": 2200,
    "cycleKey": "2026-03",
    "source": "manual",
-   "label": "Rainy day",
-   "createdAt": "2026-04-15T13:00:00.000Z"
+   "direction": "in",
+   "bankId": "bank-tax",
+   "label": "Payday set-aside",
+   "createdAt": "2026-04-02T11:00:00.000Z"
   },
   {
-   "id": "s-000076",
-   "amount": 12955,
+   "id": "s-000041",
+   "amount": 750,
+   "cycleKey": "2026-03",
+   "source": "recurring",
+   "direction": "in",
+   "bankId": "bank-emerg",
+   "recurringId": "ro-emerg",
+   "label": "Payday transfer",
+   "note": "Standing order",
+   "createdAt": "2026-04-24T22:00:00.000Z"
+  },
+  {
+   "id": "s-000099",
+   "amount": 11105,
    "cycleKey": "2026-03",
    "source": "auto",
+   "direction": "in",
+   "bankId": "bank-leftovers",
    "label": "Leftover",
    "note": "Left at the end of 26 Mar – 25 Apr 2026",
    "createdAt": "2026-04-24T22:00:00.000Z"
   },
   {
-   "id": "s-000077",
-   "amount": 13082,
+   "id": "s-000042",
+   "amount": 900,
+   "cycleKey": "2026-04",
+   "source": "manual",
+   "direction": "in",
+   "bankId": "bank-emerg",
+   "label": "Bonus",
+   "createdAt": "2026-04-28T09:00:00.000Z"
+  },
+  {
+   "id": "s-000043",
+   "amount": 750,
+   "cycleKey": "2026-04",
+   "source": "recurring",
+   "direction": "in",
+   "bankId": "bank-emerg",
+   "recurringId": "ro-emerg",
+   "label": "Payday transfer",
+   "note": "Standing order",
+   "createdAt": "2026-05-24T22:00:00.000Z"
+  },
+  {
+   "id": "s-000100",
+   "amount": 11432,
    "cycleKey": "2026-04",
    "source": "auto",
+   "direction": "in",
+   "bankId": "bank-leftovers",
    "label": "Leftover",
    "note": "Left at the end of 26 Apr – 25 May 2026",
    "createdAt": "2026-05-24T22:00:00.000Z"
   },
   {
-   "id": "s-000078",
-   "amount": 9409,
+   "id": "s-000044",
+   "amount": 1000,
+   "cycleKey": "2026-05",
+   "source": "manual",
+   "direction": "in",
+   "bankId": "bank-tax",
+   "label": "Bonus",
+   "createdAt": "2026-06-14T12:00:00.000Z"
+  },
+  {
+   "id": "s-000045",
+   "amount": 750,
+   "cycleKey": "2026-05",
+   "source": "recurring",
+   "direction": "in",
+   "bankId": "bank-emerg",
+   "recurringId": "ro-emerg",
+   "label": "Payday transfer",
+   "note": "Standing order",
+   "createdAt": "2026-06-24T22:00:00.000Z"
+  },
+  {
+   "id": "s-000101",
+   "amount": 8459,
    "cycleKey": "2026-05",
    "source": "auto",
+   "direction": "in",
+   "bankId": "bank-leftovers",
    "label": "Leftover",
    "note": "Left at the end of 26 May – 25 Jun 2026",
    "createdAt": "2026-06-24T22:00:00.000Z"
   },
   {
-   "id": "s-000025",
-   "amount": 1100,
+   "id": "s-000046",
+   "amount": 750,
    "cycleKey": "2026-06",
-   "source": "manual",
-   "label": "Emergency fund",
-   "createdAt": "2026-07-20T10:00:00.000Z"
+   "source": "recurring",
+   "direction": "in",
+   "bankId": "bank-emerg",
+   "recurringId": "ro-emerg",
+   "label": "Payday transfer",
+   "note": "Standing order",
+   "createdAt": "2026-07-24T22:00:00.000Z"
   },
   {
-   "id": "s-000079",
-   "amount": 11553,
+   "id": "s-000102",
+   "amount": 9403,
    "cycleKey": "2026-06",
    "source": "auto",
+   "direction": "in",
+   "bankId": "bank-leftovers",
    "label": "Leftover",
    "note": "Left at the end of 26 Jun – 25 Jul 2026",
    "createdAt": "2026-07-24T22:00:00.000Z"
   },
   {
-   "id": "s-000026",
+   "id": "s-000048",
+   "amount": 700,
+   "cycleKey": "2026-07",
+   "source": "manual",
+   "direction": "out",
+   "bankId": "bank-general",
+   "label": "Car repair",
+   "createdAt": "2026-07-27T18:00:00.000Z"
+  },
+  {
+   "id": "s-000047",
    "amount": 1700,
    "cycleKey": "2026-07",
    "source": "manual",
-   "label": "Holiday fund",
-   "createdAt": "2026-08-12T11:00:00.000Z"
+   "direction": "in",
+   "bankId": "bank-laptop",
+   "label": "Transfer",
+   "createdAt": "2026-08-05T10:00:00.000Z"
   },
   {
-   "id": "s-000080",
-   "amount": 12553,
+   "id": "s-000049",
+   "amount": 750,
    "cycleKey": "2026-07",
-   "source": "auto",
-   "label": "Leftover",
-   "note": "Left at the end of 26 Jul – 25 Aug 2026",
+   "source": "recurring",
+   "direction": "in",
+   "bankId": "bank-emerg",
+   "recurringId": "ro-emerg",
+   "label": "Payday transfer",
+   "note": "Standing order",
    "createdAt": "2026-08-24T22:00:00.000Z"
   },
   {
-   "id": "s-000027",
-   "amount": 2800,
-   "cycleKey": "2026-08",
-   "source": "manual",
-   "label": "Emergency fund",
-   "createdAt": "2026-09-05T15:00:00.000Z"
+   "id": "s-000103",
+   "amount": 9703,
+   "cycleKey": "2026-07",
+   "source": "auto",
+   "direction": "in",
+   "bankId": "bank-leftovers",
+   "label": "Leftover",
+   "note": "Left at the end of 26 Jul – 25 Aug 2026",
+   "createdAt": "2026-08-24T22:00:00.000Z"
+  }
+ ],
+ "piggybanks": [
+  {
+   "id": "bank-leftovers",
+   "name": "Leftovers",
+   "note": "Whatever each pay cycle ends with lands here on its own.",
+   "createdAt": "2022-01-26T07:00:00.000Z",
+   "isLeftovers": true
+  },
+  {
+   "id": "bank-general",
+   "name": "Savings",
+   "note": "Money put away by hand.",
+   "createdAt": "2022-01-26T07:00:00.000Z"
+  },
+  {
+   "id": "bank-emerg",
+   "name": "Emergency fund",
+   "target": 60000,
+   "createdAt": "2022-07-26T07:00:00.000Z"
+  },
+  {
+   "id": "bank-holiday",
+   "name": "Holiday fund",
+   "target": 25000,
+   "createdAt": "2023-09-26T07:00:00.000Z"
+  },
+  {
+   "id": "bank-laptop",
+   "name": "New laptop",
+   "target": 32000,
+   "createdAt": "2024-11-26T07:00:00.000Z"
+  },
+  {
+   "id": "bank-tax",
+   "name": "Tax stash",
+   "createdAt": "2023-01-26T07:00:00.000Z"
+  }
+ ],
+ "recurringSavings": [
+  {
+   "id": "ro-emerg",
+   "bankId": "bank-emerg",
+   "label": "Payday transfer",
+   "amount": 750,
+   "active": true,
+   "startCycleKey": "2025-02",
+   "createdAt": "2025-02-26T07:00:00.000Z"
+  },
+  {
+   "id": "ro-tax",
+   "bankId": "bank-tax",
+   "label": "Tax set-aside",
+   "amount": 400,
+   "active": false,
+   "startCycleKey": "2024-03",
+   "createdAt": "2024-03-26T07:00:00.000Z"
   }
  ],
  "history": [
@@ -1063,14 +1548,14 @@
    "type": "expense"
   },
   {
-   "id": "h-000377",
+   "id": "h-000408",
    "debtTitle": "26 Jan – 25 Feb 2022 Summary",
    "date": "2022-02-24T22:00:00.000Z",
-   "amount": 13124,
+   "amount": 16124,
    "type": "snapshot",
-   "note": "Income: 25600 | Outgoings: 12476 | Surplus: 13124",
+   "note": "Income: 28600 | Outgoings: 12476 | Surplus: 16124",
    "snapshot": {
-    "income": 25600,
+    "income": 28600,
     "transport": 2016,
     "uber": 277,
     "debt": 0,
@@ -1078,7 +1563,7 @@
     "budget": 0,
     "savings": 0,
     "totalOutgoings": 12476,
-    "remaining": 13124
+    "remaining": 16124
    }
   },
   {
@@ -1114,6 +1599,14 @@
    "label": "Double up"
   },
   {
+   "id": "h-000377",
+   "debtTitle": "Savings: Transfer",
+   "date": "2022-03-09T12:00:00.000Z",
+   "amount": 1000,
+   "type": "savings",
+   "label": "Put away"
+  },
+  {
    "id": "h-000363",
    "debtTitle": "Budget: Feb Braai Weekend",
    "date": "2022-03-16T16:00:00.000Z",
@@ -1122,12 +1615,12 @@
    "note": "4 items · budget 900"
   },
   {
-   "id": "h-000378",
+   "id": "h-000409",
    "debtTitle": "26 Feb – 25 Mar 2022 Summary",
    "date": "2022-03-24T22:00:00.000Z",
-   "amount": 8996,
+   "amount": 9396,
    "type": "snapshot",
-   "note": "Income: 24800 | Outgoings: 15804 | Surplus: 8996",
+   "note": "Income: 24800 | Outgoings: 15404 | Surplus: 9396",
    "snapshot": {
     "income": 24800,
     "transport": 1776,
@@ -1135,9 +1628,9 @@
     "debt": 1200,
     "expenses": 10183,
     "budget": 960,
-    "savings": 1400,
-    "totalOutgoings": 15804,
-    "remaining": 8996
+    "savings": 1000,
+    "totalOutgoings": 15404,
+    "remaining": 9396
    }
   },
   {
@@ -1172,22 +1665,30 @@
    "type": "expense"
   },
   {
-   "id": "h-000379",
+   "id": "h-000378",
+   "debtTitle": "Holiday fund: Payday set-aside",
+   "date": "2022-04-15T08:00:00.000Z",
+   "amount": 2700,
+   "type": "savings",
+   "label": "Put away"
+  },
+  {
+   "id": "h-000410",
    "debtTitle": "26 Mar – 25 Apr 2022 Summary",
    "date": "2022-04-24T22:00:00.000Z",
-   "amount": 13087,
+   "amount": 7387,
    "type": "snapshot",
-   "note": "Income: 27000 | Outgoings: 13913 | Surplus: 13087",
+   "note": "Income: 24800 | Outgoings: 17413 | Surplus: 7387",
    "snapshot": {
-    "income": 27000,
+    "income": 24800,
     "transport": 1968,
     "uber": 562,
     "debt": 1200,
-    "expenses": 10183,
+    "expenses": 10983,
     "budget": 0,
-    "savings": 0,
-    "totalOutgoings": 13913,
-    "remaining": 13087
+    "savings": 2700,
+    "totalOutgoings": 17413,
+    "remaining": 7387
    }
   },
   {
@@ -1206,6 +1707,14 @@
    "type": "payment"
   },
   {
+   "id": "h-000379",
+   "debtTitle": "Savings: Transfer",
+   "date": "2022-05-16T17:00:00.000Z",
+   "amount": 1200,
+   "type": "savings",
+   "label": "Put away"
+  },
+  {
    "id": "h-000090",
    "debtId": "d-000002",
    "debtTitle": "Bakkie Finance",
@@ -1215,22 +1724,22 @@
    "person": "WesBank"
   },
   {
-   "id": "h-000380",
+   "id": "h-000411",
    "debtTitle": "26 Apr – 25 May 2022 Summary",
    "date": "2022-05-24T22:00:00.000Z",
-   "amount": 7224,
+   "amount": 5324,
    "type": "snapshot",
-   "note": "Income: 24800 | Outgoings: 17576 | Surplus: 7224",
+   "note": "Income: 24800 | Outgoings: 19476 | Surplus: 5324",
    "snapshot": {
     "income": 24800,
     "transport": 1488,
     "uber": 105,
     "debt": 5800,
-    "expenses": 10183,
+    "expenses": 10883,
     "budget": 0,
-    "savings": 0,
-    "totalOutgoings": 17576,
-    "remaining": 7224
+    "savings": 1200,
+    "totalOutgoings": 19476,
+    "remaining": 5324
    }
   },
   {
@@ -1269,22 +1778,22 @@
    "person": "WesBank"
   },
   {
-   "id": "h-000381",
+   "id": "h-000412",
    "debtTitle": "26 May – 25 Jun 2022 Summary",
    "date": "2022-06-24T22:00:00.000Z",
-   "amount": 4215,
+   "amount": 8315,
    "type": "snapshot",
-   "note": "Income: 24800 | Outgoings: 20585 | Surplus: 4215",
+   "note": "Income: 26500 | Outgoings: 18185 | Surplus: 8315",
    "snapshot": {
-    "income": 24800,
+    "income": 26500,
     "transport": 1728,
     "uber": 574,
     "debt": 5700,
     "expenses": 10183,
     "budget": 0,
-    "savings": 2400,
-    "totalOutgoings": 20585,
-    "remaining": 4215
+    "savings": 0,
+    "totalOutgoings": 18185,
+    "remaining": 8315
    }
   },
   {
@@ -1332,6 +1841,22 @@
    "type": "payment"
   },
   {
+   "id": "h-000381",
+   "debtTitle": "Holiday fund: Car repair",
+   "date": "2022-07-13T10:00:00.000Z",
+   "amount": 1300,
+   "type": "savings",
+   "label": "Taken out"
+  },
+  {
+   "id": "h-000380",
+   "debtTitle": "Tax stash: Rounded up",
+   "date": "2022-07-14T14:00:00.000Z",
+   "amount": 1400,
+   "type": "savings",
+   "label": "Put away"
+  },
+  {
    "id": "h-000364",
    "debtTitle": "Budget: Jun Camping Trip",
    "date": "2022-07-17T16:00:00.000Z",
@@ -1340,22 +1865,22 @@
    "note": "5 items · budget 2500"
   },
   {
-   "id": "h-000382",
+   "id": "h-000413",
    "debtTitle": "26 Jun – 25 Jul 2022 Summary",
    "date": "2022-07-24T22:00:00.000Z",
-   "amount": 6963,
+   "amount": 1963,
    "type": "snapshot",
-   "note": "Income: 28200 | Outgoings: 21237 | Surplus: 6963",
+   "note": "Income: 24800 | Outgoings: 22837 | Surplus: 1963",
    "snapshot": {
-    "income": 28200,
+    "income": 24800,
     "transport": 1824,
     "uber": 0,
     "debt": 7700,
-    "expenses": 10183,
+    "expenses": 11683,
     "budget": 1530,
-    "savings": 0,
-    "totalOutgoings": 21237,
-    "remaining": 6963
+    "savings": 100,
+    "totalOutgoings": 22837,
+    "remaining": 1963
    }
   },
   {
@@ -1418,22 +1943,22 @@
    "type": "expense"
   },
   {
-   "id": "h-000383",
+   "id": "h-000414",
    "debtTitle": "26 Jul – 25 Aug 2022 Summary",
    "date": "2022-08-24T22:00:00.000Z",
-   "amount": 5045,
+   "amount": 4645,
    "type": "snapshot",
-   "note": "Income: 24800 | Outgoings: 19755 | Surplus: 5045",
+   "note": "Income: 24800 | Outgoings: 20155 | Surplus: 4645",
    "snapshot": {
     "income": 24800,
     "transport": 1872,
     "uber": 0,
     "debt": 7700,
-    "expenses": 10183,
+    "expenses": 10583,
     "budget": 0,
     "savings": 0,
-    "totalOutgoings": 19755,
-    "remaining": 5045
+    "totalOutgoings": 20155,
+    "remaining": 4645
    }
   },
   {
@@ -1472,6 +1997,14 @@
    "label": "Double up"
   },
   {
+   "id": "h-000382",
+   "debtTitle": "New laptop: Bonus",
+   "date": "2022-09-05T17:00:00.000Z",
+   "amount": 3000,
+   "type": "savings",
+   "label": "Put away"
+  },
+  {
    "id": "h-000133",
    "debtId": "d-000003",
    "debtTitle": "Dell XPS Laptop",
@@ -1491,22 +2024,22 @@
    "person": "WesBank"
   },
   {
-   "id": "h-000384",
+   "id": "h-000415",
    "debtTitle": "26 Aug – 25 Sep 2022 Summary",
    "date": "2022-09-24T22:00:00.000Z",
-   "amount": 4348,
+   "amount": 948,
    "type": "snapshot",
-   "note": "Income: 27600 | Outgoings: 23252 | Surplus: 4348",
+   "note": "Income: 24800 | Outgoings: 23852 | Surplus: 948",
    "snapshot": {
-    "income": 27600,
+    "income": 24800,
     "transport": 1968,
     "uber": 251,
     "debt": 8450,
     "expenses": 10183,
     "budget": 0,
-    "savings": 2400,
-    "totalOutgoings": 23252,
-    "remaining": 4348
+    "savings": 3000,
+    "totalOutgoings": 23852,
+    "remaining": 948
    }
   },
   {
@@ -1568,22 +2101,22 @@
    "type": "payment"
   },
   {
-   "id": "h-000385",
+   "id": "h-000416",
    "debtTitle": "26 Sep – 25 Oct 2022 Summary",
    "date": "2022-10-24T22:00:00.000Z",
-   "amount": 2851,
+   "amount": 3251,
    "type": "snapshot",
-   "note": "Income: 24800 | Outgoings: 21949 | Surplus: 2851",
+   "note": "Income: 25600 | Outgoings: 22349 | Surplus: 3251",
    "snapshot": {
-    "income": 24800,
+    "income": 25600,
     "transport": 2016,
     "uber": 0,
     "debt": 8150,
-    "expenses": 11783,
+    "expenses": 12183,
     "budget": 0,
     "savings": 0,
-    "totalOutgoings": 21949,
-    "remaining": 2851
+    "totalOutgoings": 22349,
+    "remaining": 3251
    }
   },
   {
@@ -1644,22 +2177,22 @@
    "note": "6 items · budget 2300"
   },
   {
-   "id": "h-000386",
+   "id": "h-000417",
    "debtTitle": "26 Oct – 25 Nov 2022 Summary",
    "date": "2022-11-24T22:00:00.000Z",
-   "amount": 5134,
+   "amount": 2234,
    "type": "snapshot",
-   "note": "Income: 28500 | Outgoings: 23366 | Surplus: 5134",
+   "note": "Income: 24800 | Outgoings: 22566 | Surplus: 2234",
    "snapshot": {
-    "income": 28500,
+    "income": 24800,
     "transport": 2112,
     "uber": 401,
     "debt": 7700,
     "expenses": 10183,
     "budget": 2170,
-    "savings": 800,
-    "totalOutgoings": 23366,
-    "remaining": 5134
+    "savings": 0,
+    "totalOutgoings": 22566,
+    "remaining": 2234
    }
   },
   {
@@ -1721,22 +2254,22 @@
    "person": "Sarah Oblivion"
   },
   {
-   "id": "h-000387",
+   "id": "h-000418",
    "debtTitle": "26 Nov – 25 Dec 2022 Summary",
    "date": "2022-12-24T22:00:00.000Z",
-   "amount": 3653,
+   "amount": 6853,
    "type": "snapshot",
-   "note": "Income: 24800 | Outgoings: 21147 | Surplus: 3653",
+   "note": "Income: 26600 | Outgoings: 19747 | Surplus: 6853",
    "snapshot": {
-    "income": 24800,
+    "income": 26600,
     "transport": 1104,
     "uber": 110,
     "debt": 8350,
     "expenses": 10183,
     "budget": 0,
-    "savings": 1400,
-    "totalOutgoings": 21147,
-    "remaining": 3653
+    "savings": 0,
+    "totalOutgoings": 19747,
+    "remaining": 6853
    }
   },
   {
@@ -1800,22 +2333,22 @@
    "type": "expense"
   },
   {
-   "id": "h-000388",
+   "id": "h-000419",
    "debtTitle": "26 Dec – 25 Jan 2023 Summary",
    "date": "2023-01-24T22:00:00.000Z",
-   "amount": 5059,
+   "amount": 5759,
    "type": "snapshot",
-   "note": "Income: 24800 | Outgoings: 19741 | Surplus: 5059",
+   "note": "Income: 27400 | Outgoings: 21641 | Surplus: 5759",
    "snapshot": {
-    "income": 24800,
+    "income": 27400,
     "transport": 1008,
     "uber": 0,
     "debt": 8550,
-    "expenses": 10183,
+    "expenses": 12083,
     "budget": 0,
     "savings": 0,
-    "totalOutgoings": 19741,
-    "remaining": 5059
+    "totalOutgoings": 21641,
+    "remaining": 5759
    }
   },
   {
@@ -1887,12 +2420,20 @@
    "person": "Virgin Active"
   },
   {
-   "id": "h-000389",
+   "id": "h-000383",
+   "debtTitle": "Holiday fund: Cash put by",
+   "date": "2023-02-18T11:00:00.000Z",
+   "amount": 1000,
+   "type": "savings",
+   "label": "Put away"
+  },
+  {
+   "id": "h-000420",
    "debtTitle": "26 Jan – 25 Feb 2023 Summary",
    "date": "2023-02-24T22:00:00.000Z",
-   "amount": 2493,
+   "amount": 4093,
    "type": "snapshot",
-   "note": "Income: 27300 | Outgoings: 24807 | Surplus: 2493",
+   "note": "Income: 27300 | Outgoings: 23207 | Surplus: 4093",
    "snapshot": {
     "income": 27300,
     "transport": 1968,
@@ -1900,9 +2441,9 @@
     "debt": 8250,
     "expenses": 11381,
     "budget": 0,
-    "savings": 2600,
-    "totalOutgoings": 24807,
-    "remaining": 2493
+    "savings": 1000,
+    "totalOutgoings": 23207,
+    "remaining": 4093
    }
   },
   {
@@ -1976,6 +2517,14 @@
    "person": "Lara Nexus"
   },
   {
+   "id": "h-000384",
+   "debtTitle": "Tax stash: Rounded up",
+   "date": "2023-03-14T14:00:00.000Z",
+   "amount": 600,
+   "type": "savings",
+   "label": "Put away"
+  },
+  {
    "id": "h-000366",
    "debtTitle": "Budget: Feb Braai Weekend",
    "date": "2023-03-15T16:00:00.000Z",
@@ -1984,22 +2533,22 @@
    "note": "4 items · budget 2400"
   },
   {
-   "id": "h-000390",
+   "id": "h-000421",
    "debtTitle": "26 Feb – 25 Mar 2023 Summary",
    "date": "2023-03-24T22:00:00.000Z",
-   "amount": 4504,
+   "amount": 196,
    "type": "snapshot",
-   "note": "Income: 29900 | Outgoings: 25396 | Surplus: 4504",
+   "note": "Income: 27300 | Outgoings: 27496 | Deficit: 196",
    "snapshot": {
-    "income": 29900,
+    "income": 27300,
     "transport": 1776,
     "uber": 349,
     "debt": 10350,
-    "expenses": 11381,
+    "expenses": 12881,
     "budget": 1540,
-    "savings": 0,
-    "totalOutgoings": 25396,
-    "remaining": 4504
+    "savings": 600,
+    "totalOutgoings": 27496,
+    "remaining": -196
    }
   },
   {
@@ -2071,22 +2620,22 @@
    "person": "Mike Fallout"
   },
   {
-   "id": "h-000391",
+   "id": "h-000422",
    "debtTitle": "26 Mar – 25 Apr 2023 Summary",
    "date": "2023-04-24T22:00:00.000Z",
-   "amount": 5649,
+   "amount": 7149,
    "type": "snapshot",
-   "note": "Income: 30000 | Outgoings: 24351 | Surplus: 5649",
+   "note": "Income: 29800 | Outgoings: 22651 | Surplus: 7149",
    "snapshot": {
-    "income": 30000,
+    "income": 29800,
     "transport": 1920,
     "uber": 0,
     "debt": 9350,
-    "expenses": 11781,
+    "expenses": 11381,
     "budget": 0,
-    "savings": 1300,
-    "totalOutgoings": 24351,
-    "remaining": 5649
+    "savings": 0,
+    "totalOutgoings": 22651,
+    "remaining": 7149
    }
   },
   {
@@ -2124,6 +2673,14 @@
    "person": "Virgin Active"
   },
   {
+   "id": "h-000385",
+   "debtTitle": "New laptop: Transfer",
+   "date": "2023-05-08T15:00:00.000Z",
+   "amount": 600,
+   "type": "savings",
+   "label": "Put away"
+  },
+  {
    "id": "h-000186",
    "debtId": "d-000006",
    "debtTitle": "Textbooks & Course Fees",
@@ -2151,22 +2708,22 @@
    "person": "Mike Fallout"
   },
   {
-   "id": "h-000392",
+   "id": "h-000423",
    "debtTitle": "26 Apr – 25 May 2023 Summary",
    "date": "2023-05-24T22:00:00.000Z",
-   "amount": 5956,
+   "amount": 7856,
    "type": "snapshot",
-   "note": "Income: 29600 | Outgoings: 23644 | Surplus: 5956",
+   "note": "Income: 30500 | Outgoings: 22644 | Surplus: 7856",
    "snapshot": {
-    "income": 29600,
+    "income": 30500,
     "transport": 1872,
     "uber": 241,
     "debt": 8150,
-    "expenses": 11381,
+    "expenses": 11781,
     "budget": 0,
-    "savings": 2000,
-    "totalOutgoings": 23644,
-    "remaining": 5956
+    "savings": 600,
+    "totalOutgoings": 22644,
+    "remaining": 7856
    }
   },
   {
@@ -2240,22 +2797,22 @@
    "note": "Cash"
   },
   {
-   "id": "h-000393",
+   "id": "h-000424",
    "debtTitle": "26 May – 25 Jun 2023 Summary",
    "date": "2023-06-24T22:00:00.000Z",
-   "amount": 8119,
+   "amount": 6319,
    "type": "snapshot",
-   "note": "Income: 27300 | Outgoings: 19181 | Surplus: 8119",
+   "note": "Income: 27300 | Outgoings: 20981 | Surplus: 6319",
    "snapshot": {
     "income": 27300,
     "transport": 1776,
     "uber": 174,
     "debt": 5850,
-    "expenses": 11381,
+    "expenses": 13181,
     "budget": 0,
     "savings": 0,
-    "totalOutgoings": 19181,
-    "remaining": 8119
+    "totalOutgoings": 20981,
+    "remaining": 6319
    }
   },
   {
@@ -2328,7 +2885,7 @@
    "person": "WesBank"
   },
   {
-   "id": "h-000394",
+   "id": "h-000425",
    "debtTitle": "26 Jun – 25 Jul 2023 Summary",
    "date": "2023-07-24T22:00:00.000Z",
    "amount": 3699,
@@ -2414,22 +2971,30 @@
    "person": "Sarah Oblivion"
   },
   {
-   "id": "h-000395",
+   "id": "h-000386",
+   "debtTitle": "Savings: Bonus",
+   "date": "2023-08-15T08:00:00.000Z",
+   "amount": 300,
+   "type": "savings",
+   "label": "Put away"
+  },
+  {
+   "id": "h-000426",
    "debtTitle": "26 Jul – 25 Aug 2023 Summary",
    "date": "2023-08-24T22:00:00.000Z",
-   "amount": 4149,
+   "amount": 6349,
    "type": "snapshot",
-   "note": "Income: 27300 | Outgoings: 23151 | Surplus: 4149",
+   "note": "Income: 29800 | Outgoings: 23451 | Surplus: 6349",
    "snapshot": {
-    "income": 27300,
+    "income": 29800,
     "transport": 1920,
     "uber": 0,
     "debt": 9850,
     "expenses": 11381,
     "budget": 0,
-    "savings": 0,
-    "totalOutgoings": 23151,
-    "remaining": 4149
+    "savings": 300,
+    "totalOutgoings": 23451,
+    "remaining": 6349
    }
   },
   {
@@ -2484,6 +3049,14 @@
    "type": "expense"
   },
   {
+   "id": "h-000387",
+   "debtTitle": "Savings: Rounded up",
+   "date": "2023-09-12T11:00:00.000Z",
+   "amount": 2800,
+   "type": "savings",
+   "label": "Put away"
+  },
+  {
    "id": "h-000190",
    "debtId": "d-000006",
    "debtTitle": "Textbooks & Course Fees",
@@ -2502,22 +3075,22 @@
    "person": "WesBank"
   },
   {
-   "id": "h-000396",
+   "id": "h-000427",
    "debtTitle": "26 Aug – 25 Sep 2023 Summary",
    "date": "2023-09-24T22:00:00.000Z",
-   "amount": 3949,
+   "amount": 2549,
    "type": "snapshot",
-   "note": "Income: 27300 | Outgoings: 23351 | Surplus: 3949",
+   "note": "Income: 28500 | Outgoings: 25951 | Surplus: 2549",
    "snapshot": {
-    "income": 27300,
+    "income": 28500,
     "transport": 1920,
     "uber": 0,
     "debt": 9250,
-    "expenses": 11881,
+    "expenses": 11981,
     "budget": 0,
-    "savings": 300,
-    "totalOutgoings": 23351,
-    "remaining": 3949
+    "savings": 2800,
+    "totalOutgoings": 25951,
+    "remaining": 2549
    }
   },
   {
@@ -2600,22 +3173,22 @@
    "type": "expense"
   },
   {
-   "id": "h-000397",
+   "id": "h-000428",
    "debtTitle": "26 Sep – 25 Oct 2023 Summary",
    "date": "2023-10-24T22:00:00.000Z",
-   "amount": 3854,
+   "amount": 6154,
    "type": "snapshot",
-   "note": "Income: 27300 | Outgoings: 23446 | Surplus: 3854",
+   "note": "Income: 27300 | Outgoings: 21146 | Surplus: 6154",
    "snapshot": {
     "income": 27300,
     "transport": 1872,
     "uber": 143,
     "debt": 7750,
-    "expenses": 12281,
+    "expenses": 11381,
     "budget": 0,
-    "savings": 1400,
-    "totalOutgoings": 23446,
-    "remaining": 3854
+    "savings": 0,
+    "totalOutgoings": 21146,
+    "remaining": 6154
    }
   },
   {
@@ -2687,22 +3260,22 @@
    "person": "WesBank"
   },
   {
-   "id": "h-000398",
+   "id": "h-000429",
    "debtTitle": "26 Oct – 25 Nov 2023 Summary",
    "date": "2023-11-24T22:00:00.000Z",
-   "amount": 1734,
+   "amount": 2134,
    "type": "snapshot",
-   "note": "Income: 27300 | Outgoings: 25566 | Surplus: 1734",
+   "note": "Income: 27300 | Outgoings: 25166 | Surplus: 2134",
    "snapshot": {
     "income": 27300,
     "transport": 1632,
     "uber": 443,
     "debt": 9450,
-    "expenses": 12081,
+    "expenses": 11681,
     "budget": 1960,
     "savings": 0,
-    "totalOutgoings": 25566,
-    "remaining": 1734
+    "totalOutgoings": 25166,
+    "remaining": 2134
    }
   },
   {
@@ -2766,6 +3339,14 @@
    "person": "Lara Nexus"
   },
   {
+   "id": "h-000388",
+   "debtTitle": "Emergency fund: Rounded up",
+   "date": "2023-12-09T13:00:00.000Z",
+   "amount": 900,
+   "type": "savings",
+   "label": "Put away"
+  },
+  {
    "id": "h-000204",
    "debtId": "d-000007",
    "debtTitle": "Emergency Vet Bill",
@@ -2775,22 +3356,22 @@
    "person": "Sarah Oblivion"
   },
   {
-   "id": "h-000399",
+   "id": "h-000430",
    "debtTitle": "26 Nov – 25 Dec 2023 Summary",
    "date": "2023-12-24T22:00:00.000Z",
-   "amount": 4781,
+   "amount": 3781,
    "type": "snapshot",
-   "note": "Income: 28400 | Outgoings: 23619 | Surplus: 4781",
+   "note": "Income: 27300 | Outgoings: 23519 | Surplus: 3781",
    "snapshot": {
-    "income": 28400,
+    "income": 27300,
     "transport": 960,
     "uber": 128,
     "debt": 9150,
-    "expenses": 11381,
+    "expenses": 12381,
     "budget": 0,
-    "savings": 2000,
-    "totalOutgoings": 23619,
-    "remaining": 4781
+    "savings": 900,
+    "totalOutgoings": 23519,
+    "remaining": 3781
    }
   },
   {
@@ -2846,12 +3427,12 @@
    "person": "Sarah Oblivion"
   },
   {
-   "id": "h-000400",
+   "id": "h-000431",
    "debtTitle": "26 Dec – 25 Jan 2024 Summary",
    "date": "2024-01-24T22:00:00.000Z",
-   "amount": 4547,
+   "amount": 5747,
    "type": "snapshot",
-   "note": "Income: 27300 | Outgoings: 22753 | Surplus: 4547",
+   "note": "Income: 27300 | Outgoings: 21553 | Surplus: 5747",
    "snapshot": {
     "income": 27300,
     "transport": 1200,
@@ -2859,9 +3440,9 @@
     "debt": 8700,
     "expenses": 11381,
     "budget": 0,
-    "savings": 1200,
-    "totalOutgoings": 22753,
-    "remaining": 4547
+    "savings": 0,
+    "totalOutgoings": 21553,
+    "remaining": 5747
    }
   },
   {
@@ -2933,22 +3514,22 @@
    "person": "WesBank"
   },
   {
-   "id": "h-000401",
+   "id": "h-000432",
    "debtTitle": "26 Jan – 25 Feb 2024 Summary",
    "date": "2024-02-24T22:00:00.000Z",
-   "amount": 7257,
+   "amount": 6157,
    "type": "snapshot",
-   "note": "Income: 33800 | Outgoings: 26543 | Surplus: 7257",
+   "note": "Income: 30800 | Outgoings: 24643 | Surplus: 6157",
    "snapshot": {
-    "income": 33800,
+    "income": 30800,
     "transport": 1968,
     "uber": 496,
     "debt": 9450,
     "expenses": 12729,
     "budget": 0,
-    "savings": 1900,
-    "totalOutgoings": 26543,
-    "remaining": 7257
+    "savings": 0,
+    "totalOutgoings": 24643,
+    "remaining": 6157
    }
   },
   {
@@ -3038,22 +3619,22 @@
    "person": "Discovery"
   },
   {
-   "id": "h-000402",
+   "id": "h-000433",
    "debtTitle": "26 Feb – 25 Mar 2024 Summary",
    "date": "2024-03-24T22:00:00.000Z",
-   "amount": 10413,
+   "amount": 8913,
    "type": "snapshot",
-   "note": "Income: 34700 | Outgoings: 24287 | Surplus: 10413",
+   "note": "Income: 33900 | Outgoings: 24987 | Surplus: 8913",
    "snapshot": {
-    "income": 34700,
+    "income": 33900,
     "transport": 1632,
     "uber": 386,
     "debt": 7650,
-    "expenses": 12729,
+    "expenses": 13829,
     "budget": 1490,
-    "savings": 400,
-    "totalOutgoings": 24287,
-    "remaining": 10413
+    "savings": 0,
+    "totalOutgoings": 24987,
+    "remaining": 8913
    }
   },
   {
@@ -3133,22 +3714,22 @@
    "person": "Virgin Active"
   },
   {
-   "id": "h-000403",
+   "id": "h-000434",
    "debtTitle": "26 Mar – 25 Apr 2024 Summary",
    "date": "2024-04-24T22:00:00.000Z",
-   "amount": 3579,
+   "amount": 8279,
    "type": "snapshot",
-   "note": "Income: 30800 | Outgoings: 27221 | Surplus: 3579",
+   "note": "Income: 30800 | Outgoings: 22521 | Surplus: 8279",
    "snapshot": {
     "income": 30800,
     "transport": 1392,
     "uber": 0,
     "debt": 8400,
-    "expenses": 14929,
+    "expenses": 12729,
     "budget": 0,
-    "savings": 2500,
-    "totalOutgoings": 27221,
-    "remaining": 3579
+    "savings": 0,
+    "totalOutgoings": 22521,
+    "remaining": 8279
    }
   },
   {
@@ -3167,6 +3748,14 @@
    "type": "payment",
    "person": "Discovery",
    "label": "Interest"
+  },
+  {
+   "id": "h-000389",
+   "debtTitle": "Tax stash: Transfer",
+   "date": "2024-05-01T07:00:00.000Z",
+   "amount": 2700,
+   "type": "savings",
+   "label": "Put away"
   },
   {
    "id": "h-000209",
@@ -3224,22 +3813,22 @@
    "person": "Mike Fallout"
   },
   {
-   "id": "h-000404",
+   "id": "h-000435",
    "debtTitle": "26 Apr – 25 May 2024 Summary",
    "date": "2024-05-24T22:00:00.000Z",
-   "amount": 110,
+   "amount": 310,
    "type": "snapshot",
-   "note": "Income: 30800 | Outgoings: 30690 | Surplus: 110",
+   "note": "Income: 30800 | Outgoings: 30490 | Surplus: 310",
    "snapshot": {
     "income": 30800,
     "transport": 1680,
     "uber": 181,
     "debt": 13200,
-    "expenses": 13629,
+    "expenses": 12729,
     "budget": 0,
-    "savings": 2000,
-    "totalOutgoings": 30690,
-    "remaining": 110
+    "savings": 2700,
+    "totalOutgoings": 30490,
+    "remaining": 310
    }
   },
   {
@@ -3277,6 +3866,14 @@
    "type": "expense"
   },
   {
+   "id": "h-000390",
+   "debtTitle": "Savings: Bonus",
+   "date": "2024-05-29T15:00:00.000Z",
+   "amount": 2500,
+   "type": "savings",
+   "label": "Put away"
+  },
+  {
    "id": "h-000114",
    "debtId": "d-000002",
    "debtTitle": "Bakkie Finance",
@@ -3304,22 +3901,22 @@
    "person": "Standard Bank"
   },
   {
-   "id": "h-000405",
+   "id": "h-000436",
    "debtTitle": "26 May – 25 Jun 2024 Summary",
    "date": "2024-06-24T22:00:00.000Z",
-   "amount": 4829,
+   "amount": 329,
    "type": "snapshot",
-   "note": "Income: 30800 | Outgoings: 25971 | Surplus: 4829",
+   "note": "Income: 30800 | Outgoings: 30471 | Surplus: 329",
    "snapshot": {
     "income": 30800,
     "transport": 2016,
     "uber": 76,
     "debt": 11150,
-    "expenses": 12729,
+    "expenses": 14729,
     "budget": 0,
-    "savings": 0,
-    "totalOutgoings": 25971,
-    "remaining": 4829
+    "savings": 2500,
+    "totalOutgoings": 30471,
+    "remaining": 329
    }
   },
   {
@@ -3409,22 +4006,30 @@
    "person": "Virgin Active"
   },
   {
-   "id": "h-000406",
+   "id": "h-000391",
+   "debtTitle": "New laptop: Payday set-aside",
+   "date": "2024-07-19T18:00:00.000Z",
+   "amount": 1500,
+   "type": "savings",
+   "label": "Put away"
+  },
+  {
+   "id": "h-000437",
    "debtTitle": "26 Jun – 25 Jul 2024 Summary",
    "date": "2024-07-24T22:00:00.000Z",
-   "amount": 951,
+   "amount": 949,
    "type": "snapshot",
-   "note": "Income: 32100 | Outgoings: 33051 | Deficit: 951",
+   "note": "Income: 34000 | Outgoings: 33051 | Surplus: 949",
    "snapshot": {
-    "income": 32100,
+    "income": 34000,
     "transport": 1872,
     "uber": 0,
     "debt": 12800,
-    "expenses": 14429,
+    "expenses": 14329,
     "budget": 2550,
-    "savings": 1400,
+    "savings": 1500,
     "totalOutgoings": 33051,
-    "remaining": -951
+    "remaining": 949
    }
   },
   {
@@ -3507,22 +4112,22 @@
    "label": "Interest"
   },
   {
-   "id": "h-000407",
+   "id": "h-000438",
    "debtTitle": "26 Jul – 25 Aug 2024 Summary",
    "date": "2024-08-24T22:00:00.000Z",
-   "amount": 3406,
+   "amount": 4706,
    "type": "snapshot",
-   "note": "Income: 31800 | Outgoings: 28394 | Surplus: 3406",
+   "note": "Income: 33700 | Outgoings: 28994 | Surplus: 4706",
    "snapshot": {
-    "income": 31800,
+    "income": 33700,
     "transport": 1584,
     "uber": 81,
     "debt": 14000,
-    "expenses": 12729,
+    "expenses": 13329,
     "budget": 0,
     "savings": 0,
-    "totalOutgoings": 28394,
-    "remaining": 3406
+    "totalOutgoings": 28994,
+    "remaining": 4706
    }
   },
   {
@@ -3604,22 +4209,22 @@
    "person": "Standard Bank"
   },
   {
-   "id": "h-000408",
+   "id": "h-000439",
    "debtTitle": "26 Aug – 25 Sep 2024 Summary",
    "date": "2024-09-24T22:00:00.000Z",
-   "amount": 2623,
+   "amount": 2223,
    "type": "snapshot",
-   "note": "Income: 30800 | Outgoings: 28177 | Surplus: 2623",
+   "note": "Income: 30800 | Outgoings: 28577 | Surplus: 2223",
    "snapshot": {
     "income": 30800,
     "transport": 1920,
     "uber": 78,
     "debt": 13450,
-    "expenses": 12729,
+    "expenses": 13129,
     "budget": 0,
     "savings": 0,
-    "totalOutgoings": 28177,
-    "remaining": 2623
+    "totalOutgoings": 28577,
+    "remaining": 2223
    }
   },
   {
@@ -3690,14 +4295,14 @@
    "person": "Mike Fallout"
   },
   {
-   "id": "h-000409",
+   "id": "h-000440",
    "debtTitle": "26 Sep – 25 Oct 2024 Summary",
    "date": "2024-10-24T22:00:00.000Z",
-   "amount": 4881,
+   "amount": 2181,
    "type": "snapshot",
-   "note": "Income: 33500 | Outgoings: 28619 | Surplus: 4881",
+   "note": "Income: 30800 | Outgoings: 28619 | Surplus: 2181",
    "snapshot": {
-    "income": 33500,
+    "income": 30800,
     "transport": 1968,
     "uber": 672,
     "debt": 13250,
@@ -3705,7 +4310,7 @@
     "budget": 0,
     "savings": 0,
     "totalOutgoings": 28619,
-    "remaining": 4881
+    "remaining": 2181
    }
   },
   {
@@ -3752,6 +4357,14 @@
    "type": "expense"
   },
   {
+   "id": "h-000392",
+   "debtTitle": "New laptop: Cash put by",
+   "date": "2024-11-04T11:00:00.000Z",
+   "amount": 1800,
+   "type": "savings",
+   "label": "Put away"
+  },
+  {
    "id": "h-000087",
    "debtId": "d-000001",
    "debtTitle": "Student Loan",
@@ -3788,22 +4401,22 @@
    "note": "6 items · budget 2400"
   },
   {
-   "id": "h-000410",
+   "id": "h-000441",
    "debtTitle": "26 Oct – 25 Nov 2024 Summary",
    "date": "2024-11-24T22:00:00.000Z",
-   "amount": 349,
+   "amount": 451,
    "type": "snapshot",
-   "note": "Income: 30800 | Outgoings: 31149 | Deficit: 349",
+   "note": "Income: 30800 | Outgoings: 30349 | Surplus: 451",
    "snapshot": {
     "income": 30800,
     "transport": 1920,
     "uber": 0,
     "debt": 12250,
-    "expenses": 14029,
+    "expenses": 12729,
     "budget": 1650,
-    "savings": 1300,
-    "totalOutgoings": 31149,
-    "remaining": -349
+    "savings": 1800,
+    "totalOutgoings": 30349,
+    "remaining": 451
    }
   },
   {
@@ -3868,12 +4481,20 @@
    "person": "Arthur Redwood"
   },
   {
-   "id": "h-000411",
+   "id": "h-000393",
+   "debtTitle": "Savings: Rounded up",
+   "date": "2024-12-04T14:00:00.000Z",
+   "amount": 1100,
+   "type": "savings",
+   "label": "Put away"
+  },
+  {
+   "id": "h-000442",
    "debtTitle": "26 Nov – 25 Dec 2024 Summary",
    "date": "2024-12-24T22:00:00.000Z",
-   "amount": 4851,
+   "amount": 3751,
    "type": "snapshot",
-   "note": "Income: 30800 | Outgoings: 25949 | Surplus: 4851",
+   "note": "Income: 30800 | Outgoings: 27049 | Surplus: 3751",
    "snapshot": {
     "income": 30800,
     "transport": 1344,
@@ -3881,9 +4502,9 @@
     "debt": 11750,
     "expenses": 12729,
     "budget": 0,
-    "savings": 0,
-    "totalOutgoings": 25949,
-    "remaining": 4851
+    "savings": 1100,
+    "totalOutgoings": 27049,
+    "remaining": 3751
    }
   },
   {
@@ -3931,12 +4552,12 @@
    "label": "Interest"
   },
   {
-   "id": "h-000412",
+   "id": "h-000443",
    "debtTitle": "26 Dec – 25 Jan 2025 Summary",
    "date": "2025-01-24T22:00:00.000Z",
-   "amount": 3146,
+   "amount": 5546,
    "type": "snapshot",
-   "note": "Income: 30800 | Outgoings: 27654 | Surplus: 3146",
+   "note": "Income: 30800 | Outgoings: 25254 | Surplus: 5546",
    "snapshot": {
     "income": 30800,
     "transport": 1200,
@@ -3944,9 +4565,9 @@
     "debt": 10950,
     "expenses": 12729,
     "budget": 0,
-    "savings": 2400,
-    "totalOutgoings": 27654,
-    "remaining": 3146
+    "savings": 0,
+    "totalOutgoings": 25254,
+    "remaining": 5546
    }
   },
   {
@@ -3962,6 +4583,22 @@
    "date": "2025-02-03T10:00:00.000Z",
    "amount": 2800,
    "type": "expense"
+  },
+  {
+   "id": "h-000394",
+   "debtTitle": "Tax stash: Bonus",
+   "date": "2025-02-05T09:00:00.000Z",
+   "amount": 600,
+   "type": "savings",
+   "label": "Put away"
+  },
+  {
+   "id": "h-000395",
+   "debtTitle": "Holiday fund: Vet bill",
+   "date": "2025-02-06T12:00:00.000Z",
+   "amount": 1100,
+   "type": "savings",
+   "label": "Taken out"
   },
   {
    "id": "h-000246",
@@ -4001,22 +4638,22 @@
    "person": "Mike Fallout"
   },
   {
-   "id": "h-000413",
+   "id": "h-000444",
    "debtTitle": "26 Jan – 25 Feb 2025 Summary",
    "date": "2025-02-24T22:00:00.000Z",
-   "amount": 7935,
+   "amount": 7335,
    "type": "snapshot",
-   "note": "Income: 35700 | Outgoings: 27765 | Surplus: 7935",
+   "note": "Income: 34300 | Outgoings: 26965 | Surplus: 7335",
    "snapshot": {
-    "income": 35700,
+    "income": 34300,
     "transport": 1728,
     "uber": 260,
     "debt": 11550,
-    "expenses": 14227,
+    "expenses": 13927,
     "budget": 0,
-    "savings": 0,
-    "totalOutgoings": 27765,
-    "remaining": 7935
+    "savings": -500,
+    "totalOutgoings": 26965,
+    "remaining": 7335
    }
   },
   {
@@ -4072,22 +4709,30 @@
    "label": "Double up"
   },
   {
-   "id": "h-000414",
+   "id": "h-000396",
+   "debtTitle": "Tax stash: Bonus",
+   "date": "2025-03-22T07:00:00.000Z",
+   "amount": 2900,
+   "type": "savings",
+   "label": "Put away"
+  },
+  {
+   "id": "h-000445",
    "debtTitle": "26 Feb – 25 Mar 2025 Summary",
    "date": "2025-03-24T22:00:00.000Z",
-   "amount": 5630,
+   "amount": 2480,
    "type": "snapshot",
-   "note": "Income: 35900 | Outgoings: 30270 | Surplus: 5630",
+   "note": "Income: 34300 | Outgoings: 31820 | Surplus: 2480",
    "snapshot": {
-    "income": 35900,
+    "income": 34300,
     "transport": 1584,
     "uber": 279,
     "debt": 10550,
-    "expenses": 16027,
+    "expenses": 13927,
     "budget": 1830,
-    "savings": 0,
-    "totalOutgoings": 30270,
-    "remaining": 5630
+    "savings": 3650,
+    "totalOutgoings": 31820,
+    "remaining": 2480
    }
   },
   {
@@ -4127,6 +4772,14 @@
    "note": "Paid off in full"
   },
   {
+   "id": "h-000397",
+   "debtTitle": "Holiday fund: Bonus",
+   "date": "2025-04-08T13:00:00.000Z",
+   "amount": 900,
+   "type": "savings",
+   "label": "Put away"
+  },
+  {
    "id": "h-000248",
    "debtId": "d-000010",
    "debtTitle": "Old iPhone 13",
@@ -4137,22 +4790,22 @@
    "note": "Paid late, sorry"
   },
   {
-   "id": "h-000415",
+   "id": "h-000446",
    "debtTitle": "26 Mar – 25 Apr 2025 Summary",
    "date": "2025-04-24T22:00:00.000Z",
-   "amount": 7261,
+   "amount": 6511,
    "type": "snapshot",
-   "note": "Income: 35500 | Outgoings: 28239 | Surplus: 7261",
+   "note": "Income: 34300 | Outgoings: 27789 | Surplus: 6511",
    "snapshot": {
-    "income": 35500,
+    "income": 34300,
     "transport": 2112,
     "uber": 0,
     "debt": 10100,
-    "expenses": 16027,
+    "expenses": 13927,
     "budget": 0,
-    "savings": 0,
-    "totalOutgoings": 28239,
-    "remaining": 7261
+    "savings": 1650,
+    "totalOutgoings": 27789,
+    "remaining": 6511
    }
   },
   {
@@ -4199,22 +4852,22 @@
    "person": "WesBank"
   },
   {
-   "id": "h-000416",
+   "id": "h-000447",
    "debtTitle": "26 Apr – 25 May 2025 Summary",
    "date": "2025-05-24T22:00:00.000Z",
-   "amount": 8625,
+   "amount": 10075,
    "type": "snapshot",
-   "note": "Income: 34300 | Outgoings: 25675 | Surplus: 8625",
+   "note": "Income: 35800 | Outgoings: 25725 | Surplus: 10075",
    "snapshot": {
-    "income": 34300,
+    "income": 35800,
     "transport": 1248,
     "uber": 0,
     "debt": 9800,
     "expenses": 13927,
     "budget": 0,
-    "savings": 700,
-    "totalOutgoings": 25675,
-    "remaining": 8625
+    "savings": 750,
+    "totalOutgoings": 25725,
+    "remaining": 10075
    }
   },
   {
@@ -4260,22 +4913,22 @@
    "type": "expense"
   },
   {
-   "id": "h-000417",
+   "id": "h-000448",
    "debtTitle": "26 May – 25 Jun 2025 Summary",
    "date": "2025-06-24T22:00:00.000Z",
-   "amount": 8409,
+   "amount": 7759,
    "type": "snapshot",
-   "note": "Income: 34300 | Outgoings: 25891 | Surplus: 8409",
+   "note": "Income: 35300 | Outgoings: 27541 | Surplus: 7759",
    "snapshot": {
-    "income": 34300,
+    "income": 35300,
     "transport": 1920,
     "uber": 244,
     "debt": 9800,
-    "expenses": 13927,
+    "expenses": 14827,
     "budget": 0,
-    "savings": 0,
-    "totalOutgoings": 25891,
-    "remaining": 8409
+    "savings": 750,
+    "totalOutgoings": 27541,
+    "remaining": 7759
    }
   },
   {
@@ -4313,22 +4966,22 @@
    "note": "4 items · budget 1100"
   },
   {
-   "id": "h-000418",
+   "id": "h-000449",
    "debtTitle": "26 Jun – 25 Jul 2025 Summary",
    "date": "2025-07-24T22:00:00.000Z",
-   "amount": 12087,
+   "amount": 8037,
    "type": "snapshot",
-   "note": "Income: 35700 | Outgoings: 23613 | Surplus: 12087",
+   "note": "Income: 34300 | Outgoings: 26263 | Surplus: 8037",
    "snapshot": {
-    "income": 35700,
+    "income": 34300,
     "transport": 1968,
     "uber": 228,
     "debt": 5800,
-    "expenses": 13927,
+    "expenses": 15827,
     "budget": 1690,
-    "savings": 0,
-    "totalOutgoings": 23613,
-    "remaining": 12087
+    "savings": 750,
+    "totalOutgoings": 26263,
+    "remaining": 8037
    }
   },
   {
@@ -4367,22 +5020,30 @@
    "note": "Paid off in full"
   },
   {
-   "id": "h-000419",
+   "id": "h-000398",
+   "debtTitle": "Holiday fund: Cash put by",
+   "date": "2025-08-17T10:00:00.000Z",
+   "amount": 1300,
+   "type": "savings",
+   "label": "Put away"
+  },
+  {
+   "id": "h-000450",
    "debtTitle": "26 Jul – 25 Aug 2025 Summary",
    "date": "2025-08-24T22:00:00.000Z",
-   "amount": 9249,
+   "amount": 8299,
    "type": "snapshot",
-   "note": "Income: 35600 | Outgoings: 26351 | Surplus: 9249",
+   "note": "Income: 35100 | Outgoings: 26801 | Surplus: 8299",
    "snapshot": {
-    "income": 35600,
+    "income": 35100,
     "transport": 1824,
     "uber": 0,
     "debt": 9000,
-    "expenses": 14927,
+    "expenses": 13927,
     "budget": 0,
-    "savings": 600,
-    "totalOutgoings": 26351,
-    "remaining": 9249
+    "savings": 2050,
+    "totalOutgoings": 26801,
+    "remaining": 8299
    }
   },
   {
@@ -4412,6 +5073,14 @@
    "person": "Vodacom"
   },
   {
+   "id": "h-000399",
+   "debtTitle": "New laptop: Transfer",
+   "date": "2025-09-02T10:00:00.000Z",
+   "amount": 900,
+   "type": "savings",
+   "label": "Put away"
+  },
+  {
    "id": "h-000128",
    "debtId": "d-000002",
    "debtTitle": "Bakkie Finance",
@@ -4421,12 +5090,12 @@
    "person": "WesBank"
   },
   {
-   "id": "h-000420",
+   "id": "h-000451",
    "debtTitle": "26 Aug – 25 Sep 2025 Summary",
    "date": "2025-09-24T22:00:00.000Z",
-   "amount": 7917,
+   "amount": 7667,
    "type": "snapshot",
-   "note": "Income: 34300 | Outgoings: 26383 | Surplus: 7917",
+   "note": "Income: 34300 | Outgoings: 26633 | Surplus: 7667",
    "snapshot": {
     "income": 34300,
     "transport": 1920,
@@ -4434,9 +5103,9 @@
     "debt": 9000,
     "expenses": 13927,
     "budget": 0,
-    "savings": 1400,
-    "totalOutgoings": 26383,
-    "remaining": 7917
+    "savings": 1650,
+    "totalOutgoings": 26633,
+    "remaining": 7667
    }
   },
   {
@@ -4465,22 +5134,30 @@
    "person": "Standard Bank"
   },
   {
-   "id": "h-000421",
+   "id": "h-000400",
+   "debtTitle": "Tax stash: Cash put by",
+   "date": "2025-10-13T12:00:00.000Z",
+   "amount": 1900,
+   "type": "savings",
+   "label": "Put away"
+  },
+  {
+   "id": "h-000452",
    "debtTitle": "26 Sep – 25 Oct 2025 Summary",
    "date": "2025-10-24T22:00:00.000Z",
-   "amount": 14376,
+   "amount": 9926,
    "type": "snapshot",
-   "note": "Income: 37000 | Outgoings: 22624 | Surplus: 14376",
+   "note": "Income: 34300 | Outgoings: 24374 | Surplus: 9926",
    "snapshot": {
-    "income": 37000,
+    "income": 34300,
     "transport": 1920,
     "uber": 477,
     "debt": 5400,
     "expenses": 13927,
     "budget": 0,
-    "savings": 900,
-    "totalOutgoings": 22624,
-    "remaining": 14376
+    "savings": 2650,
+    "totalOutgoings": 24374,
+    "remaining": 9926
    }
   },
   {
@@ -4533,22 +5210,22 @@
    "note": "3 items · budget 2100"
   },
   {
-   "id": "h-000422",
+   "id": "h-000453",
    "debtTitle": "26 Oct – 25 Nov 2025 Summary",
    "date": "2025-11-24T22:00:00.000Z",
-   "amount": 12237,
+   "amount": 13087,
    "type": "snapshot",
-   "note": "Income: 35000 | Outgoings: 22763 | Surplus: 12237",
+   "note": "Income: 36600 | Outgoings: 23513 | Surplus: 13087",
    "snapshot": {
-    "income": 35000,
+    "income": 36600,
     "transport": 1968,
     "uber": 368,
     "debt": 5800,
     "expenses": 13927,
     "budget": 700,
-    "savings": 0,
-    "totalOutgoings": 22763,
-    "remaining": 12237
+    "savings": 750,
+    "totalOutgoings": 23513,
+    "remaining": 13087
    }
   },
   {
@@ -4594,22 +5271,22 @@
    "note": "Debit order went off"
   },
   {
-   "id": "h-000423",
+   "id": "h-000454",
    "debtTitle": "26 Nov – 25 Dec 2025 Summary",
    "date": "2025-12-24T22:00:00.000Z",
-   "amount": 13277,
+   "amount": 12927,
    "type": "snapshot",
-   "note": "Income: 34300 | Outgoings: 21023 | Surplus: 13277",
+   "note": "Income: 34300 | Outgoings: 21373 | Surplus: 12927",
    "snapshot": {
     "income": 34300,
     "transport": 1296,
     "uber": 0,
     "debt": 5400,
-    "expenses": 14327,
+    "expenses": 13927,
     "budget": 0,
-    "savings": 0,
-    "totalOutgoings": 21023,
-    "remaining": 13277
+    "savings": 750,
+    "totalOutgoings": 21373,
+    "remaining": 12927
    }
   },
   {
@@ -4662,22 +5339,22 @@
    "type": "expense"
   },
   {
-   "id": "h-000424",
+   "id": "h-000455",
    "debtTitle": "26 Dec – 25 Jan 2026 Summary",
    "date": "2026-01-24T22:00:00.000Z",
-   "amount": 11975,
+   "amount": 9325,
    "type": "snapshot",
-   "note": "Income: 34300 | Outgoings: 22325 | Surplus: 11975",
+   "note": "Income: 34300 | Outgoings: 24975 | Surplus: 9325",
    "snapshot": {
     "income": 34300,
     "transport": 1152,
     "uber": 446,
     "debt": 6800,
-    "expenses": 13927,
+    "expenses": 15827,
     "budget": 0,
-    "savings": 0,
-    "totalOutgoings": 22325,
-    "remaining": 11975
+    "savings": 750,
+    "totalOutgoings": 24975,
+    "remaining": 9325
    }
   },
   {
@@ -4706,6 +5383,14 @@
    "person": "Mike Fallout"
   },
   {
+   "id": "h-000401",
+   "debtTitle": "Emergency fund: Transfer",
+   "date": "2026-02-01T11:00:00.000Z",
+   "amount": 900,
+   "type": "savings",
+   "label": "Put away"
+  },
+  {
    "id": "h-000302",
    "debtId": "d-000014",
    "debtTitle": "Braai & Birthday Money",
@@ -4723,22 +5408,22 @@
    "type": "payment"
   },
   {
-   "id": "h-000425",
+   "id": "h-000456",
    "debtTitle": "26 Jan – 25 Feb 2026 Summary",
    "date": "2026-02-24T22:00:00.000Z",
-   "amount": 18823,
+   "amount": 20773,
    "type": "snapshot",
-   "note": "Income: 38300 | Outgoings: 19477 | Surplus: 18823",
+   "note": "Income: 41900 | Outgoings: 21127 | Surplus: 20773",
    "snapshot": {
-    "income": 38300,
+    "income": 41900,
     "transport": 2064,
     "uber": 438,
     "debt": 2000,
     "expenses": 14975,
     "budget": 0,
-    "savings": 0,
-    "totalOutgoings": 19477,
-    "remaining": 18823
+    "savings": 1650,
+    "totalOutgoings": 21127,
+    "remaining": 20773
    }
   },
   {
@@ -4756,6 +5441,14 @@
    "amount": 4500,
    "type": "creation",
    "person": "Sarah Oblivion"
+  },
+  {
+   "id": "h-000402",
+   "debtTitle": "New laptop: Payday set-aside",
+   "date": "2026-03-02T18:00:00.000Z",
+   "amount": 1500,
+   "type": "savings",
+   "label": "Put away"
   },
   {
    "id": "h-000303",
@@ -4802,22 +5495,22 @@
    "note": "6 items · budget 4000"
   },
   {
-   "id": "h-000426",
+   "id": "h-000457",
    "debtTitle": "26 Feb – 25 Mar 2026 Summary",
    "date": "2026-03-24T22:00:00.000Z",
-   "amount": 14475,
+   "amount": 10425,
    "type": "snapshot",
-   "note": "Income: 40100 | Outgoings: 25625 | Surplus: 14475",
+   "note": "Income: 38300 | Outgoings: 27875 | Surplus: 10425",
    "snapshot": {
-    "income": 40100,
+    "income": 38300,
     "transport": 1200,
     "uber": 0,
     "debt": 7700,
     "expenses": 14975,
     "budget": 1750,
-    "savings": 0,
-    "totalOutgoings": 25625,
-    "remaining": 14475
+    "savings": 2250,
+    "totalOutgoings": 27875,
+    "remaining": 10425
    }
   },
   {
@@ -4846,6 +5539,14 @@
    "person": "Tifa Lockwood"
   },
   {
+   "id": "h-000403",
+   "debtTitle": "Tax stash: Payday set-aside",
+   "date": "2026-04-02T11:00:00.000Z",
+   "amount": 2200,
+   "type": "savings",
+   "label": "Put away"
+  },
+  {
    "id": "h-000295",
    "debtId": "d-000013",
    "debtTitle": "Standard Bank Credit Card",
@@ -4872,22 +5573,22 @@
    "person": "Sarah Oblivion"
   },
   {
-   "id": "h-000427",
+   "id": "h-000458",
    "debtTitle": "26 Mar – 25 Apr 2026 Summary",
    "date": "2026-04-24T22:00:00.000Z",
-   "amount": 12955,
+   "amount": 11105,
    "type": "snapshot",
-   "note": "Income: 40900 | Outgoings: 27945 | Surplus: 12955",
+   "note": "Income: 38900 | Outgoings: 27795 | Surplus: 11105",
    "snapshot": {
-    "income": 40900,
+    "income": 38900,
     "transport": 1584,
     "uber": 536,
     "debt": 7750,
-    "expenses": 16875,
+    "expenses": 14975,
     "budget": 0,
-    "savings": 1200,
-    "totalOutgoings": 27945,
-    "remaining": 12955
+    "savings": 2950,
+    "totalOutgoings": 27795,
+    "remaining": 11105
    }
   },
   {
@@ -4905,6 +5606,14 @@
    "amount": 5200,
    "type": "creation",
    "person": "Mike Fallout"
+  },
+  {
+   "id": "h-000404",
+   "debtTitle": "Emergency fund: Bonus",
+   "date": "2026-04-28T09:00:00.000Z",
+   "amount": 900,
+   "type": "savings",
+   "label": "Put away"
   },
   {
    "id": "h-000305",
@@ -4963,12 +5672,12 @@
    "person": "Vodacom"
   },
   {
-   "id": "h-000428",
+   "id": "h-000459",
    "debtTitle": "26 Apr – 25 May 2026 Summary",
    "date": "2026-05-24T22:00:00.000Z",
-   "amount": 13082,
+   "amount": 11432,
    "type": "snapshot",
-   "note": "Income: 38300 | Outgoings: 25218 | Surplus: 13082",
+   "note": "Income: 38300 | Outgoings: 26868 | Surplus: 11432",
    "snapshot": {
     "income": 38300,
     "transport": 1680,
@@ -4976,9 +5685,9 @@
     "debt": 8350,
     "expenses": 14975,
     "budget": 0,
-    "savings": 0,
-    "totalOutgoings": 25218,
-    "remaining": 13082
+    "savings": 1650,
+    "totalOutgoings": 26868,
+    "remaining": 11432
    }
   },
   {
@@ -5063,22 +5772,30 @@
    "person": "Tifa Lockwood"
   },
   {
-   "id": "h-000429",
+   "id": "h-000405",
+   "debtTitle": "Tax stash: Bonus",
+   "date": "2026-06-14T12:00:00.000Z",
+   "amount": 1000,
+   "type": "savings",
+   "label": "Put away"
+  },
+  {
+   "id": "h-000460",
    "debtTitle": "26 May – 25 Jun 2026 Summary",
    "date": "2026-06-24T22:00:00.000Z",
-   "amount": 9409,
+   "amount": 8459,
    "type": "snapshot",
-   "note": "Income: 38300 | Outgoings: 28891 | Surplus: 9409",
+   "note": "Income: 38300 | Outgoings: 29841 | Surplus: 8459",
    "snapshot": {
     "income": 38300,
     "transport": 1872,
     "uber": 444,
     "debt": 10100,
-    "expenses": 16475,
+    "expenses": 15675,
     "budget": 0,
-    "savings": 0,
-    "totalOutgoings": 28891,
-    "remaining": 9409
+    "savings": 1750,
+    "totalOutgoings": 29841,
+    "remaining": 8459
    }
   },
   {
@@ -5178,22 +5895,22 @@
    "note": "Debit order went off"
   },
   {
-   "id": "h-000430",
+   "id": "h-000461",
    "debtTitle": "26 Jun – 25 Jul 2026 Summary",
    "date": "2026-07-24T22:00:00.000Z",
-   "amount": 11553,
+   "amount": 9403,
    "type": "snapshot",
-   "note": "Income: 40800 | Outgoings: 29247 | Surplus: 11553",
+   "note": "Income: 38300 | Outgoings: 28897 | Surplus: 9403",
    "snapshot": {
-    "income": 40800,
+    "income": 38300,
     "transport": 1872,
     "uber": 0,
     "debt": 10000,
     "expenses": 14975,
     "budget": 1300,
-    "savings": 1100,
-    "totalOutgoings": 29247,
-    "remaining": 11553
+    "savings": 750,
+    "totalOutgoings": 28897,
+    "remaining": 9403
    }
   },
   {
@@ -5202,6 +5919,14 @@
    "date": "2026-07-25T15:30:00.000Z",
    "amount": 1872,
    "type": "transport"
+  },
+  {
+   "id": "h-000407",
+   "debtTitle": "Savings: Car repair",
+   "date": "2026-07-27T18:00:00.000Z",
+   "amount": 700,
+   "type": "savings",
+   "label": "Taken out"
   },
   {
    "id": "h-000328",
@@ -5256,6 +5981,14 @@
    "person": "Standard Bank"
   },
   {
+   "id": "h-000406",
+   "debtTitle": "New laptop: Transfer",
+   "date": "2026-08-05T10:00:00.000Z",
+   "amount": 1700,
+   "type": "savings",
+   "label": "Put away"
+  },
+  {
    "id": "h-000290",
    "debtId": "d-000012",
    "debtTitle": "Samsung Galaxy S24",
@@ -5283,22 +6016,22 @@
    "type": "payment"
   },
   {
-   "id": "h-000431",
+   "id": "h-000462",
    "debtTitle": "26 Jul – 25 Aug 2026 Summary",
    "date": "2026-08-24T22:00:00.000Z",
-   "amount": 12553,
+   "amount": 9703,
    "type": "snapshot",
-   "note": "Income: 41500 | Outgoings: 28947 | Surplus: 12553",
+   "note": "Income: 38300 | Outgoings: 28597 | Surplus: 9703",
    "snapshot": {
-    "income": 41500,
+    "income": 38300,
     "transport": 1872,
     "uber": 0,
     "debt": 10000,
-    "expenses": 15375,
+    "expenses": 14975,
     "budget": 0,
-    "savings": 1700,
-    "totalOutgoings": 28947,
-    "remaining": 12553
+    "savings": 1750,
+    "totalOutgoings": 28597,
+    "remaining": 9703
    }
   },
   {

@@ -396,21 +396,104 @@ const budgetForCycle = c => budgetPlans
   .filter(p => { const d = new Date(p.confirmedAt); return d >= c.start && d < c.end; })
   .reduce((s, p) => s + p.items.reduce((t, it) => t + it.price, 0), 0);
 
-// ─── Savings: the manual entries first, then each cycle's swept leftover ───────
+// ─── Piggybanks ───────────────────────────────────────────────────────────────
+// The jars money is kept in. Leftovers is the sweep target and cannot be closed; the rest
+// are the user's own, some with a goal to fill and some just holding a balance.
+
+const LEFTOVERS_BANK = 'bank-leftovers';
+const GENERAL_BANK = 'bank-general';
+const piggybanks = [
+  { id: LEFTOVERS_BANK, name: 'Leftovers', note: 'Whatever each pay cycle ends with lands here on its own.', createdAt: at(cycles[0].start), isLeftovers: true },
+  { id: GENERAL_BANK,   name: 'Savings',        note: 'Money put away by hand.', createdAt: at(cycles[0].start) },
+  { id: 'bank-emerg',   name: 'Emergency fund', target: 60000, createdAt: at(cycles[6].start) },
+  { id: 'bank-holiday', name: 'Holiday fund',   target: 25000, createdAt: at(cycles[20].start) },
+  { id: 'bank-laptop',  name: 'New laptop',     target: 32000, createdAt: at(cycles[34].start) },
+  { id: 'bank-tax',     name: 'Tax stash',                     createdAt: at(cycles[12].start) },
+];
+const GOAL_BANKS = piggybanks.filter(b => !b.isLeftovers);
+
+// Two standing orders, each stamped with the cycle it starts charging from — see
+// RecurringSaving.startCycleKey for why that is not just the calendar month.
+const orderStart = n => cycles[Math.max(0, cycles.length - n)];
+const recurringSavings = [
+  { id: 'ro-emerg', bankId: 'bank-emerg', label: 'Payday transfer', amount: 750,
+    active: true, startCycleKey: orderStart(19).key, createdAt: at(orderStart(19).start) },
+  { id: 'ro-tax', bankId: 'bank-tax', label: 'Tax set-aside', amount: 400,
+    active: false, startCycleKey: orderStart(30).key, createdAt: at(orderStart(30).start) },
+];
+
+// ─── Savings movements, then each cycle's swept leftover ──────────────────────
+// Money in by hand, the standing orders the seal materialised, and the times some of it
+// came back out again.
+
+const savingsHistory = [];
+const logMovement = (entry, bank) => savingsHistory.push({
+  id: id('h'),
+  debtTitle: `${bank.name}: ${entry.label}`,
+  date: entry.createdAt,
+  amount: entry.amount,
+  type: 'savings',
+  label: entry.direction === 'out' ? 'Taken out' : 'Put away',
+});
+
+const heldIn = bankId => savings
+  .filter(v => v.bankId === bankId)
+  .reduce((t, v) => t + (v.direction === 'out' ? -v.amount : v.amount), 0);
 
 for (const c of cycles) {
-  if (chance(0.55)) continue;
-  const day = addDays(c.start, between(1, 25));
-  if (day > TODAY) continue;
-  savings.push({
-    id: id('s'), amount: between(3, 30) * 100, cycleKey: c.key, source: 'manual',
-    label: pick(['Emergency fund', 'Tax stash', 'Holiday fund', 'New laptop fund', 'Rainy day',
-                 'Bakkie service fund', 'Christmas money']),
-    createdAt: at(day, between(9, 20)),
-  });
+  // By-hand deposits into a jar of the moment.
+  if (!chance(0.55)) {
+    const day = addDays(c.start, between(1, 25));
+    if (day <= TODAY) {
+      const bank = pick(GOAL_BANKS);
+      const entry = {
+        id: id('s'), amount: between(3, 30) * 100, cycleKey: c.key, source: 'manual',
+        direction: 'in', bankId: bank.id,
+        label: pick(['Transfer', 'Payday set-aside', 'Cash put by', 'Bonus', 'Rounded up']),
+        createdAt: at(day, between(9, 20)),
+      };
+      savings.push(entry);
+      logMovement(entry, bank);
+    }
+  }
+
+  // Money back out again — rarer than putting it in, and only from a jar with something in
+  // it, so no cycle leaves a piggybank in the red.
+  if (chance(0.12)) {
+    const day = addDays(c.start, between(1, 25));
+    const bank = pick(GOAL_BANKS);
+    const held = heldIn(bank.id);
+    if (day <= TODAY && held > 1200) {
+      const entry = {
+        id: id('s'), amount: Math.min(held - 200, between(3, 15) * 100), cycleKey: c.key,
+        source: 'manual', direction: 'out', bankId: bank.id,
+        label: pick(['Car repair', 'Vet bill', 'Flights', 'Excess on a claim', 'Covered a shortfall']),
+        createdAt: at(day, between(9, 20)),
+      };
+      savings.push(entry);
+      logMovement(entry, bank);
+    }
+  }
+
+  // What the seal would have written for each standing order that was running.
+  for (const order of recurringSavings) {
+    if (order.active === false || !c.sealed || c.key < order.startCycleKey) continue;
+    savings.push({
+      id: id('s'), amount: order.amount, cycleKey: c.key, source: 'recurring', direction: 'in',
+      bankId: order.bankId, recurringId: order.id, label: order.label, note: 'Standing order',
+      createdAt: c.lastDay.toISOString(),
+    });
+  }
 }
-const manualSavingsForCycle = c =>
-  savings.filter(s => s.source === 'manual' && s.cycleKey === c.key).reduce((s, e) => s + e.amount, 0);
+
+/** The cycle's savings line, exactly as savingsMovementForCycle computes it: everything put
+ *  away less everything taken back out, with swept leftovers excluded from the in side. */
+const savingsMovementForCycle = c =>
+  savings.reduce((t, v) => {
+    if (v.cycleKey !== c.key) return t;
+    if (v.direction === 'out') return t - v.amount;
+    return v.source === 'auto' ? t : t + v.amount;
+  }, 0);
 
 // ─── Sealed-cycle snapshots ───────────────────────────────────────────────────
 // Written last, because a snapshot is the sum of everything above it. The leftover a cycle
@@ -424,7 +507,7 @@ for (const c of cycles) {
   const debt = debtForCycle(c);
   const expense = expensesForCycle(c);
   const budget = budgetForCycle(c);
-  const manualSaved = manualSavingsForCycle(c);
+  const manualSaved = savingsMovementForCycle(c);
   const totalOutgoings = transport + uber + debt + expense + budget + manualSaved;
   const remaining = income - totalOutgoings;
 
@@ -444,13 +527,15 @@ for (const c of cycles) {
   // Only a cycle that ends in the black banks anything — same rule as the seal.
   if (remaining > 0) {
     savings.push({
-      id: id('s'), amount: remaining, cycleKey: c.key, source: 'auto', label: 'Leftover',
+      id: id('s'), amount: remaining, cycleKey: c.key, source: 'auto', direction: 'in',
+      bankId: LEFTOVERS_BANK, label: 'Leftover',
       note: `Left at the end of ${cycleLabel(c)}`,
       createdAt: c.lastDay.toISOString(),
     });
   }
 }
 
+history.push(...savingsHistory);
 history.sort((a, b) => (a.date < b.date ? -1 : 1));
 savings.sort((a, b) => (a.createdAt < b.createdAt ? -1 : 1));
 uberRides.sort((a, b) => (a.date < b.date ? -1 : 1));
@@ -459,12 +544,14 @@ uberRides.sort((a, b) => (a.date < b.date ? -1 : 1));
 
 const data = {
   _meta: { type: 'duey-backup', v: 2, exportedAt: new Date(TODAY.getFullYear(), TODAY.getMonth(), TODAY.getDate(), 8).toISOString() },
-  schemaVersion: 9,
+  schemaVersion: 10,
   currency: 'ZAR',
   monthlyIncome: salaryFor(TODAY),
   debts,
   loans,
   savings,
+  piggybanks,
+  recurringSavings,
   history,
   expenses,
   extraIncomes,
@@ -532,4 +619,6 @@ const count = t => history.filter(h => h.type === t).length;
 console.log(`public/test-data.json written — ${(json.length / 1024).toFixed(0)} KB`);
 console.log(`  cycles ${cycles.length} (${cycles[0].key} → ${currentCycle.key})`);
 console.log(`  history ${history.length}  (payments ${count('payment')}, snapshots ${count('snapshot')}, transport ${count('transport')}, budget ${count('budget')}, expense ${count('expense')}, creation ${count('creation')}, completion ${count('completion')})`);
-console.log(`  debts ${debts.length} open · loans ${loans.length} · savings ${savings.length} · uber ${uberRides.length} · plans ${budgetPlans.length} · transport days ${Object.keys(transportOverrides).length}`);
+console.log(`  debts ${debts.length} open · loans ${loans.length} · uber ${uberRides.length} · plans ${budgetPlans.length} · transport days ${Object.keys(transportOverrides).length}`);
+console.log(`  savings ${savings.length} movements (out ${savings.filter(v => v.direction === 'out').length}, standing ${savings.filter(v => v.source === 'recurring').length}) across ${piggybanks.length} piggybanks`);
+for (const b of piggybanks) console.log(`    ${b.name.padEnd(16)} ${heldIn(b.id)}${b.target ? ' / ' + b.target : ''}`);

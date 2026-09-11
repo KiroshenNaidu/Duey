@@ -9,14 +9,19 @@ import { formatCurrency, cn } from '@/lib/utils';
 import {
   calculateLiveMonthly, cycleLabelFromKey, getPayCycle, listRecentCycles,
 } from '@/lib/calculations';
+import {
+  DEFAULT_BANK_ID, bankIdOf, savingsTotal, signedAmount,
+} from '@/lib/piggybanks';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
+import { Switch } from '@/components/ui/switch';
 import { Card, CardContent, CardHeader, CardHeading, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { SavingsTrendCard } from '@/components/stats/CycleCharts';
 import { LegendDot, StatPill } from '@/components/stats/StatPrimitives';
+import { PiggybankList } from '@/components/savings/PiggybankList';
 import { SwipeableRow } from '@/components/SwipeableRow';
 import { FixedPortal } from '@/components/FixedPortal';
 import { useFabLongPress, usePageFab, FAB_TOUCH_STYLE, FabPulse } from '@/components/QuickAdd';
@@ -25,73 +30,81 @@ import { showUndoToast } from '@/components/ui/undo-toast';
 import { hapticTap, hapticTick } from '@/lib/haptics';
 import type { SavingEntry } from '@/lib/types';
 import {
-  PiggyBank, Plus, Trash2, Sparkles, HandCoins, ChevronDown, TrendingUp, Trophy,
+  PiggyBank, Plus, Trash2, Sparkles, ArrowDownLeft, ArrowUpRight, ChevronDown, TrendingUp,
+  Trophy, RotateCcw,
 } from 'lucide-react';
 
 /**
- * Stats → Savings. A ledger of money kept, filed by pay cycle.
+ * Stats → Savings. Money kept, in the jars it is kept in, filed by pay cycle.
  *
  * The point of it is the automatic half: when a cycle ends, whatever the balance still had
- * left is swept in as a "Leftover" entry (see the seal in AppDataContext). Saving is then
- * the DEFAULT outcome of not spending, rather than something you have to remember to
- * record. Anything else — a transfer to a savings account, cash put aside — goes in by
- * hand against whichever cycle it belongs to.
+ * left is swept into the Leftovers piggybank (see the seal in AppDataContext). Saving is
+ * then the DEFAULT outcome of not spending, rather than something you have to remember to
+ * record. Anything else — a transfer, cash put aside, a standing order — goes into a jar of
+ * your own naming, and can come back out again.
  *
- * The two kinds land on Balance differently, and the asymmetry is the point:
- *   • MANUAL entries are a deduction — money you moved out is money you cannot spend, so
- *     it comes off Remaining for the cycle they are filed against.
- *   • AUTO leftovers never are. A leftover IS Remaining, already net of everything above
- *     it; deducting it as well would subtract the same money twice.
- * So a cycle's savings total reads "what I put away" + "what I had left", never one twice.
+ * The three kinds land on Balance differently, and the asymmetry is the point:
+ *   • MANUAL and RECURRING deposits are a deduction — money you moved out is money you
+ *     cannot spend, so it comes off Remaining for the cycle they are filed against.
+ *   • WITHDRAWALS are the same figure with the sign flipped: money you took back out is
+ *     yours to spend again, so it lifts Remaining.
+ *   • AUTO leftovers never move Balance at all. A leftover IS Remaining, already net of
+ *     everything above it; deducting it as well would subtract the same money twice.
  *
- * The tab reads as three questions in order: how much is there (the hero, split by how it
- * got there), what is this cycle adding (the forecast, against how far through the cycle
- * it is), and where did each piece come from (the ledger, a cycle at a time).
+ * The tab reads as four questions in order: how much is there (the hero), what is this
+ * cycle adding (the forecast), what is it kept in (the piggybanks), and where did each
+ * piece come from (the ledger, a cycle at a time).
  */
 
-// The two kinds of savings, in the same colours the trend chart stacks them in — so a bar
-// here and a column there are obviously the same two kinds of money.
+// The two ways money arrives, in the same colours the trend chart and the jars use.
 const AUTO_COLOR = 'hsl(var(--positive))';       // left over, swept at cycle end
 const MANUAL_COLOR = 'hsl(var(--cat-snapshot))'; // put away on purpose
 
 export function SavingsTab() {
-  const { savings, userProfile, monthlyIncome, extraIncomes, expenses, budgetPlans, history, uberRides,
+  const { savings, piggybanks, recurringSavings, userProfile, monthlyIncome, extraIncomes,
+          expenses, budgetPlans, history, uberRides,
           transportSettings, transportOverrides, transportMonthlyOverrides,
-          addSaving, deleteSaving, restoreSaving } = useContext(AppDataContext);
+          addSaving, deleteSaving, restoreSaving, addRecurringSaving } = useContext(AppDataContext);
 
   const payDay = userProfile.paydayDay;
   const cycle = useMemo(() => getPayCycle(payDay), [payDay]);
   const cycleOptions = useMemo(() => listRecentCycles(payDay, 11), [payDay]);
+  const banks = useMemo(() => piggybanks ?? [], [piggybanks]);
 
   // The + FAB owns adding, exactly as it does on the money page: this tab's only add
-  // action is a manual entry, so it earns the page's FAB rather than a card of its own.
+  // action is a movement, so it earns the page's FAB rather than a card of its own.
   const pathname = usePathname();
   const fabLongPress = useFabLongPress();
   usePageFab(pathname === '/stats');   // stand the lightning FAB down while this one shows
 
   const [addOpen, setAddOpen] = useState(false);
+  const [direction, setDirection] = useState<'in' | 'out'>('in');
   const [amountStr, setAmountStr] = useState('');
   const [label, setLabel] = useState('');
+  const [bankId, setBankId] = useState(DEFAULT_BANK_ID);
   const [cycleKey, setCycleKey] = useState(cycle.key);
+  const [repeat, setRepeat] = useState(false);
   const [error, setError] = useState('');
   // Which ledger groups the user has explicitly opened or shut. Anything untouched follows
   // the default: newest cycle open, older ones folded away.
   const [openOverrides, setOpenOverrides] = useState<Record<string, boolean>>({});
 
   const entries = useMemo(() => savings ?? [], [savings]);
-  const total = entries.reduce((s, e) => s + e.amount, 0);
-  const autoTotal = entries.filter(e => e.source === 'auto').reduce((s, e) => s + e.amount, 0);
-  const manualTotal = total - autoTotal;
+  const total = savingsTotal(entries);
+  const autoTotal = entries.filter(e => e.source === 'auto' && e.direction !== 'out').reduce((s, e) => s + e.amount, 0);
+  const putAwayTotal = entries.filter(e => e.source !== 'auto' && e.direction !== 'out').reduce((s, e) => s + e.amount, 0);
+  const takenOutTotal = entries.filter(e => e.direction === 'out').reduce((s, e) => s + e.amount, 0);
+  const inTotal = autoTotal + putAwayTotal;
 
   // What this cycle is currently on course to bank, straight from the Balance calculator —
   // the same number the Remaining card shows, because it is the same number.
   const live = useMemo(
     () => calculateLiveMonthly({
       payDay, monthlyIncome, extraIncomes, expenses, budgetPlans, history, uberRides, savings,
-      transportSettings, transportOverrides, transportMonthlyOverrides,
+      recurringSavings, transportSettings, transportOverrides, transportMonthlyOverrides,
     }),
     [payDay, monthlyIncome, extraIncomes, expenses, budgetPlans, history, uberRides, savings,
-     transportSettings, transportOverrides, transportMonthlyOverrides],
+     recurringSavings, transportSettings, transportOverrides, transportMonthlyOverrides],
   );
 
   // Newest cycle first; entries inside a cycle newest first. Grouping by cycle is the whole
@@ -109,7 +122,8 @@ export function SavingsTab() {
         label: cycleLabelFromKey(key, payDay),
         isCurrent: key === cycle.key,
         entries: [...list].sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1)),
-        subtotal: list.reduce((s, e) => s + e.amount, 0),
+        // Net: a cycle you put R500 into and took R200 out of kept R300.
+        subtotal: list.reduce((s, e) => s + signedAmount(e), 0),
       }));
   }, [entries, payDay, cycle.key]);
 
@@ -122,23 +136,42 @@ export function SavingsTab() {
     const amt = parseFloat(amountStr);
     if (isNaN(amt) || amt <= 0) { setError('Enter a valid positive amount.'); return; }
     hapticTap();
-    addSaving(amt, cycleKey, label.trim() || 'Savings');
-    setAmountStr(''); setLabel(''); setCycleKey(cycle.key); setError(''); setAddOpen(false);
+    if (repeat && direction === 'in') {
+      // A standing order is a rule, not a movement — it charges every cycle from now on and
+      // the seal writes the rows. Withdrawals are never recurring: taking money out on a
+      // schedule is a spending plan, not a savings one.
+      addRecurringSaving(bankId, amt, label.trim() || 'Standing order');
+    } else {
+      addSaving(amt, cycleKey, label.trim() || (direction === 'out' ? 'Withdrawal' : 'Savings'), undefined, bankId, direction);
+    }
+    reset();
+    setAddOpen(false);
+  };
+
+  const reset = () => {
+    setAmountStr(''); setLabel(''); setCycleKey(cycle.key); setError('');
+    setDirection('in'); setRepeat(false); setBankId(banks[0]?.id ?? DEFAULT_BANK_ID);
   };
 
   // Reopening starts clean, and on the cycle you are actually in — a half-typed amount left
   // over from a dialog you dismissed is never what you meant to add next time.
   const onOpenChange = (open: boolean) => {
     setAddOpen(open);
-    if (!open) { setAmountStr(''); setLabel(''); setCycleKey(cycle.key); setError(''); }
+    if (!open) reset();
+  };
+
+  const openAddFor = (id: string) => {
+    reset();
+    setBankId(id);
+    setAddOpen(true);
   };
 
   // Oldest first for the chart — `groups` is newest first, which is the right order for a
   // ledger and the wrong one for a timeline.
   const trend = useMemo(() => [...groups].reverse().map(g => ({
     key: g.key,
-    manual: g.entries.filter(e => e.source === 'manual').reduce((s, e) => s + e.amount, 0),
-    auto:   g.entries.filter(e => e.source === 'auto').reduce((s, e) => s + e.amount, 0),
+    manual: g.entries.filter(e => e.source !== 'auto').reduce((s, e) => s + signedAmount(e), 0),
+    auto:   g.entries.filter(e => e.source === 'auto').reduce((s, e) => s + signedAmount(e), 0),
   })), [groups]);
   const ready = useReplayOnActive('/stats');
 
@@ -148,6 +181,8 @@ export function SavingsTab() {
     deleteSaving(id);
     showUndoToast(`Removed "${item.label}"`, () => restoreSaving(item));
   };
+
+  const bankName = (id: string) => banks.find(b => b.id === id)?.name ?? 'Savings';
 
   return (
     <>
@@ -160,7 +195,7 @@ export function SavingsTab() {
           iconClassName="text-[hsl(var(--positive))]"
           aside={entries.length === 0
             ? undefined
-            : `${entries.length} ${entries.length === 1 ? 'entry' : 'entries'} · ${groups.length} cycle${groups.length === 1 ? '' : 's'}`}
+            : `${banks.length} ${banks.length === 1 ? 'piggybank' : 'piggybanks'} · ${groups.length} cycle${groups.length === 1 ? '' : 's'}`}
         />
         <p className="text-3xl font-bold text-[hsl(var(--positive))] tabular-nums truncate">
           {formatCurrency(total)}
@@ -172,26 +207,33 @@ export function SavingsTab() {
         {/* The split is the tab's premise made visible: for most cycles the swept half is
             the story. Widths animate in on every visit, the same 700ms ease every other
             bar in the app fills on. */}
-        {total > 0 && (
+        {inTotal > 0 && (
           <>
             <div className="flex h-2 w-full overflow-hidden rounded-full bg-secondary mt-4">
               {autoTotal > 0 && (
                 <div
                   className={cn('h-full first:rounded-l-full last:rounded-r-full', ready && 'transition-[width] duration-700')}
-                  style={{ width: `${ready ? (autoTotal / total) * 100 : 0}%`, background: AUTO_COLOR }}
+                  style={{ width: `${ready ? (autoTotal / inTotal) * 100 : 0}%`, background: AUTO_COLOR }}
                 />
               )}
-              {manualTotal > 0 && (
+              {putAwayTotal > 0 && (
                 <div
                   className={cn('h-full first:rounded-l-full last:rounded-r-full', ready && 'transition-[width] duration-700')}
-                  style={{ width: `${ready ? (manualTotal / total) * 100 : 0}%`, background: MANUAL_COLOR }}
+                  style={{ width: `${ready ? (putAwayTotal / inTotal) * 100 : 0}%`, background: MANUAL_COLOR }}
                 />
               )}
             </div>
             <div className="flex items-center gap-4 mt-2.5">
               <LegendDot color={AUTO_COLOR} label="Left over" value={formatCurrency(autoTotal)} />
-              <LegendDot color={MANUAL_COLOR} label="Put away" value={formatCurrency(manualTotal)} />
+              <LegendDot color={MANUAL_COLOR} label="Put away" value={formatCurrency(putAwayTotal)} />
             </div>
+            {/* Only worth a line once money has actually come back out — the bar above shows
+                what went in, and the total already has the withdrawals taken off it. */}
+            {takenOutTotal > 0 && (
+              <p className="text-[10px] text-muted-foreground/70 mt-2">
+                {formatCurrency(takenOutTotal)} taken back out
+              </p>
+            )}
           </>
         )}
       </div>
@@ -241,6 +283,9 @@ export function SavingsTab() {
 
       <SavingsTrendCard cycles={trend} payDay={payDay} ready={ready} />
 
+      {/* ── The jars ─────────────────────────────────────────────────────────── */}
+      <PiggybankList onAddTo={openAddFor} />
+
       {/* ── The ledger ───────────────────────────────────────────────────────── */}
       {groups.length === 0 ? (
         <Card className="text-center">
@@ -271,10 +316,13 @@ export function SavingsTab() {
                       {group.label}{group.isCurrent && <span className="text-accent"> · current</span>}
                     </p>
                     <p className="text-[10px] text-muted-foreground/60 mt-0.5">
-                      {group.entries.length} {group.entries.length === 1 ? 'entry' : 'entries'}
+                      {group.entries.length} {group.entries.length === 1 ? 'movement' : 'movements'}
                     </p>
                   </div>
-                  <p className="text-sm font-bold text-[hsl(var(--positive))] tabular-nums shrink-0">
+                  <p className={cn(
+                    'text-sm font-bold tabular-nums shrink-0',
+                    group.subtotal >= 0 ? 'text-[hsl(var(--positive))]' : 'text-[hsl(var(--negative))]',
+                  )}>
                     {formatCurrency(group.subtotal)}
                   </p>
                   <ChevronDown className={cn(
@@ -295,7 +343,7 @@ export function SavingsTab() {
                     >
                       <div className="px-2.5 pb-2.5 space-y-1.5">
                         {group.entries.map(e => (
-                          <SavingRow key={e.id} entry={e} onDelete={remove} />
+                          <SavingRow key={e.id} entry={e} bank={bankName(bankIdOf(e))} onDelete={remove} />
                         ))}
                       </div>
                     </motion.div>
@@ -316,7 +364,7 @@ export function SavingsTab() {
       <FixedPortal>
         <button
           aria-label="Add savings"
-          onClick={() => setAddOpen(true)}
+          onClick={() => { reset(); setAddOpen(true); }}
           className="fab-blurable fixed left-1/2 -translate-x-1/2 h-12 w-12 rounded-full focus:outline-none transition-transform hover:scale-105 z-40"
           style={{ bottom: 'calc(10px + var(--sab))', ...FAB_TOUCH_STYLE }}
           {...fabLongPress}
@@ -329,11 +377,44 @@ export function SavingsTab() {
     <Dialog open={addOpen} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-sm">
         <DialogHeader>
-          <DialogTitle>Add savings</DialogTitle>
-          <DialogDescription>Money you put away yourself — leftovers arrive on their own.</DialogDescription>
+          <DialogTitle>{direction === 'out' ? 'Take money out' : 'Add to savings'}</DialogTitle>
+          <DialogDescription>
+            {direction === 'out'
+              ? 'Comes off the piggybank and back onto this cycle’s balance.'
+              : 'Money you put away yourself — leftovers arrive on their own.'}
+          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-2.5">
+          {/* Which way the money is going, named rather than toggled — the same two-button
+              choice the loan and piggybank sheets use. */}
+          <div className="flex gap-1.5">
+            {([['in', 'Put in', ArrowDownLeft], ['out', 'Take out', ArrowUpRight]] as const).map(([dir, text, Icon]) => (
+              <button
+                key={dir}
+                onClick={() => { setDirection(dir); if (dir === 'out') setRepeat(false); }}
+                className={cn(
+                  'flex-1 h-8 rounded-lg text-[11px] font-semibold inline-flex items-center justify-center gap-1 transition-colors',
+                  direction === dir ? 'bg-accent text-btn-on-accent' : 'bg-muted/40 text-muted-foreground active:bg-muted/70',
+                )}
+              >
+                <Icon className="h-3 w-3" /> {text}
+              </button>
+            ))}
+          </div>
+
+          <div className="space-y-1.5">
+            <Label className="text-xs">Piggybank</Label>
+            <Select value={bankId} onValueChange={setBankId}>
+              <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {banks.map(b => (
+                  <SelectItem key={b.id} value={b.id} className="text-xs">{b.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
           <div className="space-y-1.5">
             <Label className="text-xs">Amount</Label>
             <Input
@@ -346,31 +427,52 @@ export function SavingsTab() {
           <div className="space-y-1.5">
             <Label className="text-xs">Label (optional)</Label>
             <Input
-              placeholder="e.g., Emergency fund"
+              placeholder={direction === 'out' ? 'e.g., car repair' : 'e.g., payday transfer'}
               value={label} onChange={e => setLabel(e.target.value)}
               className="h-9 text-sm"
             />
           </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs">Cycle</Label>
-            {/* Defaults to the cycle you are in — the overwhelmingly common case — with the
-                last year of cycles available for money recorded after the fact. */}
-            <Select value={cycleKey} onValueChange={setCycleKey}>
-              <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {cycleOptions.map(c => (
-                  <SelectItem key={c.key} value={c.key} className="text-xs">
-                    {c.label}{c.key === cycle.key ? ' · current' : ''}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+
+          {/* Recurring turns a movement into a rule: no cycle to pick, because it applies to
+              all of them from here on. */}
+          {direction === 'in' && (
+            <div className="flex items-center justify-between bg-muted/30 rounded-xl px-3 py-2.5">
+              <div className="flex-1 min-w-0 pr-3">
+                <p className="text-sm font-semibold text-foreground">Every cycle</p>
+                <p className="text-[10px] text-muted-foreground mt-0.5">
+                  {repeat
+                    ? 'Comes off every cycle from now on until you stop it'
+                    : 'One-off — only the cycle you pick below'}
+                </p>
+              </div>
+              <Switch checked={repeat} onCheckedChange={setRepeat} />
+            </div>
+          )}
+
+          {!repeat && (
+            <div className="space-y-1.5">
+              <Label className="text-xs">Cycle</Label>
+              {/* Defaults to the cycle you are in — the overwhelmingly common case — with the
+                  last year of cycles available for money recorded after the fact. */}
+              <Select value={cycleKey} onValueChange={setCycleKey}>
+                <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {cycleOptions.map(c => (
+                    <SelectItem key={c.key} value={c.key} className="text-xs">
+                      {c.label}{c.key === cycle.key ? ' · current' : ''}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
           {error && <p className="text-[10px] text-destructive">{error}</p>}
         </div>
 
         <DialogFooter>
-          <Button onClick={submit} className="w-full h-9 text-xs">Add to savings</Button>
+          <Button onClick={submit} className="w-full h-9 text-xs">
+            {repeat ? 'Add standing order' : direction === 'out' ? 'Take out' : 'Add to savings'}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -380,36 +482,46 @@ export function SavingsTab() {
 
 /** One ledger line. Swipe left to delete (the undo toast is the 5s safety net) or use the
  *  button — the tray is absent entirely when swipe actions are off in settings. */
-function SavingRow({ entry, onDelete }: { entry: SavingEntry; onDelete: (id: string) => void }) {
+function SavingRow({ entry, bank, onDelete }: {
+  entry: SavingEntry; bank: string; onDelete: (id: string) => void;
+}) {
+  const out = entry.direction === 'out';
   const auto = entry.source === 'auto';
+  const recurring = entry.source === 'recurring';
   return (
     <SwipeableRow
       rightActions={[{ icon: Trash2, label: 'Delete', tone: 'destructive', onAction: () => onDelete(entry.id) }]}
     >
       <div className="flex items-center gap-3 rounded-xl bg-muted/30 px-3 py-2.5">
         <div className="min-w-0 flex-1">
-          {/* Title on its own line, then the chip and the date under it — the expense row's
+          {/* Title on its own line, then the chip and the jar under it — the expense row's
               layout, because it is the same kind of line. */}
           <span className="block text-sm font-semibold text-foreground truncate">{entry.label}</span>
           <div className="flex items-center gap-2 mt-1 min-w-0">
-            {/* Where it came from, in the app's category chip rather than a colour tile:
-                every other kind-marker in the app (recurring expenses, history types) is
-                this pill. */}
+            {/* Where it came from, in the app's category chip: every other kind-marker in
+                the app (recurring expenses, history types) is this pill. */}
             <span className={cn(
               'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold shrink-0',
-              auto ? 'bg-positive/15 text-positive' : 'bg-snapshot/15 text-snapshot',
+              out ? 'bg-negative/15 text-negative'
+                : auto ? 'bg-positive/15 text-positive'
+                : recurring ? 'bg-snapshot/15 text-snapshot'
+                : 'bg-primary/15 text-primary',
             )}>
-              {auto ? <Sparkles className="h-2.5 w-2.5" /> : <HandCoins className="h-2.5 w-2.5" />}
-              {auto ? 'Swept' : 'Put away'}
+              {out ? <ArrowUpRight className="h-2.5 w-2.5" />
+                : auto ? <Sparkles className="h-2.5 w-2.5" />
+                : recurring ? <RotateCcw className="h-2.5 w-2.5" />
+                : <ArrowDownLeft className="h-2.5 w-2.5" />}
+              {out ? 'Out' : auto ? 'Swept' : recurring ? 'Standing order' : 'Put away'}
             </span>
-            <p className="text-xs text-muted-foreground truncate">
-              {format(new Date(entry.createdAt), 'd MMM yyyy')}
-            </p>
+            <p className="text-xs text-muted-foreground truncate">{bank}</p>
           </div>
         </div>
         <div className="flex items-center gap-1 shrink-0">
-          <span className="text-sm font-bold tabular-nums text-[hsl(var(--positive))]">
-            +{formatCurrency(entry.amount)}
+          <span className={cn(
+            'text-sm font-bold tabular-nums',
+            out ? 'text-[hsl(var(--negative))]' : 'text-[hsl(var(--positive))]',
+          )}>
+            {out ? '−' : '+'}{formatCurrency(entry.amount)}
           </span>
           <button
             onClick={() => onDelete(entry.id)}

@@ -17,7 +17,7 @@ import { useReplayOnActive } from '@/hooks/useReplayOnActive';
 export function MoneyOverview() {
   const {
     monthlyIncome, budgetPlans, expenses, extraIncomes, history, uberRides, loans,
-    transportSettings, transportOverrides, transportMonthlyOverrides, userProfile, savings,
+    transportSettings, transportOverrides, transportMonthlyOverrides, userProfile, savings, recurringSavings,
     setMonthlyIncome, addExtraIncome, deleteExtraIncome, restoreExtraIncome,
   } = useContext(AppDataContext);
 
@@ -52,7 +52,7 @@ export function MoneyOverview() {
   // agrees. It honours the live per-month transport override and counts only debt money
   // actually logged as a payment this cycle — nothing is deducted until you log a payment.
   const monthly = calculateLiveMonthly(
-    { payDay: userProfile.paydayDay, monthlyIncome, extraIncomes, expenses, budgetPlans, history, uberRides, savings, transportSettings, transportOverrides, transportMonthlyOverrides },
+    { payDay: userProfile.paydayDay, monthlyIncome, extraIncomes, expenses, budgetPlans, history, uberRides, savings, recurringSavings, transportSettings, transportOverrides, transportMonthlyOverrides },
     now,
   );
   const { transport: transportCost, uber: uberSpend, debt: debtInstallments, expenses: totalExpenses, budget: budgetSpent, savings: savedThisCycle } = monthly;
@@ -70,17 +70,25 @@ export function MoneyOverview() {
     { id: 'debts',     label: 'Debt payments (this cycle)', value: debtInstallments },
     { id: 'loans',     label: 'Money lent out (unpaid)', value: lentOut },
     { id: 'expenses',  label: 'Expenses (active)',       value: totalExpenses },
-    // Money you told the app you put away this cycle (Stats -> Savings). It is out of
-    // your hands, so it comes off here — but only MANUAL entries: the automatic leftover
-    // IS this card's remainder, and deducting that would subtract the same money twice.
-    { id: 'savings',   label: 'Savings (put away)',      value: savedThisCycle },
+    // This cycle's savings movement (Stats → Savings), and the one row that can go either
+    // way. Money put away is out of your hands, so it comes off; money taken back OUT of a
+    // piggybank is yours to spend again, so a net withdrawal shows as a credit and lifts
+    // Remaining. The automatic leftover is excluded from the deposit side entirely: it IS
+    // this card's remainder, and deducting that would subtract the same money twice.
+    {
+      id: 'savings',
+      label: savedThisCycle < 0 ? 'Savings (taken out)' : 'Savings (put away)',
+      value: savedThisCycle,
+    },
   ];
 
   // Only what is actually coming off. A zero row states nothing — six of them state it
   // six times — so they are dropped, and with nothing to deduct the card goes entirely.
   // Rows tapped out are NOT dropped: their value is still real, so they stay visible (and
   // struck through) or you could never tap them back in.
-  const activeDeductions = deductions.filter(d => d.value > 0);
+  // A row with money in it EITHER way — a savings withdrawal is a real line, and
+  // dropping it for not being positive would hide the reason Remaining went up.
+  const activeDeductions = deductions.filter(d => d.value !== 0);
   // What the list actually shows: the ones with money in them, or every category once you
   // ask. The toggle is only offered when there is something hidden to reveal.
   const shownDeductions = showAllDeductions ? deductions : activeDeductions;
@@ -299,8 +307,12 @@ export function MoneyOverview() {
                   {d.estimate && <span className="ml-1 text-[9px] font-medium text-muted-foreground/50">(estimate)</span>}
                 </span>
                 <span className={cn('text-sm font-semibold tabular-nums min-w-0 text-right', off && 'line-through',
-                  d.value > 0 ? 'text-foreground' : 'text-muted-foreground/50')}>
-                  {d.value > 0 ? `−${formatCurrency(d.value)}` : formatCurrency(0)}
+                  d.value > 0 ? 'text-foreground'
+                    : d.value < 0 ? 'text-[hsl(var(--positive))]'
+                    : 'text-muted-foreground/50')}>
+                  {d.value > 0 ? `−${formatCurrency(d.value)}`
+                    : d.value < 0 ? `+${formatCurrency(Math.abs(d.value))}`
+                    : formatCurrency(0)}
                 </span>
               </button>
             );
@@ -308,7 +320,9 @@ export function MoneyOverview() {
           <div className="border-t border-border pt-2 mt-1">
             <div className="flex justify-between items-baseline">
               <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground shrink-0">Total deductions</span>
-              <span className="text-sm font-bold text-foreground tabular-nums min-w-0 text-right">−{formatCurrency(effectiveDeductions)}</span>
+              <span className="text-sm font-bold text-foreground tabular-nums min-w-0 text-right">
+                {effectiveDeductions < 0 ? '+' : '−'}{formatCurrency(Math.abs(effectiveDeductions))}
+              </span>
             </div>
           </div>
         </CardContent>

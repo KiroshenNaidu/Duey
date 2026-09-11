@@ -3,8 +3,6 @@
 // Management → Clear All Data removes, plus the whole IndexedDB store — and reloads into a
 // fresh install (currency picker, tutorial, the lot).
 //
-// `npm run reset:db` prints this and copies it to your clipboard.
-//
 // To reset the Android build instead: adb shell pm clear com.duey.app
 
 (async () => {

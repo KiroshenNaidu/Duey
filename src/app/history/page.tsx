@@ -13,7 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import {
   ChevronLeft, Pencil, Trash2, Check, Download, FolderOpen,
-  CreditCard, PlusCircle, Trophy, Car, Wallet, Zap, Receipt,
+  CreditCard, PlusCircle, Trophy, Car, Wallet, Zap, Receipt, PiggyBank,
   FileText, Tag, Bus, CheckCircle2, Loader2, AlertCircle,
   Search, X, Eye,
 } from 'lucide-react';
@@ -718,6 +718,7 @@ const TYPE_CFG: Record<string, { label: string; color: string; bg: string; Icon:
   expense:    { label: 'Expense',    color: 'text-expense',          bg: 'bg-expense/15',        Icon: Receipt     },
   employment: { label: 'Employment', color: 'text-employment',       bg: 'bg-employment/15',     Icon: Bus         },
   snapshot:   { label: 'Summary',    color: 'text-snapshot',         bg: 'bg-snapshot/15',       Icon: Zap         },
+  savings:    { label: 'Savings',    color: 'text-positive',         bg: 'bg-positive/15',       Icon: PiggyBank   },
 };
 
 function TypeBadge({ type, label }: { type: string; label?: string }) {
@@ -882,7 +883,7 @@ export default function HistoryPage() {
   const {
     history, debts, expenses, uberRides, budgetPlans,
     updateHistoryEntry, deleteHistoryEntry, restoreHistoryEntry,
-    monthlyIncome, extraIncomes, savings, transportSettings, transportOverrides, transportMonthlyOverrides,
+    monthlyIncome, extraIncomes, savings, recurringSavings, transportSettings, transportOverrides, transportMonthlyOverrides,
     userProfile, exportFolderUri, exportFolderName, setExportFolder, setAppError,
     notificationSettings,
   } = useContext(AppDataContext);
@@ -1633,7 +1634,7 @@ export default function HistoryPage() {
             // recomputing drifts once one-time extra incomes/expenses have been purged.
             const recomputed = !snapshotEntry.snapshot;
             const s = snapshotEntry.snapshot ?? calculateSealedCycleSummary(
-              { payDay, monthlyIncome, extraIncomes, expenses, budgetPlans, history, uberRides, savings, transportSettings, transportOverrides, transportMonthlyOverrides },
+              { payDay, monthlyIncome, extraIncomes, expenses, budgetPlans, history, uberRides, savings, recurringSavings, transportSettings, transportOverrides, transportMonthlyOverrides },
               cycle.key,
             );
             const rows: { label: string; value: number; negative?: boolean }[] = [

@@ -81,12 +81,59 @@ export interface ExtraIncome {
 }
 
 /**
- * Money set aside, filed against the pay cycle it belongs to.
+ * A named jar money is kept in — "Emergency fund", "New laptop". Savings are not one pile:
+ * the whole point of putting money away is that it is *for* something, and a jar with a
+ * goal can show progress the way a debt shows payoff.
  *
- * Two ways in, and the difference matters enough to record it:
+ * Every SavingEntry belongs to exactly one bank. Deleting a bank takes its entries with it
+ * (undoably) — the money was never real, only the record of it.
+ */
+export interface Piggybank {
+  id: string;
+  name: string;
+  /** What the jar is being filled toward. Optional: a jar with no goal is just a balance,
+   *  and the card drops its progress bar rather than inventing a denominator. */
+  target?: number;
+  note?: string;
+  createdAt: string; // ISO 8601
+  /** The one jar the cycle-end sweep drops leftovers into. Exactly one bank carries this,
+   *  and it cannot be deleted — the seal always needs somewhere to put the surplus. */
+  isLeftovers?: boolean;
+}
+
+/**
+ * A standing order into one piggybank: "R500 every cycle to the emergency fund".
+ *
+ * Counted as an outgoing on every cycle from the one it was created in onward, exactly as a
+ * recurring expense is — and materialised into a real SavingEntry when each cycle seals, so
+ * the jar's history is rows you can see and delete rather than a number derived behind your
+ * back. Pausing (`active: false`) stops both without losing the order.
+ */
+export interface RecurringSaving {
+  id: string;
+  bankId: string;
+  label: string;
+  amount: number;
+  /** The pay cycle it starts charging from, stamped at creation. Not derived from
+   *  `createdAt`: an order created on the 11th belongs to the cycle that began on the 26th
+   *  of the PREVIOUS month, so the calendar month is a cycle too late. Stored rather than
+   *  recomputed so changing your payday later cannot silently re-date every order. */
+  startCycleKey?: string;
+  /** Absent or true = running. False = paused; kept in the list, counted nowhere. */
+  active?: boolean;
+  createdAt: string; // ISO 8601
+}
+
+/**
+ * One movement of money into or out of a piggybank, filed against the pay cycle it belongs
+ * to.
+ *
+ * Three ways in, and the differences matter enough to record them:
  *   • 'auto' — what was LEFT OVER when a cycle ended. The seal writes exactly one of these
  *     per cycle, for the surplus it sealed, so savings grow on their own as cycles turn.
- *   • 'manual' — money the user says they put away, for whatever cycle they choose.
+ *   • 'manual' — money the user says they put away (or took back out), for whatever cycle
+ *     they choose.
+ *   • 'recurring' — a standing order's contribution, materialised by the seal.
  *
  * An auto entry is a claim about the past, not a live figure: it keeps the amount the
  * cycle ended with even if that cycle's data is edited afterwards. Delete it if the
@@ -94,12 +141,22 @@ export interface ExtraIncome {
  */
 export interface SavingEntry {
   id: string;
+  /** Always positive. `direction` says which way it moved. */
   amount: number;
   /** 'yyyy-MM' pay-cycle key (the month the cycle STARTS in) this saving belongs to. */
   cycleKey: string;
   label: string;
   note?: string;
-  source: 'auto' | 'manual';
+  source: 'auto' | 'manual' | 'recurring';
+  /** 'in' = money put away, 'out' = money taken back out. Absent on entries written before
+   *  withdrawals existed, which were all deposits. */
+  direction?: 'in' | 'out';
+  /** Which piggybank it sits in. Absent on entries written before jars existed — those are
+   *  read as belonging to the default jar (see lib/piggybanks). */
+  bankId?: string;
+  /** Set on entries the seal materialised from a standing order, so the live calculator can
+   *  tell a cycle that has already been charged from one that has not. */
+  recurringId?: string;
   createdAt: string; // ISO 8601
 }
 
@@ -113,7 +170,7 @@ export interface HistoryEntry {
   person?: string;
   date: string; // ISO 8601 format
   amount: number;
-  type: 'payment' | 'creation' | 'transport' | 'completion' | 'budget' | 'expense' | 'employment' | 'snapshot';
+  type: 'payment' | 'creation' | 'transport' | 'completion' | 'budget' | 'expense' | 'employment' | 'snapshot' | 'savings';
   note?: string;
   label?: string; // user-defined display label, e.g. "Interest", "Penalty Fee"
   edited?: boolean; // true once the user has manually edited this entry (amount/date/label/note)
@@ -272,6 +329,10 @@ export interface AppState {
   /** Money set aside, per pay cycle. Fed automatically by each cycle's leftover (see the
    *  seal in AppDataContext) and by hand from Stats → Savings. */
   savings: SavingEntry[];
+  /** The jars savings sit in. Always at least one (the leftovers jar). */
+  piggybanks: Piggybank[];
+  /** Standing orders into those jars. */
+  recurringSavings: RecurringSaving[];
   /** Money lent OUT to other people (Money → Debts → Owed to me). Tracked on its own and
    *  never mixed into the debt/Balance math — see the Loan doc comment. */
   loans: Loan[];
