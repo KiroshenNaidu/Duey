@@ -355,7 +355,7 @@ export function ProfileMenu({ onDirtyChange, onSaved, onCancel }: ProfileMenuPro
           <div className="space-y-1.5">
             <Label className="text-xs">Your Name</Label>
             <Input
-              placeholder="e.g., Jhon Skyrim"
+              placeholder="e.g., Alex Morgan"
               value={name}
               onChange={e => setName(e.target.value)}
             />

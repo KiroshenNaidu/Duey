@@ -1,9 +1,15 @@
 # Duey
 **A personal debt and transport tracker.**
 
-<a href="https://github.com/KiroshenNaidu/Duey/releases/download/2/duey_v.2.3.1.apk">
-  <img src="https://img.shields.io/badge/Download-000000?style=for-the-badge&logo=github&logoColor=white" width="200">
-</a>
+<p>
+  <a href="https://github.com/KiroshenNaidu/Duey/releases/download/2/duey_v.2.3.1.apk">
+    <img src="docs/assets/btn-download-apk.svg" alt="Download Duey — Android APK v2.3.1" width="240">
+  </a>
+  &nbsp;
+  <a href="https://github.com/KiroshenNaidu/Duey/raw/main/public/test-data.json">
+    <img src="docs/assets/btn-download-sample-data.svg" alt="Download the sample dataset — test-data.json" width="240">
+  </a>
+</p>
 
 > I have a pretty bad memory. I needed a simple way to keep track of what I owe and when I traveled to work without relying on scattered notes or mental math. Built this purely for myself — feel free to use it if it helps you too.
 
@@ -187,16 +193,18 @@ Once `npm install` succeeds cleanly, continue as normal.
 
 Want to try the app with realistic data already loaded? A sample backup is included in the repo.
 
-**[Download test-data.json](public/test-data.json)**
+<a href="https://github.com/KiroshenNaidu/Duey/raw/main/public/test-data.json">
+  <img src="docs/assets/btn-download-sample-data.svg" alt="Download the sample dataset — test-data.json" width="240">
+</a>
 
-It belongs to **Jhon Skyrim**, a developer paid on the 26th, and covers **every pay cycle from
+It belongs to **Alex Morgan**, a developer paid on the 26th, and covers **every pay cycle from
 January 2022 to the current one** — 56 cycles, ~188 KB, 462 history entries. Enough history that
 the charts, the trends and the year-back jumps all have something real to draw.
 
 | | |
 |---|---|
-| **Debts** | 18 in total — 10 still open (student loan, bakkie finance, a home-loan top-up, phone contract, credit card) and 8 paid off and closed. Two people (Sarah Oblivion, Mike Fallout) hold two debts each, so the grouped person cards show up |
-| **Money lent out** | 8 loans to Geralt Rivia, Ciri Nova, Kratos Mbeki, Zelda Naicker, Ellie Lastly, Duke Nukemzi, Nathan Drakeford and Aloy Nkosi — 23 events between them, two settled, one overdue, one with a second hand-out on the same loan |
+| **Debts** | 18 in total — 10 still open (student loan, vehicle finance, a home-loan top-up, phone contract, credit card) and 8 paid off and closed. Two people (Sarah Bennett, Michael Carter) hold two debts each, so the grouped person cards show up |
+| **Money lent out** | 8 loans to James Porter, Claire Dawson, Daniel Rivers, Emily Hart, Olivia Grant, David Nolan, Peter Shaw and Anna Foster — 23 events between them, two settled, one overdue, one with a second hand-out on the same loan |
 | **History** | 246 payments, 55 sealed cycle summaries, 55 transport months, 34 expenses, 31 savings movements, 18 debt creations, 14 confirmed budgets, 8 completions — R467,550 paid across four and a half years, with missed months, late notes and labelled extra payments |
 | **Savings** | 6 piggybanks holding R408,752 across 103 movements — Leftovers (swept automatically), a general jar, and four with goals: Emergency fund R16,200/R60,000, Holiday fund, New laptop, Tax stash. Includes 18 standing-order contributions, one paused order, and 3 withdrawals |
 | **Transport** | 1,072 days ticked since Jan 2022 at R96/day, including 108 half-days, public holidays, annual leave and the December shutdown |

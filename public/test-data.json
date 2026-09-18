@@ -17,11 +17,11 @@
   },
   {
    "id": "d-000002",
-   "title": "Bakkie Finance",
+   "title": "Vehicle Finance",
    "total_owed": 168000,
    "installment_amount": 4200,
    "dueDay": 30,
-   "person": "WesBank"
+   "person": "Auto Finance Co."
   },
   {
    "id": "d-000011",
@@ -29,30 +29,30 @@
    "total_owed": 180000,
    "installment_amount": 4800,
    "dueDay": 26,
-   "person": "Standard Bank"
+   "person": "National Bank"
   },
   {
    "id": "d-000012",
-   "title": "Samsung Galaxy S24",
+   "title": "Mobile Phone Contract",
    "total_owed": 11400,
    "installment_amount": 600,
    "dueDay": 26,
-   "person": "Vodacom"
+   "person": "Mobile Carrier"
   },
   {
    "id": "d-000013",
-   "title": "Standard Bank Credit Card",
+   "title": "Credit Card",
    "total_owed": 18000,
    "installment_amount": 900,
    "dueDay": 26
   },
   {
    "id": "d-000014",
-   "title": "Braai & Birthday Money",
+   "title": "Event & Gift Money",
    "total_owed": 6000,
    "installment_amount": 500,
    "dueDay": 26,
-   "person": "Sarah Oblivion"
+   "person": "Sarah Bennett"
   },
   {
    "id": "d-000015",
@@ -60,23 +60,23 @@
    "total_owed": 12000,
    "installment_amount": 1000,
    "dueDay": 26,
-   "person": "Mike Fallout"
+   "person": "Michael Carter"
   },
   {
    "id": "d-000016",
-   "title": "Tifa’s Camera Loan",
+   "title": "Camera Equipment Loan",
    "total_owed": 8000,
    "installment_amount": 800,
    "dueDay": 26,
-   "person": "Tifa Lockwood"
+   "person": "Laura Chen"
   },
   {
    "id": "d-000017",
-   "title": "Couch Money",
+   "title": "Furniture Purchase",
    "total_owed": 4500,
    "installment_amount": 750,
    "dueDay": 26,
-   "person": "Sarah Oblivion"
+   "person": "Sarah Bennett"
   },
   {
    "id": "d-000018",
@@ -84,14 +84,14 @@
    "total_owed": 5200,
    "installment_amount": 650,
    "dueDay": 26,
-   "person": "Mike Fallout"
+   "person": "Michael Carter"
   }
  ],
  "loans": [
   {
    "id": "l-000001",
-   "person": "Geralt Rivia",
-   "reason": "Gambling",
+   "person": "James Porter",
+   "reason": "Personal expenses",
    "createdAt": "2026-07-28T07:00:00.000Z",
    "events": [
     {
@@ -114,7 +114,7 @@
   },
   {
    "id": "l-000002",
-   "person": "Ciri Nova",
+   "person": "Claire Dawson",
    "reason": "Rent shortfall",
    "createdAt": "2026-07-03T07:00:00.000Z",
    "events": [
@@ -146,7 +146,7 @@
   },
   {
    "id": "l-000003",
-   "person": "Kratos Mbeki",
+   "person": "Daniel Rivers",
    "reason": "Car repairs",
    "createdAt": "2026-05-31T07:00:00.000Z",
    "settledAt": "2026-08-29T10:00:00.000Z",
@@ -171,7 +171,7 @@
   },
   {
    "id": "l-000004",
-   "person": "Zelda Naicker",
+   "person": "Emily Hart",
    "reason": "Textbooks",
    "createdAt": "2026-04-29T07:00:00.000Z",
    "events": [
@@ -203,7 +203,7 @@
   },
   {
    "id": "l-000005",
-   "person": "Ellie Lastly",
+   "person": "Olivia Grant",
    "reason": "Groceries",
    "createdAt": "2026-08-26T07:00:00.000Z",
    "note": "Said they would pay it back after payday.",
@@ -220,7 +220,7 @@
   },
   {
    "id": "l-000006",
-   "person": "Duke Nukemzi",
+   "person": "David Nolan",
    "reason": "Concert tickets",
    "createdAt": "2025-12-01T07:00:00.000Z",
    "settledAt": "2026-03-01T10:00:00.000Z",
@@ -261,7 +261,7 @@
   },
   {
    "id": "l-000007",
-   "person": "Nathan Drakeford",
+   "person": "Peter Shaw",
    "reason": "Flight home",
    "createdAt": "2025-06-26T07:00:00.000Z",
    "note": "Said they would pay it back after payday.",
@@ -302,7 +302,7 @@
   },
   {
    "id": "l-000008",
-   "person": "Aloy Nkosi",
+   "person": "Anna Foster",
    "reason": "Startup money",
    "createdAt": "2024-09-27T07:00:00.000Z",
    "dueDate": "2024-11-11",
@@ -1526,7 +1526,7 @@
  "history": [
   {
    "id": "h-000056",
-   "debtTitle": "Started at Ephemeral Tech",
+   "debtTitle": "Started new role",
    "date": "2022-01-03T06:00:00.000Z",
    "amount": 0,
    "type": "employment",
@@ -1583,11 +1583,11 @@
   {
    "id": "h-000129",
    "debtId": "d-000003",
-   "debtTitle": "Dell XPS Laptop",
+   "debtTitle": "Laptop Purchase",
    "date": "2022-03-02T15:00:00.000Z",
    "amount": 27000,
    "type": "creation",
-   "person": "Sarah Oblivion"
+   "person": "Sarah Bennett"
   },
   {
    "id": "h-000058",
@@ -1608,7 +1608,7 @@
   },
   {
    "id": "h-000363",
-   "debtTitle": "Budget: Feb Braai Weekend",
+   "debtTitle": "Budget: Feb Event Weekend",
    "date": "2022-03-16T16:00:00.000Z",
    "amount": 960,
    "type": "budget",
@@ -1643,11 +1643,11 @@
   {
    "id": "h-000089",
    "debtId": "d-000002",
-   "debtTitle": "Bakkie Finance",
+   "debtTitle": "Vehicle Finance",
    "date": "2022-03-27T12:00:00.000Z",
    "amount": 168000,
    "type": "creation",
-   "person": "WesBank"
+   "person": "Auto Finance Co."
   },
   {
    "id": "h-000059",
@@ -1717,11 +1717,11 @@
   {
    "id": "h-000090",
    "debtId": "d-000002",
-   "debtTitle": "Bakkie Finance",
+   "debtTitle": "Vehicle Finance",
    "date": "2022-05-16T17:24:00.000Z",
    "amount": 4200,
    "type": "payment",
-   "person": "WesBank"
+   "person": "Auto Finance Co."
   },
   {
    "id": "h-000411",
@@ -1752,11 +1752,11 @@
   {
    "id": "h-000130",
    "debtId": "d-000003",
-   "debtTitle": "Dell XPS Laptop",
+   "debtTitle": "Laptop Purchase",
    "date": "2022-05-26T16:55:00.000Z",
    "amount": 1500,
    "type": "payment",
-   "person": "Sarah Oblivion",
+   "person": "Sarah Bennett",
    "label": "Interest"
   },
   {
@@ -1766,16 +1766,16 @@
    "date": "2022-05-27T12:00:00.000Z",
    "amount": 9600,
    "type": "creation",
-   "person": "Mike Fallout"
+   "person": "Michael Carter"
   },
   {
    "id": "h-000091",
    "debtId": "d-000002",
-   "debtTitle": "Bakkie Finance",
+   "debtTitle": "Vehicle Finance",
    "date": "2022-05-29T12:56:00.000Z",
    "amount": 4200,
    "type": "payment",
-   "person": "WesBank"
+   "person": "Auto Finance Co."
   },
   {
    "id": "h-000412",
@@ -1806,11 +1806,11 @@
   {
    "id": "h-000092",
    "debtId": "d-000002",
-   "debtTitle": "Bakkie Finance",
+   "debtTitle": "Vehicle Finance",
    "date": "2022-06-30T10:38:00.000Z",
    "amount": 4200,
    "type": "payment",
-   "person": "WesBank",
+   "person": "Auto Finance Co.",
    "label": "Interest"
   },
   {
@@ -1820,17 +1820,17 @@
    "date": "2022-06-30T17:08:00.000Z",
    "amount": 800,
    "type": "payment",
-   "person": "Mike Fallout",
+   "person": "Michael Carter",
    "label": "Extra payment"
   },
   {
    "id": "h-000131",
    "debtId": "d-000003",
-   "debtTitle": "Dell XPS Laptop",
+   "debtTitle": "Laptop Purchase",
    "date": "2022-07-05T13:45:00.000Z",
    "amount": 1500,
    "type": "payment",
-   "person": "Sarah Oblivion"
+   "person": "Sarah Bennett"
   },
   {
    "id": "h-000061",
@@ -1858,7 +1858,7 @@
   },
   {
    "id": "h-000364",
-   "debtTitle": "Budget: Jun Camping Trip",
+   "debtTitle": "Budget: Jun Weekend Trip",
    "date": "2022-07-17T16:00:00.000Z",
    "amount": 1530,
    "type": "budget",
@@ -1910,11 +1910,11 @@
   {
    "id": "h-000132",
    "debtId": "d-000003",
-   "debtTitle": "Dell XPS Laptop",
+   "debtTitle": "Laptop Purchase",
    "date": "2022-08-01T15:48:00.000Z",
    "amount": 1500,
    "type": "payment",
-   "person": "Sarah Oblivion"
+   "person": "Sarah Bennett"
   },
   {
    "id": "h-000148",
@@ -1923,16 +1923,16 @@
    "date": "2022-08-10T09:08:00.000Z",
    "amount": 800,
    "type": "payment",
-   "person": "Mike Fallout"
+   "person": "Michael Carter"
   },
   {
    "id": "h-000093",
    "debtId": "d-000002",
-   "debtTitle": "Bakkie Finance",
+   "debtTitle": "Vehicle Finance",
    "date": "2022-08-11T12:39:00.000Z",
    "amount": 4200,
    "type": "payment",
-   "person": "WesBank",
+   "person": "Auto Finance Co.",
    "label": "Caught up"
   },
   {
@@ -1993,7 +1993,7 @@
    "date": "2022-09-03T10:14:00.000Z",
    "amount": 800,
    "type": "payment",
-   "person": "Mike Fallout",
+   "person": "Michael Carter",
    "label": "Double up"
   },
   {
@@ -2007,21 +2007,21 @@
   {
    "id": "h-000133",
    "debtId": "d-000003",
-   "debtTitle": "Dell XPS Laptop",
+   "debtTitle": "Laptop Purchase",
    "date": "2022-09-11T08:40:00.000Z",
    "amount": 1500,
    "type": "payment",
-   "person": "Sarah Oblivion",
+   "person": "Sarah Bennett",
    "label": "Caught up"
   },
   {
    "id": "h-000094",
    "debtId": "d-000002",
-   "debtTitle": "Bakkie Finance",
+   "debtTitle": "Vehicle Finance",
    "date": "2022-09-14T15:46:00.000Z",
    "amount": 4200,
    "type": "payment",
-   "person": "WesBank"
+   "person": "Auto Finance Co."
   },
   {
    "id": "h-000415",
@@ -2052,11 +2052,11 @@
   {
    "id": "h-000095",
    "debtId": "d-000002",
-   "debtTitle": "Bakkie Finance",
+   "debtTitle": "Vehicle Finance",
    "date": "2022-09-29T17:42:00.000Z",
    "amount": 4200,
    "type": "payment",
-   "person": "WesBank"
+   "person": "Auto Finance Co."
   },
   {
    "id": "h-000150",
@@ -2065,7 +2065,7 @@
    "date": "2022-10-02T06:45:00.000Z",
    "amount": 800,
    "type": "payment",
-   "person": "Mike Fallout"
+   "person": "Michael Carter"
   },
   {
    "id": "h-000333",
@@ -2077,11 +2077,11 @@
   {
    "id": "h-000134",
    "debtId": "d-000003",
-   "debtTitle": "Dell XPS Laptop",
+   "debtTitle": "Laptop Purchase",
    "date": "2022-10-06T15:18:00.000Z",
    "amount": 1500,
    "type": "payment",
-   "person": "Sarah Oblivion"
+   "person": "Sarah Bennett"
   },
   {
    "id": "h-000162",
@@ -2129,11 +2129,11 @@
   {
    "id": "h-000135",
    "debtId": "d-000003",
-   "debtTitle": "Dell XPS Laptop",
+   "debtTitle": "Laptop Purchase",
    "date": "2022-10-28T11:36:00.000Z",
    "amount": 1500,
    "type": "payment",
-   "person": "Sarah Oblivion"
+   "person": "Sarah Bennett"
   },
   {
    "id": "h-000065",
@@ -2153,11 +2153,11 @@
   {
    "id": "h-000096",
    "debtId": "d-000002",
-   "debtTitle": "Bakkie Finance",
+   "debtTitle": "Vehicle Finance",
    "date": "2022-11-14T07:07:00.000Z",
    "amount": 4200,
    "type": "payment",
-   "person": "WesBank"
+   "person": "Auto Finance Co."
   },
   {
    "id": "h-000151",
@@ -2166,11 +2166,11 @@
    "date": "2022-11-15T13:54:00.000Z",
    "amount": 800,
    "type": "payment",
-   "person": "Mike Fallout"
+   "person": "Michael Carter"
   },
   {
    "id": "h-000365",
-   "debtTitle": "Budget: Oct Gaming Setup",
+   "debtTitle": "Budget: Oct Home Office Setup",
    "date": "2022-11-19T16:00:00.000Z",
    "amount": 2170,
    "type": "budget",
@@ -2209,7 +2209,7 @@
    "date": "2022-11-30T14:36:00.000Z",
    "amount": 800,
    "type": "payment",
-   "person": "Mike Fallout"
+   "person": "Michael Carter"
   },
   {
    "id": "h-000066",
@@ -2222,15 +2222,15 @@
   {
    "id": "h-000097",
    "debtId": "d-000002",
-   "debtTitle": "Bakkie Finance",
+   "debtTitle": "Vehicle Finance",
    "date": "2022-12-10T09:17:00.000Z",
    "amount": 4200,
    "type": "payment",
-   "person": "WesBank"
+   "person": "Auto Finance Co."
   },
   {
    "id": "h-000335",
-   "debtTitle": "Load-shedding inverter",
+   "debtTitle": "Backup Power Inverter",
    "date": "2022-12-10T13:00:00.000Z",
    "amount": 2300,
    "type": "expense"
@@ -2247,11 +2247,11 @@
   {
    "id": "h-000136",
    "debtId": "d-000003",
-   "debtTitle": "Dell XPS Laptop",
+   "debtTitle": "Laptop Purchase",
    "date": "2022-12-14T14:22:00.000Z",
    "amount": 1700,
    "type": "payment",
-   "person": "Sarah Oblivion"
+   "person": "Sarah Bennett"
   },
   {
    "id": "h-000418",
@@ -2286,26 +2286,26 @@
    "date": "2022-12-30T13:19:00.000Z",
    "amount": 800,
    "type": "payment",
-   "person": "Mike Fallout"
+   "person": "Michael Carter"
   },
   {
    "id": "h-000098",
    "debtId": "d-000002",
-   "debtTitle": "Bakkie Finance",
+   "debtTitle": "Vehicle Finance",
    "date": "2023-01-05T14:19:00.000Z",
    "amount": 4200,
    "type": "payment",
-   "person": "WesBank",
+   "person": "Auto Finance Co.",
    "note": "Paid by EFT"
   },
   {
    "id": "h-000137",
    "debtId": "d-000003",
-   "debtTitle": "Dell XPS Laptop",
+   "debtTitle": "Laptop Purchase",
    "date": "2023-01-07T10:08:00.000Z",
    "amount": 1900,
    "type": "payment",
-   "person": "Sarah Oblivion"
+   "person": "Sarah Bennett"
   },
   {
    "id": "h-000164",
@@ -2369,7 +2369,7 @@
   },
   {
    "id": "h-000337",
-   "debtTitle": "Braai supplies",
+   "debtTitle": "Household supplies",
    "date": "2023-01-30T13:00:00.000Z",
    "amount": 700,
    "type": "expense"
@@ -2377,11 +2377,11 @@
   {
    "id": "h-000099",
    "debtId": "d-000002",
-   "debtTitle": "Bakkie Finance",
+   "debtTitle": "Vehicle Finance",
    "date": "2023-01-30T17:00:00.000Z",
    "amount": 4200,
    "type": "payment",
-   "person": "WesBank"
+   "person": "Auto Finance Co."
   },
   {
    "id": "h-000068",
@@ -2398,16 +2398,16 @@
    "date": "2023-02-04T09:51:00.000Z",
    "amount": 800,
    "type": "payment",
-   "person": "Mike Fallout"
+   "person": "Michael Carter"
   },
   {
    "id": "h-000138",
    "debtId": "d-000003",
-   "debtTitle": "Dell XPS Laptop",
+   "debtTitle": "Laptop Purchase",
    "date": "2023-02-08T17:16:00.000Z",
    "amount": 1600,
    "type": "payment",
-   "person": "Sarah Oblivion",
+   "person": "Sarah Bennett",
    "label": "Caught up"
   },
   {
@@ -2465,11 +2465,11 @@
   {
    "id": "h-000100",
    "debtId": "d-000002",
-   "debtTitle": "Bakkie Finance",
+   "debtTitle": "Vehicle Finance",
    "date": "2023-03-02T17:56:00.000Z",
    "amount": 4200,
    "type": "payment",
-   "person": "WesBank"
+   "person": "Auto Finance Co."
   },
   {
    "id": "h-000338",
@@ -2485,17 +2485,17 @@
    "date": "2023-03-04T18:39:00.000Z",
    "amount": 800,
    "type": "payment",
-   "person": "Mike Fallout",
+   "person": "Michael Carter",
    "note": "Debit order went off"
   },
   {
    "id": "h-000139",
    "debtId": "d-000003",
-   "debtTitle": "Dell XPS Laptop",
+   "debtTitle": "Laptop Purchase",
    "date": "2023-03-07T06:06:00.000Z",
    "amount": 2000,
    "type": "payment",
-   "person": "Sarah Oblivion",
+   "person": "Sarah Bennett",
    "label": "Double up",
    "note": "Paid by EFT"
   },
@@ -2526,7 +2526,7 @@
   },
   {
    "id": "h-000366",
-   "debtTitle": "Budget: Feb Braai Weekend",
+   "debtTitle": "Budget: Feb Event Weekend",
    "date": "2023-03-15T16:00:00.000Z",
    "amount": 1540,
    "type": "budget",
@@ -2586,20 +2586,20 @@
   {
    "id": "h-000140",
    "debtId": "d-000003",
-   "debtTitle": "Dell XPS Laptop",
+   "debtTitle": "Laptop Purchase",
    "date": "2023-04-06T07:02:00.000Z",
    "amount": 1500,
    "type": "payment",
-   "person": "Sarah Oblivion"
+   "person": "Sarah Bennett"
   },
   {
    "id": "h-000101",
    "debtId": "d-000002",
-   "debtTitle": "Bakkie Finance",
+   "debtTitle": "Vehicle Finance",
    "date": "2023-04-06T07:12:00.000Z",
    "amount": 4200,
    "type": "payment",
-   "person": "WesBank"
+   "person": "Auto Finance Co."
   },
   {
    "id": "h-000167",
@@ -2617,7 +2617,7 @@
    "date": "2023-04-10T06:37:00.000Z",
    "amount": 800,
    "type": "payment",
-   "person": "Mike Fallout"
+   "person": "Michael Carter"
   },
   {
    "id": "h-000422",
@@ -2652,16 +2652,16 @@
    "date": "2023-04-26T15:00:00.000Z",
    "amount": 8400,
    "type": "creation",
-   "person": "Sarah Oblivion"
+   "person": "Sarah Bennett"
   },
   {
    "id": "h-000102",
    "debtId": "d-000002",
-   "debtTitle": "Bakkie Finance",
+   "debtTitle": "Vehicle Finance",
    "date": "2023-04-26T15:08:00.000Z",
    "amount": 4200,
    "type": "payment",
-   "person": "WesBank"
+   "person": "Auto Finance Co."
   },
   {
    "id": "h-000168",
@@ -2692,11 +2692,11 @@
   {
    "id": "h-000141",
    "debtId": "d-000003",
-   "debtTitle": "Dell XPS Laptop",
+   "debtTitle": "Laptop Purchase",
    "date": "2023-05-13T10:37:00.000Z",
    "amount": 1500,
    "type": "payment",
-   "person": "Sarah Oblivion"
+   "person": "Sarah Bennett"
   },
   {
    "id": "h-000157",
@@ -2705,7 +2705,7 @@
    "date": "2023-05-16T14:10:00.000Z",
    "amount": 800,
    "type": "payment",
-   "person": "Mike Fallout"
+   "person": "Michael Carter"
   },
   {
    "id": "h-000423",
@@ -2748,7 +2748,7 @@
    "date": "2023-05-31T06:11:00.000Z",
    "amount": 700,
    "type": "payment",
-   "person": "Sarah Oblivion",
+   "person": "Sarah Bennett",
    "label": "Caught up"
   },
   {
@@ -2758,7 +2758,7 @@
    "date": "2023-06-01T13:57:00.000Z",
    "amount": 800,
    "type": "payment",
-   "person": "Mike Fallout"
+   "person": "Michael Carter"
   },
   {
    "id": "h-000340",
@@ -2779,11 +2779,11 @@
   {
    "id": "h-000142",
    "debtId": "d-000003",
-   "debtTitle": "Dell XPS Laptop",
+   "debtTitle": "Laptop Purchase",
    "date": "2023-06-14T17:46:00.000Z",
    "amount": 1500,
    "type": "payment",
-   "person": "Sarah Oblivion"
+   "person": "Sarah Bennett"
   },
   {
    "id": "h-000169",
@@ -2846,7 +2846,7 @@
    "date": "2023-07-03T18:36:00.000Z",
    "amount": 700,
    "type": "payment",
-   "person": "Sarah Oblivion"
+   "person": "Sarah Bennett"
   },
   {
    "id": "h-000159",
@@ -2855,12 +2855,12 @@
    "date": "2023-07-08T13:00:00.000Z",
    "amount": 9600,
    "type": "completion",
-   "person": "Mike Fallout",
+   "person": "Michael Carter",
    "note": "Paid off in full"
   },
   {
    "id": "h-000367",
-   "debtTitle": "Budget: Jun Camping Trip",
+   "debtTitle": "Budget: Jun Weekend Trip",
    "date": "2023-07-10T16:00:00.000Z",
    "amount": 2170,
    "type": "budget",
@@ -2878,11 +2878,11 @@
   {
    "id": "h-000103",
    "debtId": "d-000002",
-   "debtTitle": "Bakkie Finance",
+   "debtTitle": "Vehicle Finance",
    "date": "2023-07-13T17:46:00.000Z",
    "amount": 4200,
    "type": "payment",
-   "person": "WesBank"
+   "person": "Auto Finance Co."
   },
   {
    "id": "h-000425",
@@ -2913,11 +2913,11 @@
   {
    "id": "h-000143",
    "debtId": "d-000003",
-   "debtTitle": "Dell XPS Laptop",
+   "debtTitle": "Laptop Purchase",
    "date": "2023-08-01T15:11:00.000Z",
    "amount": 1500,
    "type": "payment",
-   "person": "Sarah Oblivion"
+   "person": "Sarah Bennett"
   },
   {
    "id": "h-000171",
@@ -2939,7 +2939,7 @@
   },
   {
    "id": "h-000341",
-   "debtTitle": "Braai supplies",
+   "debtTitle": "Household supplies",
    "date": "2023-08-06T13:00:00.000Z",
    "amount": 2200,
    "type": "expense"
@@ -2955,11 +2955,11 @@
   {
    "id": "h-000104",
    "debtId": "d-000002",
-   "debtTitle": "Bakkie Finance",
+   "debtTitle": "Vehicle Finance",
    "date": "2023-08-08T17:55:00.000Z",
    "amount": 4700,
    "type": "payment",
-   "person": "WesBank"
+   "person": "Auto Finance Co."
   },
   {
    "id": "h-000200",
@@ -2968,7 +2968,7 @@
    "date": "2023-08-10T07:38:00.000Z",
    "amount": 700,
    "type": "payment",
-   "person": "Sarah Oblivion"
+   "person": "Sarah Bennett"
   },
   {
    "id": "h-000386",
@@ -3021,7 +3021,7 @@
    "date": "2023-09-02T16:10:00.000Z",
    "amount": 700,
    "type": "payment",
-   "person": "Sarah Oblivion",
+   "person": "Sarah Bennett",
    "label": "Caught up"
   },
   {
@@ -3035,11 +3035,11 @@
   {
    "id": "h-000144",
    "debtId": "d-000003",
-   "debtTitle": "Dell XPS Laptop",
+   "debtTitle": "Laptop Purchase",
    "date": "2023-09-09T08:27:00.000Z",
    "amount": 1500,
    "type": "payment",
-   "person": "Sarah Oblivion"
+   "person": "Sarah Bennett"
   },
   {
    "id": "h-000342",
@@ -3068,11 +3068,11 @@
   {
    "id": "h-000105",
    "debtId": "d-000002",
-   "debtTitle": "Bakkie Finance",
+   "debtTitle": "Vehicle Finance",
    "date": "2023-09-13T14:48:00.000Z",
    "amount": 4200,
    "type": "payment",
-   "person": "WesBank"
+   "person": "Auto Finance Co."
   },
   {
    "id": "h-000427",
@@ -3103,11 +3103,11 @@
   {
    "id": "h-000106",
    "debtId": "d-000002",
-   "debtTitle": "Bakkie Finance",
+   "debtTitle": "Vehicle Finance",
    "date": "2023-09-27T17:31:00.000Z",
    "amount": 4200,
    "type": "payment",
-   "person": "WesBank"
+   "person": "Auto Finance Co."
   },
   {
    "id": "h-000211",
@@ -3121,11 +3121,11 @@
   {
    "id": "h-000145",
    "debtId": "d-000003",
-   "debtTitle": "Dell XPS Laptop",
+   "debtTitle": "Laptop Purchase",
    "date": "2023-09-30T10:00:00.000Z",
    "amount": 27000,
    "type": "completion",
-   "person": "Sarah Oblivion",
+   "person": "Sarah Bennett",
    "note": "Paid off in full"
   },
   {
@@ -3145,7 +3145,7 @@
    "date": "2023-10-05T16:54:00.000Z",
    "amount": 700,
    "type": "payment",
-   "person": "Sarah Oblivion"
+   "person": "Sarah Bennett"
   },
   {
    "id": "h-000191",
@@ -3235,7 +3235,7 @@
   },
   {
    "id": "h-000368",
-   "debtTitle": "Budget: Oct Gaming Setup",
+   "debtTitle": "Budget: Oct Home Office Setup",
    "date": "2023-11-10T16:00:00.000Z",
    "amount": 1960,
    "type": "budget",
@@ -3248,16 +3248,16 @@
    "date": "2023-11-12T12:07:00.000Z",
    "amount": 700,
    "type": "payment",
-   "person": "Sarah Oblivion"
+   "person": "Sarah Bennett"
   },
   {
    "id": "h-000107",
    "debtId": "d-000002",
-   "debtTitle": "Bakkie Finance",
+   "debtTitle": "Vehicle Finance",
    "date": "2023-11-12T12:27:00.000Z",
    "amount": 4800,
    "type": "payment",
-   "person": "WesBank"
+   "person": "Auto Finance Co."
   },
   {
    "id": "h-000429",
@@ -3303,11 +3303,11 @@
   {
    "id": "h-000108",
    "debtId": "d-000002",
-   "debtTitle": "Bakkie Finance",
+   "debtTitle": "Vehicle Finance",
    "date": "2023-12-03T15:39:00.000Z",
    "amount": 4500,
    "type": "payment",
-   "person": "WesBank"
+   "person": "Auto Finance Co."
   },
   {
    "id": "h-000175",
@@ -3353,7 +3353,7 @@
    "date": "2023-12-13T10:46:00.000Z",
    "amount": 700,
    "type": "payment",
-   "person": "Sarah Oblivion"
+   "person": "Sarah Bennett"
   },
   {
    "id": "h-000430",
@@ -3403,11 +3403,11 @@
   {
    "id": "h-000109",
    "debtId": "d-000002",
-   "debtTitle": "Bakkie Finance",
+   "debtTitle": "Vehicle Finance",
    "date": "2024-01-08T11:02:00.000Z",
    "amount": 4200,
    "type": "payment",
-   "person": "WesBank"
+   "person": "Auto Finance Co."
   },
   {
    "id": "h-000078",
@@ -3424,7 +3424,7 @@
    "date": "2024-01-15T11:33:00.000Z",
    "amount": 700,
    "type": "payment",
-   "person": "Sarah Oblivion"
+   "person": "Sarah Bennett"
   },
   {
    "id": "h-000431",
@@ -3483,7 +3483,7 @@
    "date": "2024-02-03T08:12:00.000Z",
    "amount": 1300,
    "type": "payment",
-   "person": "Sarah Oblivion",
+   "person": "Sarah Bennett",
    "label": "Caught up"
   },
   {
@@ -3507,11 +3507,11 @@
   {
    "id": "h-000110",
    "debtId": "d-000002",
-   "debtTitle": "Bakkie Finance",
+   "debtTitle": "Vehicle Finance",
    "date": "2024-02-11T18:03:00.000Z",
    "amount": 4200,
    "type": "payment",
-   "person": "WesBank"
+   "person": "Auto Finance Co."
   },
   {
    "id": "h-000432",
@@ -3546,7 +3546,7 @@
    "date": "2024-02-28T08:00:00.000Z",
    "amount": 9000,
    "type": "creation",
-   "person": "Mike Fallout"
+   "person": "Michael Carter"
   },
   {
    "id": "h-000177",
@@ -3560,11 +3560,11 @@
   {
    "id": "h-000111",
    "debtId": "d-000002",
-   "debtTitle": "Bakkie Finance",
+   "debtTitle": "Vehicle Finance",
    "date": "2024-03-03T06:19:00.000Z",
    "amount": 4200,
    "type": "payment",
-   "person": "WesBank"
+   "person": "Auto Finance Co."
   },
   {
    "id": "h-000080",
@@ -3583,7 +3583,7 @@
   },
   {
    "id": "h-000369",
-   "debtTitle": "Budget: Feb Braai Weekend",
+   "debtTitle": "Budget: Feb Event Weekend",
    "date": "2024-03-08T16:00:00.000Z",
    "amount": 1490,
    "type": "budget",
@@ -3606,7 +3606,7 @@
    "date": "2024-03-11T16:40:00.000Z",
    "amount": 700,
    "type": "payment",
-   "person": "Sarah Oblivion",
+   "person": "Sarah Bennett",
    "label": "Caught up"
   },
   {
@@ -3651,7 +3651,7 @@
    "date": "2024-03-26T15:00:00.000Z",
    "amount": 180000,
    "type": "creation",
-   "person": "Standard Bank"
+   "person": "National Bank"
   },
   {
    "id": "h-000081",
@@ -3668,7 +3668,7 @@
    "date": "2024-03-29T13:17:00.000Z",
    "amount": 750,
    "type": "payment",
-   "person": "Mike Fallout"
+   "person": "Michael Carter"
   },
   {
    "id": "h-000347",
@@ -3680,11 +3680,11 @@
   {
    "id": "h-000112",
    "debtId": "d-000002",
-   "debtTitle": "Bakkie Finance",
+   "debtTitle": "Vehicle Finance",
    "date": "2024-04-05T15:03:00.000Z",
    "amount": 4200,
    "type": "payment",
-   "person": "WesBank"
+   "person": "Auto Finance Co."
   },
   {
    "id": "h-000217",
@@ -3702,7 +3702,7 @@
    "date": "2024-04-13T14:41:00.000Z",
    "amount": 700,
    "type": "payment",
-   "person": "Sarah Oblivion"
+   "person": "Sarah Bennett"
   },
   {
    "id": "h-000178",
@@ -3764,7 +3764,7 @@
    "date": "2024-05-01T10:25:00.000Z",
    "amount": 700,
    "type": "payment",
-   "person": "Sarah Oblivion",
+   "person": "Sarah Bennett",
    "note": "Cash"
   },
   {
@@ -3780,11 +3780,11 @@
   {
    "id": "h-000113",
    "debtId": "d-000002",
-   "debtTitle": "Bakkie Finance",
+   "debtTitle": "Vehicle Finance",
    "date": "2024-05-04T14:35:00.000Z",
    "amount": 4200,
    "type": "payment",
-   "person": "WesBank"
+   "person": "Auto Finance Co."
   },
   {
    "id": "h-000254",
@@ -3793,7 +3793,7 @@
    "date": "2024-05-09T11:04:00.000Z",
    "amount": 4800,
    "type": "payment",
-   "person": "Standard Bank"
+   "person": "National Bank"
   },
   {
    "id": "h-000082",
@@ -3810,7 +3810,7 @@
    "date": "2024-05-15T06:28:00.000Z",
    "amount": 750,
    "type": "payment",
-   "person": "Mike Fallout"
+   "person": "Michael Carter"
   },
   {
    "id": "h-000435",
@@ -3845,7 +3845,7 @@
    "date": "2024-05-26T09:55:00.000Z",
    "amount": 750,
    "type": "payment",
-   "person": "Mike Fallout",
+   "person": "Michael Carter",
    "note": "Cash"
   },
   {
@@ -3855,7 +3855,7 @@
    "date": "2024-05-27T16:00:00.000Z",
    "amount": 8400,
    "type": "completion",
-   "person": "Sarah Oblivion",
+   "person": "Sarah Bennett",
    "note": "Paid off in full"
   },
   {
@@ -3876,11 +3876,11 @@
   {
    "id": "h-000114",
    "debtId": "d-000002",
-   "debtTitle": "Bakkie Finance",
+   "debtTitle": "Vehicle Finance",
    "date": "2024-06-12T08:49:00.000Z",
    "amount": 4500,
    "type": "payment",
-   "person": "WesBank"
+   "person": "Auto Finance Co."
   },
   {
    "id": "h-000219",
@@ -3898,7 +3898,7 @@
    "date": "2024-06-15T18:25:00.000Z",
    "amount": 4800,
    "type": "payment",
-   "person": "Standard Bank"
+   "person": "National Bank"
   },
   {
    "id": "h-000436",
@@ -3929,7 +3929,7 @@
   {
    "id": "h-000239",
    "debtId": "d-000010",
-   "debtTitle": "Old iPhone 13",
+   "debtTitle": "Second-hand Phone",
    "date": "2024-06-30T06:00:00.000Z",
    "amount": 9600,
    "type": "creation",
@@ -3937,7 +3937,7 @@
   },
   {
    "id": "h-000370",
-   "debtTitle": "Budget: Jun Camping Trip",
+   "debtTitle": "Budget: Jun Weekend Trip",
    "date": "2024-07-02T16:00:00.000Z",
    "amount": 2550,
    "type": "budget",
@@ -3950,16 +3950,16 @@
    "date": "2024-07-03T12:09:00.000Z",
    "amount": 750,
    "type": "payment",
-   "person": "Mike Fallout"
+   "person": "Michael Carter"
   },
   {
    "id": "h-000115",
    "debtId": "d-000002",
-   "debtTitle": "Bakkie Finance",
+   "debtTitle": "Vehicle Finance",
    "date": "2024-07-06T08:09:00.000Z",
    "amount": 4200,
    "type": "payment",
-   "person": "WesBank"
+   "person": "Auto Finance Co."
   },
   {
    "id": "h-000349",
@@ -3975,7 +3975,7 @@
    "date": "2024-07-12T17:30:00.000Z",
    "amount": 5100,
    "type": "payment",
-   "person": "Standard Bank",
+   "person": "National Bank",
    "label": "Extra payment"
   },
   {
@@ -4046,7 +4046,7 @@
    "date": "2024-07-28T11:27:00.000Z",
    "amount": 750,
    "type": "payment",
-   "person": "Mike Fallout",
+   "person": "Michael Carter",
    "label": "Interest"
   },
   {
@@ -4061,11 +4061,11 @@
   {
    "id": "h-000116",
    "debtId": "d-000002",
-   "debtTitle": "Bakkie Finance",
+   "debtTitle": "Vehicle Finance",
    "date": "2024-08-01T13:19:00.000Z",
    "amount": 4200,
    "type": "payment",
-   "person": "WesBank"
+   "person": "Auto Finance Co."
   },
   {
    "id": "h-000257",
@@ -4074,12 +4074,12 @@
    "date": "2024-08-02T17:04:00.000Z",
    "amount": 5400,
    "type": "payment",
-   "person": "Standard Bank"
+   "person": "National Bank"
   },
   {
    "id": "h-000240",
    "debtId": "d-000010",
-   "debtTitle": "Old iPhone 13",
+   "debtTitle": "Second-hand Phone",
    "date": "2024-08-03T08:03:00.000Z",
    "amount": 800,
    "type": "payment",
@@ -4158,17 +4158,17 @@
   {
    "id": "h-000117",
    "debtId": "d-000002",
-   "debtTitle": "Bakkie Finance",
+   "debtTitle": "Vehicle Finance",
    "date": "2024-09-01T06:48:00.000Z",
    "amount": 4200,
    "type": "payment",
-   "person": "WesBank",
+   "person": "Auto Finance Co.",
    "label": "Double up"
   },
   {
    "id": "h-000241",
    "debtId": "d-000010",
-   "debtTitle": "Old iPhone 13",
+   "debtTitle": "Second-hand Phone",
    "date": "2024-09-02T17:34:00.000Z",
    "amount": 1400,
    "type": "payment",
@@ -4197,7 +4197,7 @@
    "date": "2024-09-06T09:33:00.000Z",
    "amount": 750,
    "type": "payment",
-   "person": "Mike Fallout"
+   "person": "Michael Carter"
   },
   {
    "id": "h-000258",
@@ -4206,7 +4206,7 @@
    "date": "2024-09-15T16:10:00.000Z",
    "amount": 4800,
    "type": "payment",
-   "person": "Standard Bank"
+   "person": "National Bank"
   },
   {
    "id": "h-000439",
@@ -4250,7 +4250,7 @@
    "date": "2024-10-01T14:21:00.000Z",
    "amount": 4800,
    "type": "payment",
-   "person": "Standard Bank"
+   "person": "National Bank"
   },
   {
    "id": "h-000352",
@@ -4270,7 +4270,7 @@
   {
    "id": "h-000242",
    "debtId": "d-000010",
-   "debtTitle": "Old iPhone 13",
+   "debtTitle": "Second-hand Phone",
    "date": "2024-10-07T15:39:00.000Z",
    "amount": 800,
    "type": "payment",
@@ -4279,11 +4279,11 @@
   {
    "id": "h-000118",
    "debtId": "d-000002",
-   "debtTitle": "Bakkie Finance",
+   "debtTitle": "Vehicle Finance",
    "date": "2024-10-15T12:22:00.000Z",
    "amount": 4200,
    "type": "payment",
-   "person": "WesBank"
+   "person": "Auto Finance Co."
   },
   {
    "id": "h-000232",
@@ -4292,7 +4292,7 @@
    "date": "2024-10-16T17:58:00.000Z",
    "amount": 750,
    "type": "payment",
-   "person": "Mike Fallout"
+   "person": "Michael Carter"
   },
   {
    "id": "h-000440",
@@ -4327,7 +4327,7 @@
    "date": "2024-10-28T18:54:00.000Z",
    "amount": 5100,
    "type": "payment",
-   "person": "Standard Bank",
+   "person": "National Bank",
    "label": "Extra payment"
   },
   {
@@ -4347,11 +4347,11 @@
    "date": "2024-11-01T18:17:00.000Z",
    "amount": 750,
    "type": "payment",
-   "person": "Mike Fallout"
+   "person": "Michael Carter"
   },
   {
    "id": "h-000353",
-   "debtTitle": "Braai supplies",
+   "debtTitle": "Household supplies",
    "date": "2024-11-03T10:00:00.000Z",
    "amount": 2000,
    "type": "expense"
@@ -4375,17 +4375,17 @@
   {
    "id": "h-000119",
    "debtId": "d-000002",
-   "debtTitle": "Bakkie Finance",
+   "debtTitle": "Vehicle Finance",
    "date": "2024-11-08T06:40:00.000Z",
    "amount": 4200,
    "type": "payment",
-   "person": "WesBank",
+   "person": "Auto Finance Co.",
    "label": "Double up"
   },
   {
    "id": "h-000243",
    "debtId": "d-000010",
-   "debtTitle": "Old iPhone 13",
+   "debtTitle": "Second-hand Phone",
    "date": "2024-11-13T14:27:00.000Z",
    "amount": 800,
    "type": "payment",
@@ -4394,7 +4394,7 @@
   },
   {
    "id": "h-000371",
-   "debtTitle": "Budget: Oct Gaming Setup",
+   "debtTitle": "Budget: Oct Home Office Setup",
    "date": "2024-11-14T16:00:00.000Z",
    "amount": 1650,
    "type": "budget",
@@ -4433,7 +4433,7 @@
    "date": "2024-11-26T07:21:00.000Z",
    "amount": 750,
    "type": "payment",
-   "person": "Mike Fallout"
+   "person": "Michael Carter"
   },
   {
    "id": "h-000088",
@@ -4447,7 +4447,7 @@
   },
   {
    "id": "h-000354",
-   "debtTitle": "Braai supplies",
+   "debtTitle": "Household supplies",
    "date": "2024-11-29T15:00:00.000Z",
    "amount": 600,
    "type": "expense"
@@ -4455,11 +4455,11 @@
   {
    "id": "h-000120",
    "debtId": "d-000002",
-   "debtTitle": "Bakkie Finance",
+   "debtTitle": "Vehicle Finance",
    "date": "2024-11-29T16:24:00.000Z",
    "amount": 4200,
    "type": "payment",
-   "person": "WesBank"
+   "person": "Auto Finance Co."
   },
   {
    "id": "h-000261",
@@ -4468,13 +4468,13 @@
    "date": "2024-12-01T12:01:00.000Z",
    "amount": 4800,
    "type": "payment",
-   "person": "Standard Bank",
+   "person": "National Bank",
    "label": "Interest"
   },
   {
    "id": "h-000244",
    "debtId": "d-000010",
-   "debtTitle": "Old iPhone 13",
+   "debtTitle": "Second-hand Phone",
    "date": "2024-12-03T17:32:00.000Z",
    "amount": 800,
    "type": "payment",
@@ -4521,12 +4521,12 @@
    "date": "2024-12-28T18:25:00.000Z",
    "amount": 750,
    "type": "payment",
-   "person": "Mike Fallout"
+   "person": "Michael Carter"
   },
   {
    "id": "h-000245",
    "debtId": "d-000010",
-   "debtTitle": "Old iPhone 13",
+   "debtTitle": "Second-hand Phone",
    "date": "2024-12-29T09:39:00.000Z",
    "amount": 800,
    "type": "payment",
@@ -4539,16 +4539,16 @@
    "date": "2025-01-14T15:46:00.000Z",
    "amount": 5200,
    "type": "payment",
-   "person": "Standard Bank"
+   "person": "National Bank"
   },
   {
    "id": "h-000121",
    "debtId": "d-000002",
-   "debtTitle": "Bakkie Finance",
+   "debtTitle": "Vehicle Finance",
    "date": "2025-01-15T10:46:00.000Z",
    "amount": 4200,
    "type": "payment",
-   "person": "WesBank",
+   "person": "Auto Finance Co.",
    "label": "Interest"
   },
   {
@@ -4603,7 +4603,7 @@
   {
    "id": "h-000246",
    "debtId": "d-000010",
-   "debtTitle": "Old iPhone 13",
+   "debtTitle": "Second-hand Phone",
    "date": "2025-02-11T14:22:00.000Z",
    "amount": 800,
    "type": "payment",
@@ -4613,11 +4613,11 @@
   {
    "id": "h-000122",
    "debtId": "d-000002",
-   "debtTitle": "Bakkie Finance",
+   "debtTitle": "Vehicle Finance",
    "date": "2025-02-12T16:37:00.000Z",
    "amount": 4200,
    "type": "payment",
-   "person": "WesBank"
+   "person": "Auto Finance Co."
   },
   {
    "id": "h-000263",
@@ -4626,7 +4626,7 @@
    "date": "2025-02-15T06:00:00.000Z",
    "amount": 5200,
    "type": "payment",
-   "person": "Standard Bank"
+   "person": "National Bank"
   },
   {
    "id": "h-000236",
@@ -4635,7 +4635,7 @@
    "date": "2025-02-15T13:25:00.000Z",
    "amount": 1350,
    "type": "payment",
-   "person": "Mike Fallout"
+   "person": "Michael Carter"
   },
   {
    "id": "h-000444",
@@ -4666,7 +4666,7 @@
   {
    "id": "h-000247",
    "debtId": "d-000010",
-   "debtTitle": "Old iPhone 13",
+   "debtTitle": "Second-hand Phone",
    "date": "2025-03-02T15:33:00.000Z",
    "amount": 800,
    "type": "payment",
@@ -4679,7 +4679,7 @@
    "date": "2025-03-03T06:27:00.000Z",
    "amount": 4800,
    "type": "payment",
-   "person": "Standard Bank"
+   "person": "National Bank"
   },
   {
    "id": "h-000237",
@@ -4688,11 +4688,11 @@
    "date": "2025-03-14T12:07:00.000Z",
    "amount": 750,
    "type": "payment",
-   "person": "Mike Fallout"
+   "person": "Michael Carter"
   },
   {
    "id": "h-000372",
-   "debtTitle": "Budget: Feb Braai Weekend",
+   "debtTitle": "Budget: Feb Event Weekend",
    "date": "2025-03-15T16:00:00.000Z",
    "amount": 1830,
    "type": "budget",
@@ -4701,11 +4701,11 @@
   {
    "id": "h-000123",
    "debtId": "d-000002",
-   "debtTitle": "Bakkie Finance",
+   "debtTitle": "Vehicle Finance",
    "date": "2025-03-16T08:42:00.000Z",
    "amount": 4200,
    "type": "payment",
-   "person": "WesBank",
+   "person": "Auto Finance Co.",
    "label": "Double up"
   },
   {
@@ -4745,11 +4745,11 @@
   {
    "id": "h-000124",
    "debtId": "d-000002",
-   "debtTitle": "Bakkie Finance",
+   "debtTitle": "Vehicle Finance",
    "date": "2025-04-01T07:57:00.000Z",
    "amount": 4200,
    "type": "payment",
-   "person": "WesBank",
+   "person": "Auto Finance Co.",
    "note": "Paid by EFT"
   },
   {
@@ -4759,7 +4759,7 @@
    "date": "2025-04-05T15:25:00.000Z",
    "amount": 5100,
    "type": "payment",
-   "person": "Standard Bank"
+   "person": "National Bank"
   },
   {
    "id": "h-000238",
@@ -4768,7 +4768,7 @@
    "date": "2025-04-07T10:00:00.000Z",
    "amount": 9000,
    "type": "completion",
-   "person": "Mike Fallout",
+   "person": "Michael Carter",
    "note": "Paid off in full"
   },
   {
@@ -4782,7 +4782,7 @@
   {
    "id": "h-000248",
    "debtId": "d-000010",
-   "debtTitle": "Old iPhone 13",
+   "debtTitle": "Second-hand Phone",
    "date": "2025-04-15T07:09:00.000Z",
    "amount": 800,
    "type": "payment",
@@ -4822,12 +4822,12 @@
    "date": "2025-04-30T08:00:00.000Z",
    "amount": 4800,
    "type": "payment",
-   "person": "Standard Bank",
+   "person": "National Bank",
    "label": "Caught up"
   },
   {
    "id": "h-000356",
-   "debtTitle": "Braai supplies",
+   "debtTitle": "Household supplies",
    "date": "2025-05-08T10:00:00.000Z",
    "amount": 1300,
    "type": "expense"
@@ -4835,7 +4835,7 @@
   {
    "id": "h-000249",
    "debtId": "d-000010",
-   "debtTitle": "Old iPhone 13",
+   "debtTitle": "Second-hand Phone",
    "date": "2025-05-10T08:26:00.000Z",
    "amount": 800,
    "type": "payment",
@@ -4845,11 +4845,11 @@
   {
    "id": "h-000125",
    "debtId": "d-000002",
-   "debtTitle": "Bakkie Finance",
+   "debtTitle": "Vehicle Finance",
    "date": "2025-05-13T11:27:00.000Z",
    "amount": 4200,
    "type": "payment",
-   "person": "WesBank"
+   "person": "Auto Finance Co."
   },
   {
    "id": "h-000447",
@@ -4880,11 +4880,11 @@
   {
    "id": "h-000126",
    "debtId": "d-000002",
-   "debtTitle": "Bakkie Finance",
+   "debtTitle": "Vehicle Finance",
    "date": "2025-05-28T17:57:00.000Z",
    "amount": 4200,
    "type": "payment",
-   "person": "WesBank"
+   "person": "Auto Finance Co."
   },
   {
    "id": "h-000267",
@@ -4893,12 +4893,12 @@
    "date": "2025-05-30T17:57:00.000Z",
    "amount": 4800,
    "type": "payment",
-   "person": "Standard Bank"
+   "person": "National Bank"
   },
   {
    "id": "h-000250",
    "debtId": "d-000010",
-   "debtTitle": "Old iPhone 13",
+   "debtTitle": "Second-hand Phone",
    "date": "2025-06-04T06:55:00.000Z",
    "amount": 800,
    "type": "payment",
@@ -4941,7 +4941,7 @@
   {
    "id": "h-000251",
    "debtId": "d-000010",
-   "debtTitle": "Old iPhone 13",
+   "debtTitle": "Second-hand Phone",
    "date": "2025-06-29T15:50:00.000Z",
    "amount": 800,
    "type": "payment",
@@ -4955,11 +4955,11 @@
    "date": "2025-07-02T18:19:00.000Z",
    "amount": 5000,
    "type": "payment",
-   "person": "Standard Bank"
+   "person": "National Bank"
   },
   {
    "id": "h-000373",
-   "debtTitle": "Budget: Jun Camping Trip",
+   "debtTitle": "Budget: Jun Weekend Trip",
    "date": "2025-07-12T16:00:00.000Z",
    "amount": 1690,
    "type": "budget",
@@ -4998,21 +4998,21 @@
    "date": "2025-07-28T11:12:00.000Z",
    "amount": 4800,
    "type": "payment",
-   "person": "Standard Bank"
+   "person": "National Bank"
   },
   {
    "id": "h-000127",
    "debtId": "d-000002",
-   "debtTitle": "Bakkie Finance",
+   "debtTitle": "Vehicle Finance",
    "date": "2025-08-03T12:59:00.000Z",
    "amount": 4200,
    "type": "payment",
-   "person": "WesBank"
+   "person": "Auto Finance Co."
   },
   {
    "id": "h-000252",
    "debtId": "d-000010",
-   "debtTitle": "Old iPhone 13",
+   "debtTitle": "Second-hand Phone",
    "date": "2025-08-08T07:00:00.000Z",
    "amount": 9600,
    "type": "completion",
@@ -5060,17 +5060,17 @@
    "date": "2025-08-26T15:50:00.000Z",
    "amount": 4800,
    "type": "payment",
-   "person": "Standard Bank",
+   "person": "National Bank",
    "label": "Caught up"
   },
   {
    "id": "h-000281",
    "debtId": "d-000012",
-   "debtTitle": "Samsung Galaxy S24",
+   "debtTitle": "Mobile Phone Contract",
    "date": "2025-08-29T06:00:00.000Z",
    "amount": 11400,
    "type": "creation",
-   "person": "Vodacom"
+   "person": "Mobile Carrier"
   },
   {
    "id": "h-000399",
@@ -5083,11 +5083,11 @@
   {
    "id": "h-000128",
    "debtId": "d-000002",
-   "debtTitle": "Bakkie Finance",
+   "debtTitle": "Vehicle Finance",
    "date": "2025-09-06T17:41:00.000Z",
    "amount": 4200,
    "type": "payment",
-   "person": "WesBank"
+   "person": "Auto Finance Co."
   },
   {
    "id": "h-000451",
@@ -5118,11 +5118,11 @@
   {
    "id": "h-000282",
    "debtId": "d-000012",
-   "debtTitle": "Samsung Galaxy S24",
+   "debtTitle": "Mobile Phone Contract",
    "date": "2025-10-07T13:50:00.000Z",
    "amount": 600,
    "type": "payment",
-   "person": "Vodacom"
+   "person": "Mobile Carrier"
   },
   {
    "id": "h-000271",
@@ -5131,7 +5131,7 @@
    "date": "2025-10-11T09:08:00.000Z",
    "amount": 4800,
    "type": "payment",
-   "person": "Standard Bank"
+   "person": "National Bank"
   },
   {
    "id": "h-000400",
@@ -5174,13 +5174,13 @@
    "date": "2025-10-26T17:23:00.000Z",
    "amount": 4800,
    "type": "payment",
-   "person": "Standard Bank",
+   "person": "National Bank",
    "label": "Interest"
   },
   {
    "id": "h-000291",
    "debtId": "d-000013",
-   "debtTitle": "Standard Bank Credit Card",
+   "debtTitle": "Credit Card",
    "date": "2025-10-29T14:00:00.000Z",
    "amount": 18000,
    "type": "creation"
@@ -5188,11 +5188,11 @@
   {
    "id": "h-000283",
    "debtId": "d-000012",
-   "debtTitle": "Samsung Galaxy S24",
+   "debtTitle": "Mobile Phone Contract",
    "date": "2025-11-12T10:12:00.000Z",
    "amount": 1000,
    "type": "payment",
-   "person": "Vodacom"
+   "person": "Mobile Carrier"
   },
   {
    "id": "h-000358",
@@ -5203,7 +5203,7 @@
   },
   {
    "id": "h-000374",
-   "debtTitle": "Budget: Oct Gaming Setup",
+   "debtTitle": "Budget: Oct Home Office Setup",
    "date": "2025-11-15T16:00:00.000Z",
    "amount": 700,
    "type": "budget",
@@ -5238,15 +5238,15 @@
   {
    "id": "h-000300",
    "debtId": "d-000014",
-   "debtTitle": "Braai & Birthday Money",
+   "debtTitle": "Event & Gift Money",
    "date": "2025-11-27T14:00:00.000Z",
    "amount": 6000,
    "type": "creation",
-   "person": "Sarah Oblivion"
+   "person": "Sarah Bennett"
   },
   {
    "id": "h-000359",
-   "debtTitle": "Braai supplies",
+   "debtTitle": "Household supplies",
    "date": "2025-11-27T17:00:00.000Z",
    "amount": 2900,
    "type": "expense"
@@ -5254,11 +5254,11 @@
   {
    "id": "h-000284",
    "debtId": "d-000012",
-   "debtTitle": "Samsung Galaxy S24",
+   "debtTitle": "Mobile Phone Contract",
    "date": "2025-12-03T18:44:00.000Z",
    "amount": 600,
    "type": "payment",
-   "person": "Vodacom"
+   "person": "Mobile Carrier"
   },
   {
    "id": "h-000273",
@@ -5267,7 +5267,7 @@
    "date": "2025-12-16T18:20:00.000Z",
    "amount": 4800,
    "type": "payment",
-   "person": "Standard Bank",
+   "person": "National Bank",
    "note": "Debit order went off"
   },
   {
@@ -5299,7 +5299,7 @@
   {
    "id": "h-000292",
    "debtId": "d-000013",
-   "debtTitle": "Standard Bank Credit Card",
+   "debtTitle": "Credit Card",
    "date": "2026-01-12T09:31:00.000Z",
    "amount": 900,
    "type": "payment"
@@ -5311,25 +5311,25 @@
    "date": "2026-01-13T06:59:00.000Z",
    "amount": 4800,
    "type": "payment",
-   "person": "Standard Bank"
+   "person": "National Bank"
   },
   {
    "id": "h-000301",
    "debtId": "d-000014",
-   "debtTitle": "Braai & Birthday Money",
+   "debtTitle": "Event & Gift Money",
    "date": "2026-01-14T06:31:00.000Z",
    "amount": 500,
    "type": "payment",
-   "person": "Sarah Oblivion"
+   "person": "Sarah Bennett"
   },
   {
    "id": "h-000285",
    "debtId": "d-000012",
-   "debtTitle": "Samsung Galaxy S24",
+   "debtTitle": "Mobile Phone Contract",
    "date": "2026-01-15T13:50:00.000Z",
    "amount": 600,
    "type": "payment",
-   "person": "Vodacom"
+   "person": "Mobile Carrier"
   },
   {
    "id": "h-000360",
@@ -5367,11 +5367,11 @@
   {
    "id": "h-000286",
    "debtId": "d-000012",
-   "debtTitle": "Samsung Galaxy S24",
+   "debtTitle": "Mobile Phone Contract",
    "date": "2026-01-29T06:42:00.000Z",
    "amount": 600,
    "type": "payment",
-   "person": "Vodacom"
+   "person": "Mobile Carrier"
   },
   {
    "id": "h-000309",
@@ -5380,7 +5380,7 @@
    "date": "2026-01-30T12:00:00.000Z",
    "amount": 12000,
    "type": "creation",
-   "person": "Mike Fallout"
+   "person": "Michael Carter"
   },
   {
    "id": "h-000401",
@@ -5393,16 +5393,16 @@
   {
    "id": "h-000302",
    "debtId": "d-000014",
-   "debtTitle": "Braai & Birthday Money",
+   "debtTitle": "Event & Gift Money",
    "date": "2026-02-05T09:20:00.000Z",
    "amount": 500,
    "type": "payment",
-   "person": "Sarah Oblivion"
+   "person": "Sarah Bennett"
   },
   {
    "id": "h-000293",
    "debtId": "d-000013",
-   "debtTitle": "Standard Bank Credit Card",
+   "debtTitle": "Credit Card",
    "date": "2026-02-09T09:24:00.000Z",
    "amount": 900,
    "type": "payment"
@@ -5436,11 +5436,11 @@
   {
    "id": "h-000319",
    "debtId": "d-000017",
-   "debtTitle": "Couch Money",
+   "debtTitle": "Furniture Purchase",
    "date": "2026-03-01T11:00:00.000Z",
    "amount": 4500,
    "type": "creation",
-   "person": "Sarah Oblivion"
+   "person": "Sarah Bennett"
   },
   {
    "id": "h-000402",
@@ -5453,11 +5453,11 @@
   {
    "id": "h-000303",
    "debtId": "d-000014",
-   "debtTitle": "Braai & Birthday Money",
+   "debtTitle": "Event & Gift Money",
    "date": "2026-03-06T09:25:00.000Z",
    "amount": 500,
    "type": "payment",
-   "person": "Sarah Oblivion"
+   "person": "Sarah Bennett"
   },
   {
    "id": "h-000310",
@@ -5466,12 +5466,12 @@
    "date": "2026-03-07T07:22:00.000Z",
    "amount": 1500,
    "type": "payment",
-   "person": "Mike Fallout"
+   "person": "Michael Carter"
   },
   {
    "id": "h-000294",
    "debtId": "d-000013",
-   "debtTitle": "Standard Bank Credit Card",
+   "debtTitle": "Credit Card",
    "date": "2026-03-08T14:07:00.000Z",
    "amount": 900,
    "type": "payment",
@@ -5484,11 +5484,11 @@
    "date": "2026-03-10T08:31:00.000Z",
    "amount": 4800,
    "type": "payment",
-   "person": "Standard Bank"
+   "person": "National Bank"
   },
   {
    "id": "h-000375",
-   "debtTitle": "Budget: Feb Braai Weekend",
+   "debtTitle": "Budget: Feb Event Weekend",
    "date": "2026-03-14T16:00:00.000Z",
    "amount": 1750,
    "type": "budget",
@@ -5523,20 +5523,20 @@
   {
    "id": "h-000320",
    "debtId": "d-000017",
-   "debtTitle": "Couch Money",
+   "debtTitle": "Furniture Purchase",
    "date": "2026-03-26T13:06:00.000Z",
    "amount": 750,
    "type": "payment",
-   "person": "Sarah Oblivion"
+   "person": "Sarah Bennett"
   },
   {
    "id": "h-000314",
    "debtId": "d-000016",
-   "debtTitle": "Tifa’s Camera Loan",
+   "debtTitle": "Camera Equipment Loan",
    "date": "2026-03-27T07:00:00.000Z",
    "amount": 8000,
    "type": "creation",
-   "person": "Tifa Lockwood"
+   "person": "Laura Chen"
   },
   {
    "id": "h-000403",
@@ -5549,7 +5549,7 @@
   {
    "id": "h-000295",
    "debtId": "d-000013",
-   "debtTitle": "Standard Bank Credit Card",
+   "debtTitle": "Credit Card",
    "date": "2026-04-09T16:31:00.000Z",
    "amount": 1100,
    "type": "payment"
@@ -5561,16 +5561,16 @@
    "date": "2026-04-11T14:29:00.000Z",
    "amount": 5400,
    "type": "payment",
-   "person": "Standard Bank"
+   "person": "National Bank"
   },
   {
    "id": "h-000304",
    "debtId": "d-000014",
-   "debtTitle": "Braai & Birthday Money",
+   "debtTitle": "Event & Gift Money",
    "date": "2026-04-14T09:57:00.000Z",
    "amount": 500,
    "type": "payment",
-   "person": "Sarah Oblivion"
+   "person": "Sarah Bennett"
   },
   {
    "id": "h-000458",
@@ -5605,7 +5605,7 @@
    "date": "2026-04-27T08:00:00.000Z",
    "amount": 5200,
    "type": "creation",
-   "person": "Mike Fallout"
+   "person": "Michael Carter"
   },
   {
    "id": "h-000404",
@@ -5618,11 +5618,11 @@
   {
    "id": "h-000305",
    "debtId": "d-000014",
-   "debtTitle": "Braai & Birthday Money",
+   "debtTitle": "Event & Gift Money",
    "date": "2026-05-01T17:42:00.000Z",
    "amount": 500,
    "type": "payment",
-   "person": "Sarah Oblivion",
+   "person": "Sarah Bennett",
    "note": "Paid by EFT"
   },
   {
@@ -5632,31 +5632,31 @@
    "date": "2026-05-02T10:34:00.000Z",
    "amount": 4800,
    "type": "payment",
-   "person": "Standard Bank"
+   "person": "National Bank"
   },
   {
    "id": "h-000315",
    "debtId": "d-000016",
-   "debtTitle": "Tifa’s Camera Loan",
+   "debtTitle": "Camera Equipment Loan",
    "date": "2026-05-09T14:59:00.000Z",
    "amount": 800,
    "type": "payment",
-   "person": "Tifa Lockwood"
+   "person": "Laura Chen"
   },
   {
    "id": "h-000321",
    "debtId": "d-000017",
-   "debtTitle": "Couch Money",
+   "debtTitle": "Furniture Purchase",
    "date": "2026-05-10T07:34:00.000Z",
    "amount": 750,
    "type": "payment",
-   "person": "Sarah Oblivion",
+   "person": "Sarah Bennett",
    "label": "Caught up"
   },
   {
    "id": "h-000296",
    "debtId": "d-000013",
-   "debtTitle": "Standard Bank Credit Card",
+   "debtTitle": "Credit Card",
    "date": "2026-05-12T11:07:00.000Z",
    "amount": 900,
    "type": "payment",
@@ -5665,11 +5665,11 @@
   {
    "id": "h-000287",
    "debtId": "d-000012",
-   "debtTitle": "Samsung Galaxy S24",
+   "debtTitle": "Mobile Phone Contract",
    "date": "2026-05-12T12:00:00.000Z",
    "amount": 600,
    "type": "payment",
-   "person": "Vodacom"
+   "person": "Mobile Carrier"
   },
   {
    "id": "h-000459",
@@ -5700,11 +5700,11 @@
   {
    "id": "h-000306",
    "debtId": "d-000014",
-   "debtTitle": "Braai & Birthday Money",
+   "debtTitle": "Event & Gift Money",
    "date": "2026-05-31T08:13:00.000Z",
    "amount": 500,
    "type": "payment",
-   "person": "Sarah Oblivion",
+   "person": "Sarah Bennett",
    "label": "Double up"
   },
   {
@@ -5714,7 +5714,7 @@
    "date": "2026-06-01T07:10:00.000Z",
    "amount": 1000,
    "type": "payment",
-   "person": "Mike Fallout"
+   "person": "Michael Carter"
   },
   {
    "id": "h-000326",
@@ -5723,27 +5723,27 @@
    "date": "2026-06-01T14:02:00.000Z",
    "amount": 650,
    "type": "payment",
-   "person": "Mike Fallout",
+   "person": "Michael Carter",
    "label": "Interest"
   },
   {
    "id": "h-000288",
    "debtId": "d-000012",
-   "debtTitle": "Samsung Galaxy S24",
+   "debtTitle": "Mobile Phone Contract",
    "date": "2026-06-03T11:51:00.000Z",
    "amount": 600,
    "type": "payment",
-   "person": "Vodacom",
+   "person": "Mobile Carrier",
    "label": "Interest"
   },
   {
    "id": "h-000322",
    "debtId": "d-000017",
-   "debtTitle": "Couch Money",
+   "debtTitle": "Furniture Purchase",
    "date": "2026-06-04T07:58:00.000Z",
    "amount": 750,
    "type": "payment",
-   "person": "Sarah Oblivion"
+   "person": "Sarah Bennett"
   },
   {
    "id": "h-000278",
@@ -5752,12 +5752,12 @@
    "date": "2026-06-04T11:35:00.000Z",
    "amount": 4800,
    "type": "payment",
-   "person": "Standard Bank"
+   "person": "National Bank"
   },
   {
    "id": "h-000297",
    "debtId": "d-000013",
-   "debtTitle": "Standard Bank Credit Card",
+   "debtTitle": "Credit Card",
    "date": "2026-06-11T16:07:00.000Z",
    "amount": 1000,
    "type": "payment"
@@ -5765,11 +5765,11 @@
   {
    "id": "h-000316",
    "debtId": "d-000016",
-   "debtTitle": "Tifa’s Camera Loan",
+   "debtTitle": "Camera Equipment Loan",
    "date": "2026-06-14T06:01:00.000Z",
    "amount": 800,
    "type": "payment",
-   "person": "Tifa Lockwood"
+   "person": "Laura Chen"
   },
   {
    "id": "h-000405",
@@ -5808,11 +5808,11 @@
   {
    "id": "h-000289",
    "debtId": "d-000012",
-   "debtTitle": "Samsung Galaxy S24",
+   "debtTitle": "Mobile Phone Contract",
    "date": "2026-06-27T16:53:00.000Z",
    "amount": 600,
    "type": "payment",
-   "person": "Vodacom"
+   "person": "Mobile Carrier"
   },
   {
    "id": "h-000327",
@@ -5821,11 +5821,11 @@
    "date": "2026-06-28T11:46:00.000Z",
    "amount": 650,
    "type": "payment",
-   "person": "Mike Fallout"
+   "person": "Michael Carter"
   },
   {
    "id": "h-000361",
-   "debtTitle": "Braai supplies",
+   "debtTitle": "Household supplies",
    "date": "2026-06-29T11:00:00.000Z",
    "amount": 1600,
    "type": "expense"
@@ -5837,12 +5837,12 @@
    "date": "2026-07-05T09:58:00.000Z",
    "amount": 1000,
    "type": "payment",
-   "person": "Mike Fallout",
+   "person": "Michael Carter",
    "note": "Debit order went off"
   },
   {
    "id": "h-000376",
-   "debtTitle": "Budget: Jun Camping Trip",
+   "debtTitle": "Budget: Jun Weekend Trip",
    "date": "2026-07-08T16:00:00.000Z",
    "amount": 1300,
    "type": "budget",
@@ -5851,7 +5851,7 @@
   {
    "id": "h-000298",
    "debtId": "d-000013",
-   "debtTitle": "Standard Bank Credit Card",
+   "debtTitle": "Credit Card",
    "date": "2026-07-09T09:53:00.000Z",
    "amount": 900,
    "type": "payment",
@@ -5864,34 +5864,34 @@
    "date": "2026-07-10T18:06:00.000Z",
    "amount": 4800,
    "type": "payment",
-   "person": "Standard Bank"
+   "person": "National Bank"
   },
   {
    "id": "h-000323",
    "debtId": "d-000017",
-   "debtTitle": "Couch Money",
+   "debtTitle": "Furniture Purchase",
    "date": "2026-07-11T16:56:00.000Z",
    "amount": 750,
    "type": "payment",
-   "person": "Sarah Oblivion"
+   "person": "Sarah Bennett"
   },
   {
    "id": "h-000317",
    "debtId": "d-000016",
-   "debtTitle": "Tifa’s Camera Loan",
+   "debtTitle": "Camera Equipment Loan",
    "date": "2026-07-15T09:45:00.000Z",
    "amount": 800,
    "type": "payment",
-   "person": "Tifa Lockwood"
+   "person": "Laura Chen"
   },
   {
    "id": "h-000307",
    "debtId": "d-000014",
-   "debtTitle": "Braai & Birthday Money",
+   "debtTitle": "Event & Gift Money",
    "date": "2026-07-15T17:27:00.000Z",
    "amount": 500,
    "type": "payment",
-   "person": "Sarah Oblivion",
+   "person": "Sarah Bennett",
    "note": "Debit order went off"
   },
   {
@@ -5935,25 +5935,25 @@
    "date": "2026-07-30T07:26:00.000Z",
    "amount": 650,
    "type": "payment",
-   "person": "Mike Fallout"
+   "person": "Michael Carter"
   },
   {
    "id": "h-000324",
    "debtId": "d-000017",
-   "debtTitle": "Couch Money",
+   "debtTitle": "Furniture Purchase",
    "date": "2026-08-01T10:53:00.000Z",
    "amount": 750,
    "type": "payment",
-   "person": "Sarah Oblivion"
+   "person": "Sarah Bennett"
   },
   {
    "id": "h-000308",
    "debtId": "d-000014",
-   "debtTitle": "Braai & Birthday Money",
+   "debtTitle": "Event & Gift Money",
    "date": "2026-08-01T15:35:00.000Z",
    "amount": 500,
    "type": "payment",
-   "person": "Sarah Oblivion"
+   "person": "Sarah Bennett"
   },
   {
    "id": "h-000313",
@@ -5962,7 +5962,7 @@
    "date": "2026-08-01T15:55:00.000Z",
    "amount": 1000,
    "type": "payment",
-   "person": "Mike Fallout"
+   "person": "Michael Carter"
   },
   {
    "id": "h-000362",
@@ -5978,7 +5978,7 @@
    "date": "2026-08-04T18:37:00.000Z",
    "amount": 4800,
    "type": "payment",
-   "person": "Standard Bank"
+   "person": "National Bank"
   },
   {
    "id": "h-000406",
@@ -5991,26 +5991,26 @@
   {
    "id": "h-000290",
    "debtId": "d-000012",
-   "debtTitle": "Samsung Galaxy S24",
+   "debtTitle": "Mobile Phone Contract",
    "date": "2026-08-06T12:35:00.000Z",
    "amount": 600,
    "type": "payment",
-   "person": "Vodacom",
+   "person": "Mobile Carrier",
    "note": "Paid late, sorry"
   },
   {
    "id": "h-000318",
    "debtId": "d-000016",
-   "debtTitle": "Tifa’s Camera Loan",
+   "debtTitle": "Camera Equipment Loan",
    "date": "2026-08-12T16:39:00.000Z",
    "amount": 800,
    "type": "payment",
-   "person": "Tifa Lockwood"
+   "person": "Laura Chen"
   },
   {
    "id": "h-000299",
    "debtId": "d-000013",
-   "debtTitle": "Standard Bank Credit Card",
+   "debtTitle": "Credit Card",
    "date": "2026-08-15T07:25:00.000Z",
    "amount": 900,
    "type": "payment"
@@ -6058,11 +6058,11 @@
    "date": "2026-08-25T22:00:00.000Z",
    "createdAt": "2022-01-03T06:00:00.000Z",
    "recurring": true,
-   "note": "Checkers + Woolies run"
+   "note": "Weekly supermarket run"
   },
   {
    "id": "e-000003",
-   "title": "Netflix",
+   "title": "Streaming Service",
    "amount": 229,
    "date": "2026-08-25T22:00:00.000Z",
    "createdAt": "2022-01-03T06:00:00.000Z",
@@ -6070,7 +6070,7 @@
   },
   {
    "id": "e-000004",
-   "title": "Spotify Family",
+   "title": "Music Subscription",
    "amount": 169,
    "date": "2026-08-25T22:00:00.000Z",
    "createdAt": "2022-01-03T06:00:00.000Z",
@@ -6078,7 +6078,7 @@
   },
   {
    "id": "e-000005",
-   "title": "Cell Contract",
+   "title": "Mobile Contract",
    "amount": 549,
    "date": "2026-08-25T22:00:00.000Z",
    "createdAt": "2022-01-03T06:00:00.000Z",
@@ -6086,7 +6086,7 @@
   },
   {
    "id": "e-000006",
-   "title": "Fibre Internet",
+   "title": "Home Internet",
    "amount": 899,
    "date": "2026-08-25T22:00:00.000Z",
    "createdAt": "2022-01-03T06:00:00.000Z",
@@ -6094,7 +6094,7 @@
   },
   {
    "id": "e-000007",
-   "title": "Medical Aid",
+   "title": "Health Insurance",
    "amount": 1450,
    "date": "2026-08-25T22:00:00.000Z",
    "createdAt": "2022-01-03T06:00:00.000Z",
@@ -6172,13 +6172,13 @@
   }
  ],
  "transportSettings": {
-  "driverName": "Bra Vusi",
+  "driverName": "Chris Walker",
   "employed": true,
   "pricingMode": "daily",
   "dailyFee": 96,
   "monthlyFee": 0,
   "jobTitle": "Software Developer",
-  "company": "Ephemeral Tech",
+  "company": "Northwind Technologies",
   "employmentStartDate": "2022-01-03"
  },
  "transportOverrides": {
@@ -7262,8 +7262,8 @@
    "date": "2022-02-08",
    "price": 119,
    "distance": 16,
-   "from": "The Pavilion",
-   "to": "Mum’s place",
+   "from": "Shopping Centre",
+   "to": "Family Home",
    "createdAt": "2022-02-08T18:54:00.000Z"
   },
   {
@@ -7271,7 +7271,7 @@
    "date": "2022-02-12",
    "price": 158,
    "distance": 21.2,
-   "from": "Umhlanga",
+   "from": "North Side",
    "to": "Home",
    "createdAt": "2022-02-12T16:29:00.000Z"
   },
@@ -7280,7 +7280,7 @@
    "date": "2022-02-27",
    "price": 55,
    "distance": 8.2,
-   "from": "Florida Road",
+   "from": "City Centre",
    "to": "Airport",
    "createdAt": "2022-02-27T17:37:00.000Z"
   },
@@ -7289,8 +7289,8 @@
    "date": "2022-03-22",
    "price": 230,
    "distance": 10.3,
-   "from": "The Pavilion",
-   "to": "Umhlanga",
+   "from": "Shopping Centre",
+   "to": "North Side",
    "createdAt": "2022-03-22T17:16:00.000Z"
   },
   {
@@ -7298,8 +7298,8 @@
    "date": "2022-03-26",
    "price": 205,
    "distance": 19,
-   "from": "The Pavilion",
-   "to": "Umhlanga",
+   "from": "Shopping Centre",
+   "to": "North Side",
    "createdAt": "2022-03-26T16:23:00.000Z"
   },
   {
@@ -7307,8 +7307,8 @@
    "date": "2022-03-27",
    "price": 137,
    "distance": 24.9,
-   "from": "Sandton City",
-   "to": "Florida Road",
+   "from": "Business District",
+   "to": "City Centre",
    "createdAt": "2022-03-27T16:03:00.000Z"
   },
   {
@@ -7316,8 +7316,8 @@
    "date": "2022-04-11",
    "price": 220,
    "distance": 4.7,
-   "from": "Umhlanga",
-   "to": "Florida Road",
+   "from": "North Side",
+   "to": "City Centre",
    "createdAt": "2022-04-11T10:18:00.000Z"
   },
   {
@@ -7334,7 +7334,7 @@
    "date": "2022-05-28",
    "price": 185,
    "distance": 13.5,
-   "from": "Umhlanga",
+   "from": "North Side",
    "to": "Gym",
    "createdAt": "2022-05-28T08:22:00.000Z"
   },
@@ -7343,8 +7343,8 @@
    "date": "2022-06-05",
    "price": 254,
    "distance": 9.4,
-   "from": "Florida Road",
-   "to": "Mum’s place",
+   "from": "City Centre",
+   "to": "Family Home",
    "createdAt": "2022-06-05T18:44:00.000Z"
   },
   {
@@ -7352,8 +7352,8 @@
    "date": "2022-06-18",
    "price": 135,
    "distance": 16.5,
-   "from": "Umhlanga",
-   "to": "Mum’s place",
+   "from": "North Side",
+   "to": "Family Home",
    "createdAt": "2022-06-18T07:00:00.000Z"
   },
   {
@@ -7361,8 +7361,8 @@
    "date": "2022-08-31",
    "price": 251,
    "distance": 23.1,
-   "from": "Florida Road",
-   "to": "The Pavilion",
+   "from": "City Centre",
+   "to": "Shopping Centre",
    "createdAt": "2022-08-31T13:30:00.000Z"
   },
   {
@@ -7370,8 +7370,8 @@
    "date": "2022-11-04",
    "price": 150,
    "distance": 5,
-   "from": "The Pavilion",
-   "to": "Mum’s place",
+   "from": "Shopping Centre",
+   "to": "Family Home",
    "createdAt": "2022-11-04T19:47:00.000Z"
   },
   {
@@ -7379,7 +7379,7 @@
    "date": "2022-11-04",
    "price": 251,
    "distance": 16.3,
-   "from": "Sandton City",
+   "from": "Business District",
    "to": "Gym",
    "createdAt": "2022-11-04T20:18:00.000Z"
   },
@@ -7388,7 +7388,7 @@
    "date": "2022-11-30",
    "price": 56,
    "distance": 9,
-   "from": "Mum’s place",
+   "from": "Family Home",
    "to": "Office",
    "createdAt": "2022-11-30T07:28:00.000Z"
   },
@@ -7397,7 +7397,7 @@
    "date": "2022-12-02",
    "price": 54,
    "distance": 15.3,
-   "from": "Mum’s place",
+   "from": "Family Home",
    "to": "Home",
    "createdAt": "2022-12-02T18:14:00.000Z"
   },
@@ -7424,7 +7424,7 @@
    "date": "2023-02-12",
    "price": 244,
    "distance": 18.6,
-   "from": "Mum’s place",
+   "from": "Family Home",
    "to": "Home",
    "createdAt": "2023-02-12T19:38:00.000Z"
   },
@@ -7434,7 +7434,7 @@
    "price": 148,
    "distance": 6.7,
    "from": "Office",
-   "to": "Mum’s place",
+   "to": "Family Home",
    "createdAt": "2023-03-04T14:23:00.000Z"
   },
   {
@@ -7442,7 +7442,7 @@
    "date": "2023-03-18",
    "price": 201,
    "distance": 12,
-   "from": "Sandton City",
+   "from": "Business District",
    "to": "Airport",
    "createdAt": "2023-03-18T11:36:00.000Z"
   },
@@ -7452,7 +7452,7 @@
    "price": 241,
    "distance": 14.6,
    "from": "Airport",
-   "to": "Florida Road",
+   "to": "City Centre",
    "createdAt": "2023-05-02T06:09:00.000Z"
   },
   {
@@ -7460,7 +7460,7 @@
    "date": "2023-05-28",
    "price": 174,
    "distance": 11.7,
-   "from": "Sandton City",
+   "from": "Business District",
    "to": "Home",
    "createdAt": "2023-05-28T14:50:00.000Z"
   },
@@ -7469,8 +7469,8 @@
    "date": "2023-07-08",
    "price": 179,
    "distance": 18.1,
-   "from": "The Pavilion",
-   "to": "Umhlanga",
+   "from": "Shopping Centre",
+   "to": "North Side",
    "createdAt": "2023-07-08T11:03:00.000Z"
   },
   {
@@ -7478,7 +7478,7 @@
    "date": "2023-07-16",
    "price": 74,
    "distance": 21.8,
-   "from": "Mum’s place",
+   "from": "Family Home",
    "to": "Home",
    "createdAt": "2023-07-16T16:23:00.000Z"
   },
@@ -7487,7 +7487,7 @@
    "date": "2023-07-20",
    "price": 127,
    "distance": 24.2,
-   "from": "Mum’s place",
+   "from": "Family Home",
    "to": "Home",
    "createdAt": "2023-07-20T15:34:00.000Z"
   },
@@ -7497,7 +7497,7 @@
    "price": 143,
    "distance": 3.9,
    "from": "Gym",
-   "to": "The Pavilion",
+   "to": "Shopping Centre",
    "createdAt": "2023-10-05T20:28:00.000Z"
   },
   {
@@ -7505,7 +7505,7 @@
    "date": "2023-11-07",
    "price": 216,
    "distance": 17.2,
-   "from": "Umhlanga",
+   "from": "North Side",
    "to": "Gym",
    "createdAt": "2023-11-07T19:20:00.000Z"
   },
@@ -7515,7 +7515,7 @@
    "price": 180,
    "distance": 5.1,
    "from": "Gym",
-   "to": "The Pavilion",
+   "to": "Shopping Centre",
    "createdAt": "2023-11-12T05:47:00.000Z"
   },
   {
@@ -7523,7 +7523,7 @@
    "date": "2023-11-19",
    "price": 47,
    "distance": 13.4,
-   "from": "The Pavilion",
+   "from": "Shopping Centre",
    "to": "Home",
    "createdAt": "2023-11-19T20:55:00.000Z"
   },
@@ -7532,7 +7532,7 @@
    "date": "2023-12-18",
    "price": 128,
    "distance": 18.5,
-   "from": "Florida Road",
+   "from": "City Centre",
    "to": "Airport",
    "createdAt": "2023-12-18T09:38:00.000Z"
   },
@@ -7542,7 +7542,7 @@
    "price": 97,
    "distance": 12,
    "from": "Gym",
-   "to": "The Pavilion",
+   "to": "Shopping Centre",
    "createdAt": "2024-01-07T10:23:00.000Z"
   },
   {
@@ -7560,7 +7560,7 @@
    "price": 58,
    "distance": 12.4,
    "from": "Office",
-   "to": "Umhlanga",
+   "to": "North Side",
    "createdAt": "2024-01-18T12:44:00.000Z"
   },
   {
@@ -7577,8 +7577,8 @@
    "date": "2024-02-04",
    "price": 251,
    "distance": 14.8,
-   "from": "Gateway Mall",
-   "to": "Florida Road",
+   "from": "Retail Park",
+   "to": "City Centre",
    "createdAt": "2024-02-04T15:33:00.000Z"
   },
   {
@@ -7587,7 +7587,7 @@
    "price": 46,
    "distance": 20.4,
    "from": "Office",
-   "to": "The Pavilion",
+   "to": "Shopping Centre",
    "createdAt": "2024-03-11T09:08:00.000Z"
   },
   {
@@ -7595,8 +7595,8 @@
    "date": "2024-03-21",
    "price": 194,
    "distance": 20.6,
-   "from": "Florida Road",
-   "to": "Gateway Mall",
+   "from": "City Centre",
+   "to": "Retail Park",
    "createdAt": "2024-03-21T17:57:00.000Z"
   },
   {
@@ -7614,7 +7614,7 @@
    "price": 63,
    "distance": 7.4,
    "from": "Home",
-   "to": "Mum’s place",
+   "to": "Family Home",
    "createdAt": "2024-05-05T19:06:00.000Z"
   },
   {
@@ -7623,7 +7623,7 @@
    "price": 118,
    "distance": 6.8,
    "from": "Gym",
-   "to": "The Pavilion",
+   "to": "Shopping Centre",
    "createdAt": "2024-05-21T06:38:00.000Z"
   },
   {
@@ -7631,8 +7631,8 @@
    "date": "2024-06-18",
    "price": 76,
    "distance": 5.6,
-   "from": "Sandton City",
-   "to": "Florida Road",
+   "from": "Business District",
+   "to": "City Centre",
    "createdAt": "2024-06-18T17:24:00.000Z"
   },
   {
@@ -7640,7 +7640,7 @@
    "date": "2024-08-07",
    "price": 81,
    "distance": 17.9,
-   "from": "The Pavilion",
+   "from": "Shopping Centre",
    "to": "Gym",
    "createdAt": "2024-08-07T17:00:00.000Z"
   },
@@ -7650,7 +7650,7 @@
    "price": 78,
    "distance": 19.9,
    "from": "Office",
-   "to": "Mum’s place",
+   "to": "Family Home",
    "createdAt": "2024-09-04T17:02:00.000Z"
   },
   {
@@ -7658,8 +7658,8 @@
    "date": "2024-09-28",
    "price": 259,
    "distance": 16.2,
-   "from": "Mum’s place",
-   "to": "Sandton City",
+   "from": "Family Home",
+   "to": "Business District",
    "createdAt": "2024-09-28T07:28:00.000Z"
   },
   {
@@ -7667,7 +7667,7 @@
    "date": "2024-10-03",
    "price": 185,
    "distance": 3.3,
-   "from": "Gateway Mall",
+   "from": "Retail Park",
    "to": "Home",
    "createdAt": "2024-10-03T18:44:00.000Z"
   },
@@ -7676,7 +7676,7 @@
    "date": "2024-10-04",
    "price": 228,
    "distance": 22.3,
-   "from": "Gateway Mall",
+   "from": "Retail Park",
    "to": "Home",
    "createdAt": "2024-10-04T13:04:00.000Z"
   },
@@ -7685,8 +7685,8 @@
    "date": "2024-12-18",
    "price": 126,
    "distance": 7,
-   "from": "Mum’s place",
-   "to": "The Pavilion",
+   "from": "Family Home",
+   "to": "Shopping Centre",
    "createdAt": "2024-12-18T07:45:00.000Z"
   },
   {
@@ -7704,7 +7704,7 @@
    "price": 178,
    "distance": 8.1,
    "from": "Gym",
-   "to": "Umhlanga",
+   "to": "North Side",
    "createdAt": "2025-01-20T17:12:00.000Z"
   },
   {
@@ -7713,7 +7713,7 @@
    "price": 260,
    "distance": 8.9,
    "from": "Home",
-   "to": "Umhlanga",
+   "to": "North Side",
    "createdAt": "2025-02-14T16:43:00.000Z"
   },
   {
@@ -7721,8 +7721,8 @@
    "date": "2025-03-08",
    "price": 122,
    "distance": 9.6,
-   "from": "Florida Road",
-   "to": "Gateway Mall",
+   "from": "City Centre",
+   "to": "Retail Park",
    "createdAt": "2025-03-08T09:43:00.000Z"
   },
   {
@@ -7730,7 +7730,7 @@
    "date": "2025-03-12",
    "price": 108,
    "distance": 12,
-   "from": "Umhlanga",
+   "from": "North Side",
    "to": "Airport",
    "createdAt": "2025-03-12T20:18:00.000Z"
   },
@@ -7740,7 +7740,7 @@
    "price": 49,
    "distance": 3.3,
    "from": "Office",
-   "to": "Gateway Mall",
+   "to": "Retail Park",
    "createdAt": "2025-03-23T16:59:00.000Z"
   },
   {
@@ -7748,7 +7748,7 @@
    "date": "2025-05-31",
    "price": 165,
    "distance": 22.8,
-   "from": "Sandton City",
+   "from": "Business District",
    "to": "Home",
    "createdAt": "2025-05-31T08:35:00.000Z"
   },
@@ -7757,8 +7757,8 @@
    "date": "2025-05-31",
    "price": 79,
    "distance": 12.6,
-   "from": "Umhlanga",
-   "to": "Sandton City",
+   "from": "North Side",
+   "to": "Business District",
    "createdAt": "2025-05-31T15:07:00.000Z"
   },
   {
@@ -7766,8 +7766,8 @@
    "date": "2025-06-26",
    "price": 84,
    "distance": 6.2,
-   "from": "Umhlanga",
-   "to": "Gateway Mall",
+   "from": "North Side",
+   "to": "Retail Park",
    "createdAt": "2025-06-26T13:51:00.000Z"
   },
   {
@@ -7775,8 +7775,8 @@
    "date": "2025-07-20",
    "price": 144,
    "distance": 21.5,
-   "from": "Mum’s place",
-   "to": "Umhlanga",
+   "from": "Family Home",
+   "to": "North Side",
    "createdAt": "2025-07-20T09:10:00.000Z"
   },
   {
@@ -7784,8 +7784,8 @@
    "date": "2025-09-18",
    "price": 136,
    "distance": 8.3,
-   "from": "Sandton City",
-   "to": "Umhlanga",
+   "from": "Business District",
+   "to": "North Side",
    "createdAt": "2025-09-18T16:43:00.000Z"
   },
   {
@@ -7793,8 +7793,8 @@
    "date": "2025-10-09",
    "price": 149,
    "distance": 8.1,
-   "from": "Umhlanga",
-   "to": "The Pavilion",
+   "from": "North Side",
+   "to": "Shopping Centre",
    "createdAt": "2025-10-09T12:55:00.000Z"
   },
   {
@@ -7802,8 +7802,8 @@
    "date": "2025-10-13",
    "price": 92,
    "distance": 12.2,
-   "from": "Florida Road",
-   "to": "The Pavilion",
+   "from": "City Centre",
+   "to": "Shopping Centre",
    "createdAt": "2025-10-13T11:21:00.000Z"
   },
   {
@@ -7821,7 +7821,7 @@
    "price": 179,
    "distance": 24.1,
    "from": "Home",
-   "to": "Mum’s place",
+   "to": "Family Home",
    "createdAt": "2025-10-27T14:06:00.000Z"
   },
   {
@@ -7829,7 +7829,7 @@
    "date": "2025-11-23",
    "price": 73,
    "distance": 16.6,
-   "from": "Florida Road",
+   "from": "City Centre",
    "to": "Gym",
    "createdAt": "2025-11-23T12:11:00.000Z"
   },
@@ -7839,7 +7839,7 @@
    "price": 116,
    "distance": 22.9,
    "from": "Office",
-   "to": "Mum’s place",
+   "to": "Family Home",
    "createdAt": "2025-11-23T17:39:00.000Z"
   },
   {
@@ -7848,7 +7848,7 @@
    "price": 218,
    "distance": 24.3,
    "from": "Airport",
-   "to": "Mum’s place",
+   "to": "Family Home",
    "createdAt": "2025-12-26T18:24:00.000Z"
   },
   {
@@ -7866,7 +7866,7 @@
    "price": 144,
    "distance": 16.1,
    "from": "Gym",
-   "to": "The Pavilion",
+   "to": "Shopping Centre",
    "createdAt": "2026-01-21T10:01:00.000Z"
   },
   {
@@ -7875,7 +7875,7 @@
    "price": 193,
    "distance": 5.1,
    "from": "Home",
-   "to": "Sandton City",
+   "to": "Business District",
    "createdAt": "2026-01-31T12:58:00.000Z"
   },
   {
@@ -7892,7 +7892,7 @@
    "date": "2026-03-27",
    "price": 208,
    "distance": 10.2,
-   "from": "Sandton City",
+   "from": "Business District",
    "to": "Airport",
    "createdAt": "2026-03-27T14:48:00.000Z"
   },
@@ -7901,7 +7901,7 @@
    "date": "2026-03-27",
    "price": 165,
    "distance": 9.6,
-   "from": "Sandton City",
+   "from": "Business District",
    "to": "Airport",
    "createdAt": "2026-03-27T19:43:00.000Z"
   },
@@ -7910,8 +7910,8 @@
    "date": "2026-04-16",
    "price": 163,
    "distance": 6.4,
-   "from": "Florida Road",
-   "to": "Umhlanga",
+   "from": "City Centre",
+   "to": "North Side",
    "createdAt": "2026-04-16T17:29:00.000Z"
   },
   {
@@ -7920,7 +7920,7 @@
    "price": 213,
    "distance": 5.6,
    "from": "Airport",
-   "to": "Mum’s place",
+   "to": "Family Home",
    "createdAt": "2026-05-07T10:46:00.000Z"
   },
   {
@@ -7928,7 +7928,7 @@
    "date": "2026-06-07",
    "price": 211,
    "distance": 10.6,
-   "from": "Mum’s place",
+   "from": "Family Home",
    "to": "Gym",
    "createdAt": "2026-06-07T14:32:00.000Z"
   },
@@ -7946,20 +7946,20 @@
    "date": "2026-06-19",
    "price": 172,
    "distance": 12.3,
-   "from": "Umhlanga",
-   "to": "The Pavilion",
+   "from": "North Side",
+   "to": "Shopping Centre",
    "createdAt": "2026-06-19T08:52:00.000Z"
   }
  ],
  "budgetPlans": [
   {
    "id": "b-000001",
-   "name": "Feb Braai Weekend",
+   "name": "Feb Event Weekend",
    "budget": 900,
    "items": [
     {
      "id": "bi-000001",
-     "name": "Rice & pantry staples",
+     "name": "Pantry staples",
      "price": 340,
      "purchased": true,
      "createdAt": "2022-03-01T12:25:00.000Z"
@@ -7973,14 +7973,14 @@
     },
     {
      "id": "bi-000003",
-     "name": "Rice & pantry staples",
+     "name": "Pantry staples",
      "price": 120,
      "purchased": true,
      "createdAt": "2022-03-01T10:06:00.000Z"
     },
     {
      "id": "bi-000004",
-     "name": "Rice & pantry staples",
+     "name": "Pantry staples",
      "price": 270,
      "purchased": true,
      "createdAt": "2022-03-01T16:13:00.000Z"
@@ -7993,7 +7993,7 @@
   },
   {
    "id": "b-000002",
-   "name": "Jun Camping Trip",
+   "name": "Jun Weekend Trip",
    "budget": 2500,
    "items": [
     {
@@ -8039,7 +8039,7 @@
   },
   {
    "id": "b-000003",
-   "name": "Oct Gaming Setup",
+   "name": "Oct Home Office Setup",
    "budget": 2300,
    "items": [
     {
@@ -8092,7 +8092,7 @@
   },
   {
    "id": "b-000004",
-   "name": "Feb Braai Weekend",
+   "name": "Feb Event Weekend",
    "budget": 2400,
    "items": [
     {
@@ -8131,7 +8131,7 @@
   },
   {
    "id": "b-000005",
-   "name": "Jun Camping Trip",
+   "name": "Jun Weekend Trip",
    "budget": 2900,
    "items": [
     {
@@ -8150,7 +8150,7 @@
     },
     {
      "id": "bi-000022",
-     "name": "Meat for the week",
+     "name": "Groceries for the week",
      "price": 250,
      "purchased": true,
      "createdAt": "2023-06-26T12:08:00.000Z"
@@ -8191,7 +8191,7 @@
   },
   {
    "id": "b-000006",
-   "name": "Oct Gaming Setup",
+   "name": "Oct Home Office Setup",
    "budget": 2400,
    "items": [
     {
@@ -8217,7 +8217,7 @@
     },
     {
      "id": "bi-000030",
-     "name": "Rice & pantry staples",
+     "name": "Pantry staples",
      "price": 220,
      "purchased": true,
      "createdAt": "2023-10-30T12:48:00.000Z"
@@ -8230,7 +8230,7 @@
   },
   {
    "id": "b-000007",
-   "name": "Feb Braai Weekend",
+   "name": "Feb Event Weekend",
    "budget": 2200,
    "items": [
     {
@@ -8249,7 +8249,7 @@
     },
     {
      "id": "bi-000033",
-     "name": "Rice & pantry staples",
+     "name": "Pantry staples",
      "price": 80,
      "purchased": true,
      "createdAt": "2024-02-29T16:00:00.000Z"
@@ -8290,7 +8290,7 @@
   },
   {
    "id": "b-000008",
-   "name": "Jun Camping Trip",
+   "name": "Jun Weekend Trip",
    "budget": 3200,
    "items": [
     {
@@ -8337,7 +8337,7 @@
     },
     {
      "id": "bi-000044",
-     "name": "Rice & pantry staples",
+     "name": "Pantry staples",
      "price": 260,
      "purchased": true,
      "createdAt": "2024-06-27T16:13:00.000Z"
@@ -8357,7 +8357,7 @@
   },
   {
    "id": "b-000009",
-   "name": "Oct Gaming Setup",
+   "name": "Oct Home Office Setup",
    "budget": 2400,
    "items": [
     {
@@ -8410,7 +8410,7 @@
   },
   {
    "id": "b-000010",
-   "name": "Feb Braai Weekend",
+   "name": "Feb Event Weekend",
    "budget": 3600,
    "items": [
     {
@@ -8422,7 +8422,7 @@
     },
     {
      "id": "bi-000053",
-     "name": "Meat for the week",
+     "name": "Groceries for the week",
      "price": 380,
      "purchased": true,
      "createdAt": "2025-02-27T07:27:00.000Z"
@@ -8450,7 +8450,7 @@
     },
     {
      "id": "bi-000057",
-     "name": "Meat for the week",
+     "name": "Groceries for the week",
      "price": 120,
      "purchased": true,
      "createdAt": "2025-02-27T16:29:00.000Z"
@@ -8470,7 +8470,7 @@
   },
   {
    "id": "b-000011",
-   "name": "Jun Camping Trip",
+   "name": "Jun Weekend Trip",
    "budget": 1100,
    "items": [
     {
@@ -8509,7 +8509,7 @@
   },
   {
    "id": "b-000012",
-   "name": "Oct Gaming Setup",
+   "name": "Oct Home Office Setup",
    "budget": 2100,
    "items": [
     {
@@ -8541,7 +8541,7 @@
   },
   {
    "id": "b-000013",
-   "name": "Feb Braai Weekend",
+   "name": "Feb Event Weekend",
    "budget": 4000,
    "items": [
     {
@@ -8560,7 +8560,7 @@
     },
     {
      "id": "bi-000068",
-     "name": "Rice & pantry staples",
+     "name": "Pantry staples",
      "price": 500,
      "purchased": true,
      "createdAt": "2026-03-02T14:14:00.000Z"
@@ -8594,7 +8594,7 @@
   },
   {
    "id": "b-000014",
-   "name": "Jun Camping Trip",
+   "name": "Jun Weekend Trip",
    "budget": 1200,
    "items": [
     {
@@ -8633,7 +8633,7 @@
   },
   {
    "id": "b-000015",
-   "name": "Aug Winter Clothes",
+   "name": "Aug Seasonal Clothing",
    "budget": 2400,
    "items": [
     {
@@ -8690,9 +8690,9 @@
   }
  ],
  "userProfile": {
-  "name": "Jhon Skyrim",
+  "name": "Alex Morgan",
   "paydayDay": 26,
-  "bio": "Software dev. Owes a bit, is owed a bit more. Fus Roh Debt.",
+  "bio": "Software developer. Tracking what I owe and what I’m owed.",
   "avatarSettings": {
    "offsetX": 0,
    "offsetY": -0.05,
@@ -8853,7 +8853,7 @@
  "pageTransitionId": "slide",
  "swipeActionsEnabled": true,
  "hapticsStrength": "medium",
- "notepadContent": "Ask Geralt about the R500 again.\nBakkie service due at 145 000km.\nMove the tax stash before the 25th.",
+ "notepadContent": "Follow up with James Porter about the R500.\nVehicle service due at 145 000 km.\nMove the tax stash before the 25th.",
  "exportFolderUri": "",
  "exportFolderName": "",
  "lastSnapshotMonth": "2026-08",
