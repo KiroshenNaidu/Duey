@@ -313,7 +313,7 @@ export function DebtsList() {
             <AlertDialogDescription>
               This removes {unpaidSelected.length === 1 ? 'the selected debt' : 'the selected debts'} and
               {unpaidSelected.length === 1 ? ' its' : ' their'} payment records.
-              {paidSelected.length > 0 && ' The fully paid debts in your selection are not touched — archive those instead.'}
+              {paidSelected.length > 0 && ' The fully paid debts in your selection are not touched - archive those instead.'}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="flex-row justify-end">

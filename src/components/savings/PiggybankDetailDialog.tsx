@@ -291,7 +291,7 @@ export function PiggybankDetailDialog({ bank, onClose }: {
 
           {orders.length === 0 && mode !== 'order' && (
             <p className="text-xs text-muted-foreground py-1">
-              Nothing automatic yet — add a standing order and it comes off every cycle on its own.
+              Nothing automatic yet - add a standing order and it comes off every cycle on its own.
             </p>
           )}
 

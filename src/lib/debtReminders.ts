@@ -79,7 +79,7 @@ export async function syncDebtReminders(
 
     await LocalNotifications.schedule({
       notifications: withDueDay.map(d => ({
-        title: `Duey — ${d.title} due`,
+        title: `Duey - ${d.title} due`,
         body: `Installment of ${formatCurrency(d.installment_amount)} is due today.`,
         id: debtNotificationId(d.id),
         schedule: {

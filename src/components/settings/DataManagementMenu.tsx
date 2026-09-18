@@ -401,7 +401,7 @@ export function DataManagementMenu() {
       setExportResult({ filename, folder });
       setExportStatus('success');
     } catch (err) {
-      setExportResult({ filename, folder: '', error: `Could not export ${ext.toUpperCase()} file — storage may be unavailable.` });
+      setExportResult({ filename, folder: '', error: `Could not export ${ext.toUpperCase()} file - storage may be unavailable.` });
       setExportStatus('error');
       setAppError({ friendly: `Could not export ${ext.toUpperCase()} file.`, operation: `runExport (${type}/${ext}) in DataManagementMenu`, error: err, ts: Date.now() });
     }
@@ -420,7 +420,7 @@ export function DataManagementMenu() {
   const exportAsTxt = (): Blob => {
       const s = getAppState();
       const lines: string[] = [
-        'DUEY — History Export',
+        'DUEY - History Export',
         `Generated: ${new Date().toLocaleDateString('en-ZA')}`,
         '',
         '=== DEBTS ===',
@@ -451,19 +451,19 @@ export function DataManagementMenu() {
         if (s.transportSettings.employmentEndDate) lines.push(`  Last ended: ${formatDate(s.transportSettings.employmentEndDate)}`);
       }
       s.history.filter(h => h.type === 'employment').forEach(h => {
-        lines.push(`  ${formatDate(h.date)} — ${h.debtTitle}${h.note ? ` (${h.note})` : ''}`);
+        lines.push(`  ${formatDate(h.date)} - ${h.debtTitle}${h.note ? ` (${h.note})` : ''}`);
       });
       lines.push('', '=== TRANSPORT ===');
       s.history.filter(h => h.type === 'transport').forEach(h => {
-        lines.push(`  ${h.debtTitle} — R${h.amount} on ${formatDate(h.date)}`);
+        lines.push(`  ${h.debtTitle} - R${h.amount} on ${formatDate(h.date)}`);
       });
       lines.push('', '=== UBER RIDES ===');
       s.uberRides.forEach(r => {
-        lines.push(`  ${formatDate(r.date)} — R${r.price}${r.from ? ` from ${r.from}` : ''}${r.to ? ` to ${r.to}` : ''}${r.distance ? ` (${r.distance}km)` : ''}`);
+        lines.push(`  ${formatDate(r.date)} - R${r.price}${r.from ? ` from ${r.from}` : ''}${r.to ? ` to ${r.to}` : ''}${r.distance ? ` (${r.distance}km)` : ''}`);
       });
       lines.push('', '=== EXPENSES ===');
       s.expenses.forEach(e => {
-        lines.push(`  ${formatDate(e.date)} — ${e.title}${e.category ? ` [${e.category}]` : ''}: R${e.amount}${e.note ? ` (${e.note})` : ''}`);
+        lines.push(`  ${formatDate(e.date)} - ${e.title}${e.category ? ` [${e.category}]` : ''}: R${e.amount}${e.note ? ` (${e.note})` : ''}`);
       });
       lines.push('', '=== LENT OUT (OWED TO ME) ===');
       s.loans.forEach(l => {
@@ -476,12 +476,12 @@ export function DataManagementMenu() {
       });
       lines.push('', '=== SAVINGS ===');
       s.savings.forEach(e => {
-        lines.push(`  ${formatDate(e.createdAt)} — ${e.label}: R${e.amount} [cycle ${e.cycleKey}${e.source === 'auto' ? ', swept' : ''}]`);
+        lines.push(`  ${formatDate(e.createdAt)} - ${e.label}: R${e.amount} [cycle ${e.cycleKey}${e.source === 'auto' ? ', swept' : ''}]`);
       });
       lines.push('', '=== BUDGET PLANS ===');
       s.budgetPlans.forEach(p => {
         const spent = p.items.reduce((s, i) => s + i.price, 0);
-        lines.push(`\n  ${p.name} — Budget R${p.budget}, Spent R${spent}`);
+        lines.push(`\n  ${p.name} - Budget R${p.budget}, Spent R${spent}`);
         p.items.forEach(i => lines.push(`    - ${i.name}: R${i.price}${i.link ? ` (${i.link})` : ''}`));
       });
       return new Blob([lines.join('\n')], { type: 'text/plain' });
@@ -603,8 +603,8 @@ export function DataManagementMenu() {
           ...s.uberRides.map(r => new TableRow({
             children: [
               makeDataCell(formatDate(r.date), 1440),
-              makeDataCell(r.from && r.to ? `${r.from} → ${r.to}` : (r.from ?? r.to ?? '—'), 4320),
-              makeDataCell(r.distance ? String(r.distance) : '—', 1440),
+              makeDataCell(r.from && r.to ? `${r.from} → ${r.to}` : (r.from ?? r.to ?? '-'), 4320),
+              makeDataCell(r.distance ? String(r.distance) : '-', 1440),
               makeDataCell(`R ${r.price.toFixed(2)}`, 1440),
             ] as DocCell[],
           })) as DocRow[],
@@ -638,7 +638,7 @@ export function DataManagementMenu() {
         })] : []),
         new Paragraph({
           children: [
-            new TextRun({ text: logoData ? 'History Report' : 'DUEY — History Report', bold: true, size: 44 }),
+            new TextRun({ text: logoData ? 'History Report' : 'DUEY - History Report', bold: true, size: 44 }),
           ],
           spacing: { after: 120 },
         }),
@@ -705,7 +705,7 @@ export function DataManagementMenu() {
           ...(employmentEntries.length > 0 ? [
             make3ColTable(
               ['Date', 'Event', 'Details'],
-              employmentEntries.map(h => [formatDate(h.date), h.debtTitle, h.note ?? '—'] as [string, string, string])
+              employmentEntries.map(h => [formatDate(h.date), h.debtTitle, h.note ?? '-'] as [string, string, string])
             ),
             new Paragraph({ text: '' }),
           ] : []),
@@ -801,8 +801,8 @@ export function DataManagementMenu() {
       if (s.uberRides.length > 0) {
         sectionHeader('UBER RIDES');
         const uberRows: RowData[] = s.uberRides.map(r => {
-          const route = r.from && r.to ? `${r.from} → ${r.to}` : (r.from ?? r.to ?? '—');
-          return [formatDate(r.date), route, r.distance ? String(r.distance) : '—', `R  ${r.price.toFixed(2)}`];
+          const route = r.from && r.to ? `${r.from} → ${r.to}` : (r.from ?? r.to ?? '-');
+          return [formatDate(r.date), route, r.distance ? String(r.distance) : '-', `R  ${r.price.toFixed(2)}`];
         });
         const totalUber = s.uberRides.reduce((a, r) => a + r.price, 0);
         y = drawTable(doc, y, UBER_COLS, uberRows, ['', '', '', `R  ${totalUber.toFixed(2)}`]);
@@ -998,8 +998,8 @@ export function DataManagementMenu() {
       sectionHeader('UBER RIDES');
       if (fRides.length > 0) {
         const uberRows: RowData[] = fRides.map(r => {
-          const route = r.from && r.to ? `${r.from} → ${r.to}` : (r.from ?? r.to ?? '—');
-          return [formatDate(r.date), route, r.distance ? String(r.distance) : '—', `R  ${r.price.toFixed(2)}`];
+          const route = r.from && r.to ? `${r.from} → ${r.to}` : (r.from ?? r.to ?? '-');
+          return [formatDate(r.date), route, r.distance ? String(r.distance) : '-', `R  ${r.price.toFixed(2)}`];
         });
         y = drawTable(doc, y, UBER_COLS, uberRows, ['', '', '', `R  ${totalUber.toFixed(2)}`]);
       } else {
@@ -1144,7 +1144,7 @@ export function DataManagementMenu() {
         const ownerName = (data?.userProfile?.name ?? '').trim() || 'Unnamed profile';
         setImportFlow({ stage: 'confirm', kind: 'config', ownerName, fileName: file.name, avatar: data.avatarImage, payload: data });
       } catch {
-        setImportFlow({ stage: 'error', kind: 'config', ownerName: '', fileName: file.name, message: 'Failed to read config file — file may be corrupted.' });
+        setImportFlow({ stage: 'error', kind: 'config', ownerName: '', fileName: file.name, message: 'Failed to read config file - file may be corrupted.' });
       }
     };
     reader.readAsText(file);
@@ -1189,7 +1189,7 @@ export function DataManagementMenu() {
         const ownerName = (data?.userProfile?.name ?? '').trim() || 'Unnamed profile';
         setImportFlow({ stage: 'confirm', kind: 'data', ownerName, fileName: file.name, avatar: data.avatarImage, payload: data });
       } catch {
-        setImportFlow({ stage: 'error', kind: 'data', ownerName: '', fileName: file.name, message: 'Invalid backup file — check the format and try again.' });
+        setImportFlow({ stage: 'error', kind: 'data', ownerName: '', fileName: file.name, message: 'Invalid backup file - check the format and try again.' });
       }
     };
     reader.onerror = () => setImportFlow({ stage: 'error', kind: 'data', ownerName: '', fileName: file.name, message: 'Failed to read file.' });
@@ -1238,14 +1238,14 @@ export function DataManagementMenu() {
         if (data.backgroundVideo) await idbSet('backgroundVideo', data.backgroundVideo);
         if (data.avatarImage)     await idbSet('profileAvatar', data.avatarImage);
       } catch (idbErr) {
-        setAppError({ friendly: 'Data imported but wallpaper/avatar could not be saved — storage may be full.', operation: 'idbSet in confirmImport in DataManagementMenu', error: idbErr, ts: Date.now() });
+        setAppError({ friendly: 'Data imported but wallpaper/avatar could not be saved - storage may be full.', operation: 'idbSet in confirmImport in DataManagementMenu', error: idbErr, ts: Date.now() });
       }
       // Keep the progress bar on screen briefly so the importing → success transition reads clearly.
       await new Promise(res => setTimeout(res, 600));
       setImportFlow({ stage: 'success', kind, ownerName, fileName, avatar });
       importDismissRef.current = setTimeout(finishImport, 2500);
     } catch {
-      setImportFlow({ stage: 'error', kind, ownerName, fileName, message: 'Import failed — the file may be corrupted or incompatible.' });
+      setImportFlow({ stage: 'error', kind, ownerName, fileName, message: 'Import failed - the file may be corrupted or incompatible.' });
     }
   };
 
@@ -1286,7 +1286,7 @@ export function DataManagementMenu() {
           <CardContent className="p-3 space-y-2">
             <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Export Folder</p>
             <p className="text-[10px] text-muted-foreground/70">
-              Choose once where exports go — internal storage, SD card or USB. Every export saves there automatically.
+              Choose once where exports go - internal storage, SD card or USB. Every export saves there automatically.
             </p>
             <div className="flex items-center gap-2">
               <div className="flex items-center gap-2 flex-1 min-w-0 rounded-lg bg-muted/40 px-3 py-2">

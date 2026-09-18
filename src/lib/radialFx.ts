@@ -40,7 +40,7 @@ export const RADIAL_FX_PRESETS: RadialFxPreset[] = [
   {
     id: 'minimal',
     name: 'Minimal',
-    description: 'Just a subtle grow and dim — no rings, no beam',
+    description: 'Just a subtle grow and dim - no rings, no beam',
     fx: { hoverScale: 1.1, dimOthers: 0.55, hoverGlow: false, pointerRing: false, ringPulse: false, aimBeam: false, aimTrail: false, beamWidth: 0, magneticPull: 0, sparkles: 0, cometTrail: false, rippleBurst: false },
   },
   {

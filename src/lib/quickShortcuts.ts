@@ -29,7 +29,7 @@ export interface QuickShortcut {
 export const QUICK_SHORTCUTS: QuickShortcut[] = [
   { id: 'payment', label: 'Payment', title: 'Debt payment', description: 'Log money paid to one of your debts today', icon: CreditCard },
   { id: 'expense', label: 'Expense', title: 'Add expense', description: 'Log a one-time or recurring expense', icon: Receipt },
-  { id: 'income', label: 'Income', title: 'Extra income', description: 'Log extra income — freelance, gift, bonus…', icon: BadgeDollarSign },
+  { id: 'income', label: 'Income', title: 'Extra income', description: 'Log extra income - freelance, gift, bonus…', icon: BadgeDollarSign },
   { id: 'uber', label: 'Uber', title: 'Uber ride', description: 'Log an Uber ride on today’s date', icon: Car },
   { id: 'debt', label: 'New debt', title: 'Add new debt', description: 'Start tracking a new debt (title, total, installment)', icon: PlusCircle },
   { id: 'transport-paid', label: 'Transport', title: 'Pay transport', description: 'Mark this month’s transport as paid in one tap', icon: Bus },

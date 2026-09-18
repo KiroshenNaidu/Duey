@@ -114,7 +114,7 @@ export function AddDebtForm({ onDone }: { onDone: () => void }) {
           name="person"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Person <span className="text-muted-foreground font-normal">(optional — who you&apos;re paying)</span></FormLabel>
+              <FormLabel>Person <span className="text-muted-foreground font-normal">(optional, who you&apos;re paying)</span></FormLabel>
               <FormControl>
                 <Input
                   placeholder="e.g., John"
@@ -185,9 +185,9 @@ export function AddDebtForm({ onDone }: { onDone: () => void }) {
             <FormItem>
               <FormLabel>Due Day <span className="text-muted-foreground font-normal">(optional)</span></FormLabel>
               <FormControl>
-                <Input type="number" min={1} max={31} placeholder="e.g., 15 — leave empty for none" {...field} value={field.value ?? ''} />
+                <Input type="number" min={1} max={31} placeholder="e.g., 15 - leave empty for none" {...field} value={field.value ?? ''} />
               </FormControl>
-              <p className="text-[10px] text-muted-foreground">Day of the month this payment is due. Sets an Android reminder — leave empty to skip.</p>
+              <p className="text-[10px] text-muted-foreground">Day of the month this payment is due. Sets an Android reminder - leave empty to skip.</p>
               <FormMessage />
             </FormItem>
           )}

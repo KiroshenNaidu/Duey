@@ -183,7 +183,7 @@ function AddItemDialog({ plan, onAdd }: { plan: BudgetPlan; onAdd: (item: Omit<B
                 Exceeds budget by {formatCurrency(parsedPrice - remaining)}
               </p>
               <p className="text-xs text-muted-foreground">
-                <span className="font-medium text-foreground">{name}</span> costs {formatCurrency(parsedPrice)} — only{' '}
+                <span className="font-medium text-foreground">{name}</span> costs {formatCurrency(parsedPrice)} - only{' '}
                 <span className="font-medium text-foreground">{formatCurrency(Math.max(0, remaining))}</span> remaining.
               </p>
             </div>
@@ -472,10 +472,10 @@ function PlanView({ plan }: { plan: BudgetPlan }) {
                 {plan.confirmed ? (
                   <>
                     <Check className="h-3.5 w-3.5 shrink-0" />
-                    Purchased · {formatCurrency(spent)} counted{plan.confirmedAt ? ` (${format(new Date(plan.confirmedAt), 'MMM')})` : ''} — tap to undo
+                    Purchased · {formatCurrency(spent)} counted{plan.confirmedAt ? ` (${format(new Date(plan.confirmedAt), 'MMM')})` : ''} - tap to undo
                   </>
                 ) : (
-                  <>Confirm purchase — add {formatCurrency(spent)} to balance</>
+                  <>Confirm purchase - add {formatCurrency(spent)} to balance</>
                 )}
               </button>
               <p className="text-[10px] text-muted-foreground text-center">

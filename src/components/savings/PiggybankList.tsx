@@ -176,7 +176,7 @@ export function PiggybankList({ onAddTo }: {
               Close {deletable.length === 1 ? 'this piggybank' : `${deletable.length} piggybanks`}?
             </AlertDialogTitle>
             <AlertDialogDescription>
-              Every movement filed into {deletable.length === 1 ? 'it' : 'them'} goes too —
+              Every movement filed into {deletable.length === 1 ? 'it' : 'them'} goes too -
               {' '}{deletable.reduce((s, b) => s + entriesOfBank(savings ?? [], b.id).length, 0)} in total.
               {selected.size > deletable.length && ' The leftovers piggybank in your selection stays: the cycle-end sweep needs it.'}
               {' '}You can undo this from the toast.
@@ -234,7 +234,7 @@ export function PiggybankList({ onAddTo }: {
       {/* Kept for the cycle label in the empty case below. */}
       {banks.length === 0 && (
         <p className="text-xs text-muted-foreground px-1">
-          No piggybanks yet — {cycle.label} has nowhere to sweep to.
+          No piggybanks yet - {cycle.label} has nowhere to sweep to.
         </p>
       )}
     </div>

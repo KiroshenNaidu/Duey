@@ -856,7 +856,7 @@ function QuickPaymentForm({ onDone }: { onDone: () => void }) {
   };
 
   if (debts.length === 0) {
-    return <p className="text-xs text-muted-foreground py-2">No debts tracked yet — add one on the Money page first.</p>;
+    return <p className="text-xs text-muted-foreground py-2">No debts tracked yet - add one on the Money page first.</p>;
   }
 
   return (
@@ -1109,7 +1109,7 @@ function QuickTransportPaidForm({ onDone }: { onDone: () => void }) {
     );
   }
   if (totalDue <= 0) {
-    return <p className="text-xs text-muted-foreground py-2">Nothing due for {monthStr} — set fees or travel days on the Transport page first.</p>;
+    return <p className="text-xs text-muted-foreground py-2">Nothing due for {monthStr} - set fees or travel days on the Transport page first.</p>;
   }
 
   return (
@@ -1118,7 +1118,7 @@ function QuickTransportPaidForm({ onDone }: { onDone: () => void }) {
         <span className="text-xs text-muted-foreground">{monthStr}</span>
         <span className="text-lg font-bold tabular-nums">{formatCurrency(totalDue)}</span>
       </div>
-      <p className="text-[10px] text-muted-foreground">Logs a transport payment for this month — same as &ldquo;Mark as Paid&rdquo; on the Transport page. Undo there anytime.</p>
+      <p className="text-[10px] text-muted-foreground">Logs a transport payment for this month - same as &ldquo;Mark as Paid&rdquo; on the Transport page. Undo there anytime.</p>
       <Button className="w-full pay-button-3d" onClick={submit}>Mark {format(now, 'MMMM')} as paid</Button>
     </div>
   );
@@ -1176,7 +1176,7 @@ function QuickBudgetItemForm({ onDone }: { onDone: () => void }) {
   };
 
   if (budgetPlans.length === 0) {
-    return <p className="text-xs text-muted-foreground py-2">No budget plans yet — create one first (there&apos;s a shortcut for that too).</p>;
+    return <p className="text-xs text-muted-foreground py-2">No budget plans yet - create one first (there&apos;s a shortcut for that too).</p>;
   }
 
   return (

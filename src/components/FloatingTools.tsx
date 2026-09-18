@@ -75,7 +75,7 @@ export function FloatingTools() {
           tourId="tools-notepad"
           className="right-4"
           style={{ bottom: 'calc(10px + var(--sab))' }}
-          ariaLabel="Quick notepad — tap, or swipe to open"
+          ariaLabel="Quick notepad - tap, or swipe to open"
           icon={<StickyNote className="h-5 w-5" />}
           onTap={() => { if (isNotepadOpen) setIsNotepadOpen(false); else openNotepad(null); }}
           onLaunch={from => openNotepad(from)}
@@ -91,7 +91,7 @@ export function FloatingTools() {
           tourId="tools-calc"
           className="left-4"
           style={{ bottom: 'calc(10px + var(--sab))' }}
-          ariaLabel="Calculator — tap, or swipe to open"
+          ariaLabel="Calculator - tap, or swipe to open"
           icon={<Calculator className="h-5 w-5" />}
           onTap={() => { if (isCalculatorOpen) setIsCalculatorOpen(false); else openCalculator(null); }}
           onLaunch={from => openCalculator(from)}

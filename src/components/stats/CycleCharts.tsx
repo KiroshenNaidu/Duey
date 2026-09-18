@@ -539,7 +539,7 @@ function CycleRangePickerDialog({ open, onOpenChange, payDay, fromDate, toDate, 
           )}
           {!future && hi.getTime() !== b.getTime() && (
             <p className="text-[10px] text-muted-foreground/60 mt-1">
-              Ends today — later cycles haven&apos;t happened yet.
+              Ends today, later cycles haven&apos;t happened yet.
             </p>
           )}
         </div>

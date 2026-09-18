@@ -267,7 +267,7 @@ export function SavingsTab() {
           {live.remaining > 0
             ? `Left over so far, banked automatically on ${format(cycle.end, 'd MMM')} if it survives the cycle.`
             : live.remaining < 0
-              ? `Over budget by ${formatCurrency(Math.abs(live.remaining))} — a cycle that ends short banks nothing.`
+              ? `Over budget by ${formatCurrency(Math.abs(live.remaining))} - a cycle that ends short banks nothing.`
               : 'Nothing left over yet this cycle.'}
         </p>
       </div>
@@ -381,7 +381,7 @@ export function SavingsTab() {
           <DialogDescription>
             {direction === 'out'
               ? 'Comes off the piggybank and back onto this cycle’s balance.'
-              : 'Money you put away yourself — leftovers arrive on their own.'}
+              : 'Money you put away yourself - leftovers arrive on their own.'}
           </DialogDescription>
         </DialogHeader>
 
@@ -442,7 +442,7 @@ export function SavingsTab() {
                 <p className="text-[10px] text-muted-foreground mt-0.5">
                   {repeat
                     ? 'Comes off every cycle from now on until you stop it'
-                    : 'One-off — only the cycle you pick below'}
+                    : 'One-off, only the cycle you pick below'}
                 </p>
               </div>
               <Switch checked={repeat} onCheckedChange={setRepeat} />

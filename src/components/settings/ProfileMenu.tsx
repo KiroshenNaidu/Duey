@@ -263,14 +263,14 @@ export function ProfileMenu({ onDirtyChange, onSaved, onCancel }: ProfileMenuPro
         canvas.width  = Math.round(img.width  * ratio);
         canvas.height = Math.round(img.height * ratio);
         const ctx = canvas.getContext('2d');
-        if (!ctx) { setUploadError('Canvas context unavailable — try a different browser.'); return; }
+        if (!ctx) { setUploadError('Canvas context unavailable - try a different browser.'); return; }
         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
         setDraftAvatarUrl(canvas.toDataURL('image/jpeg', 0.9));
         setDraftAvatarSettings(undefined);
         setEditorOpen(true);
       };
       img.onerror = () => {
-        setUploadError('Could not read image — file may be corrupted or unsupported.');
+        setUploadError('Could not read image - file may be corrupted or unsupported.');
       };
       img.src = src;
     };

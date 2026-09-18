@@ -69,7 +69,7 @@ export function QuickMenuConfig({ value, onChange }: {
   return (
     <div className="space-y-3">
       <p className="text-[10px] text-muted-foreground">
-        {value.length} of {MAX_QUICK_SHORTCUTS} slots · tap an item, then tap another to swap — this is exactly how your menu will look
+        {value.length} of {MAX_QUICK_SHORTCUTS} slots · tap an item, then tap another to swap - this is exactly how your menu will look
       </p>
 
       {/* Live radial preview */}

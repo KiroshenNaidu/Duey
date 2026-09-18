@@ -43,7 +43,7 @@ export function DebtCompletionDialog({
           <div className="space-y-1">
             <DialogTitle className="text-2xl font-black">Paid Off!</DialogTitle>
             <DialogDescription className="sr-only">
-              Debt fully paid — choose to archive it or continue tracking.
+              Debt fully paid, choose to archive it or continue tracking.
             </DialogDescription>
             <p className="text-sm text-muted-foreground">
               You&apos;ve fully paid off{' '}

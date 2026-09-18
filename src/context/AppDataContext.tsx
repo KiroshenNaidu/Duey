@@ -657,7 +657,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       setAvatarDataUrl(url);
     } catch (err) {
       setAppError({
-        friendly: 'Could not save profile photo — storage may be full.',
+        friendly: 'Could not save profile photo - storage may be full.',
         operation: `${url ? "idbSet('profileAvatar')" : "idbDel('profileAvatar')"} in setProfileAvatar`,
         error: err,
         ts: Date.now(),
@@ -686,7 +686,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       localStorage.setItem('appState', JSON.stringify(stateRef.current));
     } catch (err) {
       setAppError({
-        friendly: 'Could not save — your device storage may be full. Some changes may be lost after refresh.',
+        friendly: 'Could not save - your device storage may be full. Some changes may be lost after refresh.',
         operation: "localStorage.setItem('appState') in persistNow",
         error: err,
         ts: Date.now(),

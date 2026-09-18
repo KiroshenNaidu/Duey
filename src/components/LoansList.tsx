@@ -363,7 +363,7 @@ function AddLoanDialog({ open, onOpenChange, knownPeople, onSubmit }: {
             <Label className="text-xs">Pay-back date (optional)</Label>
             <DatePicker value={dueDate} onChange={setDueDate} />
             <p className="text-[10px] text-muted-foreground/60">
-              Only marks the loan overdue on the card — nothing is scheduled or reminded.
+              Only marks the loan overdue on the card - nothing is scheduled or reminded.
             </p>
           </div>
 

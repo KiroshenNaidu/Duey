@@ -334,7 +334,7 @@ export function MoneyOverview() {
                   <div>
                     <p className="text-xs font-semibold text-foreground">Monthly</p>
                     <p className="text-[9px] text-muted-foreground">
-                      {extraRecurring ? 'Counts every cycle until removed' : 'This cycle only — clears on your next pay date'}
+                      {extraRecurring ? 'Counts every cycle until removed' : 'This cycle only - clears on your next pay date'}
                     </p>
                   </div>
                   <Switch checked={extraRecurring} onCheckedChange={setExtraRecurring} />

@@ -572,7 +572,7 @@ export function TransportPage() {
                   <div className="flex justify-between items-baseline">
                     <p className="text-xs text-foreground">
                       {!transportSettings.employed && isFutureMonth ? (
-                        <span className="text-muted-foreground">Unemployed — no travel</span>
+                        <span className="text-muted-foreground">Unemployed, no travel</span>
                       ) : pricingMode === 'monthly' ? (
                         <span>Flat monthly rate</span>
                       ) : (
@@ -606,14 +606,14 @@ export function TransportPage() {
                 onClick={handleMarkAsPaid}
                 disabled={!isPaidForMonth && (isLocked || totalDue <= 0)}
               >
-                {isPaidForMonth ? '✓ Payment Confirmed — tap to undo' : `Mark as Paid for ${format(currentDate, 'MMMM')}`}
+                {isPaidForMonth ? '✓ Payment Confirmed - tap to undo' : `Mark as Paid for ${format(currentDate, 'MMMM')}`}
               </Button>
             </CardFooter>
           </div>
         ) : (
           <div className="border-t border-border/30">
             <CardHeader className="p-3">
-              <CardTitle className="text-foreground uppercase text-[10px] tracking-widest">Uber — {format(currentDate, 'MMMM yyyy')}</CardTitle>
+              <CardTitle className="text-foreground uppercase text-[10px] tracking-widest">Uber - {format(currentDate, 'MMMM yyyy')}</CardTitle>
             </CardHeader>
             <CardContent className="flex justify-between items-baseline p-3 pt-0">
               <p className="text-xs text-foreground">

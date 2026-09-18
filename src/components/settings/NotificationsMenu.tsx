@@ -25,7 +25,7 @@ async function scheduleNotification(paydayDay: number, hour: number, minute: num
   await LocalNotifications.schedule({
     notifications: [
       {
-        title: 'Duey — Payment Reminder',
+        title: 'Duey - Payment Reminder',
         body: message || 'Time to log your monthly payments.',
         id: 1,
         schedule: {
@@ -188,7 +188,7 @@ export function NotificationsMenu({ onDirtyChange, onSaved, onCancel }: Notifica
           <div className="flex items-center justify-between">
             <div>
               <Label htmlFor="notif-master" className="text-sm font-semibold">Allow Notifications</Label>
-              <p className="text-xs text-muted-foreground">Master switch — off means Duey sends nothing</p>
+              <p className="text-xs text-muted-foreground">Master switch - off means Duey sends nothing</p>
             </div>
             <Switch
               id="notif-master"

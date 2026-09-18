@@ -276,7 +276,7 @@ const CATEGORIES: Category[] = [
 // ─── Formatting ───────────────────────────────────────────────────────────────
 
 function fmt(n: number): string {
-  if (!isFinite(n)) return '—';
+  if (!isFinite(n)) return '-';
   if (n === 0) return '0';
   const abs = Math.abs(n);
   if (abs >= 1e12) return n.toExponential(4);

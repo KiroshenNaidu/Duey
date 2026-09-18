@@ -121,13 +121,13 @@ export function PayDateMenu({ onDirtyChange, onSaved, onCancel }: PayDateMenuPro
                 <div className="rounded-xl bg-muted/30 p-3 space-y-2">
                   <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">What resets on this day</p>
                   <ul className="text-xs text-muted-foreground space-y-1.5 list-disc pl-4">
-                    <li><span className="text-foreground font-medium">Balance</span> — income, deductions and what&apos;s left are counted from this day.</li>
-                    <li><span className="text-foreground font-medium">Stats</span> — the cycle snapshot covers the same window.</li>
-                    <li><span className="text-foreground font-medium">One-time expenses and extra income</span> — cleared on this day instead of the 1st. Recurring ones stay.</li>
-                    <li><span className="text-foreground font-medium">History</span> — the finished cycle is sealed into a permanent summary.</li>
+                    <li><span className="text-foreground font-medium">Balance</span> - income, deductions and what&apos;s left are counted from this day.</li>
+                    <li><span className="text-foreground font-medium">Stats</span> - the cycle snapshot covers the same window.</li>
+                    <li><span className="text-foreground font-medium">One-time expenses and extra income</span> - cleared on this day instead of the 1st. Recurring ones stay.</li>
+                    <li><span className="text-foreground font-medium">History</span> - the finished cycle is sealed into a permanent summary.</li>
                   </ul>
                   <p className="text-[10px] text-muted-foreground/70 pt-1">
-                    Debts, transport days and Uber rides are untouched — they keep their own dates.
+                    Debts, transport days and Uber rides are untouched - they keep their own dates.
                   </p>
                 </div>
               </motion.div>
@@ -147,7 +147,7 @@ export function PayDateMenu({ onDirtyChange, onSaved, onCancel }: PayDateMenuPro
             {valid ? (
               <p className="text-[10px] text-muted-foreground">
                 Paid on the {ordinal(parsed)}
-                {parsed > 28 && ' — months without that day use their last day instead'}
+                {parsed > 28 && ' - months without that day use their last day instead'}
               </p>
             ) : (
               <p className="text-[10px] text-destructive">Enter a day between 1 and 31.</p>

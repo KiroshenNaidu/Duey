@@ -67,7 +67,7 @@ export function CurrencyPickerDialog() {
         <DialogHeader className="px-5 pt-6 pb-3">
           <DialogTitle className="text-xl font-black">What currency do you use?</DialogTitle>
           <DialogDescription className="text-sm text-muted-foreground">
-            Just a quick preference — not a big deal. You can change this anytime in Settings.
+            Just a quick preference, not a big deal. You can change this anytime in Settings.
           </DialogDescription>
         </DialogHeader>
 

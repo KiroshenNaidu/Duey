@@ -237,7 +237,7 @@ export function ThemeSettingsMenu({ onCancel, onDirtyChange, onSaved }: { onCanc
       img.onerror = () => {
         setIsProcessing(false);
         setAppError({
-          friendly: 'Could not read image — file may be corrupted or unsupported.',
+          friendly: 'Could not read image - file may be corrupted or unsupported.',
           operation: 'img.onerror in handleFileChange in ThemeSettingsMenu',
           error: new Error('Image failed to load'),
           ts: Date.now(),
@@ -292,7 +292,7 @@ export function ThemeSettingsMenu({ onCancel, onDirtyChange, onSaved }: { onCanc
       setTimeout(() => { window.location.href = '/'; }, 130);
     } catch (err) {
       setAppError({
-        friendly: 'Could not save theme — storage may be full.',
+        friendly: 'Could not save theme - storage may be full.',
         operation: "idbSet('backgroundImage') in ThemeSettingsMenu.handleSave",
         error: err,
         ts: Date.now(),

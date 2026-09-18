@@ -140,7 +140,7 @@ export function TransportHistoryLog({ history, uberRides, transportOverrides }: 
                   <div className="flex items-center gap-2 flex-1">
                     <MonthBar value={m.amount} max={maxDriver} color="bg-primary/70" />
                     <span className="text-[10px] font-bold text-foreground whitespace-nowrap min-w-[52px] text-right">
-                      {m.amount > 0 ? formatCurrency(m.amount) : '—'}
+                      {m.amount > 0 ? formatCurrency(m.amount) : '-'}
                     </span>
                   </div>
                 </div>
@@ -168,7 +168,7 @@ export function TransportHistoryLog({ history, uberRides, transportOverrides }: 
                 <div className="flex items-center gap-2 flex-1">
                   <MonthBar value={m.amount} max={maxUber} color="bg-accent/60" />
                   <span className="text-[10px] font-bold text-foreground whitespace-nowrap min-w-[52px] text-right">
-                    {m.amount > 0 ? formatCurrency(m.amount) : '—'}
+                    {m.amount > 0 ? formatCurrency(m.amount) : '-'}
                   </span>
                 </div>
                 {m.rideCount > 0 && (

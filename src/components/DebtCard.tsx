@@ -262,7 +262,7 @@ export function DebtCard({ debt, grouped = false, selectMode = false, selected =
       }, 100);
     } catch {
       setShowSaveConfirm(false);
-      showToast('Failed to save — please try again', 'error');
+      showToast('Failed to save - please try again', 'error');
     }
   }, [editedTitle, editedPerson, editedTotalOwed, editedInstallmentAmount, editedDueDay, pendingChanges, pendingPayment, debt.id, updateDebt, logCustomPayment, showToast]);
 
@@ -461,7 +461,7 @@ export function DebtCard({ debt, grouped = false, selectMode = false, selected =
                         <DialogDescription className="[overflow-wrap:anywhere]">
                           {debt.person ? <>Paying <span className="font-semibold text-accent">{debt.person}</span> for {debt.title}. </> : null}
                           {pendingPayment
-                            ? 'Replace your staged payment — only one will be logged on save.'
+                            ? 'Replace your staged payment - only one will be logged on save.'
                             : 'Choose how much to log. One payment will be recorded on save.'}
                         </DialogDescription>
                       </DialogHeader>
@@ -719,7 +719,7 @@ export function DebtCard({ debt, grouped = false, selectMode = false, selected =
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor={`person-${debt.id}`} className="text-xs">
-                        Person <span className="text-muted-foreground font-normal">(optional — who you&apos;re paying)</span>
+                        Person <span className="text-muted-foreground font-normal">(optional, who you&apos;re paying)</span>
                       </Label>
                       <Input
                         id={`person-${debt.id}`}
@@ -751,7 +751,7 @@ export function DebtCard({ debt, grouped = false, selectMode = false, selected =
 
                     <div className="space-y-2">
                       <Label htmlFor={`dueday-${debt.id}`} className="text-xs">
-                        Due Day <span className="text-muted-foreground font-normal">(optional — empty = no reminder)</span>
+                        Due Day <span className="text-muted-foreground font-normal">(optional, empty = no reminder)</span>
                       </Label>
                       <Input
                         id={`dueday-${debt.id}`}
