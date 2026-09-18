@@ -6,7 +6,7 @@
     <img src="docs/assets/btn-download-apk.svg" alt="Download Duey — Android APK v2.3.1" width="240">
   </a>
   &nbsp;
-  <a href="https://github.com/KiroshenNaidu/Duey/raw/main/public/test-data.json">
+  <a href="https://github.com/KiroshenNaidu/Duey/releases/download/2/test-data.json">
     <img src="docs/assets/btn-download-sample-data.svg" alt="Download the sample dataset — test-data.json" width="240">
   </a>
 </p>
@@ -193,7 +193,7 @@ Once `npm install` succeeds cleanly, continue as normal.
 
 Want to try the app with realistic data already loaded? A sample backup is included in the repo.
 
-<a href="https://github.com/KiroshenNaidu/Duey/raw/main/public/test-data.json">
+<a href="https://github.com/KiroshenNaidu/Duey/releases/download/2/test-data.json">
   <img src="docs/assets/btn-download-sample-data.svg" alt="Download the sample dataset — test-data.json" width="240">
 </a>
 
