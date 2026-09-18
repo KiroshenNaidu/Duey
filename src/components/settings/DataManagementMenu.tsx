@@ -1337,7 +1337,7 @@ export function DataManagementMenu() {
       <Card>
         <CardContent className="p-3 space-y-2">
           <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">User Config</p>
-          <p className="text-[10px] text-muted-foreground/70">All settings — themes, colours, wallpaper, profile, transport &amp; income config, gestures &amp; haptics — transfer between devices</p>
+          <p className="text-[10px] text-muted-foreground/70">All settings, themes, colours, wallpaper, profile, transport &amp; income config, gestures &amp; haptics, transfer between devices</p>
           <div className="space-y-2 pt-1">
             <Button onClick={() => runExport('config', 'json', exportUserConfig)} className="w-full justify-start h-auto p-3 text-left">
               <Settings2 className="mr-3 h-4 w-4 shrink-0" />
@@ -1362,7 +1362,7 @@ export function DataManagementMenu() {
       <Card>
         <CardContent className="p-3 space-y-3">
           <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Financial Statement</p>
-          <p className="text-[10px] text-muted-foreground/70">Detailed report of payments, transport and Uber — like a bank statement</p>
+          <p className="text-[10px] text-muted-foreground/70">Detailed report of payments, transport and Uber, like a bank statement</p>
           <div className="flex gap-2">
             {(['3m', '6m', 'all'] as StatsPeriod[]).map(p => (
               <button

@@ -1,7 +1,7 @@
 'use client';
 
 import { useContext, useEffect, useMemo, useState } from 'react';
-import { add, format, getDaysInMonth, startOfDay } from 'date-fns';
+import { format, getDaysInMonth, startOfDay } from 'date-fns';
 import { AnimatePresence, motion } from 'framer-motion';
 import { ChevronLeft, ChevronRight, ChevronDown, CalendarRange, PieChart, BarChart3 } from 'lucide-react';
 import { buildAnalogous, cn, formatCurrency } from '@/lib/utils';
@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Button } from '@/components/ui/button';
 import { CardHeading } from '@/components/ui/card';
 import { Calendar } from '@/components/ui/calendar';
-import { cycleKey, cycleStartFromKey, getPayCycle, listRecentCycles, type MonthlyMoney } from '@/lib/calculations';
+import { cycleStartFromKey, getPayCycle, listRecentCycles, stepCycleKey, type MonthlyMoney } from '@/lib/calculations';
 import { AppDataContext } from '@/context/AppDataContext';
 
 /**
@@ -95,14 +95,9 @@ const SEGMENTS: { id: keyof MonthlyMoney; label: string; color: string }[] = [
 
 // ─── Cycle navigator (picker + trend, one card) ───────────────────────────────
 
-/** The cycle one step either side of `key`. Date maths, not array indices, so stepping is
- *  not bounded by whatever window the chart happens to be drawing. */
-export const stepCycleKey = (key: string, payDay: number, dir: -1 | 1): string => {
-  const c = getPayCycle(payDay, cycleStartFromKey(key, payDay));
-  // `end` is exclusive — it IS the next cycle's first day. One day before `start` is the
-  // last day of the previous cycle.
-  return dir === 1 ? cycleKey(c.end, payDay) : cycleKey(add(c.start, { days: -1 }), payDay);
-};
+// Lives in lib/calculations now — the Balance tab steps cycles too. Re-exported so
+// existing imports from here keep working.
+export { stepCycleKey };
 
 /** Every cycle key from one end of a span to the other, inclusive and oldest first. Keys
  *  are 'yyyy-MM', so they compare chronologically as strings; ends the wrong way round are

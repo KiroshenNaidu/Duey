@@ -298,6 +298,15 @@ export function cycleStartFromKey(key: string, payDay: number): Date {
   return payDateIn(y, m - 1, payDay);
 }
 
+/** The cycle one step either side of `key`. Date maths, not array indices, so stepping is
+ *  not bounded by whatever window a screen happens to be drawing. */
+export const stepCycleKey = (key: string, payDay: number, dir: -1 | 1): string => {
+  const c = getPayCycle(payDay, cycleStartFromKey(key, payDay));
+  // `end` is exclusive — it IS the next cycle's first day. One day before `start` is the
+  // last day of the previous cycle.
+  return dir === 1 ? cycleKey(c.end, payDay) : cycleKey(add(c.start, { days: -1 }), payDay);
+};
+
 /** Everything a screen needs to talk about one pay cycle. `end` is exclusive (the next pay
  *  date); `lastDay` is the last day the cycle actually covers, which is what labels read. */
 export interface PayCycle {
@@ -479,6 +488,55 @@ export function calculateSealedCycleSummary(input: MonthlyMoneyInput, cycleKeySt
     return inWindow(e.createdAt, start, end) ? s + e.amount : s;
   }, 0);
   const income = input.monthlyIncome + extra;
+  const totalOutgoings = transport + uber + debt + expenses + budget + savings;
+  return { income, transport, uber, debt, expenses, budget, savings, totalOutgoings, remaining: income - totalOutgoings };
+}
+
+/**
+ * A pay cycle that has NOT STARTED yet, projected from the things that repeat — the
+ * Balance tab's look at next cycle. Nothing here is a record, so every figure is an
+ * estimate, built from the same rules the seal and the purge apply when the cycle arrives:
+ *
+ *  • Income — salary plus the RECURRING extras. One-time extras are purged on pay date.
+ *  • Expenses — the recurring set only, for the same reason.
+ *  • Savings — standing orders plus anything already filed against that cycle, via the
+ *    same `savingsMovementForCycle` the live line uses.
+ *  • Transport — the calendar window, with days after `today` projected exactly as the
+ *    Transport page projects them (and nothing for an unemployed future cycle).
+ *  • Uber / budget — whatever is already dated inside the window, which is usually nothing.
+ *  • Debt — the installment each unfinished debt is expected to take. The live cycle only
+ *    counts payments actually logged; a future cycle has none, and showing zero would read
+ *    as "nothing due". Capped at what will still be owed once THIS cycle's installment
+ *    (if not yet paid) has gone out, so a debt that finishes now projects nothing after.
+ */
+export function calculateProjectedCycle(
+  input: MonthlyMoneyInput,
+  debts: Debt[],
+  cycleKeyStr: string,
+  today: Date = new Date(),
+): MonthlyMoney {
+  const start = cycleStartFromKey(cycleKeyStr, input.payDay);
+  const end = nextCycleStart(start, input.payDay);
+  const liveStart = cycleStart(today, input.payDay);
+  const liveEnd = nextCycleStart(liveStart, input.payDay);
+
+  const income = input.monthlyIncome
+    + input.extraIncomes.reduce((s, e) => (e.recurring ? s + e.amount : s), 0);
+  const transport = calculateTransportRange(
+    start, end, input.transportOverrides, input.transportSettings, input.transportMonthlyOverrides, today,
+  ).totalDue;
+  const uber = sumInWindow(input.uberRides, start, end, r => r.date, r => r.price);
+  const payments = input.history.filter(h => h.type === 'payment' && !!h.debtId);
+  const debt = debts.reduce((s, d) => {
+    if (!Number.isFinite(d.installment_amount) || d.installment_amount <= 0) return s;
+    const paidNow = sumInWindow(payments.filter(h => h.debtId === d.id), liveStart, liveEnd, h => h.date, h => h.amount);
+    const stillDueNow = Math.max(0, d.installment_amount - paidNow);
+    const owedAfterNow = Math.max(0, getRemainingBalance(d, input.history) - stillDueNow);
+    return s + Math.min(d.installment_amount, owedAfterNow);
+  }, 0);
+  const expenses = input.expenses.reduce((s, e) => (e.recurring ? s + e.amount : s), 0);
+  const budget = confirmedBudgetForWindow(input.budgetPlans, start, end);
+  const savings = savingsLineForCycle(input.savings, input.recurringSavings, cycleKeyStr);
   const totalOutgoings = transport + uber + debt + expenses + budget + savings;
   return { income, transport, uber, debt, expenses, budget, savings, totalOutgoings, remaining: income - totalOutgoings };
 }

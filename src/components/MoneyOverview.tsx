@@ -1,22 +1,26 @@
 'use client';
 
-import { useContext, useState } from 'react';
+import { useContext, useMemo, useState } from 'react';
 import { format } from 'date-fns';
 import { AppDataContext } from '@/context/AppDataContext';
 import { formatCurrency, cn } from '@/lib/utils';
-import { calculateLiveMonthly, getPayCycle, isTransportPaidForMonth } from '@/lib/calculations';
-import { summariseLoans } from '@/lib/loans';
+import {
+  calculateLiveMonthly, calculateProjectedCycle, calculateSealedCycleSummary, cycleKey,
+  cycleLabelFromKey, cycleStartFromKey, getPayCycle, isTransportPaidForMonth, nextCycleStart,
+  stepCycleKey, type MonthlyMoney,
+} from '@/lib/calculations';
+import { outstandingBefore, summariseLoans } from '@/lib/loans';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Pencil, Check, Plus, Trash2, X, RefreshCw } from 'lucide-react';
+import { Pencil, Check, Plus, Trash2, X, RefreshCw, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { showUndoToast } from '@/components/ui/undo-toast';
 import { useReplayOnActive } from '@/hooks/useReplayOnActive';
 
 export function MoneyOverview() {
   const {
-    monthlyIncome, budgetPlans, expenses, extraIncomes, history, uberRides, loans,
+    monthlyIncome, budgetPlans, expenses, extraIncomes, history, uberRides, loans, debts,
     transportSettings, transportOverrides, transportMonthlyOverrides, userProfile, savings, recurringSavings,
     setMonthlyIncome, addExtraIncome, deleteExtraIncome, restoreExtraIncome,
   } = useContext(AppDataContext);
@@ -51,25 +55,102 @@ export function MoneyOverview() {
   // Single shared calculator (also drives Stats + the pay-cycle seal) so every screen
   // agrees. It honours the live per-month transport override and counts only debt money
   // actually logged as a payment this cycle — nothing is deducted until you log a payment.
-  const monthly = calculateLiveMonthly(
-    { payDay: userProfile.paydayDay, monthlyIncome, extraIncomes, expenses, budgetPlans, history, uberRides, savings, recurringSavings, transportSettings, transportOverrides, transportMonthlyOverrides },
-    now,
+  const payDay = userProfile.paydayDay;
+  const input = useMemo(
+    () => ({
+      payDay, monthlyIncome, extraIncomes: extraIncomes ?? [], expenses, budgetPlans, history, uberRides,
+      savings, recurringSavings, transportSettings, transportOverrides, transportMonthlyOverrides,
+    }),
+    [payDay, monthlyIncome, extraIncomes, expenses, budgetPlans, history, uberRides, savings,
+     recurringSavings, transportSettings, transportOverrides, transportMonthlyOverrides],
   );
-  const { transport: transportCost, uber: uberSpend, debt: debtInstallments, expenses: totalExpenses, budget: budgetSpent, savings: savedThisCycle } = monthly;
-  const transportPaid = isTransportPaidForMonth(history, now);
   const totalExtra = (extraIncomes ?? []).reduce((s, e) => s + e.amount, 0);
+
+  // ── Which cycle the Deductions + Remaining cards show ──
+  // Keyed, not indexed, exactly like Stats → Pay cycle. null follows the running cycle, so
+  // a pay date passing while the app is open never strands you on the old one. The Income
+  // card above stays on the running cycle: it is where you EDIT income, and a sealed
+  // cycle's salary is not something the app can change.
+  const [pickedKey, setPickedKey] = useState<string | null>(null);
+  const viewKey = pickedKey ?? cycle.key;
+  const viewing: 'live' | 'sealed' | 'projected' =
+    viewKey === cycle.key ? 'live' : viewKey < cycle.key ? 'sealed' : 'projected';
+  // Forward stops at next cycle — the furthest one with anything real to project (standing
+  // orders, recurring expenses and extras, the transport calendar). Back stops at the
+  // oldest cycle History has anything in, the same floor Stats draws its timeline from:
+  // before that, a recompute invents a cycle out of today's salary.
+  const lastKey = stepCycleKey(cycle.key, payDay, 1);
+  const firstKey = useMemo(() => {
+    let earliest = cycle.key;
+    for (const h of history) {
+      const k = cycleKey(new Date(h.date), payDay);
+      if (k < earliest) earliest = k;
+    }
+    return earliest;
+  }, [history, payDay, cycle.key]);
+  const step = (dir: -1 | 1) => {
+    const next = stepCycleKey(viewKey, payDay, dir);
+    setPickedKey(next === cycle.key ? null : next);
+  };
+
+  // Sealed cycles read the breakdown frozen into their History summary, as Stats and the
+  // History detail sheet do — recomputing drifts once one-time extras and expenses have
+  // been purged. Only summaries sealed before that field existed fall back to a recompute.
+  const sealedSnapshot = useMemo<MonthlyMoney | null>(() => {
+    if (viewing !== 'sealed') return null;
+    for (const h of history) {
+      if (h.type !== 'snapshot' || !h.snapshot) continue;
+      if (cycleKey(new Date(h.date), payDay) === viewKey) return { ...h.snapshot, savings: h.snapshot.savings ?? 0 };
+    }
+    return null;
+  }, [viewing, history, payDay, viewKey]);
+
+  const viewStart = viewing === 'live' ? cycle.start : cycleStartFromKey(viewKey, payDay);
+  const viewEnd = viewing === 'live' ? cycle.end : nextCycleStart(viewStart, payDay);
+  const viewLabel = viewing === 'live' ? cycle.label : cycleLabelFromKey(viewKey, payDay);
+
+  // One shared calculator per kind of cycle, so Balance, Stats and the seal never disagree.
+  // The running cycle honours the live per-month transport override and counts only debt
+  // money actually logged as a payment — nothing is deducted until you log a payment. A
+  // cycle still to come is projected from what repeats (see calculateProjectedCycle).
+  const monthly: MonthlyMoney = useMemo(() => {
+    if (viewing === 'live') return calculateLiveMonthly(input, new Date());
+    if (viewing === 'sealed') return sealedSnapshot ?? calculateSealedCycleSummary(input, viewKey);
+    return calculateProjectedCycle(input, debts ?? [], viewKey, new Date());
+    // cycle.key is here for the day rolling over: `new Date()` is read inside, and the
+    // cycle key is what changes when that day crosses a pay date.
+  }, [viewing, input, sealedSnapshot, viewKey, debts, cycle.key]);
+  const { transport: transportCost, uber: uberSpend, debt: debtInstallments, expenses: totalExpenses, budget: budgetSpent, savings: savedThisCycle } = monthly;
+  // "Estimate" until Mark as Paid is logged for the month the cycle starts in. A cycle
+  // still to come has nothing paid, by definition.
+  const transportPaid = viewing !== 'projected' && isTransportPaidForMonth(history, viewing === 'live' ? now : viewStart);
   // Money handed to other people and not yet back (Debts → Receivable). It is out of your
   // hands, so it comes off the balance — and because this is OUTSTANDING (lent minus
   // repaid, settled loans excluded), every repayment you log shrinks the deduction.
-  const lentOut = summariseLoans(loans ?? []).outstanding;
+  // A sealed cycle shows what was outstanding as it closed; a future one, what is
+  // outstanding now, since nothing is scheduled to come back.
+  const lentOut = viewing === 'sealed'
+    ? outstandingBefore(loans ?? [], viewEnd)
+    : summariseLoans(loans ?? []).outstanding;
 
+  // "(this cycle)" only reads true on this cycle; the header names every other one.
+  const when = viewing === 'live' ? ' (this cycle)' : '';
   const deductions = [
-    { id: 'transport', label: 'Transport (this cycle)', value: transportCost, estimate: !transportPaid },
-    { id: 'uber',      label: 'Uber (this cycle)',       value: uberSpend },
-    { id: 'budget',    label: 'Budget (confirmed)',     value: budgetSpent },
-    { id: 'debts',     label: 'Debt payments (this cycle)', value: debtInstallments },
+    { id: 'transport', label: `Transport${when}`, value: transportCost, estimate: !transportPaid },
+    { id: 'uber',      label: `Uber${when}`,      value: uberSpend },
+    { id: 'budget',    label: 'Budget (confirmed)', value: budgetSpent },
+    {
+      id: 'debts',
+      label: viewing === 'projected' ? 'Debt payments (expected)' : `Debt payments${when}`,
+      value: debtInstallments,
+      estimate: viewing === 'projected',
+    },
     { id: 'loans',     label: 'Money lent out (unpaid)', value: lentOut },
-    { id: 'expenses',  label: 'Expenses (active)',       value: totalExpenses },
+    {
+      id: 'expenses',
+      label: viewing === 'live' ? 'Expenses (active)' : viewing === 'projected' ? 'Expenses (recurring)' : 'Expenses',
+      value: totalExpenses,
+    },
     // This cycle's savings movement (Stats → Savings), and the one row that can go either
     // way. Money put away is out of your hands, so it comes off; money taken back OUT of a
     // piggybank is yours to spend again, so a net withdrawal shows as a credit and lifts
@@ -101,7 +182,15 @@ export function MoneyOverview() {
   const effectiveDeductions = activeDeductions
     .filter(d => !excludedIds.has(d.id))
     .reduce((s, d) => s + d.value, 0);
-  const remaining = monthlyIncome + totalExtra - effectiveDeductions;
+  // The running cycle's income is the card above. Any other cycle brings its own: what it
+  // sealed with, or salary plus recurring extras for the one still to come.
+  const viewIncome = viewing === 'live' ? monthlyIncome + totalExtra : monthly.income;
+  const remaining = viewIncome - effectiveDeductions;
+  // What the seal actually banked for a closed cycle — read from Savings rather than
+  // re-derived, so the line agrees with the jar even while rows above are tapped out.
+  const bankedLeftover = viewing === 'sealed'
+    ? (savings ?? []).reduce((s, e) => (e.source === 'auto' && e.direction !== 'out' && e.cycleKey === viewKey ? s + e.amount : s), 0)
+    : 0;
 
   const startEdit = () => { setIncomeInput(monthlyIncome > 0 ? monthlyIncome.toString() : ''); setEditingIncome(true); };
   const confirmEdit = () => {
@@ -279,21 +368,54 @@ export function MoneyOverview() {
         </CardContent>
       </Card>
 
-      {/* Deductions — absent entirely until something is being deducted. */}
-      {activeDeductions.length > 0 && (
+      {/* Deductions, for any cycle from the oldest History knows up to the next one. Always
+          present: it used to vanish when nothing was being deducted, but its chevrons are
+          now the way to other cycles, and those must not disappear with an empty one. */}
       <Card>
         <CardContent className="p-3 space-y-2">
-          <div className="flex items-center justify-between gap-2">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Deductions</p>
-            {hiddenCount > 0 && (
-              <button
-                onClick={() => setShowAllDeductions(v => !v)}
-                className="text-[10px] font-semibold text-muted-foreground/60 hover:text-muted-foreground transition-colors shrink-0"
-              >
-                {showAllDeductions ? 'Show less' : 'Show all'}
-              </button>
-            )}
+          {/* Same stepper as Stats → Pay cycle: chevrons either side, the cycle in between. */}
+          <div className="flex items-center gap-1 -mx-1.5 -mt-1.5">
+            <button
+              onClick={() => step(-1)}
+              disabled={viewKey <= firstKey}
+              aria-label="Previous cycle"
+              className="h-8 w-8 shrink-0 rounded-xl flex items-center justify-center text-muted-foreground transition-colors disabled:opacity-25 active:bg-muted/60"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+            {/* Tapping the middle jumps back to the running cycle. */}
+            <button
+              onClick={() => setPickedKey(null)}
+              disabled={viewing === 'live'}
+              className="flex-1 min-w-0 px-1 text-center"
+            >
+              <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Deductions</p>
+              <p className={cn('text-xs font-semibold truncate mt-0.5', viewing === 'live' ? 'text-foreground' : 'text-accent')}>
+                {viewLabel}
+              </p>
+              <p className="text-[9px] text-muted-foreground mt-0.5">
+                {viewing === 'live'
+                  ? 'This cycle · still running'
+                  : viewing === 'sealed'
+                    ? `Sealed${sealedSnapshot ? '' : ' · recalculated'} · tap for this cycle`
+                    : 'Projected · recurring only · tap for this cycle'}
+              </p>
+            </button>
+            <button
+              onClick={() => step(1)}
+              disabled={viewKey >= lastKey}
+              aria-label="Next cycle"
+              className="h-8 w-8 shrink-0 rounded-xl flex items-center justify-center text-muted-foreground transition-colors disabled:opacity-25 active:bg-muted/60"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </button>
           </div>
+
+          {activeDeductions.length === 0 && !showAllDeductions && (
+            <p className="text-[10px] text-muted-foreground/60 italic">
+              {viewing === 'projected' ? 'Nothing recurring is set to come off' : 'Nothing came off in this cycle'}
+            </p>
+          )}
           {shownDeductions.map(d => {
             const off = excludedIds.has(d.id);
             return (
@@ -317,6 +439,17 @@ export function MoneyOverview() {
               </button>
             );
           })}
+          {hiddenCount > 0 && (
+            <div className="flex justify-end">
+              <button
+                onClick={() => setShowAllDeductions(v => !v)}
+                className="text-[10px] font-semibold text-muted-foreground/60 hover:text-muted-foreground transition-colors shrink-0"
+              >
+                {showAllDeductions ? 'Show less' : 'Show all'}
+              </button>
+            </div>
+          )}
+          {activeDeductions.length > 0 && (
           <div className="border-t border-border pt-2 mt-1">
             <div className="flex justify-between items-baseline">
               <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground shrink-0">Total deductions</span>
@@ -325,24 +458,48 @@ export function MoneyOverview() {
               </span>
             </div>
           </div>
+          )}
         </CardContent>
       </Card>
-      )}
 
       {/* Remaining */}
       <Card className={cn('border-2', remaining >= 0 ? 'border-accent/40' : 'border-destructive/40')}>
         <CardContent className="p-3">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1">Remaining</p>
+          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1">
+            {viewing === 'live' ? 'Remaining' : viewing === 'sealed' ? 'Left over' : 'Projected remaining'}
+          </p>
           <p className={cn('text-3xl font-bold tabular-nums', remaining >= 0 ? 'text-accent' : 'text-destructive')}>
             {remaining < 0 ? `−${formatCurrency(Math.abs(remaining))}` : formatCurrency(remaining)}
           </p>
-          {remaining < 0 && <p className="text-[10px] text-destructive mt-0.5">You&apos;re over budget this cycle</p>}
+          {/* Another cycle's income is not the card above, so it is named here. */}
+          {viewing !== 'live' && (
+            <p className="text-[10px] text-muted-foreground mt-0.5">
+              From {formatCurrency(viewIncome)} income{viewing === 'projected' ? ' (salary + monthly extras)' : ''} · {viewLabel}
+            </p>
+          )}
+          {remaining < 0 && (
+            <p className="text-[10px] text-destructive mt-0.5">
+              {viewing === 'live' ? 'You\u2019re over budget this cycle'
+                : viewing === 'sealed' ? 'This cycle ended over budget'
+                : 'On track to go over budget next cycle'}
+            </p>
+          )}
           {/* Closes the loop with Stats → Savings: what survives the cycle is swept there by
               the seal. Deliberately phrased as "whatever's left", not the figure above —
               that one moves with the deduction rows you tap out, the sweep never does. */}
-          {remaining > 0 && monthlyIncome > 0 && (
+          {viewing === 'live' && remaining > 0 && monthlyIncome > 0 && (
             <p className="text-[10px] text-muted-foreground mt-0.5">
               Whatever&apos;s left on {format(cycle.end, 'd MMM')} is banked in Savings
+            </p>
+          )}
+          {viewing === 'sealed' && bankedLeftover > 0 && (
+            <p className="text-[10px] text-muted-foreground mt-0.5">
+              {formatCurrency(bankedLeftover)} was banked in Savings
+            </p>
+          )}
+          {viewing === 'projected' && remaining > 0 && monthlyIncome > 0 && (
+            <p className="text-[10px] text-muted-foreground mt-0.5">
+              Whatever&apos;s left on {format(viewEnd, 'd MMM')} is banked in Savings
             </p>
           )}
           {monthlyIncome === 0 && <p className="text-[10px] text-muted-foreground mt-0.5">Set your monthly income above to see your balance</p>}

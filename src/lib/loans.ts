@@ -1,3 +1,4 @@
+import { format } from 'date-fns';
 import type { Loan } from './types';
 
 // Everything a loan "is" is derived from its events — nothing about a loan's balance is
@@ -69,4 +70,22 @@ export function summariseLoans(loans: Loan[]): LoansSummary {
     }
   }
   return { lent, repaid, outstanding, debtors: people.size };
+}
+
+/**
+ * What was still owed to you at a moment in the past — `summariseLoans().outstanding` as it
+ * would have read then. Only movements dated before `before` count, and a loan closed by
+ * hand before it counts for nothing. `before` is exclusive, so pass a cycle's end (the next
+ * pay date) to get the figure as that cycle closed.
+ */
+export function outstandingBefore(loans: Loan[], before: Date): number {
+  const cutoff = format(before, 'yyyy-MM-dd'); // event dates are local 'yyyy-MM-dd'
+  return loans.reduce((sum, l) => {
+    if (l.settledAt && new Date(l.settledAt).getTime() < before.getTime()) return sum;
+    const balance = l.events.reduce((b, e) => {
+      if (e.date >= cutoff) return b;
+      return e.type === 'lent' ? b + e.amount : b - e.amount;
+    }, 0);
+    return sum + Math.max(0, balance);
+  }, 0);
 }
