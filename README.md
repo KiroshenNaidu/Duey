@@ -6,7 +6,7 @@
     <img src="docs/assets/btn-download-apk.svg" alt="Download Duey — Android APK v2.3.1" width="240">
   </a>
   &nbsp;
-  <a href="[https://github.com/KiroshenNaidu/Duey/releases/download/2/test-data.json](https://github.com/KiroshenNaidu/Duey/releases/download/TestData/test-data.json)">
+  <a href="https://github.com/KiroshenNaidu/Duey/releases/download/TestData/test-data.json">
     <img src="docs/assets/btn-download-sample-data.svg" alt="Download the sample dataset — test-data.json" width="240">
   </a>
 </p>
