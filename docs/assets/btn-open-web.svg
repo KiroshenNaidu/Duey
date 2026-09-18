@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="260" height="60" viewBox="0 0 260 60" role="img" aria-label="Open the Duey web app">
+  <defs>
+    <linearGradient id="webBg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#16171d"/>
+      <stop offset="1" stop-color="#0d0d12"/>
+    </linearGradient>
+  </defs>
+
+  <rect x="0" y="0" width="260" height="60" rx="14" fill="url(#webBg)"/>
+  <rect x="0.5" y="0.5" width="259" height="59" rx="13.5" fill="none" stroke="#5bc5f5" stroke-opacity="0.42"/>
+
+  <circle cx="33" cy="30" r="16" fill="#5bc5f5" fill-opacity="0.14"/>
+  <circle cx="33" cy="30" r="9.5" fill="none" stroke="#5bc5f5" stroke-width="2"/>
+  <ellipse cx="33" cy="30" rx="4" ry="9.5" fill="none" stroke="#5bc5f5" stroke-width="2"/>
+  <path d="M23.5 30h19" fill="none" stroke="#5bc5f5" stroke-width="2" stroke-linecap="round"/>
+
+  <text x="63" y="27" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="16" font-weight="700" fill="#f3f4f6">Open Web App</text>
+  <text x="63" y="44" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="11" font-weight="600" fill="#999ca8">duey.netlify.app</text>
+</svg>
