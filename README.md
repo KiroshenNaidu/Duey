@@ -2,7 +2,7 @@
 **A personal debt and transport tracker.**
 
 <p>
-  <a href="https://github.com/KiroshenNaidu/Duey/releases/download/2/duey_v.2.3.1.apk"><img src="docs/assets/btn-download-apk.svg" alt="Download Duey - Android APK v2.3.1" width="240"></a>
+  <a href="https://github.com/KiroshenNaidu/Duey/releases/download/v.2/duey_v.2.4.1.apk"><img src="docs/assets/btn-download-apk.svg" alt="Download Duey - Android APK v2.3.1" width="240"></a>
   &nbsp;
   <a href="https://duey.netlify.app/"><img src="docs/assets/btn-open-web.svg" alt="Open the Duey web app - duey.netlify.app" width="240"></a>
   &nbsp;
