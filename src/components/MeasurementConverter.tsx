@@ -4,7 +4,12 @@ import { useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowLeftRight, ChevronDown, ChevronUp } from 'lucide-react';
+import {
+  ArrowLeftRight, ChevronDown, ChevronUp,
+  Ruler, Scale, Thermometer, Square, Box, Gauge, Timer, HardDrive,
+  CircleGauge, Zap, Lightbulb, Triangle, Fuel,
+  type LucideIcon,
+} from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -22,7 +27,7 @@ type UnitDef = {
 type Category = {
   key: string;
   label: string;
-  emoji: string;
+  icon: LucideIcon;
   units: UnitDef[];
 };
 
@@ -40,7 +45,7 @@ const CATEGORIES: Category[] = [
   {
     key: 'length',
     label: 'Length',
-    emoji: '📏',
+    icon: Ruler,
     units: [
       { key: 'mm',   label: 'Millimetre (mm)',    factor: 0.001 },
       { key: 'cm',   label: 'Centimetre (cm)',    factor: 0.01 },
@@ -60,7 +65,7 @@ const CATEGORIES: Category[] = [
   {
     key: 'weight',
     label: 'Weight',
-    emoji: '⚖️',
+    icon: Scale,
     units: [
       { key: 'mcg',  label: 'Microgram (μg)',     factor: 1e-9 },
       { key: 'mg',   label: 'Milligram (mg)',      factor: 1e-6 },
@@ -79,7 +84,7 @@ const CATEGORIES: Category[] = [
   {
     key: 'temperature',
     label: 'Temp',
-    emoji: '🌡️',
+    icon: Thermometer,
     units: [
       {
         key: 'c', label: '°Celsius (°C)',
@@ -106,7 +111,7 @@ const CATEGORIES: Category[] = [
   {
     key: 'area',
     label: 'Area',
-    emoji: '⬛',
+    icon: Square,
     units: [
       { key: 'mm2',  label: 'mm²',              factor: 1e-6 },
       { key: 'cm2',  label: 'cm²',              factor: 1e-4 },
@@ -123,7 +128,7 @@ const CATEGORIES: Category[] = [
   {
     key: 'volume',
     label: 'Volume',
-    emoji: '🧊',
+    icon: Box,
     units: [
       { key: 'ml',      label: 'Millilitre (ml)',       factor: 0.001 },
       { key: 'cl',      label: 'Centilitre (cl)',        factor: 0.01 },
@@ -147,7 +152,7 @@ const CATEGORIES: Category[] = [
   {
     key: 'speed',
     label: 'Speed',
-    emoji: '🚀',
+    icon: Gauge,
     units: [
       { key: 'mps',   label: 'm/s',            factor: 1 },
       { key: 'kmh',   label: 'km/h',           factor: 1 / 3.6 },
@@ -162,7 +167,7 @@ const CATEGORIES: Category[] = [
   {
     key: 'time',
     label: 'Time',
-    emoji: '⏱️',
+    icon: Timer,
     units: [
       { key: 'ns',  label: 'Nanosecond (ns)',   factor: 1e-9 },
       { key: 'ms',  label: 'Millisecond (ms)',  factor: 0.001 },
@@ -179,7 +184,7 @@ const CATEGORIES: Category[] = [
   {
     key: 'storage',
     label: 'Data',
-    emoji: '💾',
+    icon: HardDrive,
     units: [
       { key: 'bit', label: 'Bit',               factor: 1 },
       { key: 'B',   label: 'Byte (B)',           factor: 8 },
@@ -196,7 +201,7 @@ const CATEGORIES: Category[] = [
   {
     key: 'pressure',
     label: 'Pressure',
-    emoji: '🔩',
+    icon: CircleGauge,
     units: [
       { key: 'pa',   label: 'Pascal (Pa)',       factor: 1 },
       { key: 'kpa',  label: 'Kilopascal (kPa)',  factor: 1000 },
@@ -212,7 +217,7 @@ const CATEGORIES: Category[] = [
   {
     key: 'energy',
     label: 'Energy',
-    emoji: '⚡',
+    icon: Zap,
     units: [
       { key: 'j',   label: 'Joule (J)',          factor: 1 },
       { key: 'kj',  label: 'Kilojoule (kJ)',     factor: 1000 },
@@ -228,7 +233,7 @@ const CATEGORIES: Category[] = [
   {
     key: 'power',
     label: 'Power',
-    emoji: '💡',
+    icon: Lightbulb,
     units: [
       { key: 'w',    label: 'Watt (W)',           factor: 1 },
       { key: 'kw',   label: 'Kilowatt (kW)',      factor: 1000 },
@@ -242,7 +247,7 @@ const CATEGORIES: Category[] = [
   {
     key: 'angle',
     label: 'Angle',
-    emoji: '📐',
+    icon: Triangle,
     units: [
       { key: 'deg',  label: 'Degree (°)',         factor: 1 },
       { key: 'rad',  label: 'Radian (rad)',        factor: 180 / Math.PI },
@@ -255,7 +260,7 @@ const CATEGORIES: Category[] = [
   {
     key: 'fuel',
     label: 'Fuel',
-    emoji: '⛽',
+    icon: Fuel,
     // All convert via L/100km as base — every non-metric unit is a reciprocal of it.
     units: [
       { key: 'l100km', label: 'L / 100 km', toBase: v => v, fromBase: v => v },
@@ -383,21 +388,24 @@ export function MeasurementConverter() {
     <div className="space-y-3">
       {/* Category pills */}
       <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-1 px-1">
-        {CATEGORIES.map(c => (
-          <button
-            key={c.key}
-            onClick={() => handleCatChange(c.key)}
-            className={cn(
-              'flex-shrink-0 flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold transition-colors',
-              catKey === c.key
-                ? 'bg-primary text-primary-foreground'
-                : 'bg-muted/50 text-muted-foreground hover:bg-muted'
-            )}
-          >
-            <span>{c.emoji}</span>
-            <span>{c.label}</span>
-          </button>
-        ))}
+        {CATEGORIES.map(c => {
+          const Icon = c.icon;
+          return (
+            <button
+              key={c.key}
+              onClick={() => handleCatChange(c.key)}
+              className={cn(
+                'flex-shrink-0 flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold transition-colors',
+                catKey === c.key
+                  ? 'bg-primary text-primary-foreground'
+                  : 'bg-muted/50 text-muted-foreground hover:bg-muted'
+              )}
+            >
+              <Icon className="h-3.5 w-3.5 shrink-0" />
+              <span>{c.label}</span>
+            </button>
+          );
+        })}
       </div>
 
       {/* Amount */}
