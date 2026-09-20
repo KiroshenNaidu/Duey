@@ -11,7 +11,7 @@
 
 > I have a pretty bad memory. I needed a simple way to keep track of what I owe and when I traveled to work without relying on scattered notes or mental math. Built this purely for myself, feel free to use it if it helps you too.
 
-**100% offline.** No internet, no account, no server. Everything stays on your device.
+**100% offline.** No internet, no account, no serefrvfkbjonwefksvnjndvjsonefoasjnevojsnevoeen
 
 ---
 
