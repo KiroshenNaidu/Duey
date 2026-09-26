@@ -372,17 +372,17 @@ function Figure({ label, value, color, icon: Icon }: {
 function useCycleSelection() {
   const {
     monthlyIncome, extraIncomes, expenses, budgetPlans, history, uberRides,
-    transportSettings, transportOverrides, transportMonthlyOverrides, userProfile, savings, recurringSavings, loans,
+    transportSettings, transportOverrides, transportMonthlyOverrides, userProfile, savings, recurringSavings, loans, incomeHistory,
   } = useContext(AppDataContext);
 
   const payDay = userProfile.paydayDay;
   const input = useMemo(
     () => ({
       payDay, monthlyIncome, extraIncomes, expenses, budgetPlans, history, uberRides, savings,
-      recurringSavings, loans, transportSettings, transportOverrides, transportMonthlyOverrides,
+      recurringSavings, loans, incomeHistory, transportSettings, transportOverrides, transportMonthlyOverrides,
     }),
     [payDay, monthlyIncome, extraIncomes, expenses, budgetPlans, history, uberRides, savings,
-     recurringSavings, loans, transportSettings, transportOverrides, transportMonthlyOverrides],
+     recurringSavings, loans, incomeHistory, transportSettings, transportOverrides, transportMonthlyOverrides],
   );
   const cycle = useMemo(() => getPayCycle(payDay), [payDay]);
   // The same live calculator the Balance tab runs, so the figures can never disagree.
@@ -622,7 +622,7 @@ export function StatsPage() {
       {/* Two views of the same money: what it is doing now (Overview) and what survived
           each pay cycle (Savings). Same tab strip the Money page uses. */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="tabs-fluid w-full">
+        <TabsList className="tabs-fluid w-full" data-tour="stats-tabs">
           <TabsTrigger value="overview" className="flex-auto">Overview</TabsTrigger>
           <TabsTrigger value="savings" className="flex-auto">Savings</TabsTrigger>
         </TabsList>

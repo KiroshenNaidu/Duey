@@ -1,6 +1,7 @@
 import type {
   Debt, HistoryEntry, TransportOverrides, TransportSettings, DayState,
   Expense, ExtraIncome, BudgetPlan, UberRide, TransportMonthlyOverrides, SavingEntry, RecurringSaving, Loan,
+  IncomeChange,
 } from './types';
 import { isWeekend, getDaysInMonth, startOfMonth, startOfDay, add, isSameMonth, format, differenceInCalendarDays } from 'date-fns';
 import { savingsMovementForCycle } from './piggybanks';
@@ -365,6 +366,8 @@ export interface MonthlyMoneyInput {
   recurringSavings?: RecurringSaving[];
   /** Money lent out (Debts → Receivable). Optional so callers without loans still work. */
   loans?: Loan[];
+  /** Past salary changes, so a closed cycle uses the salary it really had. */
+  incomeHistory?: IncomeChange[];
   transportSettings: TransportSettings;
   transportOverrides: TransportOverrides;
   transportMonthlyOverrides: TransportMonthlyOverrides;
@@ -456,9 +459,51 @@ const confirmedBudgetForWindow = (plans: BudgetPlan[], start: Date, end: Date): 
       ? s + p.items.reduce((si, i) => si + i.price, 0) : s), 0);
 
 /**
+ * What a cycle's expenses were, the same way Balance counted them.
+ *
+ * The expense list comes first, because it is exactly what Balance showed: recurring
+ * expenses count in every cycle from the one they were added in, one-time expenses in the
+ * cycle they were added in. This used to lean on each expense's History record instead,
+ * and a missing, edited or deleted record meant the cycle-end sweep saved a different
+ * amount from what Balance said was left.
+ *
+ * History only fills the gap the list cannot: one-time expenses from older cycles that
+ * were cleared out on a past pay day. Records written since expenses got linked
+ * (`expenseId`) count only once their expense has been cleared (`expensePurged`, set by the
+ * pay-day purge along with the final amount). Older unlinked records count unless an
+ * expense in the list covers them (same title, and recurring or added in this cycle).
+ */
+function expensesInWindow(input: MonthlyMoneyInput, start: Date, end: Date): number {
+  const inList = input.expenses.filter(e =>
+    e.recurring ? new Date(e.createdAt) < end : inWindow(e.createdAt, start, end));
+  const fromList = inList.reduce((s, e) => s + e.amount, 0);
+  const coveredTitle = (title: string) => input.expenses.some(e =>
+    e.title === title && (e.recurring || inWindow(e.createdAt, start, end)));
+  const fromHistory = sumInWindow(
+    input.history.filter(h => h.type === 'expense' && (
+      h.expensePurged || (!h.expenseId && !coveredTitle(h.debtTitle))
+    )),
+    start, end, h => h.date, h => h.amount);
+  return fromList + fromHistory;
+}
+
+/**
+ * The salary a cycle had: the last change made on or before it. A cycle from before the
+ * first recorded change gets the earliest known salary. With no changes recorded at all
+ * it is today's salary, which is all there is to go on.
+ */
+export function salaryForCycle(current: number, history: IncomeChange[] | undefined, cycleKeyStr: string): number {
+  if (!history || history.length === 0) return current;
+  const sorted = [...history].sort((a, b) => (a.fromCycle < b.fromCycle ? -1 : 1));
+  let amount = sorted[0].amount;
+  for (const h of sorted) if (h.fromCycle <= cycleKeyStr) amount = h.amount;
+  return amount;
+}
+
+/**
  * Summary for a PAST (ended) pay cycle, reconstructed from dated stored data so it is
  * correct even after the working arrays have moved on (e.g. one-time expenses purged).
- * Best-effort: salary uses the current monthlyIncome (historical salary isn't stored).
+ * Salary is the one that cycle had (salaryForCycle), not necessarily today's.
  *
  * `cycleKeyStr` is the cycle's 'yyyy-MM' key — the month it STARTED in.
  */
@@ -473,16 +518,7 @@ export function calculateSealedCycleSummary(input: MonthlyMoneyInput, cycleKeySt
   ).totalDue;
   const debt = sumInWindow(
     input.history.filter(h => h.type === 'payment' && !!h.debtId), start, end, h => h.date, h => h.amount);
-  // One-time expenses live on as dated `expense` history entries even after purge.
-  const oneTimeExpenses = sumInWindow(
-    input.history.filter(h => h.type === 'expense'), start, end, h => h.date, h => h.amount);
-  // Recurring expenses only get a single (creation-cycle) history entry, so add the current
-  // recurring set for any cycle at/after their creation — except the creation cycle itself,
-  // which is already covered by the history sum above (avoids double counting).
-  const recurringExpenses = input.expenses
-    .filter(e => e.recurring && new Date(e.createdAt) < end && !inWindow(e.createdAt, start, end))
-    .reduce((s, e) => s + e.amount, 0);
-  const expenses = oneTimeExpenses + recurringExpenses;
+  const expenses = expensesInWindow(input, start, end);
   const uber = sumInWindow(input.uberRides, start, end, r => r.date, r => r.price);
   const budget = confirmedBudgetForWindow(input.budgetPlans, start, end);
   // Savings movement for this cycle is an outgoing here too, which is what keeps the
@@ -496,7 +532,7 @@ export function calculateSealedCycleSummary(input: MonthlyMoneyInput, cycleKeySt
     if (e.recurring) return new Date(e.createdAt) < end ? s + e.amount : s;
     return inWindow(e.createdAt, start, end) ? s + e.amount : s;
   }, 0);
-  const income = input.monthlyIncome + extra;
+  const income = salaryForCycle(input.monthlyIncome, input.incomeHistory, cycleKeyStr) + extra;
   // What was still owed to you as the cycle closed — the same figure Balance showed.
   const loans = outstandingBefore(input.loans ?? [], end);
   const totalOutgoings = transport + uber + debt + expenses + budget + savings + loans;

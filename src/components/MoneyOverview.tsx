@@ -20,7 +20,7 @@ import { useReplayOnActive } from '@/hooks/useReplayOnActive';
 
 export function MoneyOverview() {
   const {
-    monthlyIncome, budgetPlans, expenses, extraIncomes, history, uberRides, loans, debts,
+    monthlyIncome, budgetPlans, expenses, extraIncomes, history, uberRides, loans, incomeHistory, debts,
     transportSettings, transportOverrides, transportMonthlyOverrides, userProfile, savings, recurringSavings,
     setMonthlyIncome, addExtraIncome, deleteExtraIncome, restoreExtraIncome,
   } = useContext(AppDataContext);
@@ -59,10 +59,10 @@ export function MoneyOverview() {
   const input = useMemo(
     () => ({
       payDay, monthlyIncome, extraIncomes: extraIncomes ?? [], expenses, budgetPlans, history, uberRides,
-      savings, recurringSavings, loans, transportSettings, transportOverrides, transportMonthlyOverrides,
+      savings, recurringSavings, loans, incomeHistory, transportSettings, transportOverrides, transportMonthlyOverrides,
     }),
     [payDay, monthlyIncome, extraIncomes, expenses, budgetPlans, history, uberRides, savings,
-     recurringSavings, loans, transportSettings, transportOverrides, transportMonthlyOverrides],
+     recurringSavings, loans, incomeHistory, transportSettings, transportOverrides, transportMonthlyOverrides],
   );
   const totalExtra = (extraIncomes ?? []).reduce((s, e) => s + e.amount, 0);
 

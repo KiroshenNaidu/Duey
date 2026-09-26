@@ -382,7 +382,7 @@ export function ProfileMenu({ onDirtyChange, onSaved, onCancel }: ProfileMenuPro
           <div className="space-y-1.5">
             <Label className="text-xs">About me</Label>
             <Textarea
-              placeholder="e.g., Savisng towards a debt-free life..."
+              placeholder="e.g., Saving towards a debt-free life..."
               value={bio}
               onChange={e => setBio(e.target.value)}
               rows={3}

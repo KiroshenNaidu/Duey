@@ -91,8 +91,10 @@ function blobToBase64(blob: Blob): Promise<string> {
   });
 }
 
+// Dates in exports use the phone's own region settings (undefined locale), the same way
+// money follows the chosen currency, rather than always being written the South African way.
 function formatDate(iso: string) {
-  try { return new Date(iso).toLocaleDateString('en-ZA'); } catch { return iso; }
+  try { return new Date(iso).toLocaleDateString(undefined); } catch { return iso; }
 }
 
 function buildDateStamp(): string {
@@ -226,7 +228,7 @@ function drawTable(
 function drawPageFooter(doc: any, pageNum: number, totalPages: number): void {
   const W = doc.internal.pageSize.getWidth();
   const footerY = doc.internal.pageSize.getHeight() - 8;
-  const stamp = new Date().toLocaleString('en-ZA', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  const stamp = new Date().toLocaleString(undefined, { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
   doc.setDrawColor(210, 214, 220);
   doc.setLineWidth(0.3);
   doc.line(10, footerY - 3, W - 10, footerY - 3);
@@ -421,7 +423,7 @@ export function DataManagementMenu() {
       const s = getAppState();
       const lines: string[] = [
         'DUEY - History Export',
-        `Generated: ${new Date().toLocaleDateString('en-ZA')}`,
+        `Generated: ${new Date().toLocaleDateString(undefined)}`,
         '',
         '=== DEBTS ===',
       ];
@@ -538,7 +540,7 @@ export function DataManagementMenu() {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const [{ Document, Paragraph, TextRun, HeadingLevel, Table, TableRow, TableCell, Packer, WidthType, ImageRun }, logoBase64] = await Promise.all([loadDocxLib() as any, getLogoBase64()]);
       const logoData = logoBase64 ? Uint8Array.from(atob(logoBase64), c => c.charCodeAt(0)) : null;
-      const dateStr = new Date().toLocaleDateString('en-ZA', { day: '2-digit', month: 'short', year: 'numeric' });
+      const dateStr = new Date().toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' });
 
       const HDR_FILL = '2D323A';
       const COL_DATE = 1440;
@@ -728,7 +730,7 @@ export function DataManagementMenu() {
       const [{ jsPDF }, logoBase64] = await Promise.all([import('jspdf'), getLogoBase64()]);
       const doc = new jsPDF({ unit: 'mm', format: 'a4' });
       const PAGE_W = doc.internal.pageSize.getWidth();
-      const dateStr = new Date().toLocaleDateString('en-ZA', { day: '2-digit', month: 'short', year: 'numeric' });
+      const dateStr = new Date().toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' });
 
       const DEBT_COLS: ColDef[]      = [{ header: 'Date', width: 28 }, { header: 'Debt / Description', width: 110 }, { header: `Amount (${CUR})`, width: 52, align: 'right' }];
       const TRANSPORT_COLS: ColDef[] = [{ header: 'Date', width: 28 }, { header: 'Description', width: 110 }, { header: `Amount (${CUR})`, width: 52, align: 'right' }];
@@ -921,7 +923,7 @@ export function DataManagementMenu() {
       const [{ jsPDF }, logoBase64] = await Promise.all([import('jspdf'), getLogoBase64()]);
       const doc = new jsPDF({ unit: 'mm', format: 'a4' });
       const PAGE_W = doc.internal.pageSize.getWidth();
-      const dateStr = new Date().toLocaleDateString('en-ZA', { day: '2-digit', month: 'short', year: 'numeric' });
+      const dateStr = new Date().toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' });
 
       const DEBT_COLS: ColDef[]      = [{ header: 'Date', width: 28 }, { header: 'Debt / Description', width: 110 }, { header: `Amount (${CUR})`, width: 52, align: 'right' }];
       const TRANSPORT_COLS: ColDef[] = [{ header: 'Date', width: 28 }, { header: 'Description', width: 110 }, { header: `Amount (${CUR})`, width: 52, align: 'right' }];

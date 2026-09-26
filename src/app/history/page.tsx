@@ -885,7 +885,7 @@ export default function HistoryPage() {
   const {
     history, debts, expenses, uberRides, budgetPlans,
     updateHistoryEntry, deleteHistoryEntry, restoreHistoryEntry,
-    monthlyIncome, extraIncomes, savings, recurringSavings, loans, transportSettings, transportOverrides, transportMonthlyOverrides,
+    monthlyIncome, extraIncomes, savings, recurringSavings, loans, incomeHistory, transportSettings, transportOverrides, transportMonthlyOverrides,
     userProfile, exportFolderUri, exportFolderName, setExportFolder, setAppError,
     notificationSettings,
   } = useContext(AppDataContext);
@@ -1636,7 +1636,7 @@ export default function HistoryPage() {
             // recomputing drifts once one-time extra incomes/expenses have been purged.
             const recomputed = !snapshotEntry.snapshot;
             const s = snapshotEntry.snapshot ?? calculateSealedCycleSummary(
-              { payDay, monthlyIncome, extraIncomes, expenses, budgetPlans, history, uberRides, savings, recurringSavings, loans, transportSettings, transportOverrides, transportMonthlyOverrides },
+              { payDay, monthlyIncome, extraIncomes, expenses, budgetPlans, history, uberRides, savings, recurringSavings, loans, incomeHistory, transportSettings, transportOverrides, transportMonthlyOverrides },
               cycle.key,
             );
             const rows: { label: string; value: number; negative?: boolean }[] = [
@@ -1676,7 +1676,7 @@ export default function HistoryPage() {
                   </div>
                   {recomputed && (
                     <p className="text-[10px] text-muted-foreground/60 pt-2">
-                      Recomputed from this period&apos;s stored entries. Salary uses your current monthly income.
+                      Worked out again from what was saved for this period. Salary is what it was set to back then.
                     </p>
                   )}
                 </div>

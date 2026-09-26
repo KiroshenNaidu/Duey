@@ -40,7 +40,7 @@ const AUTO_COLOR = 'hsl(var(--positive))';       // left over, swept at cycle en
 const MANUAL_COLOR = 'hsl(var(--cat-snapshot))'; // put away by hand
 
 export function SavingsTab() {
-  const { savings, piggybanks, recurringSavings, loans, userProfile, monthlyIncome, extraIncomes,
+  const { savings, piggybanks, recurringSavings, loans, incomeHistory, userProfile, monthlyIncome, extraIncomes,
           expenses, budgetPlans, history, uberRides,
           transportSettings, transportOverrides, transportMonthlyOverrides,
           deleteSaving, restoreSaving } = useContext(AppDataContext);
@@ -61,10 +61,10 @@ export function SavingsTab() {
   const live = useMemo(
     () => calculateLiveMonthly({
       payDay, monthlyIncome, extraIncomes, expenses, budgetPlans, history, uberRides, savings,
-      recurringSavings, loans, transportSettings, transportOverrides, transportMonthlyOverrides,
+      recurringSavings, loans, incomeHistory, transportSettings, transportOverrides, transportMonthlyOverrides,
     }),
     [payDay, monthlyIncome, extraIncomes, expenses, budgetPlans, history, uberRides, savings,
-     recurringSavings, loans, transportSettings, transportOverrides, transportMonthlyOverrides],
+     recurringSavings, loans, incomeHistory, transportSettings, transportOverrides, transportMonthlyOverrides],
   );
 
   // Net saved per cycle, oldest first — feeds the trend line and the average/best tiles.
