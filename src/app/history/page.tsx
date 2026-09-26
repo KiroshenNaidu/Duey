@@ -6,7 +6,7 @@ import { motion, motionValue } from 'framer-motion';
 import { AppDataContext } from '@/context/AppDataContext';
 import { SwipeTabView } from '@/components/SwipeTabView';
 import { SWIPE_SETTLE_SPRING } from '@/lib/pageTransitions';
-import { formatCurrency, getCurrencySymbol, cn } from '@/lib/utils';
+import { formatCurrency, formatCurrencyShort, getCurrencySymbol, getPdfCurrencySymbol, cn } from '@/lib/utils';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -236,7 +236,9 @@ type ExportBuilderArgs = {
 async function buildPdf(args: ExportBuilderArgs): Promise<Blob> {
   const [{ jsPDF }, logoBase64] = await Promise.all([import('jspdf'), getLogoBase64()]);
   const { history, expenses, uberRides, budgetPlans, debts, userName, tab } = args;
-  const CUR = getCurrencySymbol(); // active currency symbol — reports follow the app's currency
+  // Reports follow the app's currency; the PDF fonts cannot draw every symbol, so this
+  // falls back to the ISO code (INR) where needed.
+  const CUR = getPdfCurrencySymbol();
   const doc = new jsPDF({ unit: 'mm', format: 'a4' });
 
   if (tab === 'all') {
@@ -1315,7 +1317,7 @@ export default function HistoryPage() {
               <div className="flex gap-1.5 flex-wrap">
                 {([
                   { label: 'This month', on: filterThisMonth, toggle: () => setFilterThisMonth(v => !v) },
-                  { label: 'R500+', on: filterBig, toggle: () => setFilterBig(v => !v) },
+                  { label: `${formatCurrencyShort(500)}+`, on: filterBig, toggle: () => setFilterBig(v => !v) },
                   { label: 'Edited', on: filterEdited, toggle: () => setFilterEdited(v => !v) },
                 ] as const).map(chip => (
                   <button

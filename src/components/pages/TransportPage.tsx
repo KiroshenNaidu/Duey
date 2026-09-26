@@ -9,7 +9,7 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/componen
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { formatCurrency, cn } from '@/lib/utils';
+import { formatCurrency, getCurrencySymbol, cn } from '@/lib/utils';
 import { calculateTransportMonth, getEffectiveDayState, dayKey } from '@/lib/calculations';
 import type { DayState } from '@/lib/types';
 import { UberDayDialog } from '@/components/UberDayDialog';
@@ -307,7 +307,7 @@ export function TransportPage() {
 
               {pricingMode === 'daily' ? (
                 <div className="space-y-1">
-                  <Label htmlFor="dailyFee" className="text-[10px] text-muted-foreground">Daily Fee (R)</Label>
+                  <Label htmlFor="dailyFee" className="text-[10px] text-muted-foreground">Daily Fee ({getCurrencySymbol()})</Label>
                   <Input
                     id="dailyFee"
                     type="number"
@@ -320,7 +320,7 @@ export function TransportPage() {
                 </div>
               ) : (
                 <div className="space-y-1">
-                  <Label htmlFor="monthlyFee" className="text-[10px] text-muted-foreground">Monthly Fee (R)</Label>
+                  <Label htmlFor="monthlyFee" className="text-[10px] text-muted-foreground">Monthly Fee ({getCurrencySymbol()})</Label>
                   <Input
                     id="monthlyFee"
                     type="number"

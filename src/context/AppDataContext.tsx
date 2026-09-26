@@ -592,7 +592,12 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
   const [appError, setAppError] = useState<AppError | null>(null);
 
   // Keep module-level currency in sync with state so formatCurrency() picks it up everywhere.
-  useEffect(() => { setCurrencyCode(appState.currency); }, [appState.currency]);
+  // Set DURING render, not in an effect: the provider renders before its children, so every
+  // formatCurrency() call in this same pass already sees the new code. As an effect it ran
+  // after the children had drawn, so picking a currency (or launching with a non-ZAR one)
+  // left the old symbol on screen until some unrelated change happened to re-render.
+  // Idempotent (it only stores a string), so running on every render is harmless.
+  setCurrencyCode(appState.currency);
 
   // Keep the module-level haptic strength in sync so hapticTick/hapticTap read the saved
   // setting without needing context access from lib code.
@@ -601,11 +606,13 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
   // Keep per-debt due-date reminders in sync with the debt list (native only, best-effort).
   // Debts without a dueDay are simply never scheduled; fully-paid debts stop reminding
   // (history dep re-syncs after every payment). The Notifications master switch gates the
-  // whole feature — turning it off cancels every pending debt reminder.
+  // whole feature — turning it off cancels every pending debt reminder. Currency is a dep
+  // too: the reminder text is written when it is scheduled ("Installment of R 500,00…"),
+  // so a currency change has to reschedule them or they keep announcing the old symbol.
   useEffect(() => {
     if (!isLoaded) return;
     void syncDebtReminders(appState.debts, appState.history, appState.notificationSettings.masterEnabled);
-  }, [isLoaded, appState.debts, appState.history, appState.notificationSettings.masterEnabled]);
+  }, [isLoaded, appState.debts, appState.history, appState.notificationSettings.masterEnabled, appState.currency]);
 
   useEffect(() => {
     const storedStateRaw = localStorage.getItem('appState');

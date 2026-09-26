@@ -5,7 +5,7 @@ import { format, parseISO } from 'date-fns';
 import { Trash2 } from 'lucide-react';
 import { AppDataContext } from '@/context/AppDataContext';
 import type { UberRide } from '@/lib/types';
-import { formatCurrency } from '@/lib/utils';
+import { formatCurrency, getCurrencySymbol } from '@/lib/utils';
 import {
   Dialog,
   DialogContent,
@@ -107,7 +107,7 @@ export function UberDayDialog({ date, rides, open, onOpenChange }: UberDayDialog
           <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Add Ride</p>
           <div className="grid grid-cols-2 gap-2">
             <div className="space-y-1">
-              <Label htmlFor="uber-price" className="text-[10px]">Price (R) *</Label>
+              <Label htmlFor="uber-price" className="text-[10px]">Price ({getCurrencySymbol()}) *</Label>
               <Input
                 id="uber-price"
                 type="number"

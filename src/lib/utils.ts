@@ -56,6 +56,16 @@ export function formatCurrency(amount: number, currencyOverride?: string): strin
   }
 }
 
+/**
+ * The currency marker for PDF exports. jsPDF's built-in fonts only carry the WinAnsi
+ * character set, so a symbol outside it (₹, ₦, ₩, ₱ …) would print as garbage — those fall
+ * back to the ISO code ("INR"), which every font can draw. R, $, R$, £, € and ¥ stay symbols.
+ */
+export function getPdfCurrencySymbol(code = _currency): string {
+  const symbol = getCurrencySymbol(code);
+  return /^[\x20-\x7E£¥€]+$/.test(symbol) ? symbol : code;
+}
+
 /** Whole-number money for tight spots like buttons: "R100", not "R 100,00". */
 export function formatCurrencyShort(amount: number, currencyOverride?: string): string {
   const code = currencyOverride ?? _currency;
