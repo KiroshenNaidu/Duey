@@ -17,7 +17,7 @@ import * as z from 'zod';
 import { AppDataContext } from '@/context/AppDataContext';
 import { DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from './ui/form';
-import { formatCurrency } from '@/lib/utils';
+import { formatCurrency, getCurrencySymbol } from '@/lib/utils';
 import { personKey, derivePersonProfiles, type PersonProfile } from '@/lib/persons';
 
 const debtSchema = z.object({
@@ -157,7 +157,7 @@ export function AddDebtForm({ onDone }: { onDone: () => void }) {
           name="total_owed"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Total Amount Owed (R)</FormLabel>
+              <FormLabel>Total Amount Owed ({getCurrencySymbol()})</FormLabel>
               <FormControl>
                 <Input type="number" placeholder="e.g., 5000" {...field} value={field.value ?? ''} />
               </FormControl>
@@ -170,7 +170,7 @@ export function AddDebtForm({ onDone }: { onDone: () => void }) {
           name="installment_amount"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Installment Amount (R)</FormLabel>
+              <FormLabel>Installment Amount ({getCurrencySymbol()})</FormLabel>
               <FormControl>
                 <Input type="number" placeholder="e.g., 500" {...field} value={field.value ?? ''} />
               </FormControl>

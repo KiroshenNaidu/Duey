@@ -4,7 +4,8 @@ import { useEffect } from 'react';
 
 /**
  * Wires the Android hardware back button to behave like a normal app:
- *   1. If a modal/overlay is open (dialog, alert, select, popover), close it.
+ *   1. If a modal/overlay is open (dialog, alert, select, popover) or something marked
+ *      `data-back-dismiss` is showing (card-grid edit mode), close it.
  *   2. Otherwise navigate back through history (page → previous page → …).
  *   3. Only when there's nowhere left to go does the app exit.
  *
@@ -27,7 +28,10 @@ export function HardwareBackButton() {
             '[data-state="open"][role="dialog"], ' +
             '[data-state="open"][role="alertdialog"], ' +
             '[data-state="open"][role="menu"], ' +
-            '[data-state="open"][role="listbox"]'
+            '[data-state="open"][role="listbox"], ' +
+            // Non-modal UI that should also close on back rather than leave the page
+            // (e.g. the card grid's edit toolbar, which listens for Escape).
+            '[data-back-dismiss]'
           );
           if (openOverlay) {
             document.dispatchEvent(

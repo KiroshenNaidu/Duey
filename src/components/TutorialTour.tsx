@@ -5,8 +5,8 @@ import type { ElementType } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import {
-  BarChart3, Calculator, Car, Compass, Hand, PartyPopper,
-  Plus, SlidersHorizontal, Wallet, Zap,
+  BarChart3, Calculator, Car, Compass, Hand, LayoutGrid, PartyPopper,
+  PiggyBank, Plus, SlidersHorizontal, Wallet, Zap,
 } from 'lucide-react';
 import { AppDataContext } from '@/context/AppDataContext';
 import { FixedPortal } from '@/components/FixedPortal';
@@ -105,9 +105,28 @@ const STEPS: TourStep[] = [
   {
     id: 'stats',
     route: '/stats',
+    target: '[data-tour="stats-tabs"]',
     icon: BarChart3,
     title: 'Stats shows all your numbers.',
-    body: 'Totals paid, progress on every debt, and month-by-month charts, all built from what you have logged, so the more you use Duey the more it tells you.',
+    body: 'Your pay cycle, what came in, what went out and where it all went. It is built from what you have logged, so the more you use Duey the more it tells you.',
+  },
+  {
+    id: 'cards',
+    route: '/stats',
+    target: '[data-card-id="cycle"]',
+    icon: LayoutGrid,
+    title: 'Move your cards around',
+    body: 'Hold any card on Stats or Savings to edit the page. Drag cards to where you want them, tap the size to make them bigger or smaller, or hide the ones you do not need. Tap Done when you are happy with it.',
+    tip: 'Hidden cards are waiting under Add card',
+  },
+  {
+    id: 'savings',
+    route: '/stats',
+    target: '[data-tour="stats-tabs"]',
+    icon: PiggyBank,
+    title: 'Savings fills itself up',
+    body: 'Whatever is left in your Balance on pay day goes into your Leftovers piggybank by itself. Want to put money away yourself? Open Savings and tap one of the + buttons on a piggybank, or Other for any amount.',
+    tip: 'Tapped the wrong one? Just hit Undo',
   },
   {
     id: 'tools',
@@ -123,7 +142,7 @@ const STEPS: TourStep[] = [
     target: '[data-tour="settings-config"]',
     icon: SlidersHorizontal,
     title: 'Make it yours',
-    body: 'Settings & Configuration holds it all: your payday reminder, backups, the pay date your balance resets on, and every appearance setting. Replaying this tour lives in there too.',
+    body: 'Settings & Configuration holds it all: your payday reminder, backups, the pay date your balance resets on, and every appearance setting. Replaying this tour lives in there too. Your currency is under Edit profile.',
     tip: 'You can always come back here',
   },
 ];

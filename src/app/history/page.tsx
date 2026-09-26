@@ -6,7 +6,7 @@ import { motion, motionValue } from 'framer-motion';
 import { AppDataContext } from '@/context/AppDataContext';
 import { SwipeTabView } from '@/components/SwipeTabView';
 import { SWIPE_SETTLE_SPRING } from '@/lib/pageTransitions';
-import { formatCurrency, getCurrencySymbol, cn } from '@/lib/utils';
+import { formatCurrency, formatCurrencyShort, getCurrencySymbol, getPdfCurrencySymbol, cn } from '@/lib/utils';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -236,7 +236,9 @@ type ExportBuilderArgs = {
 async function buildPdf(args: ExportBuilderArgs): Promise<Blob> {
   const [{ jsPDF }, logoBase64] = await Promise.all([import('jspdf'), getLogoBase64()]);
   const { history, expenses, uberRides, budgetPlans, debts, userName, tab } = args;
-  const CUR = getCurrencySymbol(); // active currency symbol — reports follow the app's currency
+  // Reports follow the app's currency; the PDF fonts cannot draw every symbol, so this
+  // falls back to the ISO code (INR) where needed.
+  const CUR = getPdfCurrencySymbol();
   const doc = new jsPDF({ unit: 'mm', format: 'a4' });
 
   if (tab === 'all') {
@@ -883,7 +885,7 @@ export default function HistoryPage() {
   const {
     history, debts, expenses, uberRides, budgetPlans,
     updateHistoryEntry, deleteHistoryEntry, restoreHistoryEntry,
-    monthlyIncome, extraIncomes, savings, recurringSavings, transportSettings, transportOverrides, transportMonthlyOverrides,
+    monthlyIncome, extraIncomes, savings, recurringSavings, loans, incomeHistory, transportSettings, transportOverrides, transportMonthlyOverrides,
     userProfile, exportFolderUri, exportFolderName, setExportFolder, setAppError,
     notificationSettings,
   } = useContext(AppDataContext);
@@ -1315,7 +1317,7 @@ export default function HistoryPage() {
               <div className="flex gap-1.5 flex-wrap">
                 {([
                   { label: 'This month', on: filterThisMonth, toggle: () => setFilterThisMonth(v => !v) },
-                  { label: 'R500+', on: filterBig, toggle: () => setFilterBig(v => !v) },
+                  { label: `${formatCurrencyShort(500)}+`, on: filterBig, toggle: () => setFilterBig(v => !v) },
                   { label: 'Edited', on: filterEdited, toggle: () => setFilterEdited(v => !v) },
                 ] as const).map(chip => (
                   <button
@@ -1634,7 +1636,7 @@ export default function HistoryPage() {
             // recomputing drifts once one-time extra incomes/expenses have been purged.
             const recomputed = !snapshotEntry.snapshot;
             const s = snapshotEntry.snapshot ?? calculateSealedCycleSummary(
-              { payDay, monthlyIncome, extraIncomes, expenses, budgetPlans, history, uberRides, savings, recurringSavings, transportSettings, transportOverrides, transportMonthlyOverrides },
+              { payDay, monthlyIncome, extraIncomes, expenses, budgetPlans, history, uberRides, savings, recurringSavings, loans, incomeHistory, transportSettings, transportOverrides, transportMonthlyOverrides },
               cycle.key,
             );
             const rows: { label: string; value: number; negative?: boolean }[] = [
@@ -1647,6 +1649,8 @@ export default function HistoryPage() {
               // Absent on snapshots sealed before savings existed — the row filter below
               // drops a zero, so those simply show no savings line.
               { label: 'Savings (put away)', value: s.savings ?? 0, negative: true },
+              // Absent on snapshots sealed before loans were counted — dropped the same way.
+              { label: 'Money lent out (unpaid)', value: s.loans ?? 0, negative: true },
             ];
             return (
               <>
@@ -1672,7 +1676,7 @@ export default function HistoryPage() {
                   </div>
                   {recomputed && (
                     <p className="text-[10px] text-muted-foreground/60 pt-2">
-                      Recomputed from this period&apos;s stored entries. Salary uses your current monthly income.
+                      Worked out again from what was saved for this period. Salary is what it was set to back then.
                     </p>
                   )}
                 </div>

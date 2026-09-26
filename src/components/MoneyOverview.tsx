@@ -9,7 +9,7 @@ import {
   cycleLabelFromKey, cycleStartFromKey, getPayCycle, isTransportPaidForMonth, nextCycleStart,
   stepCycleKey, type MonthlyMoney,
 } from '@/lib/calculations';
-import { outstandingBefore, summariseLoans } from '@/lib/loans';
+import { outstandingBefore } from '@/lib/loans';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -20,7 +20,7 @@ import { useReplayOnActive } from '@/hooks/useReplayOnActive';
 
 export function MoneyOverview() {
   const {
-    monthlyIncome, budgetPlans, expenses, extraIncomes, history, uberRides, loans, debts,
+    monthlyIncome, budgetPlans, expenses, extraIncomes, history, uberRides, loans, incomeHistory, debts,
     transportSettings, transportOverrides, transportMonthlyOverrides, userProfile, savings, recurringSavings,
     setMonthlyIncome, addExtraIncome, deleteExtraIncome, restoreExtraIncome,
   } = useContext(AppDataContext);
@@ -59,10 +59,10 @@ export function MoneyOverview() {
   const input = useMemo(
     () => ({
       payDay, monthlyIncome, extraIncomes: extraIncomes ?? [], expenses, budgetPlans, history, uberRides,
-      savings, recurringSavings, transportSettings, transportOverrides, transportMonthlyOverrides,
+      savings, recurringSavings, loans, incomeHistory, transportSettings, transportOverrides, transportMonthlyOverrides,
     }),
     [payDay, monthlyIncome, extraIncomes, expenses, budgetPlans, history, uberRides, savings,
-     recurringSavings, transportSettings, transportOverrides, transportMonthlyOverrides],
+     recurringSavings, loans, incomeHistory, transportSettings, transportOverrides, transportMonthlyOverrides],
   );
   const totalExtra = (extraIncomes ?? []).reduce((s, e) => s + e.amount, 0);
 
@@ -100,10 +100,15 @@ export function MoneyOverview() {
     if (viewing !== 'sealed') return null;
     for (const h of history) {
       if (h.type !== 'snapshot' || !h.snapshot) continue;
-      if (cycleKey(new Date(h.date), payDay) === viewKey) return { ...h.snapshot, savings: h.snapshot.savings ?? 0 };
+      if (cycleKey(new Date(h.date), payDay) !== viewKey) continue;
+      // Snapshots sealed before loans reached the calculator carry no loans figure. This
+      // screen always deducted what was outstanding as the cycle closed, so keep doing that.
+      const loansAtClose = h.snapshot.loans
+        ?? outstandingBefore(loans ?? [], nextCycleStart(cycleStartFromKey(viewKey, payDay), payDay));
+      return { ...h.snapshot, savings: h.snapshot.savings ?? 0, loans: loansAtClose };
     }
     return null;
-  }, [viewing, history, payDay, viewKey]);
+  }, [viewing, history, payDay, viewKey, loans]);
 
   const viewStart = viewing === 'live' ? cycle.start : cycleStartFromKey(viewKey, payDay);
   const viewEnd = viewing === 'live' ? cycle.end : nextCycleStart(viewStart, payDay);
@@ -120,18 +125,10 @@ export function MoneyOverview() {
     // cycle.key is here for the day rolling over: `new Date()` is read inside, and the
     // cycle key is what changes when that day crosses a pay date.
   }, [viewing, input, sealedSnapshot, viewKey, debts, cycle.key]);
-  const { transport: transportCost, uber: uberSpend, debt: debtInstallments, expenses: totalExpenses, budget: budgetSpent, savings: savedThisCycle } = monthly;
+  const { transport: transportCost, uber: uberSpend, debt: debtInstallments, expenses: totalExpenses, budget: budgetSpent, savings: savedThisCycle, loans: lentOut } = monthly;
   // "Estimate" until Mark as Paid is logged for the month the cycle starts in. A cycle
   // still to come has nothing paid, by definition.
   const transportPaid = viewing !== 'projected' && isTransportPaidForMonth(history, viewing === 'live' ? now : viewStart);
-  // Money handed to other people and not yet back (Debts → Receivable). It is out of your
-  // hands, so it comes off the balance — and because this is OUTSTANDING (lent minus
-  // repaid, settled loans excluded), every repayment you log shrinks the deduction.
-  // A sealed cycle shows what was outstanding as it closed; a future one, what is
-  // outstanding now, since nothing is scheduled to come back.
-  const lentOut = viewing === 'sealed'
-    ? outstandingBefore(loans ?? [], viewEnd)
-    : summariseLoans(loans ?? []).outstanding;
 
   // "(this cycle)" only reads true on this cycle; the header names every other one.
   const when = viewing === 'live' ? ' (this cycle)' : '';

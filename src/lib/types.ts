@@ -1,3 +1,4 @@
+import type { SavedCardLayout } from './cardLayout';
 import type { HapticStrength } from './haptics';
 
 export interface Debt {
@@ -36,9 +37,9 @@ export interface LoanEvent {
  *
  * Deliberately its own type rather than a flag on Debt: a debt is a monthly commitment the
  * Balance calculator budgets for, and money owed TO you is neither owed nor spendable. A
- * loan therefore has no installment and never reaches `calculateLiveMonthly` — repayments
- * that arrive are recorded here, and it is up to the user to log any of it as income if
- * they want it in the cycle's figures.
+ * loan therefore has no installment. What reaches the calculators is only what is still
+ * OUTSTANDING (see `loans` in MonthlyMoney), which comes off every cycle's Remaining until
+ * it is repaid — logging a repayment shrinks it, and nothing is added back as income.
  *
  * The amount lent is not a field: it is the sum of the 'lent' events, so lending the same
  * person more later is one loan with two events rather than a number edited behind your
@@ -174,6 +175,13 @@ export interface HistoryEntry {
   note?: string;
   label?: string; // user-defined display label, e.g. "Interest", "Penalty Fee"
   edited?: boolean; // true once the user has manually edited this entry (amount/date/label/note)
+  // type 'expense' only. The expense this record was written for, so it can be matched
+  // exactly instead of by title. Absent on records written before the link existed.
+  expenseId?: string;
+  // type 'expense' only. Set on pay day when the one-time expense itself is cleared out:
+  // from then on this record (with the expense's final amount) is the only copy, so old
+  // cycles count it. Until then the expense list is what counts. See expensesInWindow.
+  expensePurged?: boolean;
   // Full sealed month breakdown, captured at seal time (type 'snapshot' only) so the
   // History → snapshot breakdown shows the exact figures that were sealed. Recomputing
   // later drifts once one-time extra incomes are purged, so we persist them here. Older
@@ -188,6 +196,9 @@ export interface HistoryEntry {
     /** Manual savings filed against the cycle. Optional: snapshots sealed before savings
      *  existed have none, and the breakdown sheet simply omits the row for them. */
     savings?: number;
+    /** Money lent out and still unpaid as the cycle closed. Optional: snapshots sealed
+     *  before loans reached the calculator have none (their Remaining ignored loans). */
+    loans?: number;
     totalOutgoings: number;
     remaining: number;
   };
@@ -365,9 +376,22 @@ export interface AppState {
   swipeActionsEnabled: boolean;
   /** Vibration feedback strength for buttons/gestures (see lib/haptics.ts). */
   hapticsStrength: HapticStrength;
+  /** Salary changes, oldest first: each amount applies from `fromCycle` until the next
+   *  change. Lets a past cycle be worked out with the salary it really had instead of
+   *  today's. Empty until the salary is first changed (see setMonthlyIncome). */
+  incomeHistory: IncomeChange[];
+  /** Card grid layouts the user arranged, keyed by page ('stats', 'savings'). A page with
+   *  no entry shows its default layout (see lib/cardLayout.ts). */
+  cardLayouts: Record<string, SavedCardLayout>;
   /** True once the first-run feature tour has been completed OR skipped. The tour is
    *  replayable at any time from Profile -> "How to use Duey" (see TutorialTour.tsx). */
   tutorialSeen: boolean;
+}
+
+export interface IncomeChange {
+  /** Cycle key ('yyyy-MM') the amount starts in. '0000-00' means "every cycle before". */
+  fromCycle: string;
+  amount: number;
 }
 
 export interface DayNightSettings {
