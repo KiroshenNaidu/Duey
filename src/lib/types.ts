@@ -36,9 +36,9 @@ export interface LoanEvent {
  *
  * Deliberately its own type rather than a flag on Debt: a debt is a monthly commitment the
  * Balance calculator budgets for, and money owed TO you is neither owed nor spendable. A
- * loan therefore has no installment and never reaches `calculateLiveMonthly` — repayments
- * that arrive are recorded here, and it is up to the user to log any of it as income if
- * they want it in the cycle's figures.
+ * loan therefore has no installment. What reaches the calculators is only what is still
+ * OUTSTANDING (see `loans` in MonthlyMoney), which comes off every cycle's Remaining until
+ * it is repaid — logging a repayment shrinks it, and nothing is added back as income.
  *
  * The amount lent is not a field: it is the sum of the 'lent' events, so lending the same
  * person more later is one loan with two events rather than a number edited behind your
@@ -188,6 +188,9 @@ export interface HistoryEntry {
     /** Manual savings filed against the cycle. Optional: snapshots sealed before savings
      *  existed have none, and the breakdown sheet simply omits the row for them. */
     savings?: number;
+    /** Money lent out and still unpaid as the cycle closed. Optional: snapshots sealed
+     *  before loans reached the calculator have none (their Remaining ignored loans). */
+    loans?: number;
     totalOutgoings: number;
     remaining: number;
   };

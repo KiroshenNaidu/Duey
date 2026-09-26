@@ -61,7 +61,7 @@ const AUTO_COLOR = 'hsl(var(--positive))';       // left over, swept at cycle en
 const MANUAL_COLOR = 'hsl(var(--cat-snapshot))'; // put away on purpose
 
 export function SavingsTab() {
-  const { savings, piggybanks, recurringSavings, userProfile, monthlyIncome, extraIncomes,
+  const { savings, piggybanks, recurringSavings, loans, userProfile, monthlyIncome, extraIncomes,
           expenses, budgetPlans, history, uberRides,
           transportSettings, transportOverrides, transportMonthlyOverrides,
           addSaving, deleteSaving, restoreSaving, addRecurringSaving } = useContext(AppDataContext);
@@ -101,10 +101,10 @@ export function SavingsTab() {
   const live = useMemo(
     () => calculateLiveMonthly({
       payDay, monthlyIncome, extraIncomes, expenses, budgetPlans, history, uberRides, savings,
-      recurringSavings, transportSettings, transportOverrides, transportMonthlyOverrides,
+      recurringSavings, loans, transportSettings, transportOverrides, transportMonthlyOverrides,
     }),
     [payDay, monthlyIncome, extraIncomes, expenses, budgetPlans, history, uberRides, savings,
-     recurringSavings, transportSettings, transportOverrides, transportMonthlyOverrides],
+     recurringSavings, loans, transportSettings, transportOverrides, transportMonthlyOverrides],
   );
 
   // Newest cycle first; entries inside a cycle newest first. Grouping by cycle is the whole

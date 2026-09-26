@@ -62,7 +62,7 @@ export interface CycleSelection {
 }
 
 const ZERO_MONEY: MonthlyMoney = {
-  income: 0, transport: 0, uber: 0, debt: 0, expenses: 0, budget: 0, savings: 0,
+  income: 0, transport: 0, uber: 0, debt: 0, expenses: 0, budget: 0, savings: 0, loans: 0,
   totalOutgoings: 0, remaining: 0,
 };
 
@@ -77,6 +77,7 @@ export function sumMonthlyMoney(list: MonthlyMoney[]): MonthlyMoney {
     expenses:       a.expenses + m.expenses,
     budget:         a.budget + m.budget,
     savings:        a.savings + m.savings,
+    loans:          a.loans + m.loans,
     totalOutgoings: a.totalOutgoings + m.totalOutgoings,
     remaining:      a.remaining + m.remaining,
   }), ZERO_MONEY);
@@ -91,6 +92,7 @@ const SEGMENTS: { id: keyof MonthlyMoney; label: string; color: string }[] = [
   { id: 'expenses',  label: 'Expenses', color: 'hsl(var(--cat-expense))' },
   { id: 'budget',    label: 'Budget', color: 'hsl(var(--cat-completion))' },
   { id: 'savings',   label: 'Savings', color: 'hsl(var(--cat-snapshot))' },
+  { id: 'loans',     label: 'Lent out', color: 'hsl(var(--cat-budget) / 0.55)' },
 ];
 
 // ─── Cycle navigator (picker + trend, one card) ───────────────────────────────

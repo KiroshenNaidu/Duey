@@ -225,17 +225,17 @@ function Figure({ label, value, color, icon: Icon }: {
 function CycleSection() {
   const {
     monthlyIncome, extraIncomes, expenses, budgetPlans, history, uberRides,
-    transportSettings, transportOverrides, transportMonthlyOverrides, userProfile, savings, recurringSavings,
+    transportSettings, transportOverrides, transportMonthlyOverrides, userProfile, savings, recurringSavings, loans,
   } = useContext(AppDataContext);
 
   const payDay = userProfile.paydayDay;
   const input = useMemo(
     () => ({
       payDay, monthlyIncome, extraIncomes, expenses, budgetPlans, history, uberRides, savings,
-      recurringSavings, transportSettings, transportOverrides, transportMonthlyOverrides,
+      recurringSavings, loans, transportSettings, transportOverrides, transportMonthlyOverrides,
     }),
     [payDay, monthlyIncome, extraIncomes, expenses, budgetPlans, history, uberRides, savings,
-     recurringSavings, transportSettings, transportOverrides, transportMonthlyOverrides],
+     recurringSavings, loans, transportSettings, transportOverrides, transportMonthlyOverrides],
   );
   const cycle = useMemo(() => getPayCycle(payDay), [payDay]);
   // The same live calculator the Balance tab runs, so the open cycle's figures here and
@@ -248,7 +248,7 @@ function CycleSection() {
     for (const h of history) {
       if (h.type !== 'snapshot' || !h.snapshot) continue;
       const key = cycleKey(new Date(h.date), payDay);
-      if (!out.has(key)) out.set(key, { ...h.snapshot, savings: h.snapshot.savings ?? 0 });
+      if (!out.has(key)) out.set(key, { ...h.snapshot, savings: h.snapshot.savings ?? 0, loans: h.snapshot.loans ?? 0 });
     }
     return out;
   }, [history, payDay]);

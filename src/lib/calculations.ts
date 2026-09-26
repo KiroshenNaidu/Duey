@@ -1,9 +1,10 @@
 import type {
   Debt, HistoryEntry, TransportOverrides, TransportSettings, DayState,
-  Expense, ExtraIncome, BudgetPlan, UberRide, TransportMonthlyOverrides, SavingEntry, RecurringSaving,
+  Expense, ExtraIncome, BudgetPlan, UberRide, TransportMonthlyOverrides, SavingEntry, RecurringSaving, Loan,
 } from './types';
 import { isWeekend, getDaysInMonth, startOfMonth, startOfDay, add, isSameMonth, format, differenceInCalendarDays } from 'date-fns';
 import { savingsMovementForCycle } from './piggybanks';
+import { outstandingBefore, summariseLoans } from './loans';
 
 // Debt Calculations
 export const getAmountPaid = (debt: Debt, history: HistoryEntry[]): number => {
@@ -362,6 +363,8 @@ export interface MonthlyMoneyInput {
   uberRides: UberRide[];
   savings: SavingEntry[];
   recurringSavings?: RecurringSaving[];
+  /** Money lent out (Debts → Receivable). Optional so callers without loans still work. */
+  loans?: Loan[];
   transportSettings: TransportSettings;
   transportOverrides: TransportOverrides;
   transportMonthlyOverrides: TransportMonthlyOverrides;
@@ -375,6 +378,7 @@ export interface MonthlyMoney {
   expenses: number;      // expense spend
   budget: number;        // budget item allocations
   savings: number;       // money deliberately put away this cycle (manual entries only)
+  loans: number;         // money lent out and still unpaid as the cycle stands (or stood when it closed)
   totalOutgoings: number;
   remaining: number;     // income − totalOutgoings
 }
@@ -419,8 +423,13 @@ export function calculateLiveMonthly(input: MonthlyMoneyInput, date: Date = new 
   const expenses = input.expenses.reduce((s, e) => s + e.amount, 0);
   const budget = confirmedBudgetForWindow(input.budgetPlans, start, end);
   const savings = savingsLineForCycle(input.savings, input.recurringSavings, format(start, 'yyyy-MM'));
-  const totalOutgoings = transport + uber + debt + expenses + budget + savings;
-  return { income, transport, uber, debt, expenses, budget, savings, totalOutgoings, remaining: income - totalOutgoings };
+  // Money handed to other people and not yet back is out of your hands, so it comes off
+  // Remaining — and because this is OUTSTANDING (lent minus repaid, settled loans
+  // excluded), every repayment you log shrinks it. Living here rather than on the Balance
+  // screen alone is what keeps Balance, the Savings forecast and the seal on one number.
+  const loans = summariseLoans(input.loans ?? []).outstanding;
+  const totalOutgoings = transport + uber + debt + expenses + budget + savings + loans;
+  return { income, transport, uber, debt, expenses, budget, savings, loans, totalOutgoings, remaining: income - totalOutgoings };
 }
 
 // Budgets only hit the balance once the user confirms the plan (bought the items), and only for
@@ -488,8 +497,10 @@ export function calculateSealedCycleSummary(input: MonthlyMoneyInput, cycleKeySt
     return inWindow(e.createdAt, start, end) ? s + e.amount : s;
   }, 0);
   const income = input.monthlyIncome + extra;
-  const totalOutgoings = transport + uber + debt + expenses + budget + savings;
-  return { income, transport, uber, debt, expenses, budget, savings, totalOutgoings, remaining: income - totalOutgoings };
+  // What was still owed to you as the cycle closed — the same figure Balance showed.
+  const loans = outstandingBefore(input.loans ?? [], end);
+  const totalOutgoings = transport + uber + debt + expenses + budget + savings + loans;
+  return { income, transport, uber, debt, expenses, budget, savings, loans, totalOutgoings, remaining: income - totalOutgoings };
 }
 
 /**
@@ -537,6 +548,8 @@ export function calculateProjectedCycle(
   const expenses = input.expenses.reduce((s, e) => (e.recurring ? s + e.amount : s), 0);
   const budget = confirmedBudgetForWindow(input.budgetPlans, start, end);
   const savings = savingsLineForCycle(input.savings, input.recurringSavings, cycleKeyStr);
-  const totalOutgoings = transport + uber + debt + expenses + budget + savings;
-  return { income, transport, uber, debt, expenses, budget, savings, totalOutgoings, remaining: income - totalOutgoings };
+  // Nothing is scheduled to come back, so a cycle still to come carries what is owed now.
+  const loans = summariseLoans(input.loans ?? []).outstanding;
+  const totalOutgoings = transport + uber + debt + expenses + budget + savings + loans;
+  return { income, transport, uber, debt, expenses, budget, savings, loans, totalOutgoings, remaining: income - totalOutgoings };
 }

@@ -883,7 +883,7 @@ export default function HistoryPage() {
   const {
     history, debts, expenses, uberRides, budgetPlans,
     updateHistoryEntry, deleteHistoryEntry, restoreHistoryEntry,
-    monthlyIncome, extraIncomes, savings, recurringSavings, transportSettings, transportOverrides, transportMonthlyOverrides,
+    monthlyIncome, extraIncomes, savings, recurringSavings, loans, transportSettings, transportOverrides, transportMonthlyOverrides,
     userProfile, exportFolderUri, exportFolderName, setExportFolder, setAppError,
     notificationSettings,
   } = useContext(AppDataContext);
@@ -1634,7 +1634,7 @@ export default function HistoryPage() {
             // recomputing drifts once one-time extra incomes/expenses have been purged.
             const recomputed = !snapshotEntry.snapshot;
             const s = snapshotEntry.snapshot ?? calculateSealedCycleSummary(
-              { payDay, monthlyIncome, extraIncomes, expenses, budgetPlans, history, uberRides, savings, recurringSavings, transportSettings, transportOverrides, transportMonthlyOverrides },
+              { payDay, monthlyIncome, extraIncomes, expenses, budgetPlans, history, uberRides, savings, recurringSavings, loans, transportSettings, transportOverrides, transportMonthlyOverrides },
               cycle.key,
             );
             const rows: { label: string; value: number; negative?: boolean }[] = [
@@ -1647,6 +1647,8 @@ export default function HistoryPage() {
               // Absent on snapshots sealed before savings existed — the row filter below
               // drops a zero, so those simply show no savings line.
               { label: 'Savings (put away)', value: s.savings ?? 0, negative: true },
+              // Absent on snapshots sealed before loans were counted — dropped the same way.
+              { label: 'Money lent out (unpaid)', value: s.loans ?? 0, negative: true },
             ];
             return (
               <>
