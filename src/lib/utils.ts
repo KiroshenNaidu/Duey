@@ -56,6 +56,22 @@ export function formatCurrency(amount: number, currencyOverride?: string): strin
   }
 }
 
+/** Whole-number money for tight spots like buttons: "R100", not "R 100,00". */
+export function formatCurrencyShort(amount: number, currencyOverride?: string): string {
+  const code = currencyOverride ?? _currency;
+  try {
+    return new Intl.NumberFormat(undefined, {
+      style: 'currency',
+      currency: code,
+      currencyDisplay: 'narrowSymbol',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(amount).replace(/\s/g, '');
+  } catch {
+    return `${code}${Math.round(amount)}`;
+  }
+}
+
 export function hexToHsl(hex: string): string | null {
   if (!hex || (hex.length !== 4 && hex.length !== 7)) return null;
   

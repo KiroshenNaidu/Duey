@@ -12,6 +12,7 @@ import { DEFAULT_HAPTIC_STRENGTH, setHapticStrength, type HapticStrength } from 
 import { DEFAULT_QUICK_SHORTCUTS, sanitizeShortcuts } from '@/lib/quickShortcuts';
 import { personKey, debtPersonName, entryPersonName, PERSON_ENTRY_TYPES } from '@/lib/persons';
 import { LoadingScreen } from '@/components/LoadingScreen';
+import type { SavedCardLayout } from '@/lib/cardLayout';
 import {
   DEFAULT_BANK_ID, LEFTOVERS_BANK_ID, bankBalance, defaultPiggybanks, leftoversBankId,
   materialiseRecurring,
@@ -156,6 +157,7 @@ function migrateState(raw: AppState): AppState {
     quickAddShortcuts: sanitizeShortcuts(raw.quickAddShortcuts),
     swipeActionsEnabled: raw.swipeActionsEnabled ?? true,
     hapticsStrength: raw.hapticsStrength ?? DEFAULT_HAPTIC_STRENGTH,
+    cardLayouts: raw.cardLayouts ?? {},
     schemaVersion: CURRENT_SCHEMA_VERSION,
   };
 }
@@ -257,6 +259,7 @@ const defaultState: AppState = {
   quickAddShortcuts: [...DEFAULT_QUICK_SHORTCUTS],
   swipeActionsEnabled: true,
   hapticsStrength: DEFAULT_HAPTIC_STRENGTH,
+  cardLayouts: {},
   tutorialSeen: false,
 };
 
@@ -296,7 +299,8 @@ interface AppContextType extends AppState {
   restoreExtraIncome: (item: ExtraIncome) => void;
   /** One savings movement. `cycleKey` files it against a pay cycle; `direction` says whether
    *  money went in or came back out. Writes the History record too. */
-  addSaving: (amount: number, cycleKey: string, label: string, note?: string, bankId?: string, direction?: 'in' | 'out') => void;
+  /** Returns the new entry's id and its History record's id, so a caller can undo both. */
+  addSaving: (amount: number, cycleKey: string, label: string, note?: string, bankId?: string, direction?: 'in' | 'out') => { id: string; historyId: string };
   /** Opens a jar and returns its id, so a caller can file the first deposit straight into it. */
   addPiggybank: (name: string, target?: number, note?: string) => string;
   updatePiggybank: (id: string, data: Partial<Omit<Piggybank, 'id' | 'createdAt'>>) => void;
@@ -352,6 +356,8 @@ interface AppContextType extends AppState {
   setQuickAddFxId: (id: string) => void;
   setQuickAddShortcuts: (ids: string[]) => void;
   setSwipeActionsEnabled: (on: boolean) => void;
+  /** Save a page's card layout; null puts the page back to its default layout. */
+  setCardLayout: (pageId: string, layout: SavedCardLayout | null) => void;
   setHapticsStrength: (s: HapticStrength) => void;
   setTutorialSeen: (seen: boolean) => void;
   importData: (data: AppData) => void;
@@ -388,7 +394,7 @@ export const AppDataContext = createContext<AppContextType>({
   addExtraIncome: () => {},
   deleteExtraIncome: () => {},
   restoreExtraIncome: () => {},
-  addSaving: () => {},
+  addSaving: () => ({ id: '', historyId: '' }),
   addPiggybank: () => '',
   updatePiggybank: () => {},
   deletePiggybank: () => ({ entries: [], orders: [] }),
@@ -437,6 +443,7 @@ export const AppDataContext = createContext<AppContextType>({
   setQuickAddFxId: () => {},
   setQuickAddShortcuts: () => {},
   setSwipeActionsEnabled: () => {},
+  setCardLayout: () => {},
   setHapticsStrength: () => {},
   setTutorialSeen: () => {},
   importData: () => {},
@@ -455,6 +462,126 @@ export const AppDataContext = createContext<AppContextType>({
   appError: null,
   setAppError: () => {},
 });
+
+/**
+ * Close every pay cycle that has ended since the app last looked, then clear what the new
+ * cycle starts without. Pure: takes a state, returns the next one. Runs at launch AND
+ * while the app is open, whenever `cycleHasEnded` says so (see the rollover effect in
+ * AppDataProvider) — on Android the app often stays alive in the background across pay day,
+ * and a seal that only ran on a cold start meant the leftover never reached Savings until
+ * the OS happened to kill the process.
+ */
+/** True once the pay cycle the app last saw has ended — the cue to run `rollOverCycles`.
+ *  A fresh install (no cycle recorded yet) has nothing to close. */
+export function cycleHasEnded(state: AppState, now: Date = new Date()): boolean {
+  const key = getPayCycle(normalizePayDay(state.userProfile.paydayDay), now).key;
+  return !!state.lastSnapshotMonth && state.lastSnapshotMonth !== key;
+}
+
+export function rollOverCycles(state: AppState): AppState {
+  let loaded = state;
+
+  // Pay-cycle seal — finalize every cycle that has fully ended since we last sealed,
+  // writing one permanent summary per cycle. A cycle runs pay date → day before the
+  // next pay date (Settings → Pay Date; payDay 1 is the calendar month this used to
+  // be, unchanged). The loop catches up multi-cycle gaps (app not opened for a while).
+  // lastSnapshotMonth === '' means fresh install; skip to avoid a noisy first entry.
+  const payDay = normalizePayDay(loaded.userProfile.paydayDay);
+  const currentCycle = getPayCycle(payDay);
+  if (loaded.lastSnapshotMonth && loaded.lastSnapshotMonth !== currentCycle.key) {
+    const snapshots: HistoryEntry[] = [];
+    // Whatever a cycle ends with becomes savings — the money survived the cycle, so
+    // it is money you kept. Written here, alongside the summary, so the two can never
+    // disagree about what was left. Only a SURPLUS sweeps: a deficit is a debt to the
+    // next cycle, not a negative deposit. One entry per cycle, guarded below.
+    const sweeps: SavingEntry[] = [];
+    // Standing orders become real rows as each cycle seals — see materialiseRecurring.
+    // Accumulated here and fed into every later summary, so a cycle's figures include
+    // the contributions it was actually charged.
+    const contributions: SavingEntry[] = [];
+    const sweepBankId = leftoversBankId(loaded.piggybanks);
+    // Start AT the last recorded cycle, not after it: lastSnapshotMonth stores the
+    // cycle that was LIVE when we last looked, so that cycle is the first one that
+    // can have ended since. (Starting one past it — as this used to — meant a cycle
+    // was only ever sealed if the app went unopened for longer than one whole cycle.)
+    // Re-sealing is impossible regardless: an already-written summary is skipped by
+    // title below, which also protects against a stale/hand-edited key.
+    let cursor = cycleStartFromKey(loaded.lastSnapshotMonth, payDay);
+    // Safety bound against a corrupt lastSnapshotMonth producing a runaway loop.
+    for (let guard = 0; cursor < currentCycle.start && guard < 120; guard++) {
+      const start = cursor;
+      const end = nextCycleStart(start, payDay);
+      cursor = end;
+      const lastDay = add(end, { days: -1 });
+      const title = `${payDay === 1
+        ? format(start, 'MMMM yyyy')
+        : `${format(start, 'd MMM')} – ${format(lastDay, 'd MMM yyyy')}`} Summary`;
+      if (loaded.history.some(h => h.type === 'snapshot' && h.debtTitle === title)) continue;
+      const cycleK = format(start, 'yyyy-MM');
+      // Charge the cycle its standing orders BEFORE summarising it, so the summary and
+      // the jar agree about what went in.
+      contributions.push(...materialiseRecurring(
+        loaded.recurringSavings,
+        [...contributions, ...(loaded.savings ?? [])],
+        cycleK,
+        genId,
+        lastDay.toISOString(),
+      ));
+      const savingsSoFar = [...contributions, ...(loaded.savings ?? [])];
+      const s = calculateSealedCycleSummary({ ...loaded, savings: savingsSoFar, payDay }, cycleK);
+      // Sweep the leftover. Guarded against an entry that already exists for this
+      // cycle (a hand-edited key, a restored backup), so a relaunch can never bank
+      // the same surplus twice.
+      if (s.remaining > 0 && !savingsSoFar.some(v => v.source === 'auto' && v.cycleKey === cycleK)) {
+        sweeps.push({
+          id: genId(),
+          amount: s.remaining,
+          cycleKey: cycleK,
+          label: 'Leftover',
+          note: `Left at the end of ${payDay === 1 ? format(start, 'MMMM yyyy') : `${format(start, 'd MMM')} – ${format(lastDay, 'd MMM yyyy')}`}`,
+          source: 'auto',
+          direction: 'in',
+          bankId: sweepBankId,
+          createdAt: lastDay.toISOString(),
+        });
+      }
+      snapshots.push({
+        id: genId(),
+        debtTitle: title,
+        // Dated to the cycle's LAST day, so History files it under the month the
+        // cycle ended in and the breakdown sheet can recover the cycle from it.
+        date: lastDay.toISOString(),
+        amount: Math.abs(s.remaining),
+        type: 'snapshot',
+        note: `Income: ${Math.round(s.income)} | Outgoings: ${Math.round(s.totalOutgoings)} | ${s.remaining >= 0 ? 'Surplus' : 'Deficit'}: ${Math.round(Math.abs(s.remaining))}`,
+        // Persist the exact sealed breakdown so the History detail sheet never drifts
+        // once one-time extras/expenses are purged (recompute is only a fallback).
+        snapshot: s,
+      });
+    }
+    loaded = {
+      ...loaded,
+      history: [...snapshots, ...loaded.history],
+      savings: [...sweeps, ...contributions, ...(loaded.savings ?? [])],
+      lastSnapshotMonth: currentCycle.key,
+    };
+  } else if (!loaded.lastSnapshotMonth) {
+    // Fresh install — record the cycle so the next pay date seals a real summary.
+    loaded = { ...loaded, lastSnapshotMonth: currentCycle.key };
+  }
+
+  // Auto-purge non-recurring expenses AND one-time extra incomes from previous cycles
+  // — this is the "reset", and it now happens on the pay date rather than the 1st.
+  // Runs AFTER the seal so sealed summaries still see them. One-time expenses keep
+  // their original `expense` history entry as the permanent record; one-time extras
+  // were captured in the sealed cycle's income.
+  loaded = {
+    ...loaded,
+    expenses: loaded.expenses.filter(e => e.recurring || new Date(e.createdAt) >= currentCycle.start),
+    extraIncomes: (loaded.extraIncomes ?? []).filter(e => e.recurring || new Date(e.createdAt) >= currentCycle.start),
+  };
+  return loaded;
+}
 
 export function AppDataProvider({ children }: { children: ReactNode }) {
   const [appState, setAppState] = useState<AppState>(defaultState);
@@ -484,108 +611,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     const storedStateRaw = localStorage.getItem('appState');
     if (storedStateRaw) {
       try {
-        let loaded = migrateState(JSON.parse(storedStateRaw));
-
-        // Pay-cycle seal — finalize every cycle that has fully ended since we last sealed,
-        // writing one permanent summary per cycle. A cycle runs pay date → day before the
-        // next pay date (Settings → Pay Date; payDay 1 is the calendar month this used to
-        // be, unchanged). The loop catches up multi-cycle gaps (app not opened for a while).
-        // lastSnapshotMonth === '' means fresh install; skip to avoid a noisy first entry.
-        const payDay = normalizePayDay(loaded.userProfile.paydayDay);
-        const currentCycle = getPayCycle(payDay);
-        if (loaded.lastSnapshotMonth && loaded.lastSnapshotMonth !== currentCycle.key) {
-          const snapshots: HistoryEntry[] = [];
-          // Whatever a cycle ends with becomes savings — the money survived the cycle, so
-          // it is money you kept. Written here, alongside the summary, so the two can never
-          // disagree about what was left. Only a SURPLUS sweeps: a deficit is a debt to the
-          // next cycle, not a negative deposit. One entry per cycle, guarded below.
-          const sweeps: SavingEntry[] = [];
-          // Standing orders become real rows as each cycle seals — see materialiseRecurring.
-          // Accumulated here and fed into every later summary, so a cycle's figures include
-          // the contributions it was actually charged.
-          const contributions: SavingEntry[] = [];
-          const sweepBankId = leftoversBankId(loaded.piggybanks);
-          // Start AT the last recorded cycle, not after it: lastSnapshotMonth stores the
-          // cycle that was LIVE when we last looked, so that cycle is the first one that
-          // can have ended since. (Starting one past it — as this used to — meant a cycle
-          // was only ever sealed if the app went unopened for longer than one whole cycle.)
-          // Re-sealing is impossible regardless: an already-written summary is skipped by
-          // title below, which also protects against a stale/hand-edited key.
-          let cursor = cycleStartFromKey(loaded.lastSnapshotMonth, payDay);
-          // Safety bound against a corrupt lastSnapshotMonth producing a runaway loop.
-          for (let guard = 0; cursor < currentCycle.start && guard < 120; guard++) {
-            const start = cursor;
-            const end = nextCycleStart(start, payDay);
-            cursor = end;
-            const lastDay = add(end, { days: -1 });
-            const title = `${payDay === 1
-              ? format(start, 'MMMM yyyy')
-              : `${format(start, 'd MMM')} – ${format(lastDay, 'd MMM yyyy')}`} Summary`;
-            if (loaded.history.some(h => h.type === 'snapshot' && h.debtTitle === title)) continue;
-            const cycleK = format(start, 'yyyy-MM');
-            // Charge the cycle its standing orders BEFORE summarising it, so the summary and
-            // the jar agree about what went in.
-            contributions.push(...materialiseRecurring(
-              loaded.recurringSavings,
-              [...contributions, ...(loaded.savings ?? [])],
-              cycleK,
-              genId,
-              lastDay.toISOString(),
-            ));
-            const savingsSoFar = [...contributions, ...(loaded.savings ?? [])];
-            const s = calculateSealedCycleSummary({ ...loaded, savings: savingsSoFar, payDay }, cycleK);
-            // Sweep the leftover. Guarded against an entry that already exists for this
-            // cycle (a hand-edited key, a restored backup), so a relaunch can never bank
-            // the same surplus twice.
-            if (s.remaining > 0 && !savingsSoFar.some(v => v.source === 'auto' && v.cycleKey === cycleK)) {
-              sweeps.push({
-                id: genId(),
-                amount: s.remaining,
-                cycleKey: cycleK,
-                label: 'Leftover',
-                note: `Left at the end of ${payDay === 1 ? format(start, 'MMMM yyyy') : `${format(start, 'd MMM')} – ${format(lastDay, 'd MMM yyyy')}`}`,
-                source: 'auto',
-                direction: 'in',
-                bankId: sweepBankId,
-                createdAt: lastDay.toISOString(),
-              });
-            }
-            snapshots.push({
-              id: genId(),
-              debtTitle: title,
-              // Dated to the cycle's LAST day, so History files it under the month the
-              // cycle ended in and the breakdown sheet can recover the cycle from it.
-              date: lastDay.toISOString(),
-              amount: Math.abs(s.remaining),
-              type: 'snapshot',
-              note: `Income: ${Math.round(s.income)} | Outgoings: ${Math.round(s.totalOutgoings)} | ${s.remaining >= 0 ? 'Surplus' : 'Deficit'}: ${Math.round(Math.abs(s.remaining))}`,
-              // Persist the exact sealed breakdown so the History detail sheet never drifts
-              // once one-time extras/expenses are purged (recompute is only a fallback).
-              snapshot: s,
-            });
-          }
-          loaded = {
-            ...loaded,
-            history: [...snapshots, ...loaded.history],
-            savings: [...sweeps, ...contributions, ...(loaded.savings ?? [])],
-            lastSnapshotMonth: currentCycle.key,
-          };
-        } else if (!loaded.lastSnapshotMonth) {
-          // Fresh install — record the cycle so the next pay date seals a real summary.
-          loaded = { ...loaded, lastSnapshotMonth: currentCycle.key };
-        }
-
-        // Auto-purge non-recurring expenses AND one-time extra incomes from previous cycles
-        // — this is the "reset", and it now happens on the pay date rather than the 1st.
-        // Runs AFTER the seal so sealed summaries still see them. One-time expenses keep
-        // their original `expense` history entry as the permanent record; one-time extras
-        // were captured in the sealed cycle's income.
-        loaded = {
-          ...loaded,
-          expenses: loaded.expenses.filter(e => e.recurring || new Date(e.createdAt) >= currentCycle.start),
-          extraIncomes: (loaded.extraIncomes ?? []).filter(e => e.recurring || new Date(e.createdAt) >= currentCycle.start),
-        };
-
+        const loaded = rollOverCycles(migrateState(JSON.parse(storedStateRaw)));
         setAppState(loaded);
       } catch (e) {
         console.error("Failed to parse persisted app state", e);
@@ -612,6 +638,27 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       .then(v => { if (v) setAvatarDataUrl(v); })
       .catch((err) => { console.error('Failed to load profile avatar', err); });
   }, []);
+
+  // ── Rollover while the app is open ──
+  // The launch path above closes any cycle that ended while the app was shut. But on
+  // Android the app usually just sits in the background, so pay day can pass without a
+  // fresh launch. Check again whenever the app comes back to the foreground, and once a
+  // minute while it is on screen (the check is one date calculation). Same function as
+  // launch, so the leftover lands in Savings exactly as it would have after a restart.
+  useEffect(() => {
+    if (!isLoaded) return;
+    const check = () => {
+      if (document.visibilityState === 'hidden') return;
+      setAppState(prev => (cycleHasEnded(prev) ? rollOverCycles(prev) : prev));
+    };
+    check();
+    const timer = setInterval(check, 60_000);
+    document.addEventListener('visibilitychange', check);
+    return () => {
+      clearInterval(timer);
+      document.removeEventListener('visibilitychange', check);
+    };
+  }, [isLoaded]);
 
   // Global safety net for errors that escape React's render tree — async callbacks,
   // event handlers, and unhandled promise rejections. The ErrorBoundary can't catch
@@ -993,14 +1040,17 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     bankId: string = DEFAULT_BANK_ID,
     direction: 'in' | 'out' = 'in',
   ) => {
+    // Ids made out here, not in the updater, so the caller gets the same ones back.
+    const id = genId();
+    const historyId = genId();
+    const createdAt = new Date().toISOString();
     updateStateAndSync(prev => {
       const bank = (prev.piggybanks ?? []).find(b => b.id === bankId);
       const entry: SavingEntry = {
-        id: genId(), amount, cycleKey, label, note, source: 'manual', direction, bankId,
-        createdAt: new Date().toISOString(),
+        id, amount, cycleKey, label, note, source: 'manual', direction, bankId, createdAt,
       };
       const record: HistoryEntry = {
-        id: genId(),
+        id: historyId,
         debtTitle: `${bank?.name ?? 'Savings'}: ${label}`,
         date: entry.createdAt,
         amount,
@@ -1010,6 +1060,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       };
       return { ...prev, savings: [entry, ...(prev.savings ?? [])], history: [record, ...prev.history] };
     });
+    return { id, historyId };
   }, [updateStateAndSync]);
 
   // ── Piggybanks ───────────────────────────────────────────────────────────────
@@ -1576,6 +1627,11 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     // sanitize enforces known ids, dedupe, and the 1–7 count bounds.
     setQuickAddShortcuts: (ids: string[]) => updateStateAndSync(p => ({ ...p, quickAddShortcuts: sanitizeShortcuts(ids) })),
     setSwipeActionsEnabled: (on: boolean) => updateStateAndSync(p => ({ ...p, swipeActionsEnabled: on })),
+    setCardLayout: (pageId: string, layout: SavedCardLayout | null) => updateStateAndSync(p => {
+      const next = { ...(p.cardLayouts ?? {}) };
+      if (layout) next[pageId] = layout; else delete next[pageId];
+      return { ...p, cardLayouts: next };
+    }),
     setHapticsStrength: (s: HapticStrength) => updateStateAndSync(p => ({ ...p, hapticsStrength: s })),
     setTutorialSeen: (seen: boolean) => updateStateAndSync(p => ({ ...p, tutorialSeen: seen })),
     deleteHistoryEntry,

@@ -118,7 +118,7 @@ export function cycleKeysBetween(fromKey: string, toKey: string, payDay: number)
  * the columns jump to one you can see, and the label opens a real date picker for
  * everything else. All three set the same cycle key.
  */
-export function CycleNavigatorCard({ selected, points, liveKey, payDay, onSelectRange, ready }: {
+export function CycleNavigatorCard({ selected, points, liveKey, payDay, onSelectRange, ready, chartOpen = true }: {
   /** The cycle, or span of cycles, currently on screen. May sit outside `points`. */
   selected: CycleSelection;
   /** Rolling window, oldest first — the trend chart's data, not the selection's range. */
@@ -128,9 +128,11 @@ export function CycleNavigatorCard({ selected, points, liveKey, payDay, onSelect
   /** Both keys the same = a single cycle, which is what stepping and tapping a column give. */
   onSelectRange: (fromKey: string, toKey: string) => void;
   ready: boolean;
+  /** Whether the spend chart starts open. The Stats grid draws it shut at 2×1, open at 2×2. */
+  chartOpen?: boolean;
 }) {
   const [pickerOpen, setPickerOpen] = useState(false);
-  const [historyOpen, setHistoryOpen] = useState(true);
+  const [historyOpen, setHistoryOpen] = useState(chartOpen);
 
   const span = selected.keys.length;
   const selectedKeys = useMemo(() => new Set(selected.keys), [selected.keys]);

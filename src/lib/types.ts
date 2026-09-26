@@ -1,3 +1,4 @@
+import type { SavedCardLayout } from './cardLayout';
 import type { HapticStrength } from './haptics';
 
 export interface Debt {
@@ -368,6 +369,9 @@ export interface AppState {
   swipeActionsEnabled: boolean;
   /** Vibration feedback strength for buttons/gestures (see lib/haptics.ts). */
   hapticsStrength: HapticStrength;
+  /** Card grid layouts the user arranged, keyed by page ('stats', 'savings'). A page with
+   *  no entry shows its default layout (see lib/cardLayout.ts). */
+  cardLayouts: Record<string, SavedCardLayout>;
   /** True once the first-run feature tour has been completed OR skipped. The tour is
    *  replayable at any time from Profile -> "How to use Duey" (see TutorialTour.tsx). */
   tutorialSeen: boolean;
