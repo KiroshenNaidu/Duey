@@ -385,7 +385,7 @@ export function HistoryLog() {
                     <MonthHeader
                       label={group.monthLabel}
                       isCurrent={group.monthLabel === format(new Date(), 'MMMM yyyy')}
-                      liveNote={cycleMode === 'manual' ? 'Live · finalizes when you close the cycle' : undefined}
+                      liveNote={cycleMode === 'manual' ? 'Live · finalizes when you close the month' : undefined}
                     />
                     <div className="p-2 space-y-2">
                       {group.entries.map(entry => <HistoryItem key={entry.id} entry={entry} />)}

@@ -28,8 +28,13 @@ export interface Period {
   end: Date;
   /** The last day the cycle actually covers — what labels read. */
   lastDay: Date;
-  /** "26 Oct – 25 Nov 2026"; the open manual cycle reads "Since 26 Oct 2026". */
+  /** What the app calls it: the month and year it ends in — "November 2026". The open
+   *  manual cycle is the month you are in. Screens say "month", never "cycle". */
   label: string;
+  /** The exact days it covers — "26 Oct – 2 Nov 2026"; the open manual cycle reads "Since
+   *  26 Oct 2026". For telling apart two cycles that end in the same month, and for History
+   *  summary titles, which must stay unique. */
+  range: string;
   /** Chart axis label. */
   short: string;
 }
@@ -73,7 +78,7 @@ const isMonthKey = (key: string) => /^\d{4}-\d{2}$/.test(key);
 
 /** When one-time items (expenses, extra income) are cleared — for the copy that promises it. */
 export const clearsWhen = (mode: CycleMode): string =>
-  mode === 'manual' ? 'when you close the cycle' : 'on your next pay date';
+  mode === 'manual' ? 'when you close the month' : 'on your next pay date';
 
 /**
  * Travel is counted per DAY, so a cycle closed at 3pm would otherwise bill that day twice —
@@ -98,13 +103,13 @@ function rangeLabel(start: Date, lastDay: Date): string {
 /** A closed cycle with explicit bounds. */
 export function boundedPeriod(key: string, start: Date, end: Date): Period {
   const lastDay = startOfDay(new Date(Math.max(start.getTime(), end.getTime() - 1)));
-  return { key, start, end, lastDay, label: rangeLabel(start, lastDay), short: format(start, 'd MMM') };
+  return { key, start, end, lastDay, label: format(lastDay, 'MMMM yyyy'), range: rangeLabel(start, lastDay), short: format(start, 'd MMM') };
 }
 
 /** A pay-date cycle, by key. */
 function autoPeriod(key: string, payDay: number): Period {
   const c = getPayCycle(payDay, cycleStartFromKey(key, payDay));
-  return { key: c.key, start: c.start, end: c.end, lastDay: c.lastDay, label: c.label, short: format(c.start, 'MMM') };
+  return { key: c.key, start: c.start, end: c.end, lastDay: c.lastDay, label: format(c.lastDay, 'MMMM yyyy'), range: c.label, short: format(c.start, 'MMM') };
 }
 
 /** The open manual cycle: from its start through today. */
@@ -113,7 +118,8 @@ function openPeriod(key: string, start: Date, now: Date): Period {
   return {
     key, start, end,
     lastDay: startOfDay(now),
-    label: `Since ${format(start, 'd MMM yyyy')}`,
+    label: format(now, 'MMMM yyyy'),
+    range: `Since ${format(start, 'd MMM yyyy')}`,
     short: format(start, 'd MMM'),
   };
 }
@@ -164,7 +170,7 @@ export function buildTimeline(src: CycleSource, now: Date = new Date()): CycleTi
 
   if (src.mode === 'auto') {
     const c = getPayCycle(payDay, now);
-    const current: Period = { key: c.key, start: c.start, end: c.end, lastDay: c.lastDay, label: c.label, short: format(c.start, 'MMM') };
+    const current: Period = { key: c.key, start: c.start, end: c.end, lastDay: c.lastDay, label: format(c.lastDay, 'MMMM yyyy'), range: c.label, short: format(c.start, 'MMM') };
     // Stepping is pay-date maths; a stamp key (a cycle closed by hand before switching back)
     // steps from the pay-date cycle it started in.
     const asMonthKey = (key: string) => (isMonthKey(key) ? key : cycleKey(looseKey(key).start, payDay));

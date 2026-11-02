@@ -971,7 +971,7 @@ function QuickIncomeForm({ onDone }: { onDone: () => void }) {
       <div className="flex items-center justify-between bg-muted/30 rounded-xl px-3 py-2.5">
         <div>
           <p className="text-xs font-semibold text-foreground">Monthly</p>
-          <p className="text-[9px] text-muted-foreground">{recurring ? 'Counts every month' : cycleMode === 'manual' ? 'This cycle only - clears when you close it' : 'This month only'}</p>
+          <p className="text-[9px] text-muted-foreground">{recurring ? 'Counts every month' : cycleMode === 'manual' ? 'This month only - clears when you close it' : 'This month only'}</p>
         </div>
         <Switch checked={recurring} onCheckedChange={setRecurring} />
       </div>

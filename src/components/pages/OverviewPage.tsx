@@ -1,7 +1,6 @@
 'use client';
 
 import { MoneyOverview } from '@/components/MoneyOverview';
-import { SavingsCard } from '@/components/SavingsCard';
 
 /**
  * Overview — where your money stands right now: the cycle's balance (what's left, what came
@@ -18,10 +17,8 @@ export function OverviewPage() {
         <h1 className="text-lg font-bold text-foreground">Overview</h1>
         <p className="text-xs text-muted-foreground mt-0.5">Your balance and savings</p>
       </div>
-      <div className="space-y-3">
-        <MoneyOverview />
-        <SavingsCard />
-      </div>
+      {/* MoneyOverview ends with the Savings card: both follow the same cycle stepper. */}
+      <MoneyOverview />
     </div>
   );
 }

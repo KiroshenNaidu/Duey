@@ -1,7 +1,7 @@
 'use client';
 
 import { useContext, useMemo, useState } from 'react';
-import { format } from 'date-fns';
+import { add, format, startOfDay } from 'date-fns';
 import { AppDataContext } from '@/context/AppDataContext';
 import { formatCurrency, cn } from '@/lib/utils';
 import {
@@ -11,7 +11,7 @@ import {
 import { moneyWindow, snapshotKey } from '@/lib/cycles';
 import { useCycles } from '@/hooks/useCycles';
 import { outstandingBefore, summariseLoans } from '@/lib/loans';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Pencil, Check, Plus, Trash2, X, RefreshCw, ChevronLeft, ChevronRight, Lock } from 'lucide-react';
@@ -22,6 +22,8 @@ import {
 import { Switch } from '@/components/ui/switch';
 import { showUndoToast } from '@/components/ui/undo-toast';
 import { useReplayOnActive } from '@/hooks/useReplayOnActive';
+import { SavingsCard } from '@/components/SavingsCard';
+import { DatePicker } from '@/components/DatePicker';
 
 export function MoneyOverview() {
   const {
@@ -30,6 +32,9 @@ export function MoneyOverview() {
     setMonthlyIncome, addExtraIncome, deleteExtraIncome, restoreExtraIncome, closeCycle, undoCloseCycle,
   } = useContext(AppDataContext);
   const [confirmClose, setConfirmClose] = useState(false);
+  // The last day of the month being closed, 'yyyy-MM-dd'. Today by default; an earlier day
+  // backdates the close for books done late (see closeCycle).
+  const [closeDay, setCloseDay] = useState('');
 
   const [editingIncome, setEditingIncome] = useState(false);
   const [incomeInput, setIncomeInput] = useState('');
@@ -143,7 +148,7 @@ export function MoneyOverview() {
     : summariseLoans(loans ?? []).outstanding;
 
   // "(this cycle)" only reads true on this cycle; the header names every other one.
-  const when = viewing === 'live' ? ' (this cycle)' : '';
+  const when = viewing === 'live' ? ' (this month)' : '';
   const deductions = [
     { id: 'transport', label: `Transport${when}`, value: transportCost, estimate: !transportPaid },
     { id: 'uber',      label: `Uber${when}`,      value: uberSpend },
@@ -207,12 +212,23 @@ export function MoneyOverview() {
     setExtraLabel(''); setExtraAmount(''); setExtraRecurring(false); setExtraError(''); setAddingExtra(false);
   };
 
+  // The picked last day, checked against what can be closed: not before the month began,
+  // not in the future.
+  const today = startOfDay(new Date());
+  const closeDate = closeDay ? new Date(`${closeDay}T00:00:00`) : today;
+  const closeBackdated = closeDate < today;
+  const closeError = closeDate > today
+    ? 'That day hasn\u2019t happened yet'
+    : closeDate < startOfDay(cycle.start)
+      ? `This month started ${format(cycle.start, 'd MMM yyyy')} - pick that day or later`
+      : null;
+
   // Close the open manual cycle, with the same 5s undo window deletes get. Back to the
   // running cycle first, so the card shows the fresh one rather than a stale pick.
   const handleCloseCycle = () => {
-    const undo = closeCycle();
+    const undo = closeCycle(closeDate);
     setPickedKey(null);
-    if (undo) showUndoToast('Cycle closed', () => undoCloseCycle(undo));
+    if (undo) showUndoToast('Month closed', () => undoCloseCycle(undo));
   };
 
   // Delete immediately with a 5s undo window.
@@ -244,9 +260,9 @@ export function MoneyOverview() {
           )}
           {remaining < 0 && (
             <p className="text-[10px] text-destructive mt-0.5">
-              {viewing === 'live' ? 'You\u2019re over budget this cycle'
-                : viewing === 'sealed' ? 'This cycle ended over budget'
-                : 'On track to go over budget next cycle'}
+              {viewing === 'live' ? 'You\u2019re over budget this month'
+                : viewing === 'sealed' ? 'This month ended over budget'
+                : 'On track to go over budget next month'}
             </p>
           )}
           {monthlyIncome === 0 && <p className="text-[10px] text-muted-foreground mt-0.5">Set your monthly income above to see your balance</p>}
@@ -256,14 +272,14 @@ export function MoneyOverview() {
           {manual && viewing === 'live' && (
             <div className="mt-3 pt-2 border-t border-border/40 space-y-1">
               <button
-                onClick={() => setConfirmClose(true)}
+                onClick={() => { setCloseDay(format(new Date(), 'yyyy-MM-dd')); setConfirmClose(true); }}
                 className="w-full rounded-xl border border-border px-3 py-2.5 text-xs font-semibold text-foreground transition-colors hover:border-accent/50 hover:bg-accent/5 flex items-center justify-center gap-1.5"
               >
                 <Lock className="h-3.5 w-3.5 shrink-0" />
-                Close this cycle
+                Close this month
               </button>
               <p className="text-[10px] text-muted-foreground text-center">
-                Running {cycle.label.replace(/^Since/, 'since')} · nothing resets until you close it
+                Running {cycle.range.replace(/^Since/, 'since')} · nothing resets until you close it
               </p>
             </div>
           )}
@@ -390,7 +406,7 @@ export function MoneyOverview() {
                   <div>
                     <p className="text-xs font-semibold text-foreground">Monthly</p>
                     <p className="text-[9px] text-muted-foreground">
-                      {extraRecurring ? 'Counts every cycle until removed' : manual ? 'This cycle only - clears when you close the cycle' : 'This cycle only - clears on your next pay date'}
+                      {extraRecurring ? 'Counts every month until removed' : manual ? 'This month only - clears when you close the month' : 'This month only - clears on your next pay date'}
                     </p>
                   </div>
                   <Switch checked={extraRecurring} onCheckedChange={setExtraRecurring} />
@@ -429,47 +445,44 @@ export function MoneyOverview() {
           now the way to other cycles, and those must not disappear with an empty one. */}
       <Card>
         <CardContent className="p-3 space-y-2">
-          {/* Same stepper as Stats → Pay cycle: chevrons either side, the cycle in between. */}
-          <div className="flex items-center gap-1 -mx-1.5 -mt-1.5">
-            <button
-              onClick={() => step(-1)}
-              disabled={viewKey <= firstKey}
-              aria-label="Previous cycle"
-              className="h-8 w-8 shrink-0 rounded-xl flex items-center justify-center text-muted-foreground transition-colors disabled:opacity-25 active:bg-muted/60"
-            >
+          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground text-center">Deductions</p>
+          {/* The Transport calendar's month header, exactly: ghost chevrons either side, the
+              month in the middle (accent while it is the current one) and an uppercase status
+              line under it. Tapping the month jumps back to the current one. */}
+          <div className="flex justify-between items-center">
+            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => step(-1)} disabled={viewKey <= firstKey} aria-label="Previous month">
               <ChevronLeft className="h-4 w-4" />
-            </button>
-            {/* Tapping the middle jumps back to the running cycle. */}
+            </Button>
             <button
               onClick={() => setPickedKey(null)}
               disabled={viewing === 'live'}
-              className="flex-1 min-w-0 px-1 text-center"
+              className="flex-1 min-w-0 px-1"
             >
-              <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Deductions</p>
-              <p className={cn('text-xs font-semibold truncate mt-0.5', viewing === 'live' ? 'text-foreground' : 'text-accent')}>
-                {viewLabel}
-              </p>
-              <p className="text-[9px] text-muted-foreground mt-0.5">
-                {viewing === 'live'
-                  ? 'This cycle · still running'
-                  : viewing === 'sealed'
-                    ? `Sealed${sealedSnapshot ? '' : ' · recalculated'} · tap for this cycle`
-                    : 'Projected · recurring only · tap for this cycle'}
-              </p>
+              <CardTitle className="text-center text-base flex flex-col items-center">
+                <span className={cn('truncate max-w-full', viewing === 'live' ? 'text-accent' : 'text-foreground')}>
+                  {viewLabel}
+                </span>
+                <span className={cn(
+                  'text-[10px] font-semibold flex items-center gap-1 uppercase tracking-tighter',
+                  viewing === 'live' ? 'text-primary' : 'text-muted-foreground',
+                )}>
+                  {viewing === 'live'
+                    ? '(Current Month)'
+                    : viewing === 'sealed'
+                      // The exact days, so two closes in one month can be told apart.
+                      ? <><Lock className="h-2 w-2" /> (Closed) · {viewPeriod.range}{sealedSnapshot ? '' : ' · recalculated'}</>
+                      : '(Projected · recurring only)'}
+                </span>
+              </CardTitle>
             </button>
-            <button
-              onClick={() => step(1)}
-              disabled={viewKey >= lastKey}
-              aria-label="Next cycle"
-              className="h-8 w-8 shrink-0 rounded-xl flex items-center justify-center text-muted-foreground transition-colors disabled:opacity-25 active:bg-muted/60"
-            >
+            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => step(1)} disabled={viewKey >= lastKey} aria-label="Next month">
               <ChevronRight className="h-4 w-4" />
-            </button>
+            </Button>
           </div>
 
           {activeDeductions.length === 0 && !showAllDeductions && (
             <p className="text-[10px] text-muted-foreground/60 italic">
-              {viewing === 'projected' ? 'Nothing recurring is set to come off' : 'Nothing came off in this cycle'}
+              {viewing === 'projected' ? 'Nothing recurring is set to come off' : 'Nothing came off this month'}
             </p>
           )}
           {shownDeductions.map(d => {
@@ -521,19 +534,37 @@ export function MoneyOverview() {
       <AlertDialog open={confirmClose} onOpenChange={setConfirmClose}>
         <AlertDialogContent className="rounded-[2rem]">
           <AlertDialogHeader>
-            <AlertDialogTitle>Close this cycle?</AlertDialogTitle>
+            <AlertDialogTitle>Close this month?</AlertDialogTitle>
             <AlertDialogDescription>
-              The cycle {cycle.label.replace(/^Since/, 'since')} ends now and its summary goes to History.
+              {closeBackdated
+                ? <>Tracking {cycle.range.replace(/^Since/, 'since')} ends on {format(closeDate, 'd MMM yyyy')} and its summary goes to History. Anything added after that day stays in the new month.</>
+                : <>Tracking {cycle.range.replace(/^Since/, 'since')} ends now and its summary goes to History.</>}
               {' '}One-time expenses and one-time extra income are cleared; recurring ones stay.
-              {' '}A new cycle starts today. You can undo this from the toast.
+              {' '}You can undo this from the toast.
             </AlertDialogDescription>
           </AlertDialogHeader>
+          {/* Books done late: end the month on the day it really ended, not the day you got
+              round to it. */}
+          <div>
+            <label className="text-xs font-medium text-muted-foreground mb-1 block">Last day of this month</label>
+            <DatePicker value={closeDay} onChange={v => setCloseDay(v || format(new Date(), 'yyyy-MM-dd'))} />
+            <p className={cn('text-[10px] mt-1', closeError ? 'text-destructive' : 'text-muted-foreground')}>
+              {closeError ?? (closeBackdated
+                ? `The new month starts ${format(add(closeDate, { days: 1 }), 'd MMM yyyy')}`
+                : 'Today - pick an earlier day if the month ended before now')}
+            </p>
+          </div>
           <AlertDialogFooter className="flex-row justify-end">
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleCloseCycle}>Close cycle</AlertDialogAction>
+            <AlertDialogAction onClick={handleCloseCycle} disabled={!!closeError}>Close month</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Savings follows the Deductions stepper like Remaining does: step back a cycle and
+          it shows what was put away in THAT cycle. Rendered here, not by the page, because
+          this component owns which cycle is on screen. */}
+      <SavingsCard period={viewPeriod} viewing={viewing} onBackToCurrent={() => setPickedKey(null)} />
     </div>
   );
 }

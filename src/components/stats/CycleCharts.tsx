@@ -1,15 +1,14 @@
 'use client';
 
 import { useContext, useEffect, useMemo, useState } from 'react';
-import { format, getDaysInMonth, startOfDay } from 'date-fns';
+import { format, startOfDay } from 'date-fns';
 import { AnimatePresence, motion } from 'framer-motion';
 import { ChevronLeft, ChevronRight, ChevronDown, CalendarRange, PieChart, BarChart3 } from 'lucide-react';
 import { buildAnalogous, cn, formatCurrency } from '@/lib/utils';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { CardHeading } from '@/components/ui/card';
-import { Calendar } from '@/components/ui/calendar';
-import { DateWheels } from '@/components/DatePicker';
+import { DatePicker } from '@/components/DatePicker';
 import type { MonthlyMoney } from '@/lib/calculations';
 import type { CycleTimeline } from '@/lib/cycles';
 import { AppDataContext } from '@/context/AppDataContext';
@@ -392,59 +391,44 @@ function SpendLine({ points, selectedKeys, timeline, onSelectKey, ready }: {
   );
 }
 
-/** The three numbers a date is picked as. Kept apart from `Date` so a half-set month never
- *  rolls the year over behind the user's back. */
-interface DateParts { y: number; m: number; d: number }
-
-const toParts = (d: Date): DateParts => ({ y: d.getFullYear(), m: d.getMonth(), d: d.getDate() });
-/** February exists: clamp the day rather than letting `new Date(2026, 1, 31)` walk into March. */
-const partsToDate = ({ y, m, d }: DateParts): Date =>
-  new Date(y, m, Math.min(d, getDaysInMonth(new Date(y, m, 1))));
+/** A day as the date field holds it, 'yyyy-MM-dd', and back. */
+const toDay = (d: Date): string => format(d, 'yyyy-MM-dd');
+const fromDay = (v: string): Date => new Date(`${v}T00:00:00`);
 const minDate = (a: Date, b: Date): Date => (a.getTime() <= b.getTime() ? a : b);
 
 /**
- * Pick the span the page reports on: a FROM date and a TO date, each resolved to the pay
- * cycle it falls in. A cycle boundary is not a date anyone remembers ("was the 24th in
- * July's pay or August's?"), so you name days you DO remember and the cycles they resolve
- * to are spelled out below before you commit to them.
+ * Pick the span the page reports on: a FROM date and a TO date, each resolved to the month
+ * it falls in. The presets cover what people usually ask for; the two fields are the same
+ * date field as everywhere else in the app (DatePicker), for anything else.
  *
- * Two dates inside the same cycle are one cycle — the picker's original behaviour, which
- * is still the common case, so the presets put it one tap away. Dates entered the wrong way
- * round are swapped rather than treated as an empty span, and a TO date in the future is
- * pulled back to today: cycles that have not happened would otherwise be summed from
- * today's salary and read as real.
+ * Dates entered the wrong way round are swapped rather than treated as an empty span, and a
+ * TO date in the future is pulled back to today: months that have not happened would
+ * otherwise be summed from today's salary and read as real.
  */
 function CycleRangePickerDialog({ open, onOpenChange, timeline, fromDate, toDate, onPick }: {
   open: boolean;
   onOpenChange: (o: boolean) => void;
   timeline: CycleTimeline;
-  /** Seed for the near end — the start of the first cycle currently showing. */
+  /** Seed for the near end — the start of the first month currently showing. */
   fromDate: Date;
-  /** Seed for the far end — the last day of the last cycle showing, capped at today. */
+  /** Seed for the far end — the last day of the last month showing, capped at today. */
   toDate: Date;
   onPick: (fromKey: string, toKey: string) => void;
 }) {
-  const [from, setFrom] = useState<DateParts>(() => toParts(fromDate));
-  const [to, setTo] = useState<DateParts>(() => toParts(toDate));
-  /** Which end the calendar is filling in. */
-  const [editing, setEditing] = useState<'from' | 'to'>('from');
-  /** Scroll wheels instead of the calendar — for dates a month grid is slow to reach (a
-   *  year back is twelve taps on the calendar, one flick on a wheel). */
-  const [wheels, setWheels] = useState(false);
+  const [from, setFrom] = useState(() => toDay(fromDate));
+  const [to, setTo] = useState(() => toDay(toDate));
 
   // Re-seed each time it opens, so it always starts from what you are looking at.
   useEffect(() => {
     if (!open) return;
-    setFrom(toParts(fromDate));
-    setTo(toParts(toDate));
-    setEditing('from');
-    setWheels(false);
+    setFrom(toDay(fromDate));
+    setTo(toDay(toDate));
   }, [open, fromDate, toDate]);
 
   const today = startOfDay(new Date());
 
-  const a = partsToDate(from);
-  const b = partsToDate(to);
+  const a = fromDay(from);
+  const b = fromDay(to);
   const lo = minDate(a, b);
   const hi = minDate(a.getTime() > b.getTime() ? a : b, today);
   const startCycle = timeline.period(timeline.keyOf(lo));
@@ -455,8 +439,8 @@ function CycleRangePickerDialog({ open, onOpenChange, timeline, fromDate, toDate
 
   const applyPreset = (n: number) => {
     const list = timeline.recent(n - 1);                   // newest first, up to n entries
-    setFrom(toParts(list[list.length - 1].start));
-    setTo(toParts(new Date()));
+    setFrom(toDay(list[list.length - 1].start));
+    setTo(toDay(new Date()));
   };
 
   return (
@@ -485,86 +469,22 @@ function CycleRangePickerDialog({ open, onOpenChange, timeline, fromDate, toDate
           ))}
         </div>
 
-        {/* One calendar, two ends. Picking a day on the grid fills the armed end and hands
-            the calendar to the other, so the ordinary case — from, then to — is two taps.
-            Tapping an end's DATE opens the scroll wheels for it instead: the mobile-native
-            way to reach any day, month or year without paging the grid. */}
         <div className="grid grid-cols-2 gap-2">
-          <EndTab
-            label="From"
-            date={a}
-            active={editing === 'from'}
-            open={wheels && editing === 'from'}
-            onClick={() => { setEditing('from'); setWheels(true); }}
-          />
-          <EndTab
-            label="To"
-            date={b}
-            active={editing === 'to'}
-            open={wheels && editing === 'to'}
-            onClick={() => { setEditing('to'); setWheels(true); }}
-          />
-        </div>
-
-        {wheels ? (
-          // Same wheels as every other date field in the app (DatePicker), on the card
-          // surface their edge fades are drawn for. Keyed by end, so switching ends re-centres
-          // the columns on that end's date.
-          <div className="rounded-2xl bg-card pt-3 pb-2">
-            <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground text-center pb-1">
-              {editing === 'from' ? 'Start date' : 'End date'}
-            </p>
-            <DateWheels
-              key={editing}
-              value={editing === 'from' ? from : to}
-              onChange={editing === 'from' ? setFrom : setTo}
-            />
-            <div className="flex items-center justify-end px-3 pt-2 mt-1 border-t border-border/30">
-              <button
-                onClick={() => setWheels(false)}
-                className="text-xs font-semibold text-primary px-4 py-1.5 rounded-xl bg-primary/10 hover:bg-primary/20 transition-colors"
-              >
-                Done
-              </button>
-            </div>
+          <div>
+            <label className="text-xs font-medium text-muted-foreground mb-1 block">From</label>
+            <DatePicker value={from} onChange={v => setFrom(v || toDay(fromDate))} />
           </div>
-        ) : (
-          <Calendar
-            value={editing === 'from' ? a : b}
-            max={today}
-            onSelect={(d, via) => {
-              if (editing === 'from') {
-                setFrom(toParts(d));
-                // A tap on the grid means that end is settled — hand the calendar to the
-                // other one. A quick-jump nudge is still aimed at THIS end, so it stays.
-                if (via === 'day') setEditing('to');
-              } else {
-                setTo(toParts(d));
-              }
-            }}
-          />
-        )}
-
-        <div className="rounded-xl bg-muted/30 p-3">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-            {span === 1 ? 'Those dates fall in' : `${span} months`}
-          </p>
-          <p className="text-sm font-semibold text-foreground mt-1">
-            {span === 1
-              ? startCycle.label
-              : `${format(startCycle.start, 'd MMM yyyy')} – ${format(endCycle.lastDay, 'd MMM yyyy')}`}
-          </p>
-          {future && (
-            <p className="text-[10px] text-[hsl(var(--negative))] mt-1">
-              That range hasn&apos;t happened yet.
-            </p>
-          )}
-          {!future && hi.getTime() !== b.getTime() && (
-            <p className="text-[10px] text-muted-foreground/60 mt-1">
-              Ends today, later cycles haven&apos;t happened yet.
-            </p>
-          )}
+          <div>
+            <label className="text-xs font-medium text-muted-foreground mb-1 block">To</label>
+            <DatePicker value={to} onChange={v => setTo(v || toDay(new Date()))} />
+          </div>
         </div>
+        {future && (
+          <p className="text-[10px] text-[hsl(var(--negative))]">That range hasn&apos;t happened yet.</p>
+        )}
+        {!future && hi.getTime() !== b.getTime() && (
+          <p className="text-[10px] text-muted-foreground/60">Ends today, later months haven&apos;t happened yet.</p>
+        )}
 
         <DialogFooter>
           <Button
@@ -572,43 +492,11 @@ function CycleRangePickerDialog({ open, onOpenChange, timeline, fromDate, toDate
             disabled={future}
             className="w-full h-9 text-xs"
           >
-            {span === 1 ? 'Show this month' : `Show these ${span} months`}
+            {span === 1 ? `Show ${startCycle.label}` : `Show ${span} months`}
           </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  );
-}
-
-/** One end of the range: which end it is, the day it currently holds, and whether the
- *  calendar below is filling it in. Tapping it opens the scroll wheels for that end — the
- *  chevron says so, and turns while they are open. */
-function EndTab({ label, date, active, open, onClick }: {
-  label: string; date: Date; active: boolean; open: boolean; onClick: () => void;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      aria-pressed={active}
-      className={cn(
-        'rounded-xl px-3 py-2 text-left transition-colors',
-        active ? 'bg-accent/15 ring-1 ring-accent' : 'bg-muted/30 active:bg-muted/50',
-      )}
-    >
-      <p className={cn(
-        'text-[10px] font-bold uppercase tracking-widest',
-        active ? 'text-accent' : 'text-muted-foreground',
-      )}>
-        {label}
-      </p>
-      <p className="text-sm font-semibold text-foreground tabular-nums mt-0.5 flex items-center gap-1">
-        {format(date, 'd MMM yyyy')}
-        <ChevronDown className={cn(
-          'h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform duration-200',
-          open && 'rotate-180 text-accent',
-        )} />
-      </p>
-    </button>
   );
 }
 

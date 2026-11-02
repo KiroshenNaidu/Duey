@@ -72,7 +72,7 @@ function AddExpenseDialog({ children }: { children: React.ReactNode }) {
               <p className="text-sm font-semibold text-foreground">Recurring</p>
               <p className="text-[10px] text-muted-foreground mt-0.5">
                 {recurring
-                  ? 'Stays active every cycle until manually removed'
+                  ? 'Stays active every month until manually removed'
                   : `Auto-removed ${clearsWhen(cycleMode)}`}
               </p>
             </div>
@@ -116,7 +116,7 @@ export function ExpensesList() {
           </CardHeader>
           <CardContent>
             <p className="text-xs text-muted-foreground">Tap the + button to log one.</p>
-            <p className="text-xs text-muted-foreground mt-1">Recurring expenses persist each cycle. One-time expenses clear {clearsWhen(cycleMode)}.</p>
+            <p className="text-xs text-muted-foreground mt-1">Recurring expenses persist each month. One-time expenses clear {clearsWhen(cycleMode)}.</p>
           </CardContent>
         </Card>
       ) : (
@@ -141,7 +141,7 @@ export function ExpensesList() {
           {/* One-time */}
           {oneTime.length > 0 && (
             <div className="space-y-2">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground px-1">This cycle</p>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground px-1">This month</p>
               {oneTime.map(expense => (
                 <ExpenseRow key={expense.id} expense={expense} onDelete={handleDelete} />
               ))}
@@ -220,7 +220,7 @@ function EditExpenseDialog({ expense, open, onClose }: { expense: import('@/lib/
             <div className="flex-1 min-w-0 pr-3">
               <p className="text-sm font-semibold text-foreground">Recurring</p>
               <p className="text-[10px] text-muted-foreground mt-0.5">
-                {recurring ? 'Stays active every cycle until removed' : `Auto-removed ${clearsWhen(cycleMode)}`}
+                {recurring ? 'Stays active every month until removed' : `Auto-removed ${clearsWhen(cycleMode)}`}
               </p>
             </div>
             <Switch checked={recurring} onCheckedChange={setRecurring} />

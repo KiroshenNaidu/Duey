@@ -194,22 +194,37 @@ const timelineOf = (s: AppState, now: Date = new Date()) => buildTimeline({
  * What every recurring deposit adds when a cycle closes: a copy in the pot (source
  * 'recurring') and the History record of it — the same pair addSaving writes for a deposit
  * made by hand. Used by both ways a cycle ends: closeCycle, and the pay-date seal.
+ *
+ * The RECURRING FLAG MOVES to the copy. Overview lists only the current cycle's savings, so
+ * the deposit that keeps repeating has to live in the current cycle — that is where you see
+ * it (with its "monthly" chip) and where deleting it stops the repeats. The entry it was
+ * copied from stays in the pot as last cycle's plain deposit; `retired` names those, and
+ * `pot` is the whole pot with the flags already moved.
  */
-function repeatRecurringSavings(savings: SavingEntry[] | undefined, at: string): { entries: SavingEntry[]; records: HistoryEntry[] } {
+function repeatRecurringSavings(savings: SavingEntry[] | undefined, at: string): {
+  entries: SavingEntry[]; records: HistoryEntry[]; retired: string[]; pot: SavingEntry[];
+} {
   const entries: SavingEntry[] = [];
   const records: HistoryEntry[] = [];
+  const retired: string[] = [];
   for (const v of savings ?? []) {
     if (!v.recurring || v.direction === 'out') continue;
-    entries.push({ id: genId(), amount: v.amount, label: v.label, note: v.note, source: 'recurring', direction: 'in', createdAt: at });
+    // Set up after the cycle ended (a backdated close) — already in the new cycle.
+    if (new Date(v.createdAt) >= new Date(at)) continue;
+    entries.push({ id: genId(), amount: v.amount, label: v.label, note: v.note, source: 'recurring', direction: 'in', recurring: true, createdAt: at });
     records.push({ id: genId(), debtTitle: `Savings: ${v.label}`, date: at, amount: v.amount, type: 'savings', label: 'Put away (recurring)' });
+    retired.push(v.id);
   }
-  return { entries, records };
+  const pot = [...entries, ...(savings ?? []).map(v => (retired.includes(v.id) ? { ...v, recurring: false } : v))];
+  return { entries, records, retired, pot };
 }
 
 /** What closeCycle changed, so its undo toast can put it back. */
 export interface CycleCloseUndo {
   historyIds: string[];
   savingIds: string[];
+  /** Deposits whose recurring flag moved to a repeat — handed it back on undo. */
+  retiredRecurringIds: string[];
   expenses: Expense[];
   extraIncomes: ExtraIncome[];
   manualCycleStart: string;
@@ -223,13 +238,24 @@ export interface CycleCloseUndo {
  */
 function migrateSavings(raw: Partial<AppState>): SavingEntry[] {
   type Legacy = Omit<SavingEntry, 'source'> & { source?: string; bankId?: string; recurringId?: string };
-  return ((raw.savings ?? []) as Legacy[])
+  const pot = ((raw.savings ?? []) as Legacy[])
     .filter(v => v.source !== 'auto')
     .map(({ bankId: _bank, recurringId: _order, source, ...v }): SavingEntry => ({
       ...v,
       direction: v.direction ?? 'in',
       source: source === 'recurring' ? 'recurring' : 'manual',
     }));
+  // The recurring flag belongs on the NEWEST repeat of a deposit (see repeatRecurringSavings).
+  // Pots written before it moved still carry it on the first deposit, with repeats after it.
+  // Idempotent: once moved, the flagged entry is already the newest.
+  for (const v of pot) {
+    if (!v.recurring) continue;
+    const newest = pot
+      .filter(r => r.source === 'recurring' && r.label === v.label && r.amount === v.amount && r.createdAt > v.createdAt)
+      .sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1))[0];
+    if (newest) { v.recurring = false; newest.recurring = true; }
+  }
+  return pot;
 }
 
 const defaultState: AppState = {
@@ -335,7 +361,7 @@ interface AppContextType extends AppState {
   /** Manual or automatic cycles (Settings → Pay Date). */
   setCycleMode: (mode: CycleMode) => void;
   /** Manual mode: end the open cycle now. Returns the undo payload, or null outside manual mode. */
-  closeCycle: () => CycleCloseUndo | null;
+  closeCycle: (lastDay?: Date) => CycleCloseUndo | null;
   undoCloseCycle: (undo: CycleCloseUndo) => void;
   /** Open a loan: one person, one first 'lent' event. Everything after is addLoanEvent. */
   addLoan: (person: string, amount: number, opts?: { reason?: string; date?: string; dueDate?: string; note?: string }) => void;
@@ -527,7 +553,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
         if (autoCycles && loaded.lastSnapshotMonth && loaded.lastSnapshotMonth !== currentCycle.key) {
           const snapshots: HistoryEntry[] = [];
           // Recurring deposits repeat once per cycle that ends — see repeatRecurringSavings.
-          const repeatEntries: SavingEntry[] = [];
+          let pot = loaded.savings ?? [];
           const repeatRecords: HistoryEntry[] = [];
           // Start AT the last recorded cycle, not after it: lastSnapshotMonth stores the
           // cycle that was LIVE when we last looked, so that cycle is the first one that
@@ -566,14 +592,14 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
             });
             // Dated the moment the NEXT cycle begins, as closeCycle does, so the repeat is a
             // deduction of the cycle it was added to — not of the one just sealed.
-            const repeats = repeatRecurringSavings(loaded.savings, end.toISOString());
-            repeatEntries.push(...repeats.entries);
+            const repeats = repeatRecurringSavings(pot, end.toISOString());
+            pot = repeats.pot;
             repeatRecords.push(...repeats.records);
           }
           loaded = {
             ...loaded,
             history: [...snapshots, ...repeatRecords, ...loaded.history],
-            savings: [...repeatEntries, ...(loaded.savings ?? [])],
+            savings: pot,
             lastSnapshotMonth: currentCycle.key,
           };
         } else if (autoCycles && !loaded.lastSnapshotMonth) {
@@ -1048,51 +1074,80 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
    * Nothing else touches savings: the pot never takes the cycle's remainder.
    * Returns what the undo toast needs to put it all back.
    *
+   * `lastDay` backdates the close, for books done late: the cycle ends at the END of that
+   * day and the new one starts at midnight after it, as if you had closed it then. Anything
+   * added after that midnight already belongs to the new cycle, so it is left out of the
+   * summary and not cleared. Today (or nothing) closes at this moment, as before.
+   *
    * Worked out from the latest committed state (stateRef) rather than inside the updater:
    * React may defer a state updater to the next render, and the undo payload has to exist
    * by the time this returns. The updater then only applies the result.
    */
-  const closeCycle = useCallback((): CycleCloseUndo | null => {
+  const closeCycle = useCallback((lastDay?: Date): CycleCloseUndo | null => {
     const cur = stateRef.current;
     if (cur.cycleMode !== 'manual') return null;
     const now = new Date();
     const payDay = normalizePayDay(cur.userProfile.paydayDay);
     const open = timelineOf(cur, now).current;
+    const backdated = !!lastDay && startOfDay(lastDay) < startOfDay(now);
+    const end = backdated ? add(startOfDay(lastDay!), { days: 1 }) : now;
+    if (end <= open.start) return null;
+    const before = (createdAt: string) => new Date(createdAt) < end;
+    // One-time items from before the end close with the cycle; anything newer is the new
+    // cycle's (only a backdated close can have any).
+    const closesWith = <T extends { recurring?: boolean; createdAt: string }>(items: T[]) =>
+      items.filter(e => !e.recurring && before(e.createdAt));
     // The live calculator over the open cycle's window — so the summary is the figure that
-    // was on the Balance tab when you closed it, not a reconstruction.
+    // was on the Balance tab when you closed it, not a reconstruction. A backdated close
+    // counts only what existed by its end.
     const s = calculateLiveMonthly(
-      { ...cur, extraIncomes: cur.extraIncomes ?? [], payDay }, now, moneyWindow(open),
+      {
+        ...cur, payDay,
+        expenses: cur.expenses.filter(e => before(e.createdAt)),
+        extraIncomes: (cur.extraIncomes ?? []).filter(e => before(e.createdAt)),
+      },
+      backdated ? startOfDay(lastDay!) : now,
+      { ...moneyWindow(open), end },
     );
-    const closed = boundedPeriod(open.key, open.start, now);
+    const closed = boundedPeriod(open.key, open.start, end);
     const summary: HistoryEntry = {
       id: genId(),
-      debtTitle: `${closed.label} Summary`,
-      date: now.toISOString(),
+      // The exact days, not the month: two cycles can end in the same month.
+      debtTitle: `${closed.range} Summary`,
+      date: end.toISOString(),
       amount: Math.abs(s.remaining),
       type: 'snapshot',
       note: `Income: ${Math.round(s.income)} | Outgoings: ${Math.round(s.totalOutgoings)} | ${s.remaining >= 0 ? 'Surplus' : 'Deficit'}: ${Math.round(Math.abs(s.remaining))}`,
       snapshot: s,
       cycleKey: open.key,
       cycleStart: open.start.toISOString(),
-      cycleEnd: now.toISOString(),
+      cycleEnd: end.toISOString(),
     };
-    const repeats = repeatRecurringSavings(cur.savings, now.toISOString());
+    const repeats = repeatRecurringSavings(cur.savings, end.toISOString());
+    const cleared = {
+      expenses: closesWith(cur.expenses),
+      extraIncomes: closesWith(cur.extraIncomes ?? []),
+    };
+    const clearedIds = new Set([...cleared.expenses, ...cleared.extraIncomes].map(e => e.id));
     const undo: CycleCloseUndo = {
       historyIds: [summary.id, ...repeats.records.map(h => h.id)],
       savingIds: repeats.entries.map(v => v.id),
-      expenses: cur.expenses.filter(e => !e.recurring),
-      extraIncomes: (cur.extraIncomes ?? []).filter(e => !e.recurring),
+      retiredRecurringIds: repeats.retired,
+      ...cleared,
       manualCycleStart: cur.manualCycleStart,
       manualCycleKey: cur.manualCycleKey,
     };
     updateStateAndSync(prev => ({
       ...prev,
       history: [summary, ...repeats.records, ...prev.history],
-      savings: [...repeats.entries, ...(prev.savings ?? [])],
-      expenses: prev.expenses.filter(e => e.recurring),
-      extraIncomes: (prev.extraIncomes ?? []).filter(e => e.recurring),
-      manualCycleStart: now.toISOString(),
-      manualCycleKey: manualKeyFor(now),
+      savings: [
+        ...repeats.entries,
+        ...(prev.savings ?? []).map(v => (repeats.retired.includes(v.id) ? { ...v, recurring: false } : v)),
+      ],
+      expenses: prev.expenses.filter(e => !clearedIds.has(e.id)),
+      extraIncomes: (prev.extraIncomes ?? []).filter(e => !clearedIds.has(e.id)),
+      manualCycleStart: end.toISOString(),
+      manualCycleKey: manualKeyFor(end),
     }));
     return undo;
   }, [updateStateAndSync]);
@@ -1103,7 +1158,9 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     updateStateAndSync(prev => ({
       ...prev,
       history: prev.history.filter(h => !undo.historyIds.includes(h.id)),
-      savings: (prev.savings ?? []).filter(v => !undo.savingIds.includes(v.id)),
+      savings: (prev.savings ?? [])
+        .filter(v => !undo.savingIds.includes(v.id))
+        .map(v => (undo.retiredRecurringIds.includes(v.id) ? { ...v, recurring: true } : v)),
       expenses: [...undo.expenses, ...prev.expenses],
       extraIncomes: [...undo.extraIncomes, ...(prev.extraIncomes ?? [])],
       manualCycleStart: undo.manualCycleStart,

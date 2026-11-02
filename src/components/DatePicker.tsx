@@ -93,32 +93,6 @@ function DateColumn<T extends number>({
   );
 }
 
-/** A calendar day as wheel positions. `m` is 0-based, like Date. */
-export interface WheelDate { y: number; m: number; d: number }
-
-/**
- * The bare day / month / year wheels — no trigger, no popover — for screens that host the
- * picker themselves (the Stats range dialog). Scroll or tap a column; the day clamps to the
- * month's length, so 31 → February lands on the 28th/29th instead of rolling into March.
- * The columns scroll to `value` when they MOUNT, so give this a `key` if the date it
- * edits can change underneath it.
- */
-export function DateWheels({ value, onChange }: { value: WheelDate; onChange: (v: WheelDate) => void }) {
-  const days = useMemo(() => Array.from({ length: daysInMonth(value.y, value.m) }, (_, i) => i + 1), [value.y, value.m]);
-  const set = (next: Partial<WheelDate>) => {
-    const y = next.y ?? value.y;
-    const m = next.m ?? value.m;
-    onChange({ y, m, d: Math.min(next.d ?? value.d, daysInMonth(y, m)) });
-  };
-  return (
-    <div className="flex items-center justify-center gap-1">
-      <DateColumn items={days} selected={Math.min(value.d, days.length)} onSelect={d => set({ d })} format={v => String(v).padStart(2, '0')} />
-      <DateColumn items={MONTHS} selected={value.m} onSelect={m => set({ m })} format={v => MONTH_NAMES[v]} />
-      <DateColumn items={YEARS} selected={value.y} onSelect={y => set({ y })} format={v => String(v)} />
-    </div>
-  );
-}
-
 export function DatePicker({
   value,
   onChange,
@@ -171,7 +145,11 @@ export function DatePicker({
     : '--';
 
   return (
-    <Popover open={open} onOpenChange={handleOpen}>
+    // Modal: the wheels are portalled out of whatever opened them, and a dialog underneath
+    // locks scrolling everywhere outside its own content — wheel and touch included. A modal
+    // popover takes over the lock with itself as the scrollable layer, so the wheels turn
+    // inside dialogs (the close-month date, Loans) as well as on a page.
+    <Popover open={open} onOpenChange={handleOpen} modal>
       <PopoverTrigger asChild>
         <button
           className={cn(

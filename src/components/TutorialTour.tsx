@@ -107,7 +107,7 @@ const STEPS: TourStep[] = [
     route: '/overview',
     icon: BarChart3,
     title: 'Overview shows where you stand.',
-    body: 'What is left this cycle, what came in and went out, and your savings. Month-by-month charts live on Money -> Stats, built from what you have logged.',
+    body: 'What is left this month, what came in and went out, and your savings. Month-by-month charts live on Money -> Stats, built from what you have logged.',
   },
   {
     id: 'tools',

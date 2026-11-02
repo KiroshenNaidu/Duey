@@ -70,7 +70,7 @@ export function PayDateMenu({ onDirtyChange, onSaved, onCancel }: PayDateMenuPro
     if (dayDirty) setUserProfile({ ...userProfile, paydayDay: parsed });
     if (modeDirty) setCycleMode(modeDraft);
     onDirtyChange?.(false);
-    onSaved?.(modeDirty ? (manualDraft ? 'Cycles are now manual' : 'Cycles now reset on pay day') : 'Pay date saved');
+    onSaved?.(modeDirty ? (manualDraft ? 'Months are now closed by hand' : 'Months now reset on pay day') : 'Pay date saved');
   };
 
   const handleCancel = () => {
@@ -99,15 +99,15 @@ export function PayDateMenu({ onDirtyChange, onSaved, onCancel }: PayDateMenuPro
         <CardContent className="p-3 space-y-3">
           <div className="flex items-center gap-2">
             <RefreshCw className="h-4 w-4 text-accent shrink-0" />
-            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Cycle reset</p>
+            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Month reset</p>
           </div>
           <div className="flex items-center justify-between bg-muted/30 rounded-xl px-3 py-2.5">
             <div className="flex-1 min-w-0 pr-3">
               <p className="text-xs font-semibold text-foreground">Reset automatically on pay day</p>
               <p className="text-[10px] text-muted-foreground mt-0.5">
                 {manualDraft
-                  ? 'Off - nothing resets until you close the cycle on Money → Balance'
-                  : 'On - the cycle closes by itself on your pay date'}
+                  ? 'Off - nothing resets until you close the month on Overview'
+                  : 'On - the month closes by itself on your pay date'}
               </p>
             </div>
             <Switch checked={!manualDraft} onCheckedChange={on => setModeDraft(on ? 'auto' : 'manual')} />
@@ -156,13 +156,12 @@ export function PayDateMenu({ onDirtyChange, onSaved, onCancel }: PayDateMenuPro
               >
                 <div className="rounded-xl bg-muted/30 p-3 space-y-2">
                   <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-                    {manualDraft ? 'What resets when you close a cycle' : 'What resets on this day'}
+                    {manualDraft ? 'What resets when you close a month' : 'What resets on this day'}
                   </p>
                   <ul className="text-xs text-muted-foreground space-y-1.5 list-disc pl-4">
-                    <li><span className="text-foreground font-medium">Balance</span> - income, deductions and what&apos;s left are counted from {manualDraft ? 'the moment you close the last cycle' : 'this day'}.</li>
-                    <li><span className="text-foreground font-medium">Stats</span> - the cycle snapshot covers the same window.</li>
-                    <li><span className="text-foreground font-medium">One-time expenses and extra income</span> - cleared {manualDraft ? 'when you close the cycle' : 'on this day instead of the 1st'}. Recurring ones stay.</li>
-                    <li><span className="text-foreground font-medium">History</span> - the finished cycle is sealed into a permanent summary.</li>
+                    <li><span className="text-foreground font-medium">Balance</span> - income, deductions and what&apos;s left are counted from {manualDraft ? 'the moment you close the last month' : 'this day'}.</li>
+                    <li><span className="text-foreground font-medium">One-time expenses and extra income</span> - cleared {manualDraft ? 'when you close the month' : 'on this day instead of the 1st'}. Recurring ones stay.</li>
+                    <li><span className="text-foreground font-medium">History</span> - the finished month is sealed into a permanent summary.</li>
                   </ul>
                   {manualDraft && (
                     <p className="text-[10px] text-muted-foreground/70 pt-1">
@@ -206,7 +205,7 @@ export function PayDateMenu({ onDirtyChange, onSaved, onCancel }: PayDateMenuPro
       <Card>
         <CardContent className="p-3 space-y-2">
           <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-            {isDirty ? 'Cycle you would get' : 'Current cycle'}
+            {isDirty ? 'Month you would get' : 'Current month'}
           </p>
           {manualDraft ? (
             <>
@@ -214,7 +213,7 @@ export function PayDateMenu({ onDirtyChange, onSaved, onCancel }: PayDateMenuPro
                 {cycleMode === 'manual' ? timeline.current.label : `Since ${format(preview.start, 'd MMM yyyy')}`}
               </p>
               <p className="text-[10px] text-muted-foreground">
-                Runs until you close it on Money → Balance. Nothing starts over on its own.
+                Runs until you close it on Overview. Nothing starts over on its own.
               </p>
             </>
           ) : (

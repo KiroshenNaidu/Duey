@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { showUndoToast } from '@/components/ui/undo-toast';
 import { formatCurrency, cn } from '@/lib/utils';
 import type { SavingEntry } from '@/lib/types';
+import type { Period } from '@/lib/cycles';
 
 /** Newest movements shown before "Show all". */
 const RECENT = 4;
@@ -19,19 +20,51 @@ const RECENT = 4;
 const signed = (e: SavingEntry) => (e.direction === 'out' ? -e.amount : e.amount);
 
 /**
- * Overview → Savings. One pot, kept by hand: put money away, take it back out, see the
- * total. Money put away is a deduction of the cycle it was moved in (and money taken out a
- * credit) — see the Savings row on the Deductions card. The cycle's remainder never lands
- * here on its own: what is in this card is what you said you saved, once or as a recurring
- * deposit that repeats each time a cycle closes.
+ * Overview → Savings, for ONE cycle — the one the Deductions stepper is on (MoneyOverview
+ * renders this and passes it in). The headline and the list are that cycle's movements
+ * only: what was put away (a deduction on the card above) and taken back out, by the date
+ * each happened. The big number is always the POT TOTAL — as it stood at the end of the
+ * viewed cycle — and the cycle's own movement sits on the right of the heading. Closing a cycle moves the one-offs out of the current view, the way it
+ * clears one-time expenses; a recurring deposit carries over as the new cycle's repeat,
+ * which holds the "monthly" chip (see repeatRecurringSavings). Step back and a closed cycle
+ * shows exactly what went in then. Nothing is deleted — the pot's all-time total sits on
+ * the right of the heading, and every movement is in History.
+ *
+ * Only the running cycle is editable. A closed one is a record (its summary is sealed), and
+ * a projected one has not happened — it shows the recurring deposits it is expected to take.
  */
-export function SavingsCard() {
+export function SavingsCard({ period, viewing, onBackToCurrent }: {
+  period: Period;
+  viewing: 'live' | 'sealed' | 'projected';
+  onBackToCurrent: () => void;
+}) {
   const { savings, addSaving, deleteSaving, restoreSaving, cycleMode } = useContext(AppDataContext);
   const entries = useMemo(
     () => [...(savings ?? [])].sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1)),
     [savings],
   );
   const total = entries.reduce((s, e) => s + signed(e), 0);
+
+  // The viewed cycle's window — the same one the Deductions card measures savings over. A
+  // cycle still to come has no movements yet; what it will take is the recurring deposits.
+  const live = viewing === 'live';
+  const thisCycle = useMemo(() => {
+    if (viewing === 'projected') return entries.filter(e => e.recurring && e.direction !== 'out');
+    return entries.filter(e => {
+      const t = new Date(e.createdAt).getTime();
+      return t >= period.start.getTime() && t < period.end.getTime();
+    });
+  }, [entries, period, viewing]);
+  const cycleNet = thisCycle.reduce((s, e) => s + signed(e), 0);
+  // The headline is the POT: the running total as it stood when the viewed cycle ended, so
+  // it moves as you step through cycles. Now = everything; a closed cycle = everything up to
+  // its end; a cycle still to come = now plus the recurring deposits it is expected to take.
+  const balance = viewing === 'live'
+    ? total
+    : viewing === 'projected'
+      ? total + cycleNet
+      : entries.reduce((s, e) => (new Date(e.createdAt).getTime() < period.end.getTime() ? s + signed(e) : s), 0);
+  const movement = `${cycleNet < 0 ? '−' : '+'}${formatCurrency(Math.abs(cycleNet))} ${live ? 'this month' : viewing === 'sealed' ? 'that month' : 'expected'}`;
 
   const [showAll, setShowAll] = useState(false);
   const [direction, setDirection] = useState<'in' | 'out' | null>(null);
@@ -57,29 +90,46 @@ export function SavingsCard() {
     showUndoToast(`Removed "${e.label}"`, () => restoreSaving(e));
   };
 
-  const shown = showAll ? entries : entries.slice(0, RECENT);
+  const shown = showAll ? thisCycle : thisCycle.slice(0, RECENT);
 
   return (
     <Card>
       <CardContent className="p-3">
-        <CardHeading icon={PiggyBank} title="Savings" />
-        <p className="text-2xl font-bold tabular-nums text-foreground">{formatCurrency(total)}</p>
+        <CardHeading icon={PiggyBank} title="Savings" aside={movement} />
+        <p className={cn('text-2xl font-bold tabular-nums', live ? 'text-foreground' : 'text-accent')}>{formatCurrency(balance)}</p>
         <p className="text-[10px] text-muted-foreground mt-0.5">
-          Put away comes off your balance for this cycle; taken out goes back on.
+          {live
+            ? 'Total saved. Putting away comes off this month’s balance; taking out puts it back.'
+            : viewing === 'sealed'
+              ? `Total saved at the end of ${period.label}`
+              : `Expected total after ${period.label} - with recurring deposits`}
         </p>
 
-        {/* Same two-up action row as the rest of the app's in/out pairs. */}
-        <div className="grid grid-cols-2 gap-2 mt-3">
-          <Button size="sm" onClick={() => open('in')} className="h-8 text-xs">
-            <Plus className="h-3.5 w-3.5 mr-1" /> Put away
-          </Button>
-          <Button size="sm" variant="outline" onClick={() => open('out')} disabled={total <= 0} className="h-8 text-xs">
-            <Minus className="h-3.5 w-3.5 mr-1" /> Take out
-          </Button>
-        </div>
+        {live ? (
+          // Same two-up action row as the rest of the app's in/out pairs.
+          <div className="grid grid-cols-2 gap-2 mt-3">
+            <Button size="sm" onClick={() => open('in')} className="h-8 text-xs">
+              <Plus className="h-3.5 w-3.5 mr-1" /> Put away
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => open('out')} disabled={total <= 0} className="h-8 text-xs">
+              <Minus className="h-3.5 w-3.5 mr-1" /> Take out
+            </Button>
+          </div>
+        ) : (
+          <button
+            onClick={onBackToCurrent}
+            className="mt-2 text-[10px] font-semibold text-accent hover:text-accent/80 transition-colors"
+          >
+            Back to this month to add or take out
+          </button>
+        )}
 
-        {entries.length > 0 && (
-          <div className="mt-3 pt-3 border-t border-border/40 space-y-2">
+        <div className="mt-3 pt-3 border-t border-border/40 space-y-2">
+            {thisCycle.length === 0 && (
+              <p className="text-[10px] text-muted-foreground/60 italic">
+                {live ? 'Nothing put away this month yet' : viewing === 'sealed' ? 'Nothing was put away that month' : 'No recurring deposits'}
+              </p>
+            )}
             {shown.map(e => (
               <div key={e.id} className="flex items-center justify-between gap-2">
                 <div className="flex-1 min-w-0">
@@ -99,27 +149,26 @@ export function SavingsCard() {
                 )}>
                   {e.direction === 'out' ? '−' : '+'}{formatCurrency(e.amount)}
                 </span>
-                <button
+                {live && <button
                   onClick={() => remove(e)}
                   aria-label={`Remove ${e.label}`}
                   className="p-1 rounded text-muted-foreground/40 hover:text-destructive hover:bg-destructive/10 transition-colors shrink-0"
                 >
                   <Trash2 className="h-3 w-3" />
-                </button>
+                </button>}
               </div>
             ))}
-            {entries.length > RECENT && (
+            {thisCycle.length > RECENT && (
               <div className="flex justify-end">
                 <button
                   onClick={() => setShowAll(v => !v)}
                   className="text-[10px] font-semibold text-muted-foreground/60 hover:text-muted-foreground transition-colors"
                 >
-                  {showAll ? 'Show less' : `Show all ${entries.length}`}
+                  {showAll ? 'Show less' : `Show all ${thisCycle.length}`}
                 </button>
               </div>
             )}
-          </div>
-        )}
+        </div>
       </CardContent>
 
       <Dialog open={direction !== null} onOpenChange={v => { if (!v) close(); }}>
@@ -153,7 +202,7 @@ export function SavingsCard() {
                   <p className="text-[10px] text-muted-foreground mt-0.5">
                     {recurring
                       ? cycleMode === 'manual'
-                        ? 'Added again each time you close the cycle, until removed'
+                        ? 'Added again each time you close the month, until removed'
                         : 'Added again every pay date, until removed'
                       : 'One-off, added once'}
                   </p>
