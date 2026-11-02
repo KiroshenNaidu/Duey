@@ -16,9 +16,9 @@ export function DebtProgressCharts() {
   }, []);
 
   // Bars paint at width 0 then animate to their real progress — replays every time
-  // the Stats page becomes active (swipe or tab), not just on first mount. Gated on
-  // isClient because the bars only render after hydration (skeleton shows before).
-  const barsReady = useReplayOnActive('/stats', isClient);
+  // the Money page (home of the Stats tab) becomes active, not just on first mount. Gated
+  // on isClient because the bars only render after hydration (skeleton shows before).
+  const barsReady = useReplayOnActive('/', isClient);
 
   const debtProgressData = useMemo(() => {
     return debts.map((debt) => ({

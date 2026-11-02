@@ -15,9 +15,10 @@ import { cn } from '@/lib/utils';
 import { useFabLongPress, FAB_TOUCH_STYLE, FabPulse } from '@/components/QuickAdd';
 import { SwipeableRow } from '@/components/SwipeableRow';
 import { showUndoToast } from '@/components/ui/undo-toast';
+import { clearsWhen } from '@/lib/cycles';
 
 function AddExpenseDialog({ children }: { children: React.ReactNode }) {
-  const { addExpense } = useContext(AppDataContext);
+  const { addExpense, cycleMode } = useContext(AppDataContext);
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState('');
   const [amount, setAmount] = useState('');
@@ -72,7 +73,7 @@ function AddExpenseDialog({ children }: { children: React.ReactNode }) {
               <p className="text-[10px] text-muted-foreground mt-0.5">
                 {recurring
                   ? 'Stays active every cycle until manually removed'
-                  : 'Auto-removed on your next pay date'}
+                  : `Auto-removed ${clearsWhen(cycleMode)}`}
               </p>
             </div>
             <Switch checked={recurring} onCheckedChange={setRecurring} />
@@ -90,7 +91,7 @@ function AddExpenseDialog({ children }: { children: React.ReactNode }) {
 }
 
 export function ExpensesList() {
-  const { expenses, deleteExpense, restoreExpense } = useContext(AppDataContext);
+  const { expenses, deleteExpense, restoreExpense, cycleMode } = useContext(AppDataContext);
   const pathname = usePathname();
   const fabLongPress = useFabLongPress();
 
@@ -115,7 +116,7 @@ export function ExpensesList() {
           </CardHeader>
           <CardContent>
             <p className="text-xs text-muted-foreground">Tap the + button to log one.</p>
-            <p className="text-xs text-muted-foreground mt-1">Recurring expenses persist each cycle. One-time expenses clear on your pay date.</p>
+            <p className="text-xs text-muted-foreground mt-1">Recurring expenses persist each cycle. One-time expenses clear {clearsWhen(cycleMode)}.</p>
           </CardContent>
         </Card>
       ) : (
@@ -169,7 +170,7 @@ export function ExpensesList() {
 }
 
 function EditExpenseDialog({ expense, open, onClose }: { expense: import('@/lib/types').Expense; open: boolean; onClose: () => void }) {
-  const { updateExpense } = useContext(AppDataContext);
+  const { updateExpense, cycleMode } = useContext(AppDataContext);
   const [title, setTitle] = useState(expense.title);
   const [amount, setAmount] = useState(expense.amount.toString());
   const [note, setNote] = useState(expense.note ?? '');
@@ -219,7 +220,7 @@ function EditExpenseDialog({ expense, open, onClose }: { expense: import('@/lib/
             <div className="flex-1 min-w-0 pr-3">
               <p className="text-sm font-semibold text-foreground">Recurring</p>
               <p className="text-[10px] text-muted-foreground mt-0.5">
-                {recurring ? 'Stays active every cycle until removed' : 'Auto-removed on your next pay date'}
+                {recurring ? 'Stays active every cycle until removed' : `Auto-removed ${clearsWhen(cycleMode)}`}
               </p>
             </div>
             <Switch checked={recurring} onCheckedChange={setRecurring} />

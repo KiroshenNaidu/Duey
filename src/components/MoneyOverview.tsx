@@ -5,15 +5,20 @@ import { format } from 'date-fns';
 import { AppDataContext } from '@/context/AppDataContext';
 import { formatCurrency, cn } from '@/lib/utils';
 import {
-  calculateLiveMonthly, calculateProjectedCycle, calculateSealedCycleSummary, cycleKey,
-  cycleLabelFromKey, cycleStartFromKey, getPayCycle, isTransportPaidForMonth, nextCycleStart,
-  stepCycleKey, type MonthlyMoney,
+  calculateLiveMonthly, calculateProjectedCycle, calculateSealedCycleSummary, isTransportPaidForMonth,
+  type MonthlyMoney,
 } from '@/lib/calculations';
+import { moneyWindow, snapshotKey } from '@/lib/cycles';
+import { useCycles } from '@/hooks/useCycles';
 import { outstandingBefore, summariseLoans } from '@/lib/loans';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Pencil, Check, Plus, Trash2, X, RefreshCw, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Pencil, Check, Plus, Trash2, X, RefreshCw, ChevronLeft, ChevronRight, Lock } from 'lucide-react';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
+  AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Switch } from '@/components/ui/switch';
 import { showUndoToast } from '@/components/ui/undo-toast';
 import { useReplayOnActive } from '@/hooks/useReplayOnActive';
@@ -21,9 +26,10 @@ import { useReplayOnActive } from '@/hooks/useReplayOnActive';
 export function MoneyOverview() {
   const {
     monthlyIncome, budgetPlans, expenses, extraIncomes, history, uberRides, loans, debts,
-    transportSettings, transportOverrides, transportMonthlyOverrides, userProfile, savings, recurringSavings,
-    setMonthlyIncome, addExtraIncome, deleteExtraIncome, restoreExtraIncome,
+    transportSettings, transportOverrides, transportMonthlyOverrides, userProfile, savings,
+    setMonthlyIncome, addExtraIncome, deleteExtraIncome, restoreExtraIncome, closeCycle, undoCloseCycle,
   } = useContext(AppDataContext);
+  const [confirmClose, setConfirmClose] = useState(false);
 
   const [editingIncome, setEditingIncome] = useState(false);
   const [incomeInput, setIncomeInput] = useState('');
@@ -45,13 +51,18 @@ export function MoneyOverview() {
   const barReady = useReplayOnActive('/');
 
   const now = new Date();
-  // The window every figure below is measured over: pay date → day before the next one.
-  // Editable in Settings → Pay Date; with a pay day of 1 it is the calendar month.
-  const cycle = getPayCycle(userProfile.paydayDay, now);
+  // The window every figure below is measured over. Automatic: pay date → day before the
+  // next one (Settings → Pay Date). Manual: from the last time you closed a cycle through
+  // today — it runs until you close it.
+  const cycles = useCycles();
+  const cycle = cycles.current;
+  // Only an automatic cycle counts down; a manual one has no end to count to.
+  const countdown = cycles.countdown;
+  const manual = cycles.mode === 'manual';
   // Last day of the cycle — the bar takes on the Debts page's "done" colours and glow, the
   // same way a settled debt's bar does. daysLeft is never 0: on pay day itself a fresh
   // cycle has already started, so the count is that cycle's full length.
-  const resetImminent = cycle.daysLeft <= 1;
+  const resetImminent = !!countdown && countdown.daysLeft <= 1;
   // Single shared calculator (also drives Stats + the pay-cycle seal) so every screen
   // agrees. It honours the live per-month transport override and counts only debt money
   // actually logged as a payment this cycle — nothing is deducted until you log a payment.
@@ -59,10 +70,10 @@ export function MoneyOverview() {
   const input = useMemo(
     () => ({
       payDay, monthlyIncome, extraIncomes: extraIncomes ?? [], expenses, budgetPlans, history, uberRides,
-      savings, recurringSavings, transportSettings, transportOverrides, transportMonthlyOverrides,
+      transportSettings, transportOverrides, transportMonthlyOverrides, savings,
     }),
-    [payDay, monthlyIncome, extraIncomes, expenses, budgetPlans, history, uberRides, savings,
-     recurringSavings, transportSettings, transportOverrides, transportMonthlyOverrides],
+    [payDay, monthlyIncome, extraIncomes, expenses, budgetPlans, history, uberRides,
+     transportSettings, transportOverrides, transportMonthlyOverrides, savings],
   );
   const totalExtra = (extraIncomes ?? []).reduce((s, e) => s + e.amount, 0);
 
@@ -73,53 +84,51 @@ export function MoneyOverview() {
   // cycle's salary is not something the app can change.
   const [pickedKey, setPickedKey] = useState<string | null>(null);
   const viewKey = pickedKey ?? cycle.key;
+  // Keys sort chronologically as strings in both modes (see lib/cycles). Only an automatic
+  // timeline has cycles after the current one.
   const viewing: 'live' | 'sealed' | 'projected' =
-    viewKey === cycle.key ? 'live' : viewKey < cycle.key ? 'sealed' : 'projected';
+    viewKey === cycle.key ? 'live' : cycles.canProject && viewKey > cycle.key ? 'projected' : 'sealed';
   // Forward stops at next cycle — the furthest one with anything real to project (standing
   // orders, recurring expenses and extras, the transport calendar). Back stops at the
   // oldest cycle History has anything in, the same floor Stats draws its timeline from:
-  // before that, a recompute invents a cycle out of today's salary.
-  const lastKey = stepCycleKey(cycle.key, payDay, 1);
-  const firstKey = useMemo(() => {
-    let earliest = cycle.key;
-    for (const h of history) {
-      const k = cycleKey(new Date(h.date), payDay);
-      if (k < earliest) earliest = k;
-    }
-    return earliest;
-  }, [history, payDay, cycle.key]);
+  // before that, a recompute invents a cycle out of today's salary. A manual timeline ends
+  // at the open cycle: the next one doesn't exist until you close this one.
+  const lastKey = cycles.canProject ? cycles.step(cycle.key, 1) : cycle.key;
+  const firstKey = cycles.earliestKey;
   const step = (dir: -1 | 1) => {
-    const next = stepCycleKey(viewKey, payDay, dir);
+    const next = cycles.step(viewKey, dir);
     setPickedKey(next === cycle.key ? null : next);
   };
 
   // Sealed cycles read the breakdown frozen into their History summary, as Stats and the
   // History detail sheet do — recomputing drifts once one-time extras and expenses have
   // been purged. Only summaries sealed before that field existed fall back to a recompute.
-  const sealedSnapshot = useMemo<MonthlyMoney | null>(() => {
+  const sealedEntry = useMemo(() => {
     if (viewing !== 'sealed') return null;
-    for (const h of history) {
-      if (h.type !== 'snapshot' || !h.snapshot) continue;
-      if (cycleKey(new Date(h.date), payDay) === viewKey) return { ...h.snapshot, savings: h.snapshot.savings ?? 0 };
-    }
-    return null;
+    return history.find(h => h.type === 'snapshot' && !!h.snapshot && snapshotKey(h, payDay) === viewKey) ?? null;
   }, [viewing, history, payDay, viewKey]);
+  // Summaries sealed while savings were kept apart (v12) carry no savings figure: none came
+  // off those cycles, so none is shown.
+  const sealedSnapshot: MonthlyMoney | null = sealedEntry?.snapshot
+    ? { ...sealedEntry.snapshot, savings: sealedEntry.snapshot.savings ?? 0 }
+    : null;
 
-  const viewStart = viewing === 'live' ? cycle.start : cycleStartFromKey(viewKey, payDay);
-  const viewEnd = viewing === 'live' ? cycle.end : nextCycleStart(viewStart, payDay);
-  const viewLabel = viewing === 'live' ? cycle.label : cycleLabelFromKey(viewKey, payDay);
+  const viewPeriod = viewing === 'live' ? cycle : cycles.period(viewKey);
+  const viewStart = viewPeriod.start;
+  const viewEnd = viewPeriod.end;
+  const viewLabel = viewPeriod.label;
 
   // One shared calculator per kind of cycle, so Balance, Stats and the seal never disagree.
   // The running cycle honours the live per-month transport override and counts only debt
   // money actually logged as a payment — nothing is deducted until you log a payment. A
   // cycle still to come is projected from what repeats (see calculateProjectedCycle).
   const monthly: MonthlyMoney = useMemo(() => {
-    if (viewing === 'live') return calculateLiveMonthly(input, new Date());
-    if (viewing === 'sealed') return sealedSnapshot ?? calculateSealedCycleSummary(input, viewKey);
+    if (viewing === 'live') return calculateLiveMonthly(input, new Date(), moneyWindow(cycle));
+    if (viewing === 'sealed') return sealedSnapshot ?? calculateSealedCycleSummary(input, viewKey, moneyWindow(viewPeriod));
     return calculateProjectedCycle(input, debts ?? [], viewKey, new Date());
-    // cycle.key is here for the day rolling over: `new Date()` is read inside, and the
-    // cycle key is what changes when that day crosses a pay date.
-  }, [viewing, input, sealedSnapshot, viewKey, debts, cycle.key]);
+    // cycle is here for the day rolling over: `new Date()` is read inside, and the cycle
+    // (rebuilt by useCycles each day) is what changes when that day moves its window.
+  }, [viewing, input, sealedSnapshot, viewKey, viewPeriod, debts, cycle]);
   const { transport: transportCost, uber: uberSpend, debt: debtInstallments, expenses: totalExpenses, budget: budgetSpent, savings: savedThisCycle } = monthly;
   // "Estimate" until Mark as Paid is logged for the month the cycle starts in. A cycle
   // still to come has nothing paid, by definition.
@@ -151,11 +160,9 @@ export function MoneyOverview() {
       label: viewing === 'live' ? 'Expenses (active)' : viewing === 'projected' ? 'Expenses (recurring)' : 'Expenses',
       value: totalExpenses,
     },
-    // This cycle's savings movement (Stats → Savings), and the one row that can go either
-    // way. Money put away is out of your hands, so it comes off; money taken back OUT of a
-    // piggybank is yours to spend again, so a net withdrawal shows as a credit and lifts
-    // Remaining. The automatic leftover is excluded from the deposit side entirely: it IS
-    // this card's remainder, and deducting that would subtract the same money twice.
+    // Money put away this cycle comes off; money taken back out is yours to spend again, so
+    // a net withdrawal shows as a credit and lifts Remaining. Never the remainder itself:
+    // savings are only ever what you put in by hand (or a recurring deposit repeating).
     {
       id: 'savings',
       label: savedThisCycle < 0 ? 'Savings (taken out)' : 'Savings (put away)',
@@ -167,8 +174,6 @@ export function MoneyOverview() {
   // six times — so they are dropped, and with nothing to deduct the card goes entirely.
   // Rows tapped out are NOT dropped: their value is still real, so they stay visible (and
   // struck through) or you could never tap them back in.
-  // A row with money in it EITHER way — a savings withdrawal is a real line, and
-  // dropping it for not being positive would hide the reason Remaining went up.
   const activeDeductions = deductions.filter(d => d.value !== 0);
   // What the list actually shows: the ones with money in them, or every category once you
   // ask. The toggle is only offered when there is something hidden to reveal.
@@ -186,11 +191,6 @@ export function MoneyOverview() {
   // sealed with, or salary plus recurring extras for the one still to come.
   const viewIncome = viewing === 'live' ? monthlyIncome + totalExtra : monthly.income;
   const remaining = viewIncome - effectiveDeductions;
-  // What the seal actually banked for a closed cycle — read from Savings rather than
-  // re-derived, so the line agrees with the jar even while rows above are tapped out.
-  const bankedLeftover = viewing === 'sealed'
-    ? (savings ?? []).reduce((s, e) => (e.source === 'auto' && e.direction !== 'out' && e.cycleKey === viewKey ? s + e.amount : s), 0)
-    : 0;
 
   const startEdit = () => { setIncomeInput(monthlyIncome > 0 ? monthlyIncome.toString() : ''); setEditingIncome(true); };
   const confirmEdit = () => {
@@ -207,6 +207,14 @@ export function MoneyOverview() {
     setExtraLabel(''); setExtraAmount(''); setExtraRecurring(false); setExtraError(''); setAddingExtra(false);
   };
 
+  // Close the open manual cycle, with the same 5s undo window deletes get. Back to the
+  // running cycle first, so the card shows the fresh one rather than a stale pick.
+  const handleCloseCycle = () => {
+    const undo = closeCycle();
+    setPickedKey(null);
+    if (undo) showUndoToast('Cycle closed', () => undoCloseCycle(undo));
+  };
+
   // Delete immediately with a 5s undo window.
   const handleDeleteExtra = (id: string) => {
     const item = (extraIncomes ?? []).find(e => e.id === id);
@@ -217,6 +225,51 @@ export function MoneyOverview() {
 
   return (
     <div className="space-y-3">
+      {/* Remaining — first, because it is the answer this page exists for. Income and
+          Deductions below are how it was worked out. When the Deductions chevrons step to
+          another cycle, this card follows them. */}
+      <Card className={cn('border-2', remaining >= 0 ? 'border-accent/40' : 'border-destructive/40')}>
+        <CardContent className="p-3">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1">
+            {viewing === 'live' ? 'Remaining' : viewing === 'sealed' ? 'Left over' : 'Projected remaining'}
+          </p>
+          <p className={cn('text-3xl font-bold tabular-nums', remaining >= 0 ? 'text-accent' : 'text-destructive')}>
+            {remaining < 0 ? `−${formatCurrency(Math.abs(remaining))}` : formatCurrency(remaining)}
+          </p>
+          {/* Another cycle's income is not the Income card below, so it is named here. */}
+          {viewing !== 'live' && (
+            <p className="text-[10px] text-muted-foreground mt-0.5">
+              From {formatCurrency(viewIncome)} income{viewing === 'projected' ? ' (salary + monthly extras)' : ''} · {viewLabel}
+            </p>
+          )}
+          {remaining < 0 && (
+            <p className="text-[10px] text-destructive mt-0.5">
+              {viewing === 'live' ? 'You\u2019re over budget this cycle'
+                : viewing === 'sealed' ? 'This cycle ended over budget'
+                : 'On track to go over budget next cycle'}
+            </p>
+          )}
+          {monthlyIncome === 0 && <p className="text-[10px] text-muted-foreground mt-0.5">Set your monthly income above to see your balance</p>}
+
+          {/* Manual mode's pay day. Nothing ends a manual cycle but this — same button
+              treatment as Budget's "Confirm purchase", the other place you commit money. */}
+          {manual && viewing === 'live' && (
+            <div className="mt-3 pt-2 border-t border-border/40 space-y-1">
+              <button
+                onClick={() => setConfirmClose(true)}
+                className="w-full rounded-xl border border-border px-3 py-2.5 text-xs font-semibold text-foreground transition-colors hover:border-accent/50 hover:bg-accent/5 flex items-center justify-center gap-1.5"
+              >
+                <Lock className="h-3.5 w-3.5 shrink-0" />
+                Close this cycle
+              </button>
+              <p className="text-[10px] text-muted-foreground text-center">
+                Running {cycle.label.replace(/^Since/, 'since')} · nothing resets until you close it
+              </p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       {/* Monthly Income */}
       <Card>
         <CardContent className="p-3">
@@ -252,9 +305,11 @@ export function MoneyOverview() {
               switch to the completion gradient + bar-glow at the end — so "how far through
               a thing am I" looks identical wherever the app asks it. Here the end is the
               last day of the cycle rather than a settled debt. */}
+          {/* Manual cycles have no countdown: nothing ends until you close it. */}
+          {countdown && (
           <div className="mt-2.5 flex items-center gap-2" title={cycle.label}>
             <span className="text-[10px] text-muted-foreground tabular-nums shrink-0">
-              {cycle.daysLeft} day{cycle.daysLeft === 1 ? '' : 's'} left
+              {countdown.daysLeft} day{countdown.daysLeft === 1 ? '' : 's'} left
             </span>
             <div className="relative h-1 flex-1 overflow-hidden rounded-full bg-secondary">
               <div
@@ -264,7 +319,7 @@ export function MoneyOverview() {
                   resetImminent && 'bar-glow',
                 )}
                 style={{
-                  width: `${barReady ? Math.round(cycle.progress * 100) : 0}%`,
+                  width: `${barReady ? Math.round(countdown.progress * 100) : 0}%`,
                   background: resetImminent
                     ? 'repeating-linear-gradient(to right, hsl(var(--primary-b)) 0%, hsl(var(--primary-complete)) 25%, hsl(var(--primary-b)) 50%, hsl(var(--primary-complete)) 75%, hsl(var(--primary-b)) 100%)'
                     : 'repeating-linear-gradient(to right, hsl(var(--primary-a)) 0%, hsl(var(--primary)) 25%, hsl(var(--primary-b)) 50%, hsl(var(--primary)) 75%, hsl(var(--primary-a)) 100%)',
@@ -272,6 +327,7 @@ export function MoneyOverview() {
               />
             </div>
           </div>
+          )}
 
           {/* Extra income belongs to the salary it tops up, so it lives in the same card:
               one card answers "what is coming in this cycle". A hairline rule rather than a
@@ -334,7 +390,7 @@ export function MoneyOverview() {
                   <div>
                     <p className="text-xs font-semibold text-foreground">Monthly</p>
                     <p className="text-[9px] text-muted-foreground">
-                      {extraRecurring ? 'Counts every cycle until removed' : 'This cycle only - clears on your next pay date'}
+                      {extraRecurring ? 'Counts every cycle until removed' : manual ? 'This cycle only - clears when you close the cycle' : 'This cycle only - clears on your next pay date'}
                     </p>
                   </div>
                   <Switch checked={extraRecurring} onCheckedChange={setExtraRecurring} />
@@ -462,49 +518,22 @@ export function MoneyOverview() {
         </CardContent>
       </Card>
 
-      {/* Remaining */}
-      <Card className={cn('border-2', remaining >= 0 ? 'border-accent/40' : 'border-destructive/40')}>
-        <CardContent className="p-3">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1">
-            {viewing === 'live' ? 'Remaining' : viewing === 'sealed' ? 'Left over' : 'Projected remaining'}
-          </p>
-          <p className={cn('text-3xl font-bold tabular-nums', remaining >= 0 ? 'text-accent' : 'text-destructive')}>
-            {remaining < 0 ? `−${formatCurrency(Math.abs(remaining))}` : formatCurrency(remaining)}
-          </p>
-          {/* Another cycle's income is not the card above, so it is named here. */}
-          {viewing !== 'live' && (
-            <p className="text-[10px] text-muted-foreground mt-0.5">
-              From {formatCurrency(viewIncome)} income{viewing === 'projected' ? ' (salary + monthly extras)' : ''} · {viewLabel}
-            </p>
-          )}
-          {remaining < 0 && (
-            <p className="text-[10px] text-destructive mt-0.5">
-              {viewing === 'live' ? 'You\u2019re over budget this cycle'
-                : viewing === 'sealed' ? 'This cycle ended over budget'
-                : 'On track to go over budget next cycle'}
-            </p>
-          )}
-          {/* Closes the loop with Stats → Savings: what survives the cycle is swept there by
-              the seal. Deliberately phrased as "whatever's left", not the figure above —
-              that one moves with the deduction rows you tap out, the sweep never does. */}
-          {viewing === 'live' && remaining > 0 && monthlyIncome > 0 && (
-            <p className="text-[10px] text-muted-foreground mt-0.5">
-              Whatever&apos;s left on {format(cycle.end, 'd MMM')} is banked in Savings
-            </p>
-          )}
-          {viewing === 'sealed' && bankedLeftover > 0 && (
-            <p className="text-[10px] text-muted-foreground mt-0.5">
-              {formatCurrency(bankedLeftover)} was banked in Savings
-            </p>
-          )}
-          {viewing === 'projected' && remaining > 0 && monthlyIncome > 0 && (
-            <p className="text-[10px] text-muted-foreground mt-0.5">
-              Whatever&apos;s left on {format(viewEnd, 'd MMM')} is banked in Savings
-            </p>
-          )}
-          {monthlyIncome === 0 && <p className="text-[10px] text-muted-foreground mt-0.5">Set your monthly income above to see your balance</p>}
-        </CardContent>
-      </Card>
+      <AlertDialog open={confirmClose} onOpenChange={setConfirmClose}>
+        <AlertDialogContent className="rounded-[2rem]">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Close this cycle?</AlertDialogTitle>
+            <AlertDialogDescription>
+              The cycle {cycle.label.replace(/^Since/, 'since')} ends now and its summary goes to History.
+              {' '}One-time expenses and one-time extra income are cleared; recurring ones stay.
+              {' '}A new cycle starts today. You can undo this from the toast.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex-row justify-end">
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleCloseCycle}>Close cycle</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

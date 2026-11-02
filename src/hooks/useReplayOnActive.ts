@@ -20,7 +20,7 @@ import { useEffect, useState } from 'react';
  *   style={{ width: `${ready ? pct : 0}%` }}
  *   className={ready ? 'transition-[width] duration-700' : ''}
  *
- * @param route   the pathname this component lives on (e.g. '/stats')
+ * @param route   the pathname this component lives on (e.g. '/overview')
  * @param enabled gate the replay (e.g. until client-side data has hydrated)
  */
 export function useReplayOnActive(route: string, enabled = true): boolean {

@@ -154,7 +154,7 @@ function HistoryItem({ entry }: { entry: ProcessedHistoryEntry }) {
 // Sticky month header used in the "All" tab
 // ─────────────────────────────────────────────────────────────────────────────
 
-function MonthHeader({ label, isCurrent }: { label: string; isCurrent?: boolean }) {
+function MonthHeader({ label, isCurrent, liveNote }: { label: string; isCurrent?: boolean; liveNote?: string }) {
   return (
     <div className="sticky top-0 z-10 bg-background/90 backdrop-blur-sm px-2 py-1 border-b border-border flex items-center justify-between gap-2">
       <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
@@ -163,7 +163,7 @@ function MonthHeader({ label, isCurrent }: { label: string; isCurrent?: boolean 
       {isCurrent && (
         <span className="inline-flex items-center gap-1 text-[9px] font-semibold text-primary shrink-0">
           <span className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
-          Live · finalizes on your pay date
+          {liveNote ?? 'Live · finalizes on your pay date'}
         </span>
       )}
     </div>
@@ -175,7 +175,7 @@ function MonthHeader({ label, isCurrent }: { label: string; isCurrent?: boolean 
 // ─────────────────────────────────────────────────────────────────────────────
 
 export function HistoryLog() {
-  const { debts, history } = useContext(AppDataContext);
+  const { debts, history, cycleMode } = useContext(AppDataContext);
   const [isClient, setIsClient] = useState(false);
   const [activeTab, setActiveTab] = useState('all');
   const [isExpanded, setIsExpanded] = useState(false);
@@ -382,7 +382,11 @@ export function HistoryLog() {
               <div>
                 {monthGroups.map(group => (
                   <div key={group.monthLabel}>
-                    <MonthHeader label={group.monthLabel} isCurrent={group.monthLabel === format(new Date(), 'MMMM yyyy')} />
+                    <MonthHeader
+                      label={group.monthLabel}
+                      isCurrent={group.monthLabel === format(new Date(), 'MMMM yyyy')}
+                      liveNote={cycleMode === 'manual' ? 'Live · finalizes when you close the cycle' : undefined}
+                    />
                     <div className="p-2 space-y-2">
                       {group.entries.map(entry => <HistoryItem key={entry.id} entry={entry} />)}
                     </div>

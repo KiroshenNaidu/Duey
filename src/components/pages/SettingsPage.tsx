@@ -52,7 +52,7 @@ const mainItems: MenuItem[] = [
 const configItems: MenuItem[] = [
   { id: 'notifications', title: 'Notifications',   description: 'Payment reminders on Android',        icon: Bell },
   { id: 'data',          title: 'Data Management', description: 'Backup, restore, or reset your data', icon: Database },
-  { id: 'paydate',       title: 'Pay Date',        description: 'When your balance starts over',       icon: CalendarClock },
+  { id: 'paydate',       title: 'Pay Date',        description: 'Cycle reset and pay date',            icon: CalendarClock },
 ];
 
 // Last in the list because it is a whole editor of its own (four swipeable tabs and a

@@ -21,7 +21,7 @@ import { getShortcut, type QuickShortcut } from '@/lib/quickShortcuts';
 
 // Global quick-add: log a debt payment, expense, extra income or Uber ride from anywhere.
 // Opened by long-pressing any bottom-center + FAB (see useFabLongPress) or tapping the
-// lightning FAB rendered on pages that have no + FAB of their own (/transport, /stats).
+// lightning FAB rendered on pages that have no + FAB of their own (/transport, /overview).
 // The menu is a SEMICIRCLE of actions that springs out radially around the FAB.
 
 const OPEN_EVENT = 'duey:quick-add';
@@ -33,11 +33,10 @@ export function openQuickAdd(gesture = false) {
 }
 
 // ── Page-owned FABs ──────────────────────────────────────────────────────────
-// The lightning FAB only exists on pages that have no + FAB of their own, and on /stats
-// that is now a per-TAB fact: the Savings tab shows a + (add a saving, exactly as the
-// money page's + adds a debt) while Overview shows the lightning. Pathname alone cannot
-// express that, so a page's FAB announces itself and the lightning one steps aside rather
-// than stacking on top of it. Counted, not a boolean, so an unmount racing a mount during
+// The lightning FAB only exists on pages that have no + FAB of their own. Where that is a
+// per-TAB fact rather than a per-page one, pathname alone cannot express it, so a page's
+// FAB announces itself and the lightning one steps aside rather than stacking on top of
+// it. Counted, not a boolean, so an unmount racing a mount during
 // a tab change can't leave the app with no FAB at all.
 const PAGE_FAB_EVENT = 'duey:page-fab';
 let pageFabCount = 0;
@@ -522,7 +521,7 @@ export function QuickAdd() {
           Idle-animated: a soft pulse ring plus an occasional icon shake.
           Press-down opens the radial immediately with slide-to-select armed:
           hold → slide to an action → release. A plain tap leaves it open. */}
-      {(pathname === '/transport' || pathname === '/stats') && !pageFab && (
+      {(pathname === '/transport' || pathname === '/overview') && !pageFab && (
         <button
           aria-label="Quick add"
           {...{ [FAB_GESTURE_ATTR]: '' }}
@@ -941,7 +940,7 @@ function QuickExpenseForm({ onDone }: { onDone: () => void }) {
 }
 
 function QuickIncomeForm({ onDone }: { onDone: () => void }) {
-  const { addExtraIncome } = useContext(AppDataContext);
+  const { addExtraIncome, cycleMode } = useContext(AppDataContext);
   const [label, setLabel] = useState('');
   const [amount, setAmount] = useState('');
   const [recurring, setRecurring] = useState(false);
@@ -972,7 +971,7 @@ function QuickIncomeForm({ onDone }: { onDone: () => void }) {
       <div className="flex items-center justify-between bg-muted/30 rounded-xl px-3 py-2.5">
         <div>
           <p className="text-xs font-semibold text-foreground">Monthly</p>
-          <p className="text-[9px] text-muted-foreground">{recurring ? 'Counts every month' : 'This month only'}</p>
+          <p className="text-[9px] text-muted-foreground">{recurring ? 'Counts every month' : cycleMode === 'manual' ? 'This cycle only - clears when you close it' : 'This month only'}</p>
         </div>
         <Switch checked={recurring} onCheckedChange={setRecurring} />
       </div>

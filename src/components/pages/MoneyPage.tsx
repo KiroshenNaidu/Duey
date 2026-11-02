@@ -9,7 +9,9 @@ import { BudgetPlanner } from '@/components/BudgetPlanner';
 import { TimeCalculator } from '@/components/TimeCalculator';
 import { ExpensesList } from '@/components/ExpensesList';
 
-const MoneyOverview = dynamic(() => import('@/components/MoneyOverview').then(m => ({ default: m.MoneyOverview })), {
+// Stats is the heaviest tab and only needed once you open it, so it is code-split (and
+// warmed in the background — see prefetch.ts tier 1).
+const StatsTab = dynamic(() => import('@/components/stats/StatsTab').then(m => ({ default: m.StatsTab })), {
   ssr: false,
   loading: () => <Skeleton className="h-48 w-full" />,
 });
@@ -19,7 +21,7 @@ const TAB_LABELS: Record<string, { label: string; description: string }> = {
   budget:   { label: 'Budget',   description: 'Plan your monthly spending' },
   tools:    { label: 'Tools',    description: 'Calculators & converters' },
   expenses: { label: 'Expenses', description: 'Log your spending' },
-  balance:  { label: 'Balance',  description: 'Money overview' },
+  stats:    { label: 'Stats',    description: 'Where your money went' },
 };
 
 export function MoneyPage() {
@@ -39,7 +41,7 @@ export function MoneyPage() {
           <TabsTrigger value="expenses" className="flex-auto">Expenses</TabsTrigger>
           <TabsTrigger value="debts" className="flex-auto">Debts</TabsTrigger>
           <TabsTrigger value="budget" className="flex-auto">Budget</TabsTrigger>
-          <TabsTrigger value="balance" className="flex-auto">Balance</TabsTrigger>
+          <TabsTrigger value="stats" className="flex-auto">Stats</TabsTrigger>
         </TabsList>
         <TabsContent value="debts">
           <DebtsSection />
@@ -53,8 +55,8 @@ export function MoneyPage() {
         <TabsContent value="expenses">
           <ExpensesList />
         </TabsContent>
-        <TabsContent value="balance">
-          <MoneyOverview />
+        <TabsContent value="stats">
+          <StatsTab />
         </TabsContent>
       </Tabs>
     </div>

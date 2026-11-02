@@ -1,9 +1,8 @@
 import type {
   Debt, HistoryEntry, TransportOverrides, TransportSettings, DayState,
-  Expense, ExtraIncome, BudgetPlan, UberRide, TransportMonthlyOverrides, SavingEntry, RecurringSaving,
+  Expense, ExtraIncome, BudgetPlan, UberRide, TransportMonthlyOverrides, SavingEntry,
 } from './types';
 import { isWeekend, getDaysInMonth, startOfMonth, startOfDay, add, isSameMonth, format, differenceInCalendarDays } from 'date-fns';
-import { savingsMovementForCycle } from './piggybanks';
 
 // Debt Calculations
 export const getAmountPaid = (debt: Debt, history: HistoryEntry[]): number => {
@@ -360,11 +359,11 @@ export interface MonthlyMoneyInput {
   budgetPlans: BudgetPlan[];
   history: HistoryEntry[];
   uberRides: UberRide[];
-  savings: SavingEntry[];
-  recurringSavings?: RecurringSaving[];
   transportSettings: TransportSettings;
   transportOverrides: TransportOverrides;
   transportMonthlyOverrides: TransportMonthlyOverrides;
+  /** The savings pot. Optional so callers with no savings to count can leave it out. */
+  savings?: SavingEntry[];
 }
 
 export interface MonthlyMoney {
@@ -374,7 +373,7 @@ export interface MonthlyMoney {
   debt: number;          // debt payments
   expenses: number;      // expense spend
   budget: number;        // budget item allocations
-  savings: number;       // money deliberately put away this cycle (manual entries only)
+  savings: number;       // money put away, less money taken out, in the window (signed)
   totalOutgoings: number;
   remaining: number;     // income − totalOutgoings
 }
@@ -394,6 +393,12 @@ const inWindow = (date: string, start: Date, end: Date): boolean => {
   return t >= start.getTime() && t < end.getTime();
 };
 
+/** Net savings movement in a window: put away counts as an outgoing, taken out counts back.
+ *  Filed by when it happened (createdAt) — a recurring deposit's repeat is dated the moment
+ *  the next cycle began, so it lands in the cycle it was added to. */
+const savingsInWindow = (savings: SavingEntry[] | undefined, start: Date, end: Date): number =>
+  sumInWindow(savings ?? [], start, end, v => v.createdAt, v => (v.direction === 'out' ? -v.amount : v.amount));
+
 const sumInWindow = <T>(items: T[], start: Date, end: Date, dateOf: (i: T) => string, amountOf: (i: T) => number): number =>
   items.reduce((s, i) => (inWindow(dateOf(i), start, end) ? s + amountOf(i) : s), 0);
 
@@ -405,42 +410,39 @@ const sumInWindow = <T>(items: T[], start: Date, end: Date, dateOf: (i: T) => st
  *
  * `date` is any day inside the cycle you want (defaults to today); the window is derived
  * from it and the pay day, so with payDay 1 this is the calendar month it always was.
+ * A manual cycle has no pay-date window, so it passes its own (see lib/cycles.ts
+ * `moneyWindow`), including the narrower span its transport is counted over.
  */
-export function calculateLiveMonthly(input: MonthlyMoneyInput, date: Date = new Date()): MonthlyMoney {
-  const start = cycleStart(date, input.payDay);
-  const end = nextCycleStart(start, input.payDay);
+export function calculateLiveMonthly(input: MonthlyMoneyInput, date: Date = new Date(), window?: MoneyWindow): MonthlyMoney {
+  const start = window?.start ?? cycleStart(date, input.payDay);
+  const end = window?.end ?? nextCycleStart(start, input.payDay);
   const income = input.monthlyIncome + input.extraIncomes.reduce((s, e) => s + e.amount, 0);
   const transport = calculateTransportRange(
-    start, end, input.transportOverrides, input.transportSettings, input.transportMonthlyOverrides, date,
+    window?.transportStart ?? start, end, input.transportOverrides, input.transportSettings, input.transportMonthlyOverrides, date,
   ).totalDue;
   const uber = sumInWindow(input.uberRides, start, end, r => r.date, r => r.price);
   const debt = sumInWindow(
     input.history.filter(h => h.type === 'payment' && !!h.debtId), start, end, h => h.date, h => h.amount);
   const expenses = input.expenses.reduce((s, e) => s + e.amount, 0);
   const budget = confirmedBudgetForWindow(input.budgetPlans, start, end);
-  const savings = savingsLineForCycle(input.savings, input.recurringSavings, format(start, 'yyyy-MM'));
+  const savings = savingsInWindow(input.savings, start, end);
   const totalOutgoings = transport + uber + debt + expenses + budget + savings;
   return { income, transport, uber, debt, expenses, budget, savings, totalOutgoings, remaining: income - totalOutgoings };
+}
+
+/** An explicit span to measure money over, instead of the pay-date cycle around a day.
+ *  `end` is exclusive. `transportStart` lets transport begin later than everything else —
+ *  a manual cycle closed mid-day leaves that day's travel with the cycle it closed. */
+export interface MoneyWindow {
+  start: Date;
+  end: Date;
+  key: string;
+  transportStart?: Date;
 }
 
 // Budgets only hit the balance once the user confirms the plan (bought the items), and only for
 // the cycle it was confirmed in. The deduction is the spent total (Σ item prices), not the budget
 // ceiling — so an unspent remainder is never deducted.
-/**
- * The cycle's savings line: money put away, less money taken back out, plus whatever the
- * standing orders charge it. Signed — a cycle you drew from lifts Remaining rather than
- * sinking it. See `savingsMovementForCycle` in lib/piggybanks for the full reasoning.
- *
- * Matched on the entry's `cycleKey` — the cycle the user FILED it against — not on when
- * they happened to type it in. Recording last cycle's transfer today puts it in last
- * cycle, which is what picking that cycle in the form meant.
- */
-const savingsLineForCycle = (
-  savings: SavingEntry[] | undefined,
-  recurring: RecurringSaving[] | undefined,
-  cycleKeyStr: string,
-): number => savingsMovementForCycle(savings, recurring, cycleKeyStr);
-
 const confirmedBudgetForWindow = (plans: BudgetPlan[], start: Date, end: Date): number =>
   plans.reduce(
     (s, p) => (p.confirmed && p.confirmedAt && inWindow(p.confirmedAt, start, end)
@@ -453,14 +455,14 @@ const confirmedBudgetForWindow = (plans: BudgetPlan[], start: Date, end: Date): 
  *
  * `cycleKeyStr` is the cycle's 'yyyy-MM' key — the month it STARTED in.
  */
-export function calculateSealedCycleSummary(input: MonthlyMoneyInput, cycleKeyStr: string): MonthlyMoney {
-  const start = cycleStartFromKey(cycleKeyStr, input.payDay);
-  const end = nextCycleStart(start, input.payDay);
+export function calculateSealedCycleSummary(input: MonthlyMoneyInput, cycleKeyStr: string, window?: MoneyWindow): MonthlyMoney {
+  const start = window?.start ?? cycleStartFromKey(cycleKeyStr, input.payDay);
+  const end = window?.end ?? nextCycleStart(start, input.payDay);
   // Transport solidifies the same calendar-computed figure the Balance tab showed all cycle
   // (the user's model: the live amount "solidifies via the snapshot"), rather than only
   // whatever happened to be marked paid — so the summary matches what was on screen.
   const transport = calculateTransportRange(
-    start, end, input.transportOverrides, input.transportSettings, input.transportMonthlyOverrides, start,
+    window?.transportStart ?? start, end, input.transportOverrides, input.transportSettings, input.transportMonthlyOverrides, start,
   ).totalDue;
   const debt = sumInWindow(
     input.history.filter(h => h.type === 'payment' && !!h.debtId), start, end, h => h.date, h => h.amount);
@@ -476,10 +478,6 @@ export function calculateSealedCycleSummary(input: MonthlyMoneyInput, cycleKeySt
   const expenses = oneTimeExpenses + recurringExpenses;
   const uber = sumInWindow(input.uberRides, start, end, r => r.date, r => r.price);
   const budget = confirmedBudgetForWindow(input.budgetPlans, start, end);
-  // Savings movement for this cycle is an outgoing here too, which is what keeps the
-  // automatic sweep honest: the leftover the seal banks is what was left AFTER them, so a
-  // cycle's savings total is "what I put away" + "what I had left", never one twice.
-  const savings = savingsLineForCycle(input.savings, input.recurringSavings, cycleKeyStr);
   // Recurring extras count for every cycle from creation onward; one-time extras only for
   // the cycle they were created in. Relies on the seal running BEFORE the purge removes
   // expired one-time extras (see load order in AppDataContext).
@@ -488,6 +486,10 @@ export function calculateSealedCycleSummary(input: MonthlyMoneyInput, cycleKeySt
     return inWindow(e.createdAt, start, end) ? s + e.amount : s;
   }, 0);
   const income = input.monthlyIncome + extra;
+  // What is already filed in that window, plus every recurring deposit — each one repeats
+  // as the cycle begins, so a cycle still to come is expected to take them.
+  const savings = savingsInWindow(input.savings, start, end)
+    + (input.savings ?? []).reduce((s, v) => (v.recurring && v.direction !== 'out' ? s + v.amount : s), 0);
   const totalOutgoings = transport + uber + debt + expenses + budget + savings;
   return { income, transport, uber, debt, expenses, budget, savings, totalOutgoings, remaining: income - totalOutgoings };
 }
@@ -499,8 +501,6 @@ export function calculateSealedCycleSummary(input: MonthlyMoneyInput, cycleKeySt
  *
  *  • Income — salary plus the RECURRING extras. One-time extras are purged on pay date.
  *  • Expenses — the recurring set only, for the same reason.
- *  • Savings — standing orders plus anything already filed against that cycle, via the
- *    same `savingsMovementForCycle` the live line uses.
  *  • Transport — the calendar window, with days after `today` projected exactly as the
  *    Transport page projects them (and nothing for an unemployed future cycle).
  *  • Uber / budget — whatever is already dated inside the window, which is usually nothing.
@@ -536,7 +536,7 @@ export function calculateProjectedCycle(
   }, 0);
   const expenses = input.expenses.reduce((s, e) => (e.recurring ? s + e.amount : s), 0);
   const budget = confirmedBudgetForWindow(input.budgetPlans, start, end);
-  const savings = savingsLineForCycle(input.savings, input.recurringSavings, cycleKeyStr);
+  const savings = savingsInWindow(input.savings, start, end);
   const totalOutgoings = transport + uber + debt + expenses + budget + savings;
   return { income, transport, uber, debt, expenses, budget, savings, totalOutgoings, remaining: income - totalOutgoings };
 }

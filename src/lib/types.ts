@@ -81,82 +81,29 @@ export interface ExtraIncome {
 }
 
 /**
- * A named jar money is kept in — "Emergency fund", "New laptop". Savings are not one pile:
- * the whole point of putting money away is that it is *for* something, and a jar with a
- * goal can show progress the way a debt shows payoff.
- *
- * Every SavingEntry belongs to exactly one bank. Deleting a bank takes its entries with it
- * (undoably) — the money was never real, only the record of it.
- */
-export interface Piggybank {
-  id: string;
-  name: string;
-  /** What the jar is being filled toward. Optional: a jar with no goal is just a balance,
-   *  and the card drops its progress bar rather than inventing a denominator. */
-  target?: number;
-  note?: string;
-  createdAt: string; // ISO 8601
-  /** The one jar the cycle-end sweep drops leftovers into. Exactly one bank carries this,
-   *  and it cannot be deleted — the seal always needs somewhere to put the surplus. */
-  isLeftovers?: boolean;
-}
-
-/**
- * A standing order into one piggybank: "R500 every cycle to the emergency fund".
- *
- * Counted as an outgoing on every cycle from the one it was created in onward, exactly as a
- * recurring expense is — and materialised into a real SavingEntry when each cycle seals, so
- * the jar's history is rows you can see and delete rather than a number derived behind your
- * back. Pausing (`active: false`) stops both without losing the order.
- */
-export interface RecurringSaving {
-  id: string;
-  bankId: string;
-  label: string;
-  amount: number;
-  /** The pay cycle it starts charging from, stamped at creation. Not derived from
-   *  `createdAt`: an order created on the 11th belongs to the cycle that began on the 26th
-   *  of the PREVIOUS month, so the calendar month is a cycle too late. Stored rather than
-   *  recomputed so changing your payday later cannot silently re-date every order. */
-  startCycleKey?: string;
-  /** Absent or true = running. False = paused; kept in the list, counted nowhere. */
-  active?: boolean;
-  createdAt: string; // ISO 8601
-}
-
-/**
- * One movement of money into or out of a piggybank, filed against the pay cycle it belongs
- * to.
- *
- * Three ways in, and the differences matter enough to record them:
- *   • 'auto' — what was LEFT OVER when a cycle ended. The seal writes exactly one of these
- *     per cycle, for the surplus it sealed, so savings grow on their own as cycles turn.
- *   • 'manual' — money the user says they put away (or took back out), for whatever cycle
- *     they choose.
- *   • 'recurring' — a standing order's contribution, materialised by the seal.
- *
- * An auto entry is a claim about the past, not a live figure: it keeps the amount the
- * cycle ended with even if that cycle's data is edited afterwards. Delete it if the
- * leftover was actually spent — nothing else in the app depends on it.
+ * One movement in or out of savings. Savings are a single pot, recorded by hand. A deposit
+ * is a deduction of the cycle it was made in (a withdrawal a credit), but Remaining never
+ * feeds the pot on its own. (The old end-of-cycle "leftover" sweep, piggybank jars and
+ * standing orders are gone — the v12 migration removed the swept entries and merged the
+ * rest into the pot.)
  */
 export interface SavingEntry {
   id: string;
   /** Always positive. `direction` says which way it moved. */
   amount: number;
-  /** 'yyyy-MM' pay-cycle key (the month the cycle STARTS in) this saving belongs to. */
-  cycleKey: string;
   label: string;
   note?: string;
-  source: 'auto' | 'manual' | 'recurring';
   /** 'in' = money put away, 'out' = money taken back out. Absent on entries written before
    *  withdrawals existed, which were all deposits. */
   direction?: 'in' | 'out';
-  /** Which piggybank it sits in. Absent on entries written before jars existed — those are
-   *  read as belonging to the default jar (see lib/piggybanks). */
-  bankId?: string;
-  /** Set on entries the seal materialised from a standing order, so the live calculator can
-   *  tell a cycle that has already been charged from one that has not. */
-  recurringId?: string;
+  /** 'manual' = put in or taken out by hand. 'recurring' = a repeat of a recurring deposit,
+   *  added when a cycle closed (or, on old data, a contribution an old standing order made). */
+  source?: 'manual' | 'recurring';
+  /** A deposit that repeats: every time a cycle closes, a copy (source 'recurring') is added
+   *  to the pot. Deleting this entry stops the repeats; copies already added stay. */
+  recurring?: boolean;
+  /** Legacy: the pay cycle an entry was filed against before savings became one pot. */
+  cycleKey?: string;
   createdAt: string; // ISO 8601
 }
 
@@ -185,13 +132,22 @@ export interface HistoryEntry {
     debt: number;
     expenses: number;
     budget: number;
-    /** Manual savings filed against the cycle. Optional: snapshots sealed before savings
-     *  existed have none, and the breakdown sheet simply omits the row for them. */
+    /** Savings deducted from the cycle — only on snapshots sealed while deposits still came
+     *  off the balance (before v12). Newer snapshots have none, and the breakdown sheet
+     *  simply omits the row. */
     savings?: number;
     totalOutgoings: number;
     remaining: number;
   };
+  // The exact cycle a snapshot sealed (type 'snapshot' only). A manually closed cycle can
+  // start and end on any day, so it can't be recovered from `date` and the pay day the way
+  // an automatic one is. Absent on automatic snapshots sealed before manual mode existed.
+  cycleKey?: string;
+  cycleStart?: string; // ISO 8601
+  cycleEnd?: string;   // ISO 8601, exclusive
 }
+
+export type CycleMode = 'manual' | 'auto';
 
 export interface TransportSettings {
   driverName: string;
@@ -326,13 +282,8 @@ export interface AppState {
   transportMonthlyOverrides: TransportMonthlyOverrides;
   uberRides: UberRide[];
   budgetPlans: BudgetPlan[];
-  /** Money set aside, per pay cycle. Fed automatically by each cycle's leftover (see the
-   *  seal in AppDataContext) and by hand from Stats → Savings. */
+  /** The savings pot — money put away and taken back out, by hand, from Overview. */
   savings: SavingEntry[];
-  /** The jars savings sit in. Always at least one (the leftovers jar). */
-  piggybanks: Piggybank[];
-  /** Standing orders into those jars. */
-  recurringSavings: RecurringSaving[];
   /** Money lent OUT to other people (Money → Debts → Owed to me). Tracked on its own and
    *  never mixed into the debt/Balance math — see the Loan doc comment. */
   loans: Loan[];
@@ -348,6 +299,18 @@ export interface AppState {
   exportFolderName: string;
   /** 'yyyy-MM' of the last month we already pushed a balance snapshot to history. */
   lastSnapshotMonth: string;
+  /** How a money cycle ends (see lib/cycles.ts). 'manual' — the default — never resets on
+   *  its own: the user closes the cycle from Balance, and that is when the summary, the
+   *  leftover sweep, the standing orders and the one-time clear-out happen. 'auto' runs all
+   *  of that on the pay date, as the app always used to. */
+  cycleMode: CycleMode;
+  /** Manual mode: ISO moment the open cycle began (the last close, or where the switch to
+   *  manual picked up). Ignored in auto mode. */
+  manualCycleStart: string;
+  /** Manual mode: the key the open cycle files savings, standing orders and its summary
+   *  under. Usually the start as a sortable stamp; a cycle carried over from auto mode keeps
+   *  its 'yyyy-MM' key so what was already filed against it still counts. */
+  manualCycleKey: string;
   /** Day/Night quick-switch: which saved theme preset each mode applies, and the active mode. */
   dayNight: DayNightSettings;
   /** Starred theme ids ('preset:<name>' for system presets, UserTheme id for user themes).

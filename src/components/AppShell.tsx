@@ -19,7 +19,7 @@ import {
 } from '@/lib/pageTransitions';
 import { MoneyPage } from '@/components/pages/MoneyPage';
 import { TransportPage } from '@/components/pages/TransportPage';
-import { StatsPage } from '@/components/pages/StatsPage';
+import { OverviewPage } from '@/components/pages/OverviewPage';
 import { SettingsPage } from '@/components/pages/SettingsPage';
 
 // Elements are built ONCE at module scope so their identity never changes: a re-render
@@ -29,18 +29,18 @@ import { SettingsPage } from '@/components/pages/SettingsPage';
 const PAGES = [
   { href: '/transport', element: <TransportPage /> },
   { href: '/',          element: <MoneyPage /> },
-  { href: '/stats',     element: <StatsPage /> },
+  { href: '/overview',  element: <OverviewPage /> },
   { href: '/settings',  element: <SettingsPage /> },
 ] as const;
 
 const ROUTE_ORDER: Record<string, number> = {
   '/transport': 0,
   '/':          1,
-  '/stats':     2,
+  '/overview':  2,
   '/settings':  3,
 };
 
-const ROUTES = ['/transport', '/', '/stats', '/settings'];
+const ROUTES = ['/transport', '/', '/overview', '/settings'];
 const MAIN_ROUTES = new Set(ROUTES);
 
 // Swipe feel tuning lives in lib/pageTransitions.ts (SWIPE_* constants) — shared with
@@ -169,7 +169,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }, []);
 
   // Drive the shared carousel progress toward the active page. First sync jumps
-  // (no boot animation when deep-linking to /stats etc.); after that every route
+  // (no boot animation when deep-linking to /overview etc.); after that every route
   // change — tab tap or committed swipe — settles there with the shared spring, so
   // the pages and the BottomNav pill move as one unit from wherever they are.
   const progressSyncedRef = useRef(false);

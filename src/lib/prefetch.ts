@@ -55,7 +55,7 @@ const tier1: Thunk[] = [
   () => import('@/components/FloatingCalculator'),
   () => import('@/components/QuickNotepad'),
   () => import('@/components/AddDebtForm'),
-  () => import('@/components/MoneyOverview'),
+  () => import('@/components/stats/StatsTab'),
   () => import('@/components/MeasurementConverter'),
 ];
 

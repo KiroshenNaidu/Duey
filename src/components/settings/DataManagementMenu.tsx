@@ -476,7 +476,7 @@ export function DataManagementMenu() {
       });
       lines.push('', '=== SAVINGS ===');
       s.savings.forEach(e => {
-        lines.push(`  ${formatDate(e.createdAt)} - ${e.label}: R${e.amount} [cycle ${e.cycleKey}${e.source === 'auto' ? ', swept' : ''}]`);
+        lines.push(`  ${formatDate(e.createdAt)} - ${e.label}: ${e.direction === 'out' ? '-' : ''}R${e.amount}`);
       });
       lines.push('', '=== BUDGET PLANS ===');
       s.budgetPlans.forEach(p => {
@@ -508,8 +508,6 @@ export function DataManagementMenu() {
       expensesSheet['!cols'] = [{ wch: 12 }, { wch: 30 }, { wch: 16 }, { wch: 14 }, { wch: 30 }];
       utils.book_append_sheet(wb, expensesSheet, 'Expenses');
 
-      // Source is the column that matters here: 'auto' rows are cycle leftovers the app
-      // swept in, 'manual' rows are money the user moved themselves.
       // One row per MOVEMENT rather than per loan: a loan's meaning is its history, and a
       // spreadsheet can pivot rows back into totals but cannot unpack a total into rows.
       const loansSheet = utils.json_to_sheet(s.loans.flatMap(l => l.events.map(e => ({
@@ -523,8 +521,8 @@ export function DataManagementMenu() {
       loansSheet['!cols'] = [{ wch: 12 }, { wch: 20 }, { wch: 24 }, { wch: 10 }, { wch: 14 }, { wch: 24 }];
       utils.book_append_sheet(wb, loansSheet, 'Lent Out');
 
-      const savingsSheet = utils.json_to_sheet(s.savings.map(e => ({ Date: formatDate(e.createdAt), Label: e.label, Cycle: e.cycleKey, Source: e.source, 'Amount (R)': e.amount })));
-      savingsSheet['!cols'] = [{ wch: 12 }, { wch: 30 }, { wch: 10 }, { wch: 10 }, { wch: 14 }];
+      const savingsSheet = utils.json_to_sheet(s.savings.map(e => ({ Date: formatDate(e.createdAt), Label: e.label, Direction: e.direction === 'out' ? 'Taken out' : 'Put away', 'Amount (R)': e.direction === 'out' ? -e.amount : e.amount })));
+      savingsSheet['!cols'] = [{ wch: 12 }, { wch: 30 }, { wch: 12 }, { wch: 14 }];
       utils.book_append_sheet(wb, savingsSheet, 'Savings');
 
       const data = write(wb, { bookType: 'xlsx', type: 'array' });
@@ -689,8 +687,8 @@ export function DataManagementMenu() {
         ...(s.savings.length > 0 ? [
           new Paragraph({ text: 'Savings', heading: HeadingLevel.HEADING_1 }),
           make3ColTable(
-            ['Date', 'Label / Cycle', 'Amount (R)'],
-            s.savings.map(e => [formatDate(e.createdAt), `${e.label} [${e.cycleKey}${e.source === 'auto' ? ', swept' : ''}]`, `R ${e.amount.toFixed(2)}`] as [string, string, string])
+            ['Date', 'Label', 'Amount (R)'],
+            s.savings.map(e => [formatDate(e.createdAt), e.label, `${e.direction === 'out' ? '-' : ''}R ${e.amount.toFixed(2)}`] as [string, string, string])
           ),
           new Paragraph({ text: '' }),
         ] : []),
@@ -857,17 +855,17 @@ export function DataManagementMenu() {
         y += 6;
       }
 
-      // Savings — both the leftovers swept in at each cycle end and anything put away by
-      // hand, which no other section of the report accounts for.
+      // Savings — the pot, put away and taken out by hand, which no other section of the
+      // report accounts for. Withdrawals are negative so the total is what is in the pot.
       if (s.savings.length > 0) {
-        const SAVINGS_COLS: ColDef[] = [{ header: 'Date', width: 28 }, { header: 'Label / Cycle', width: 110 }, { header: 'Amount (R)', width: 52, align: 'right' }];
+        const SAVINGS_COLS: ColDef[] = [{ header: 'Date', width: 28 }, { header: 'Label', width: 110 }, { header: 'Amount (R)', width: 52, align: 'right' }];
         sectionHeader('SAVINGS');
         const savingsRows: RowData[] = s.savings.map(e => [
           formatDate(e.createdAt),
-          `${e.label} [${e.cycleKey}${e.source === 'auto' ? ', swept' : ''}]`,
-          `R  ${e.amount.toFixed(2)}`,
+          e.label,
+          `${e.direction === 'out' ? '-' : ''}R  ${e.amount.toFixed(2)}`,
         ]);
-        const totalSaved = s.savings.reduce((a, e) => a + e.amount, 0);
+        const totalSaved = s.savings.reduce((a, e) => a + (e.direction === 'out' ? -e.amount : e.amount), 0);
         y = drawTable(doc, y, SAVINGS_COLS, savingsRows, ['', 'Total', `R  ${totalSaved.toFixed(2)}`]);
         y += 6;
       }

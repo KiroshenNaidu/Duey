@@ -61,7 +61,7 @@ const STEPS: TourStep[] = [
     target: '[data-tour="nav"]',
     icon: Compass,
     title: 'Four pages, one swipe apart',
-    body: 'Transport, Money, Stats and Profile. Tap a tab up top to jump straight there, or just swipe left and right anywhere on the page.',
+    body: 'Transport, Money, Overview and Profile. Tap a tab up top to jump straight there, or just swipe left and right anywhere on the page.',
   },
   {
     id: 'money',
@@ -103,11 +103,11 @@ const STEPS: TourStep[] = [
     body: 'Tap the days you actually rode on the calendar and Duey works out what you owe your driver this month, daily rate or flat monthly. The Uber tab logs individual trips alongside it.',
   },
   {
-    id: 'stats',
-    route: '/stats',
+    id: 'overview',
+    route: '/overview',
     icon: BarChart3,
-    title: 'Stats shows all your numbers.',
-    body: 'Totals paid, progress on every debt, and month-by-month charts, all built from what you have logged, so the more you use Duey the more it tells you.',
+    title: 'Overview shows where you stand.',
+    body: 'What is left this cycle, what came in and went out, and your savings. Month-by-month charts live on Money -> Stats, built from what you have logged.',
   },
   {
     id: 'tools',
@@ -123,7 +123,7 @@ const STEPS: TourStep[] = [
     target: '[data-tour="settings-config"]',
     icon: SlidersHorizontal,
     title: 'Make it yours',
-    body: 'Settings & Configuration holds it all: your payday reminder, backups, the pay date your balance resets on, and every appearance setting. Replaying this tour lives in there too.',
+    body: 'Settings & Configuration holds it all: your payday reminder, backups, how and when your balance resets, and every appearance setting. Replaying this tour lives in there too.',
     tip: 'You can always come back here',
   },
 ];

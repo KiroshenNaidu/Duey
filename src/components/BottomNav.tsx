@@ -1,7 +1,7 @@
 'use client';
 
 import { usePathname, useRouter } from 'next/navigation';
-import { Wallet, BarChart3, User, Car } from 'lucide-react';
+import { Wallet, LayoutDashboard, User, Car } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useContext, useLayoutEffect, useRef } from 'react';
 import { AppDataContext } from '@/context/AppDataContext';
@@ -11,7 +11,7 @@ import { hapticTap } from '@/lib/haptics';
 const navItems = [
   { href: '/transport', label: 'Transport', icon: Car },
   { href: '/', label: 'Money', icon: Wallet },
-  { href: '/stats', label: 'Stats', icon: BarChart3 },
+  { href: '/overview', label: 'Overview', icon: LayoutDashboard },
   { href: '/settings', label: 'Profile', icon: User },
 ];
 

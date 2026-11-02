@@ -18,7 +18,8 @@ import {
   Search, X, Eye,
 } from 'lucide-react';
 import { showUndoToast } from '@/components/ui/undo-toast';
-import { calculateSealedCycleSummary, getPayCycle } from '@/lib/calculations';
+import { calculateSealedCycleSummary } from '@/lib/calculations';
+import { buildTimeline, moneyWindow, snapshotKey } from '@/lib/cycles';
 import type { HistoryEntry, Expense, UberRide, BudgetPlan } from '@/lib/types';
 import { format } from 'date-fns';
 import { FolderAccess } from '@/lib/folderAccess';
@@ -883,8 +884,8 @@ export default function HistoryPage() {
   const {
     history, debts, expenses, uberRides, budgetPlans,
     updateHistoryEntry, deleteHistoryEntry, restoreHistoryEntry,
-    monthlyIncome, extraIncomes, savings, recurringSavings, transportSettings, transportOverrides, transportMonthlyOverrides,
-    userProfile, exportFolderUri, exportFolderName, setExportFolder, setAppError,
+    monthlyIncome, extraIncomes, savings, transportSettings, transportOverrides, transportMonthlyOverrides,
+    userProfile, cycleMode, manualCycleStart, manualCycleKey, exportFolderUri, exportFolderName, setExportFolder, setAppError,
     notificationSettings,
   } = useContext(AppDataContext);
 
@@ -1624,18 +1625,21 @@ export default function HistoryPage() {
       <Dialog open={!!snapshotEntry} onOpenChange={v => { if (!v) setSnapshotEntry(null); }}>
         <DialogContent className="sm:max-w-sm">
           {snapshotEntry && (() => {
-            // A snapshot is dated to the LAST day of the cycle it sealed, so the cycle it
-            // belongs to is the one containing that date (for payDay 1 — every snapshot
-            // written before pay cycles existed — that is exactly its calendar month).
+            // The cycle this summary sealed. A summary carries its own key and bounds now
+            // (a manually closed cycle can start and end on any day); older ones are dated
+            // to their cycle's LAST day, so it is the pay cycle containing that date — see
+            // snapshotKey. The timeline resolves either kind to its window and label.
             const payDay = userProfile.paydayDay;
-            const cycle = getPayCycle(payDay, new Date(snapshotEntry.date));
+            const timeline = buildTimeline({ mode: cycleMode, payDay, manualCycleStart, manualCycleKey, history });
+            const cycle = timeline.period(snapshotKey(snapshotEntry, payDay));
             // Prefer the exact figures captured when the cycle was sealed. Only fall back to
             // a live recompute for older snapshots saved before the breakdown was persisted —
             // recomputing drifts once one-time extra incomes/expenses have been purged.
             const recomputed = !snapshotEntry.snapshot;
             const s = snapshotEntry.snapshot ?? calculateSealedCycleSummary(
-              { payDay, monthlyIncome, extraIncomes, expenses, budgetPlans, history, uberRides, savings, recurringSavings, transportSettings, transportOverrides, transportMonthlyOverrides },
+              { payDay, monthlyIncome, extraIncomes, expenses, budgetPlans, history, uberRides, savings, transportSettings, transportOverrides, transportMonthlyOverrides },
               cycle.key,
+              moneyWindow(cycle),
             );
             const rows: { label: string; value: number; negative?: boolean }[] = [
               { label: 'Income', value: s.income },
@@ -1644,8 +1648,8 @@ export default function HistoryPage() {
               { label: 'Debt payments', value: s.debt, negative: true },
               { label: 'Expenses', value: s.expenses, negative: true },
               { label: 'Budget (confirmed)', value: s.budget, negative: true },
-              // Absent on snapshots sealed before savings existed — the row filter below
-              // drops a zero, so those simply show no savings line.
+              // Absent on summaries sealed while savings were kept apart from the balance;
+              // the row filter below drops a zero, so those show no savings line.
               { label: 'Savings (put away)', value: s.savings ?? 0, negative: true },
             ];
             return (

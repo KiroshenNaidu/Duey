@@ -1,10 +1,11 @@
 'use client';
 
 import { createContext, ReactNode, useEffect, useState, useMemo, useCallback, useRef } from 'react';
-import type { AppState, Debt, HistoryEntry, AppData, ThemeSettings, TransportSettings, TransportOverrides, TransportMonthlyOverrides, DayState, UberRide, UserTheme, BudgetPlan, BudgetItem, UserProfile, NotificationSettings, AppError, Expense, ExtraIncome, DayNightSettings, SavingEntry, Loan, LoanEvent, Piggybank, RecurringSaving } from '@/lib/types';
+import type { AppState, Debt, HistoryEntry, AppData, ThemeSettings, TransportSettings, TransportOverrides, TransportMonthlyOverrides, DayState, UberRide, UserTheme, BudgetPlan, BudgetItem, UserProfile, NotificationSettings, AppError, Expense, ExtraIncome, DayNightSettings, SavingEntry, Loan, LoanEvent, CycleMode } from '@/lib/types';
 import { isSameDay, startOfDay, format, add } from 'date-fns';
 import { idbGet, idbSet, idbDel, setCurrencyCode, genId } from '@/lib/utils';
-import { calculateSealedCycleSummary, cycleKey, cycleStartFromKey, getPayCycle, nextCycleStart, normalizePayDay, dayKey, legacyUtcDayKey } from '@/lib/calculations';
+import { calculateLiveMonthly, calculateSealedCycleSummary, cycleStartFromKey, getPayCycle, nextCycleStart, normalizePayDay, dayKey, legacyUtcDayKey } from '@/lib/calculations';
+import { boundedPeriod, buildTimeline, manualKeyFor, moneyWindow } from '@/lib/cycles';
 import { syncDebtReminders } from '@/lib/debtReminders';
 import { systemPresets } from '@/lib/systemThemes';
 import { DEFAULT_RADIAL_FX_ID, RADIAL_FX_PRESETS } from '@/lib/radialFx';
@@ -12,14 +13,19 @@ import { DEFAULT_HAPTIC_STRENGTH, setHapticStrength, type HapticStrength } from 
 import { DEFAULT_QUICK_SHORTCUTS, sanitizeShortcuts } from '@/lib/quickShortcuts';
 import { personKey, debtPersonName, entryPersonName, PERSON_ENTRY_TYPES } from '@/lib/persons';
 import { LoadingScreen } from '@/components/LoadingScreen';
-import {
-  DEFAULT_BANK_ID, LEFTOVERS_BANK_ID, bankBalance, defaultPiggybanks, leftoversBankId,
-  materialiseRecurring,
-} from '@/lib/piggybanks';
 
-const CURRENT_SCHEMA_VERSION = 10;
+const CURRENT_SCHEMA_VERSION = 12;
 
 /**
+ * v12: savings became one manual pot, separate from the balance. The leftover entries the
+ * cycle-end sweep wrote are removed (they were the remainder, never money moved), jars and
+ * standing orders are dropped, and what was recorded by hand — including contributions old
+ * standing orders made — stays, merged into the one pot. See SavingEntry.
+ *
+ * v11: cycles became manual by default (see lib/cycles.ts). Every install moves to manual,
+ * and its open cycle is the pay-date cycle that was running — same start, same key — so the
+ * figures on screen, and whatever was already filed against that cycle, carry straight over.
+ *
  * v10: savings gained piggybanks. Every pre-v10 entry was a deposit into one undifferentiated
  * pile, so the migration creates the two default jars and files the old entries by source:
  * swept leftovers into "Leftovers", everything put away by hand into "Savings".
@@ -110,7 +116,11 @@ function migrateState(raw: AppState): AppState {
 
   // pageTransitionId is pulled out of the spread rather than deleted after it: the field
   // is gone from AppState, so it can only leave here.
-  const { pageTransitionId: _removedPageTransition, ...rest } = raw as AppState & { pageTransitionId?: string };
+  const {
+    pageTransitionId: _removedPageTransition,
+    piggybanks: _removedJars, recurringSavings: _removedOrders,
+    ...rest
+  } = raw as AppState & { pageTransitionId?: string; piggybanks?: unknown; recurringSavings?: unknown };
 
   return {
     ...rest,
@@ -126,9 +136,7 @@ function migrateState(raw: AppState): AppState {
     expenses: raw.expenses ?? [],
     extraIncomes: raw.extraIncomes ?? [],
     budgetPlans: raw.budgetPlans ?? [],
-    // Jars, and the entries filed into them. A backup from before piggybanks existed has
-    // neither, so it gets the defaults and its entries are sorted by how they arrived.
-    ...reconcilePiggybanks(raw),
+    savings: migrateSavings(raw),
     // Backups written before the lending ledger existed simply have none.
     loans: (raw.loans ?? []).map(l => ({ ...l, events: l.events ?? [] })),
     monthlyIncome: raw.monthlyIncome ?? 0,
@@ -147,6 +155,7 @@ function migrateState(raw: AppState): AppState {
     exportFolderUri: raw.exportFolderUri ?? '',
     exportFolderName: raw.exportFolderName ?? '',
     lastSnapshotMonth: raw.lastSnapshotMonth ?? '',
+    ...cycleFields(raw),
     dayNight: raw.dayNight ?? { dayThemeId: '', nightThemeId: '', mode: 'night' },
     favouriteThemes: raw.favouriteThemes ?? [],
     hiddenSystemPresets: raw.hiddenSystemPresets ?? [],
@@ -161,42 +170,66 @@ function migrateState(raw: AppState): AppState {
 }
 
 /**
- * Guarantees the savings state is coherent however it arrived — a fresh install, a v9
- * backup with no jars at all, or a hand-edited file with jars but no sweep target.
- *
- * Two invariants, both of which cost money if broken:
- *   • The two default jars always exist. The sweep has to have somewhere to put a surplus,
- *     and by-hand saving has to have a default target.
- *   • Every entry names a jar that exists. An entry pointing at a deleted or absent jar is
- *     money that counts toward the total but appears on no card — invisible, and impossible
- *     to spend or correct. Those are re-homed to the default jar rather than dropped.
+ * Cycle mode for state that predates it (v11), or a backup missing it: manual, picking up
+ * the pay-date cycle that is running now. Same start and key as that cycle, so nothing on
+ * the Balance tab moves and savings filed against it still count — see the v11 note above.
  */
-function reconcilePiggybanks(raw: Partial<AppState>): Pick<AppState, 'piggybanks' | 'recurringSavings' | 'savings'> {
-  const stamp = new Date().toISOString();
-  const banks = [...(raw.piggybanks ?? [])];
-  for (const fallback of defaultPiggybanks(stamp)) {
-    const exists = fallback.isLeftovers
-      ? banks.some(b => b.isLeftovers || b.id === fallback.id)
-      : banks.some(b => b.id === fallback.id);
-    if (!exists) banks.push(fallback);
+function cycleFields(raw: Partial<AppState>): Pick<AppState, 'cycleMode' | 'manualCycleStart' | 'manualCycleKey'> {
+  const running = getPayCycle(normalizePayDay(raw.userProfile?.paydayDay ?? 26));
+  return {
+    cycleMode: raw.cycleMode ?? 'manual',
+    manualCycleStart: raw.manualCycleStart ?? running.start.toISOString(),
+    manualCycleKey: raw.manualCycleKey ?? running.key,
+  };
+}
+
+/** The cycle timeline for a state snapshot — actions need it inside updaters, where the
+ *  useCycles hook can't reach. */
+const timelineOf = (s: AppState, now: Date = new Date()) => buildTimeline({
+  mode: s.cycleMode, payDay: s.userProfile.paydayDay,
+  manualCycleStart: s.manualCycleStart, manualCycleKey: s.manualCycleKey, history: s.history,
+}, now);
+
+/**
+ * What every recurring deposit adds when a cycle closes: a copy in the pot (source
+ * 'recurring') and the History record of it — the same pair addSaving writes for a deposit
+ * made by hand. Used by both ways a cycle ends: closeCycle, and the pay-date seal.
+ */
+function repeatRecurringSavings(savings: SavingEntry[] | undefined, at: string): { entries: SavingEntry[]; records: HistoryEntry[] } {
+  const entries: SavingEntry[] = [];
+  const records: HistoryEntry[] = [];
+  for (const v of savings ?? []) {
+    if (!v.recurring || v.direction === 'out') continue;
+    entries.push({ id: genId(), amount: v.amount, label: v.label, note: v.note, source: 'recurring', direction: 'in', createdAt: at });
+    records.push({ id: genId(), debtTitle: `Savings: ${v.label}`, date: at, amount: v.amount, type: 'savings', label: 'Put away (recurring)' });
   }
-  const known = new Set(banks.map(b => b.id));
-  const sweepId = leftoversBankId(banks);
+  return { entries, records };
+}
 
-  const savings = (raw.savings ?? []).map(v => {
-    const claimed = v.bankId ?? (v.source === 'auto' ? sweepId : DEFAULT_BANK_ID);
-    return {
+/** What closeCycle changed, so its undo toast can put it back. */
+export interface CycleCloseUndo {
+  historyIds: string[];
+  savingIds: string[];
+  expenses: Expense[];
+  extraIncomes: ExtraIncome[];
+  manualCycleStart: string;
+  manualCycleKey: string;
+}
+
+/**
+ * The savings pot, however it arrived (v12). Swept leftovers are dropped — they were the
+ * cycle remainder, written by an automatic sweep that no longer exists — and jar ids go
+ * with the jars. Everything else is a movement someone actually made, so it stays.
+ */
+function migrateSavings(raw: Partial<AppState>): SavingEntry[] {
+  type Legacy = Omit<SavingEntry, 'source'> & { source?: string; bankId?: string; recurringId?: string };
+  return ((raw.savings ?? []) as Legacy[])
+    .filter(v => v.source !== 'auto')
+    .map(({ bankId: _bank, recurringId: _order, source, ...v }): SavingEntry => ({
       ...v,
-      direction: v.direction ?? ('in' as const),
-      bankId: known.has(claimed) ? claimed : DEFAULT_BANK_ID,
-    };
-  });
-  // Same for standing orders: one pointing nowhere would charge every cycle forever with
-  // no card to switch it off from.
-  const recurringSavings = (raw.recurringSavings ?? [])
-    .map(r => ({ ...r, bankId: known.has(r.bankId) ? r.bankId : DEFAULT_BANK_ID }));
-
-  return { piggybanks: banks, recurringSavings, savings };
+      direction: v.direction ?? 'in',
+      source: source === 'recurring' ? 'recurring' : 'manual',
+    }));
 }
 
 const defaultState: AppState = {
@@ -213,8 +246,6 @@ const defaultState: AppState = {
   budgetPlans: [],
   monthlyIncome: 0,
   savings: [],
-  piggybanks: defaultPiggybanks(new Date(0).toISOString()),
-  recurringSavings: [],
   loans: [],
   userProfile: { name: '', paydayDay: 26, bio: '' },
   notificationSettings: { masterEnabled: false, enabled: false, paydayDay: 26, hour: 18, minute: 0, message: 'Time to log your monthly payments.' },
@@ -250,6 +281,10 @@ const defaultState: AppState = {
   exportFolderUri: '',
   exportFolderName: '',
   lastSnapshotMonth: '',
+  // A fresh install's first cycle starts today; at midnight, so today's travel counts in it.
+  cycleMode: 'manual',
+  manualCycleStart: startOfDay(new Date()).toISOString(),
+  manualCycleKey: manualKeyFor(startOfDay(new Date())),
   dayNight: { dayThemeId: '', nightThemeId: '', mode: 'night' },
   favouriteThemes: [],
   hiddenSystemPresets: [],
@@ -296,17 +331,12 @@ interface AppContextType extends AppState {
   restoreExtraIncome: (item: ExtraIncome) => void;
   /** One savings movement. `cycleKey` files it against a pay cycle; `direction` says whether
    *  money went in or came back out. Writes the History record too. */
-  addSaving: (amount: number, cycleKey: string, label: string, note?: string, bankId?: string, direction?: 'in' | 'out') => void;
-  /** Opens a jar and returns its id, so a caller can file the first deposit straight into it. */
-  addPiggybank: (name: string, target?: number, note?: string) => string;
-  updatePiggybank: (id: string, data: Partial<Omit<Piggybank, 'id' | 'createdAt'>>) => void;
-  /** Closes a jar, taking its entries and standing orders with it. Returns everything
-   *  removed so an undo can put it all back. The leftovers jar refuses to close. */
-  deletePiggybank: (id: string) => { bank?: Piggybank; entries: SavingEntry[]; orders: RecurringSaving[] };
-  restorePiggybank: (restore: { bank?: Piggybank; entries: SavingEntry[]; orders: RecurringSaving[] }) => void;
-  addRecurringSaving: (bankId: string, amount: number, label: string) => void;
-  setRecurringSavingActive: (id: string, active: boolean) => void;
-  deleteRecurringSaving: (id: string) => void;
+  addSaving: (amount: number, label: string, note?: string, direction?: 'in' | 'out', recurring?: boolean) => void;
+  /** Manual or automatic cycles (Settings → Pay Date). */
+  setCycleMode: (mode: CycleMode) => void;
+  /** Manual mode: end the open cycle now. Returns the undo payload, or null outside manual mode. */
+  closeCycle: () => CycleCloseUndo | null;
+  undoCloseCycle: (undo: CycleCloseUndo) => void;
   /** Open a loan: one person, one first 'lent' event. Everything after is addLoanEvent. */
   addLoan: (person: string, amount: number, opts?: { reason?: string; date?: string; dueDate?: string; note?: string }) => void;
   updateLoan: (loanId: string, data: Partial<Pick<Loan, 'person' | 'reason' | 'dueDate' | 'note'>>) => void;
@@ -317,7 +347,7 @@ interface AppContextType extends AppState {
   restoreLoanEvent: (loanId: string, event: LoanEvent) => void;
   /** Close a loan by hand (written off / settled off-app), or reopen it. */
   setLoanSettled: (loanId: string, settled: boolean) => void;
-  updateSaving: (id: string, data: Partial<Pick<SavingEntry, 'amount' | 'label' | 'note' | 'cycleKey'>>) => void;
+  updateSaving: (id: string, data: Partial<Pick<SavingEntry, 'amount' | 'label' | 'note'>>) => void;
   deleteSaving: (id: string) => void;
   restoreSaving: (item: SavingEntry) => void;
   restoreExpense: (item: Expense) => void;
@@ -389,13 +419,9 @@ export const AppDataContext = createContext<AppContextType>({
   deleteExtraIncome: () => {},
   restoreExtraIncome: () => {},
   addSaving: () => {},
-  addPiggybank: () => '',
-  updatePiggybank: () => {},
-  deletePiggybank: () => ({ entries: [], orders: [] }),
-  restorePiggybank: () => {},
-  addRecurringSaving: () => {},
-  setRecurringSavingActive: () => {},
-  deleteRecurringSaving: () => {},
+  setCycleMode: () => {},
+  closeCycle: () => null,
+  undoCloseCycle: () => {},
   addLoan: () => {},
   updateLoan: () => {},
   deleteLoan: () => {},
@@ -491,20 +517,18 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
         // next pay date (Settings → Pay Date; payDay 1 is the calendar month this used to
         // be, unchanged). The loop catches up multi-cycle gaps (app not opened for a while).
         // lastSnapshotMonth === '' means fresh install; skip to avoid a noisy first entry.
+        //
+        // AUTO MODE ONLY — this and the purge below are the automatic reset. In manual mode a
+        // cycle only ends when the user closes it (closeCycle), so a pay date passing while
+        // the app was shut changes nothing.
         const payDay = normalizePayDay(loaded.userProfile.paydayDay);
         const currentCycle = getPayCycle(payDay);
-        if (loaded.lastSnapshotMonth && loaded.lastSnapshotMonth !== currentCycle.key) {
+        const autoCycles = loaded.cycleMode === 'auto';
+        if (autoCycles && loaded.lastSnapshotMonth && loaded.lastSnapshotMonth !== currentCycle.key) {
           const snapshots: HistoryEntry[] = [];
-          // Whatever a cycle ends with becomes savings — the money survived the cycle, so
-          // it is money you kept. Written here, alongside the summary, so the two can never
-          // disagree about what was left. Only a SURPLUS sweeps: a deficit is a debt to the
-          // next cycle, not a negative deposit. One entry per cycle, guarded below.
-          const sweeps: SavingEntry[] = [];
-          // Standing orders become real rows as each cycle seals — see materialiseRecurring.
-          // Accumulated here and fed into every later summary, so a cycle's figures include
-          // the contributions it was actually charged.
-          const contributions: SavingEntry[] = [];
-          const sweepBankId = leftoversBankId(loaded.piggybanks);
+          // Recurring deposits repeat once per cycle that ends — see repeatRecurringSavings.
+          const repeatEntries: SavingEntry[] = [];
+          const repeatRecords: HistoryEntry[] = [];
           // Start AT the last recorded cycle, not after it: lastSnapshotMonth stores the
           // cycle that was LIVE when we last looked, so that cycle is the first one that
           // can have ended since. (Starting one past it — as this used to — meant a cycle
@@ -523,33 +547,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
               : `${format(start, 'd MMM')} – ${format(lastDay, 'd MMM yyyy')}`} Summary`;
             if (loaded.history.some(h => h.type === 'snapshot' && h.debtTitle === title)) continue;
             const cycleK = format(start, 'yyyy-MM');
-            // Charge the cycle its standing orders BEFORE summarising it, so the summary and
-            // the jar agree about what went in.
-            contributions.push(...materialiseRecurring(
-              loaded.recurringSavings,
-              [...contributions, ...(loaded.savings ?? [])],
-              cycleK,
-              genId,
-              lastDay.toISOString(),
-            ));
-            const savingsSoFar = [...contributions, ...(loaded.savings ?? [])];
-            const s = calculateSealedCycleSummary({ ...loaded, savings: savingsSoFar, payDay }, cycleK);
-            // Sweep the leftover. Guarded against an entry that already exists for this
-            // cycle (a hand-edited key, a restored backup), so a relaunch can never bank
-            // the same surplus twice.
-            if (s.remaining > 0 && !savingsSoFar.some(v => v.source === 'auto' && v.cycleKey === cycleK)) {
-              sweeps.push({
-                id: genId(),
-                amount: s.remaining,
-                cycleKey: cycleK,
-                label: 'Leftover',
-                note: `Left at the end of ${payDay === 1 ? format(start, 'MMMM yyyy') : `${format(start, 'd MMM')} – ${format(lastDay, 'd MMM yyyy')}`}`,
-                source: 'auto',
-                direction: 'in',
-                bankId: sweepBankId,
-                createdAt: lastDay.toISOString(),
-              });
-            }
+            const s = calculateSealedCycleSummary({ ...loaded, payDay }, cycleK);
             snapshots.push({
               id: genId(),
               debtTitle: title,
@@ -562,15 +560,23 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
               // Persist the exact sealed breakdown so the History detail sheet never drifts
               // once one-time extras/expenses are purged (recompute is only a fallback).
               snapshot: s,
+              cycleKey: cycleK,
+              cycleStart: start.toISOString(),
+              cycleEnd: end.toISOString(),
             });
+            // Dated the moment the NEXT cycle begins, as closeCycle does, so the repeat is a
+            // deduction of the cycle it was added to — not of the one just sealed.
+            const repeats = repeatRecurringSavings(loaded.savings, end.toISOString());
+            repeatEntries.push(...repeats.entries);
+            repeatRecords.push(...repeats.records);
           }
           loaded = {
             ...loaded,
-            history: [...snapshots, ...loaded.history],
-            savings: [...sweeps, ...contributions, ...(loaded.savings ?? [])],
+            history: [...snapshots, ...repeatRecords, ...loaded.history],
+            savings: [...repeatEntries, ...(loaded.savings ?? [])],
             lastSnapshotMonth: currentCycle.key,
           };
-        } else if (!loaded.lastSnapshotMonth) {
+        } else if (autoCycles && !loaded.lastSnapshotMonth) {
           // Fresh install — record the cycle so the next pay date seals a real summary.
           loaded = { ...loaded, lastSnapshotMonth: currentCycle.key };
         }
@@ -580,11 +586,13 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
         // Runs AFTER the seal so sealed summaries still see them. One-time expenses keep
         // their original `expense` history entry as the permanent record; one-time extras
         // were captured in the sealed cycle's income.
-        loaded = {
-          ...loaded,
-          expenses: loaded.expenses.filter(e => e.recurring || new Date(e.createdAt) >= currentCycle.start),
-          extraIncomes: (loaded.extraIncomes ?? []).filter(e => e.recurring || new Date(e.createdAt) >= currentCycle.start),
-        };
+        if (autoCycles) {
+          loaded = {
+            ...loaded,
+            expenses: loaded.expenses.filter(e => e.recurring || new Date(e.createdAt) >= currentCycle.start),
+            extraIncomes: (loaded.extraIncomes ?? []).filter(e => e.recurring || new Date(e.createdAt) >= currentCycle.start),
+          };
+        }
 
         setAppState(loaded);
       } catch (e) {
@@ -981,27 +989,21 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
   }, [updateStateAndSync]);
 
   // ── Savings ──────────────────────────────────────────────────────────────────
-  // Leftovers arrive on their own from the seal (see the load effect); these are the
-  // by-hand entries and the edits/removals for either kind.
+  // One pot, by hand. Deliberately outside the balance maths: putting money away or taking
+  // it out never moves Remaining, and Remaining never feeds savings.
   /** One movement, in or out, plus the History record of it. Both directions go through
    *  here so the ledger row and the history entry can never describe different things. */
-  const addSaving = useCallback((
-    amount: number,
-    cycleKey: string,
-    label: string,
-    note?: string,
-    bankId: string = DEFAULT_BANK_ID,
-    direction: 'in' | 'out' = 'in',
-  ) => {
+  const addSaving = useCallback((amount: number, label: string, note?: string, direction: 'in' | 'out' = 'in', recurring = false) => {
     updateStateAndSync(prev => {
-      const bank = (prev.piggybanks ?? []).find(b => b.id === bankId);
       const entry: SavingEntry = {
-        id: genId(), amount, cycleKey, label, note, source: 'manual', direction, bankId,
+        id: genId(), amount, label, note, source: 'manual', direction,
+        // Only deposits repeat; taking money out is always a one-off.
+        ...(recurring && direction === 'in' ? { recurring: true } : {}),
         createdAt: new Date().toISOString(),
       };
       const record: HistoryEntry = {
         id: genId(),
-        debtTitle: `${bank?.name ?? 'Savings'}: ${label}`,
+        debtTitle: `Savings: ${label}`,
         date: entry.createdAt,
         amount,
         type: 'savings',
@@ -1012,101 +1014,104 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     });
   }, [updateStateAndSync]);
 
-  // ── Piggybanks ───────────────────────────────────────────────────────────────
-  // Jars are just names and goals; every figure they show is derived from the entries
-  // filed into them (lib/piggybanks), so nothing here ever writes a balance.
-  const addPiggybank = useCallback((name: string, target?: number, note?: string) => {
-    const bank: Piggybank = { id: genId(), name, target, note, createdAt: new Date().toISOString() };
-    updateStateAndSync(prev => ({
-      ...prev,
-      piggybanks: [...(prev.piggybanks ?? []), bank],
-      history: [{
-        id: genId(), debtTitle: `Piggybank: ${name}`, date: bank.createdAt,
-        amount: target ?? 0, type: 'savings', label: 'Opened',
-        note: target ? `Goal ${target}` : undefined,
-      }, ...prev.history],
-    }));
-    return bank.id;
-  }, [updateStateAndSync]);
-
-  const updatePiggybank = useCallback((id: string, data: Partial<Omit<Piggybank, 'id' | 'createdAt'>>) => {
-    updateStateAndSync(prev => ({
-      ...prev,
-      piggybanks: (prev.piggybanks ?? []).map(b => (b.id === id ? { ...b, ...data } : b)),
-    }));
-  }, [updateStateAndSync]);
-
-  /** Closing a jar takes its entries and standing orders with it — the money was a record,
-   *  not an account. Everything removed is handed back for the undo toast to restore. */
-  const deletePiggybank = useCallback((id: string) => {
-    let removed: { bank?: Piggybank; entries: SavingEntry[]; orders: RecurringSaving[] } = { entries: [], orders: [] };
+  /**
+   * Switch how cycles end. Neither direction seals or clears anything retroactively:
+   *   • → auto: the pay-date cycle running now takes over. lastSnapshotMonth is set to it so
+   *     the load-time seal doesn't back-fill summaries for cycles that were run by hand.
+   *   • → manual: the open cycle starts where the running one did — the current pay-date
+   *     cycle, or the last cycle closed by hand if that ended later (switching back and forth
+   *     inside one pay cycle must not reopen what was already closed).
+   */
+  const setCycleMode = useCallback((mode: CycleMode) => {
     updateStateAndSync(prev => {
-      const bank = (prev.piggybanks ?? []).find(b => b.id === id);
-      // The leftovers jar is where the seal puts every surplus: without it a cycle would
-      // have nowhere to sweep to.
-      if (!bank || bank.isLeftovers) return prev;
-      const entries = (prev.savings ?? []).filter(v => (v.bankId ?? DEFAULT_BANK_ID) === id);
-      const orders = (prev.recurringSavings ?? []).filter(r => r.bankId === id);
-      removed = { bank, entries, orders };
-      return {
-        ...prev,
-        piggybanks: (prev.piggybanks ?? []).filter(b => b.id !== id),
-        savings: (prev.savings ?? []).filter(v => (v.bankId ?? DEFAULT_BANK_ID) !== id),
-        recurringSavings: (prev.recurringSavings ?? []).filter(r => r.bankId !== id),
-        history: [{
-          id: genId(), debtTitle: `Piggybank: ${bank.name}`, date: new Date().toISOString(),
-          amount: entries.reduce((s, e) => s + (e.direction === 'out' ? -e.amount : e.amount), 0),
-          type: 'savings', label: 'Closed',
-          note: `${entries.length} ${entries.length === 1 ? 'entry' : 'entries'} removed with it`,
-        }, ...prev.history],
-      };
+      if (prev.cycleMode === mode) return prev;
+      const running = getPayCycle(normalizePayDay(prev.userProfile.paydayDay));
+      if (mode === 'auto') return { ...prev, cycleMode: 'auto', lastSnapshotMonth: running.key };
+      const lastClose = prev.history.reduce<Date | null>((latest, h) => {
+        if (h.type !== 'snapshot' || !h.cycleEnd) return latest;
+        const end = new Date(h.cycleEnd);
+        return !latest || end > latest ? end : latest;
+      }, null);
+      return lastClose && lastClose > running.start
+        ? { ...prev, cycleMode: 'manual', manualCycleStart: lastClose.toISOString(), manualCycleKey: manualKeyFor(lastClose) }
+        : { ...prev, cycleMode: 'manual', manualCycleStart: running.start.toISOString(), manualCycleKey: running.key };
     });
-    return removed;
   }, [updateStateAndSync]);
 
-  const restorePiggybank = useCallback((restore: { bank?: Piggybank; entries: SavingEntry[]; orders: RecurringSaving[] }) => {
-    if (!restore.bank) return;
+  /**
+   * Manual mode's "pay day": end the open cycle NOW and start a fresh one. Does, at the
+   * moment you tap it, exactly what the pay date does in auto mode (see the load effect):
+   *   1. its summary goes to History — the figures Overview shows right now, frozen,
+   *   2. one-time expenses and one-time extra income are cleared (recurring ones stay),
+   *   3. recurring savings deposits repeat (repeatRecurringSavings), dated now — so they
+   *      come off the NEW cycle, not the one being closed.
+   * Nothing else touches savings: the pot never takes the cycle's remainder.
+   * Returns what the undo toast needs to put it all back.
+   *
+   * Worked out from the latest committed state (stateRef) rather than inside the updater:
+   * React may defer a state updater to the next render, and the undo payload has to exist
+   * by the time this returns. The updater then only applies the result.
+   */
+  const closeCycle = useCallback((): CycleCloseUndo | null => {
+    const cur = stateRef.current;
+    if (cur.cycleMode !== 'manual') return null;
+    const now = new Date();
+    const payDay = normalizePayDay(cur.userProfile.paydayDay);
+    const open = timelineOf(cur, now).current;
+    // The live calculator over the open cycle's window — so the summary is the figure that
+    // was on the Balance tab when you closed it, not a reconstruction.
+    const s = calculateLiveMonthly(
+      { ...cur, extraIncomes: cur.extraIncomes ?? [], payDay }, now, moneyWindow(open),
+    );
+    const closed = boundedPeriod(open.key, open.start, now);
+    const summary: HistoryEntry = {
+      id: genId(),
+      debtTitle: `${closed.label} Summary`,
+      date: now.toISOString(),
+      amount: Math.abs(s.remaining),
+      type: 'snapshot',
+      note: `Income: ${Math.round(s.income)} | Outgoings: ${Math.round(s.totalOutgoings)} | ${s.remaining >= 0 ? 'Surplus' : 'Deficit'}: ${Math.round(Math.abs(s.remaining))}`,
+      snapshot: s,
+      cycleKey: open.key,
+      cycleStart: open.start.toISOString(),
+      cycleEnd: now.toISOString(),
+    };
+    const repeats = repeatRecurringSavings(cur.savings, now.toISOString());
+    const undo: CycleCloseUndo = {
+      historyIds: [summary.id, ...repeats.records.map(h => h.id)],
+      savingIds: repeats.entries.map(v => v.id),
+      expenses: cur.expenses.filter(e => !e.recurring),
+      extraIncomes: (cur.extraIncomes ?? []).filter(e => !e.recurring),
+      manualCycleStart: cur.manualCycleStart,
+      manualCycleKey: cur.manualCycleKey,
+    };
     updateStateAndSync(prev => ({
       ...prev,
-      piggybanks: [...(prev.piggybanks ?? []), restore.bank!],
-      savings: [...restore.entries, ...(prev.savings ?? [])],
-      recurringSavings: [...restore.orders, ...(prev.recurringSavings ?? [])],
+      history: [summary, ...repeats.records, ...prev.history],
+      savings: [...repeats.entries, ...(prev.savings ?? [])],
+      expenses: prev.expenses.filter(e => e.recurring),
+      extraIncomes: (prev.extraIncomes ?? []).filter(e => e.recurring),
+      manualCycleStart: now.toISOString(),
+      manualCycleKey: manualKeyFor(now),
+    }));
+    return undo;
+  }, [updateStateAndSync]);
+
+  /** Reopen a cycle closeCycle just closed — everything it wrote removed, everything it
+   *  cleared put back, the open cycle's start restored. */
+  const undoCloseCycle = useCallback((undo: CycleCloseUndo) => {
+    updateStateAndSync(prev => ({
+      ...prev,
+      history: prev.history.filter(h => !undo.historyIds.includes(h.id)),
+      savings: (prev.savings ?? []).filter(v => !undo.savingIds.includes(v.id)),
+      expenses: [...undo.expenses, ...prev.expenses],
+      extraIncomes: [...undo.extraIncomes, ...(prev.extraIncomes ?? [])],
+      manualCycleStart: undo.manualCycleStart,
+      manualCycleKey: undo.manualCycleKey,
     }));
   }, [updateStateAndSync]);
 
-  // ── Standing orders ──────────────────────────────────────────────────────────
-  // A standing order is a rule, not a movement: it charges every cycle from the one it was
-  // created in, and the seal turns each charge into a real entry (see materialiseRecurring).
-  const addRecurringSaving = useCallback((bankId: string, amount: number, label: string) => {
-    updateStateAndSync(prev => ({
-      ...prev,
-      recurringSavings: [
-        {
-          id: genId(), bankId, amount, label, active: true,
-          // The cycle you are IN, not the month you are in — see RecurringSaving.startCycleKey.
-          startCycleKey: cycleKey(new Date(), normalizePayDay(prev.userProfile.paydayDay)),
-          createdAt: new Date().toISOString(),
-        },
-        ...(prev.recurringSavings ?? []),
-      ],
-    }));
-  }, [updateStateAndSync]);
-
-  const setRecurringSavingActive = useCallback((id: string, active: boolean) => {
-    updateStateAndSync(prev => ({
-      ...prev,
-      recurringSavings: (prev.recurringSavings ?? []).map(r => (r.id === id ? { ...r, active } : r)),
-    }));
-  }, [updateStateAndSync]);
-
-  const deleteRecurringSaving = useCallback((id: string) => {
-    updateStateAndSync(prev => ({
-      ...prev,
-      recurringSavings: (prev.recurringSavings ?? []).filter(r => r.id !== id),
-    }));
-  }, [updateStateAndSync]);
-
-  const updateSaving = useCallback((id: string, data: Partial<Pick<SavingEntry, 'amount' | 'label' | 'note' | 'cycleKey'>>) => {
+  const updateSaving = useCallback((id: string, data: Partial<Pick<SavingEntry, 'amount' | 'label' | 'note'>>) => {
     updateStateAndSync(prev => ({
       ...prev,
       savings: (prev.savings ?? []).map(s => (s.id === id ? { ...s, ...data } : s)),
@@ -1525,13 +1530,9 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     deleteExtraIncome,
     restoreExtraIncome,
     addSaving,
-    addPiggybank,
-    updatePiggybank,
-    deletePiggybank,
-    restorePiggybank,
-    addRecurringSaving,
-    setRecurringSavingActive,
-    deleteRecurringSaving,
+    setCycleMode,
+    closeCycle,
+    undoCloseCycle,
     addLoan,
     updateLoan,
     deleteLoan,

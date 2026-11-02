@@ -9,7 +9,9 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Button } from '@/components/ui/button';
 import { CardHeading } from '@/components/ui/card';
 import { Calendar } from '@/components/ui/calendar';
-import { cycleStartFromKey, getPayCycle, listRecentCycles, stepCycleKey, type MonthlyMoney } from '@/lib/calculations';
+import { DateWheels } from '@/components/DatePicker';
+import type { MonthlyMoney } from '@/lib/calculations';
+import type { CycleTimeline } from '@/lib/cycles';
 import { AppDataContext } from '@/context/AppDataContext';
 
 /**
@@ -19,9 +21,9 @@ import { AppDataContext } from '@/context/AppDataContext';
  * useReplayOnActive), and every colour is an existing theme token, so a chart repaints
  * with the user's theme like everything else.
  *
- * All three read the same shape: one MonthlyMoney per pay cycle. The current cycle's
- * comes from the live calculator, sealed ones from their history snapshot — so a chart
- * never invents a figure that some card elsewhere disagrees with.
+ * They read one MonthlyMoney per CALENDAR MONTH (Money → Stats). The "cycle" names are
+ * history: the same navigator once stepped pay cycles. It still takes a CycleTimeline,
+ * built with a pay day of 1, which is exactly calendar months — see StatsTab.
  */
 
 /** One cycle on the timeline, oldest first. */
@@ -37,8 +39,9 @@ export interface CyclePoint {
   money: MonthlyMoney;
 }
 
-/** Short axis label for a cycle: the month its pay date falls in. */
-const shortLabel = (key: string, payDay: number) => format(cycleStartFromKey(key, payDay), 'MMM');
+/** Short axis label for a cycle: the month its pay date falls in, or the day a manual cycle
+ *  started (several can start in one month). */
+const shortLabel = (key: string, timeline: CycleTimeline) => timeline.period(key).short;
 
 /** Fewest points worth drawing a line through. A one- or two-cycle selection is padded out
  *  to this with its neighbours; a span wider than it draws every cycle it covers. */
@@ -95,20 +98,8 @@ const SEGMENTS: { id: keyof MonthlyMoney; label: string; color: string }[] = [
 
 // ─── Cycle navigator (picker + trend, one card) ───────────────────────────────
 
-// Lives in lib/calculations now — the Balance tab steps cycles too. Re-exported so
-// existing imports from here keep working.
-export { stepCycleKey };
-
-/** Every cycle key from one end of a span to the other, inclusive and oldest first. Keys
- *  are 'yyyy-MM', so they compare chronologically as strings; ends the wrong way round are
- *  swapped rather than yielding nothing. The step cap is a guard against a malformed key
- *  that would never reach the far end, not a limit on how long a span may be. */
-export function cycleKeysBetween(fromKey: string, toKey: string, payDay: number): string[] {
-  const [lo, hi] = fromKey <= toKey ? [fromKey, toKey] : [toKey, fromKey];
-  const keys: string[] = [];
-  for (let k = lo, i = 0; k <= hi && i < 600; k = stepCycleKey(k, payDay, 1), i++) keys.push(k);
-  return keys.length ? keys : [lo];
-}
+// Stepping, spans and labels all come from the CycleTimeline (lib/cycles.ts), which knows
+// whether cycles end on the pay date or when the user closes them.
 
 /**
  * The date picker for a page whose unit of time is the pay cycle, and the chart that gives
@@ -116,13 +107,13 @@ export function cycleKeysBetween(fromKey: string, toKey: string, payDay: number)
  * the columns jump to one you can see, and the label opens a real date picker for
  * everything else. All three set the same cycle key.
  */
-export function CycleNavigatorCard({ selected, points, liveKey, payDay, onSelectRange, ready }: {
+export function CycleNavigatorCard({ selected, points, liveKey, timeline, onSelectRange, ready }: {
   /** The cycle, or span of cycles, currently on screen. May sit outside `points`. */
   selected: CycleSelection;
   /** Rolling window, oldest first — the trend chart's data, not the selection's range. */
   points: CyclePoint[];
   liveKey: string;
-  payDay: number;
+  timeline: CycleTimeline;
   /** Both keys the same = a single cycle, which is what stepping and tapping a column give. */
   onSelectRange: (fromKey: string, toKey: string) => void;
   ready: boolean;
@@ -136,8 +127,8 @@ export function CycleNavigatorCard({ selected, points, liveKey, payDay, onSelect
   // Stepping moves the whole window with its span intact: "previous" for a three-cycle
   // range means the three before it, not a collapse back to one.
   const step = (dir: -1 | 1) => onSelectRange(
-    stepCycleKey(selected.fromKey, payDay, dir),
-    stepCycleKey(selected.toKey, payDay, dir),
+    timeline.step(selected.fromKey, dir),
+    timeline.step(selected.toKey, dir),
   );
 
   // What the line draws: the cycles you asked for, whatever span that is.
@@ -183,7 +174,7 @@ export function CycleNavigatorCard({ selected, points, liveKey, payDay, onSelect
       <div className="flex items-center gap-1">
         <button
           onClick={() => step(-1)}
-          aria-label={span > 1 ? 'Previous cycles' : 'Previous cycle'}
+          aria-label={span > 1 ? 'Previous months' : 'Previous month'}
           className="h-8 w-8 shrink-0 rounded-xl flex items-center justify-center text-muted-foreground transition-colors disabled:opacity-25 active:bg-muted/60"
         >
           <ChevronLeft className="h-4 w-4" />
@@ -198,15 +189,15 @@ export function CycleNavigatorCard({ selected, points, liveKey, payDay, onSelect
           </p>
           <p className="text-[9px] text-muted-foreground mt-0.5">
             {span > 1
-              ? `${span} cycles · tap to change`
-              : selected.live ? 'This cycle · still running' : 'Sealed · tap to pick dates'}
+              ? `${span} months · tap to change`
+              : selected.live ? 'This month · so far · tap to pick dates' : 'Tap to pick dates'}
           </p>
         </button>
 
         <button
           onClick={() => step(1)}
           disabled={selected.toKey >= liveKey}
-          aria-label={span > 1 ? 'Next cycles' : 'Next cycle'}
+          aria-label={span > 1 ? 'Next months' : 'Next month'}
           className="h-8 w-8 shrink-0 rounded-xl flex items-center justify-center text-muted-foreground transition-colors disabled:opacity-25 active:bg-muted/60"
         >
           <ChevronRight className="h-4 w-4" />
@@ -223,7 +214,7 @@ export function CycleNavigatorCard({ selected, points, liveKey, payDay, onSelect
         >
           <BarChart3 className="h-3.5 w-3.5 text-accent shrink-0" />
           <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-            Spent per cycle
+            Spent per month
           </span>
           {columns.length >= 2 && (
             <span className="ml-auto text-[10px] font-semibold tabular-nums text-muted-foreground">
@@ -249,11 +240,11 @@ export function CycleNavigatorCard({ selected, points, liveKey, payDay, onSelect
             >
               <div className="px-2.5 pb-2">
                 {columns.length >= 2 ? (
-                  <SpendLine points={columns} selectedKeys={selectedKeys} payDay={payDay}
+                  <SpendLine points={columns} selectedKeys={selectedKeys} timeline={timeline}
                              onSelectKey={key => onSelectRange(key, key)} ready={ready} />
                 ) : (
                   <p className="text-[10px] text-muted-foreground/60 pb-2">
-                    Not enough history yet, each cycle joins the line as it ends.
+                    Not enough history yet, each month joins the line as it ends.
                   </p>
                 )}
               </div>
@@ -265,11 +256,11 @@ export function CycleNavigatorCard({ selected, points, liveKey, payDay, onSelect
       <CycleRangePickerDialog
         open={pickerOpen}
         onOpenChange={setPickerOpen}
-        payDay={payDay}
-        fromDate={cycleStartFromKey(selected.fromKey, payDay)}
+        timeline={timeline}
+        fromDate={timeline.period(selected.fromKey).start}
         // The far end seeds from the last day the span covers — but never a future one, so
         // reopening the picker on the running cycle starts from today, not from pay day.
-        toDate={minDate(getPayCycle(payDay, cycleStartFromKey(selected.toKey, payDay)).lastDay, new Date())}
+        toDate={minDate(timeline.period(selected.toKey).lastDay, new Date())}
         onPick={(a, b) => { onSelectRange(a, b); setPickerOpen(false); }}
       />
     </div>
@@ -286,11 +277,11 @@ export function CycleNavigatorCard({ selected, points, liveKey, payDay, onSelect
  * Drawn straight into an SVG at a fixed viewBox that scales to the card — no chart
  * library, same as everything else on this page.
  */
-function SpendLine({ points, selectedKeys, payDay, onSelectKey, ready }: {
+function SpendLine({ points, selectedKeys, timeline, onSelectKey, ready }: {
   points: CyclePoint[];
   /** Every cycle in the selection — a span highlights all of its columns, not just an end. */
   selectedKeys: Set<string>;
-  payDay: number;
+  timeline: CycleTimeline;
   onSelectKey: (key: string) => void;
   ready: boolean;
 }) {
@@ -318,7 +309,7 @@ function SpendLine({ points, selectedKeys, payDay, onSelectKey, ready }: {
   const showBand = firstSelIdx >= 0 && lastSelIdx > firstSelIdx && !allSelected;
 
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-auto" role="img" aria-label="Spent per cycle">
+    <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-auto" role="img" aria-label="Spent per month">
       <defs>
         <linearGradient id="spend-fill" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity="0.28" />
@@ -393,7 +384,7 @@ function SpendLine({ points, selectedKeys, payDay, onSelectKey, ready }: {
             className={cn('text-[9px]', inSelection ? 'fill-foreground font-semibold' : 'fill-muted-foreground')}
             style={{ fontSize: 9 }}
           >
-            {shortLabel(p.key, payDay)}
+            {shortLabel(p.key, timeline)}
           </text>
         );
       })}
@@ -423,10 +414,10 @@ const minDate = (a: Date, b: Date): Date => (a.getTime() <= b.getTime() ? a : b)
  * pulled back to today: cycles that have not happened would otherwise be summed from
  * today's salary and read as real.
  */
-function CycleRangePickerDialog({ open, onOpenChange, payDay, fromDate, toDate, onPick }: {
+function CycleRangePickerDialog({ open, onOpenChange, timeline, fromDate, toDate, onPick }: {
   open: boolean;
   onOpenChange: (o: boolean) => void;
-  payDay: number;
+  timeline: CycleTimeline;
   /** Seed for the near end — the start of the first cycle currently showing. */
   fromDate: Date;
   /** Seed for the far end — the last day of the last cycle showing, capped at today. */
@@ -437,6 +428,9 @@ function CycleRangePickerDialog({ open, onOpenChange, payDay, fromDate, toDate, 
   const [to, setTo] = useState<DateParts>(() => toParts(toDate));
   /** Which end the calendar is filling in. */
   const [editing, setEditing] = useState<'from' | 'to'>('from');
+  /** Scroll wheels instead of the calendar — for dates a month grid is slow to reach (a
+   *  year back is twelve taps on the calendar, one flick on a wheel). */
+  const [wheels, setWheels] = useState(false);
 
   // Re-seed each time it opens, so it always starts from what you are looking at.
   useEffect(() => {
@@ -444,6 +438,7 @@ function CycleRangePickerDialog({ open, onOpenChange, payDay, fromDate, toDate, 
     setFrom(toParts(fromDate));
     setTo(toParts(toDate));
     setEditing('from');
+    setWheels(false);
   }, [open, fromDate, toDate]);
 
   const today = startOfDay(new Date());
@@ -452,14 +447,14 @@ function CycleRangePickerDialog({ open, onOpenChange, payDay, fromDate, toDate, 
   const b = partsToDate(to);
   const lo = minDate(a, b);
   const hi = minDate(a.getTime() > b.getTime() ? a : b, today);
-  const startCycle = getPayCycle(payDay, lo);
-  const endCycle = getPayCycle(payDay, hi);
-  const span = cycleKeysBetween(startCycle.key, endCycle.key, payDay).length;
+  const startCycle = timeline.period(timeline.keyOf(lo));
+  const endCycle = timeline.period(timeline.keyOf(hi));
+  const span = timeline.keysBetween(startCycle.key, endCycle.key).length;
   // Only a span that begins in the future has nothing at all to show.
   const future = startOfDay(lo) > today;
 
   const applyPreset = (n: number) => {
-    const list = listRecentCycles(payDay, n - 1);          // newest first, n entries
+    const list = timeline.recent(n - 1);                   // newest first, up to n entries
     setFrom(toParts(list[list.length - 1].start));
     setTo(toParts(new Date()));
   };
@@ -469,18 +464,18 @@ function CycleRangePickerDialog({ open, onOpenChange, payDay, fromDate, toDate, 
       <DialogContent className="max-w-sm">
         <DialogHeader>
           <DialogTitle>Pick a date range</DialogTitle>
-          <DialogDescription>Covers every pay cycle these dates touch.</DialogDescription>
+          <DialogDescription>Covers every month these dates touch.</DialogDescription>
         </DialogHeader>
 
         {/* The spans people actually ask for, without picking two dates to get them. */}
         <div className="flex gap-1.5">
-          {[{ label: 'This cycle', n: 1 }, { label: 'Last 3', n: 3 }, { label: 'Last 6', n: 6 }, { label: 'Last 12', n: 12 }].map(p => (
+          {[{ label: 'This month', n: 1 }, { label: 'Last 3', n: 3 }, { label: 'Last 6', n: 6 }, { label: 'Last 12', n: 12 }].map(p => (
             <button
               key={p.label}
               onClick={() => applyPreset(p.n)}
               className={cn(
                 'flex-1 h-7 rounded-lg text-[10px] font-semibold transition-colors',
-                span === p.n && endCycle.key === getPayCycle(payDay).key
+                span === p.n && endCycle.key === timeline.current.key
                   ? 'bg-accent text-btn-on-accent'
                   : 'bg-muted/40 text-muted-foreground active:bg-muted/70',
               )}
@@ -490,42 +485,69 @@ function CycleRangePickerDialog({ open, onOpenChange, payDay, fromDate, toDate, 
           ))}
         </div>
 
-        {/* One calendar, two ends. Tapping an end arms it; picking a day fills it and hands
-            the calendar to the other end, so the ordinary case — from, then to — is two
-            taps and no mode switching to think about. */}
+        {/* One calendar, two ends. Picking a day on the grid fills the armed end and hands
+            the calendar to the other, so the ordinary case — from, then to — is two taps.
+            Tapping an end's DATE opens the scroll wheels for it instead: the mobile-native
+            way to reach any day, month or year without paging the grid. */}
         <div className="grid grid-cols-2 gap-2">
           <EndTab
             label="From"
             date={a}
             active={editing === 'from'}
-            onClick={() => setEditing('from')}
+            open={wheels && editing === 'from'}
+            onClick={() => { setEditing('from'); setWheels(true); }}
           />
           <EndTab
             label="To"
             date={b}
             active={editing === 'to'}
-            onClick={() => setEditing('to')}
+            open={wheels && editing === 'to'}
+            onClick={() => { setEditing('to'); setWheels(true); }}
           />
         </div>
 
-        <Calendar
-          value={editing === 'from' ? a : b}
-          max={today}
-          onSelect={(d, via) => {
-            if (editing === 'from') {
-              setFrom(toParts(d));
-              // A tap on the grid means that end is settled — hand the calendar to the
-              // other one. A quick-jump nudge is still aimed at THIS end, so it stays.
-              if (via === 'day') setEditing('to');
-            } else {
-              setTo(toParts(d));
-            }
-          }}
-        />
+        {wheels ? (
+          // Same wheels as every other date field in the app (DatePicker), on the card
+          // surface their edge fades are drawn for. Keyed by end, so switching ends re-centres
+          // the columns on that end's date.
+          <div className="rounded-2xl bg-card pt-3 pb-2">
+            <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground text-center pb-1">
+              {editing === 'from' ? 'Start date' : 'End date'}
+            </p>
+            <DateWheels
+              key={editing}
+              value={editing === 'from' ? from : to}
+              onChange={editing === 'from' ? setFrom : setTo}
+            />
+            <div className="flex items-center justify-end px-3 pt-2 mt-1 border-t border-border/30">
+              <button
+                onClick={() => setWheels(false)}
+                className="text-xs font-semibold text-primary px-4 py-1.5 rounded-xl bg-primary/10 hover:bg-primary/20 transition-colors"
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        ) : (
+          <Calendar
+            value={editing === 'from' ? a : b}
+            max={today}
+            onSelect={(d, via) => {
+              if (editing === 'from') {
+                setFrom(toParts(d));
+                // A tap on the grid means that end is settled — hand the calendar to the
+                // other one. A quick-jump nudge is still aimed at THIS end, so it stays.
+                if (via === 'day') setEditing('to');
+              } else {
+                setTo(toParts(d));
+              }
+            }}
+          />
+        )}
 
         <div className="rounded-xl bg-muted/30 p-3">
           <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-            {span === 1 ? 'Those dates fall in' : `${span} pay cycles`}
+            {span === 1 ? 'Those dates fall in' : `${span} months`}
           </p>
           <p className="text-sm font-semibold text-foreground mt-1">
             {span === 1
@@ -550,7 +572,7 @@ function CycleRangePickerDialog({ open, onOpenChange, payDay, fromDate, toDate, 
             disabled={future}
             className="w-full h-9 text-xs"
           >
-            {span === 1 ? 'Show this cycle' : `Show these ${span} cycles`}
+            {span === 1 ? 'Show this month' : `Show these ${span} months`}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -559,9 +581,10 @@ function CycleRangePickerDialog({ open, onOpenChange, payDay, fromDate, toDate, 
 }
 
 /** One end of the range: which end it is, the day it currently holds, and whether the
- *  calendar below is filling it in. */
-function EndTab({ label, date, active, onClick }: {
-  label: string; date: Date; active: boolean; onClick: () => void;
+ *  calendar below is filling it in. Tapping it opens the scroll wheels for that end — the
+ *  chevron says so, and turns while they are open. */
+function EndTab({ label, date, active, open, onClick }: {
+  label: string; date: Date; active: boolean; open: boolean; onClick: () => void;
 }) {
   return (
     <button
@@ -578,8 +601,12 @@ function EndTab({ label, date, active, onClick }: {
       )}>
         {label}
       </p>
-      <p className="text-sm font-semibold text-foreground tabular-nums mt-0.5">
+      <p className="text-sm font-semibold text-foreground tabular-nums mt-0.5 flex items-center gap-1">
         {format(date, 'd MMM yyyy')}
+        <ChevronDown className={cn(
+          'h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform duration-200',
+          open && 'rotate-180 text-accent',
+        )} />
       </p>
     </button>
   );
@@ -672,122 +699,3 @@ export function SpendBreakdownCard({ money, ready }: { money: MonthlyMoney; read
     </div>
   );
 }
-
-// ─── Saved per cycle ──────────────────────────────────────────────────────────
-
-/**
- * The Savings tab's ledger answers "what did I keep, and when". This answers the question
- * the ledger cannot: is the pile growing. One point per cycle, drawn as the same line the
- * navigator uses for spending — the shape of the trend is the whole message, and a line
- * carries it where a row of stacked columns only carried the last one or two.
- *
- * The split between swept and deliberate money lives in the hero's bar above, which is
- * where a total belongs; repeating it here cost the line its legibility.
- */
-export function SavingsTrendCard({ cycles, payDay, ready }: {
-  /** Oldest first. */
-  cycles: { key: string; manual: number; auto: number }[];
-  payDay: number;
-  ready: boolean;
-}) {
-  const window = useMemo(() => cycles.slice(Math.max(0, cycles.length - 12)), [cycles]);
-  const totals = window.map(c => c.manual + c.auto);
-  const peak = Math.max(...totals, 1);
-
-  if (window.length < 2) return null;
-
-  return (
-    <div className="bg-card rounded-2xl p-4">
-      <CardHeading
-        icon={BarChart3}
-        title="Saved per cycle"
-        aside={`peak ${formatCurrency(peak)}`}
-      />
-      {/* The same line the cycle navigator draws for spending, in the savings colour: two
-          charts a swipe apart that answer "how has this moved" should be read the same way. */}
-      <TrendLine
-        points={window.map((c, i) => ({ key: c.key, value: totals[i] }))}
-        payDay={payDay}
-        ready={ready}
-        color="hsl(var(--positive))"
-        gradientId="saved-fill"
-        label="Saved per cycle"
-      />
-    </div>
-  );
-}
-
-/**
- * A bare version of the navigator's spend line — same geometry, same 700ms self-drawing
- * stroke, no selection or hit targets. For charts that are read rather than driven.
- */
-function TrendLine({ points, payDay, ready, color, gradientId, label }: {
-  points: { key: string; value: number }[];
-  payDay: number;
-  ready: boolean;
-  color: string;
-  gradientId: string;
-  label: string;
-}) {
-  const W = 320, H = 96, PAD_X = 10, PAD_TOP = 10, BASE = H - 18;
-  const max = Math.max(...points.map(p => p.value), 1);
-  const x = (i: number) => PAD_X + (i * (W - PAD_X * 2)) / Math.max(1, points.length - 1);
-  const y = (v: number) => PAD_TOP + (1 - v / max) * (BASE - PAD_TOP);
-
-  const line = points.map((p, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)},${y(p.value).toFixed(1)}`).join(' ');
-  const area = `${line} L${x(points.length - 1).toFixed(1)},${BASE} L${x(0).toFixed(1)},${BASE} Z`;
-  const peakIdx = points.reduce((best, p, i) => (p.value > points[best].value ? i : best), 0);
-
-  return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-auto mt-2" role="img" aria-label={label}>
-      <defs>
-        <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor={color} stopOpacity="0.28" />
-          <stop offset="100%" stopColor={color} stopOpacity="0" />
-        </linearGradient>
-      </defs>
-
-      <line x1={PAD_X} y1={BASE} x2={W - PAD_X} y2={BASE} stroke="hsl(var(--border))" strokeWidth="1" />
-
-      <path d={area} fill={`url(#${gradientId})`} opacity={ready ? 1 : 0}
-            style={{ transition: ready ? 'opacity 700ms ease' : undefined }} />
-
-      <path
-        d={line} fill="none" stroke={color} strokeWidth="2"
-        strokeLinecap="round" strokeLinejoin="round" pathLength={1}
-        strokeDasharray={1} strokeDashoffset={ready ? 0 : 1}
-        style={{ transition: ready ? 'stroke-dashoffset 700ms ease' : undefined }}
-      />
-
-      {points.map((p, i) => (
-        <circle
-          key={p.key}
-          cx={x(i)} cy={y(p.value)} r={i === peakIdx ? 3.5 : 2}
-          fill={i === peakIdx ? color : 'hsl(var(--background))'}
-          stroke={color} strokeWidth={i === peakIdx ? 2 : 1.5}
-          opacity={ready ? 1 : 0}
-          style={{ transition: ready ? 'opacity 700ms ease' : undefined }}
-        >
-          <title>{`${shortLabel(p.key, payDay)}: ${formatCurrency(p.value)}`}</title>
-        </circle>
-      ))}
-
-      {/* Ends and the peak only — a label per point is unreadable at this width. */}
-      {points.map((p, i) => {
-        if (i !== 0 && i !== points.length - 1 && i !== peakIdx) return null;
-        return (
-          <text
-            key={p.key} x={x(i)} y={H - 4}
-            textAnchor={i === 0 ? 'start' : i === points.length - 1 ? 'end' : 'middle'}
-            className={cn('text-[9px]', i === peakIdx ? 'fill-foreground font-semibold' : 'fill-muted-foreground')}
-            style={{ fontSize: 9 }}
-          >
-            {shortLabel(p.key, payDay)}
-          </text>
-        );
-      })}
-    </svg>
-  );
-}
-
-
