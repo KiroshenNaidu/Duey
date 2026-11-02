@@ -5,9 +5,8 @@
   "scripts": {
     "dev": "next dev --turbopack -p 9002",
     "clean": "node -e \"const fs=require('fs');for(const d of ['.next','out'])fs.rmSync(d,{recursive:true,force:true})\"",
-    "build": "npm run clean && next build",
+    "build": "npm run clean && next build --webpack && node scripts/fix-export-segments.mjs",
     "start": "npx serve out",
-    "lint": "next lint",
     "typecheck": "tsc --noEmit",
     "android": "npx cap open android",
     "version:patch": "node scripts/bump-version.mjs patch",
@@ -15,8 +14,8 @@
     "version:major": "node scripts/bump-version.mjs major",
     "sync": "npm run sync:android:norev && npm run android",
     "sync:full": "npm run sync:android && npm run android",
-    "sync:android": "npm run version:patch && npm run clean && next build && npx cap sync android",
-    "sync:android:norev": "npm run clean && next build && npx cap sync android"
+    "sync:android": "npm run version:patch && npm run clean && next build --webpack && node scripts/fix-export-segments.mjs && npx cap sync android",
+    "sync:android:norev": "npm run clean && next build --webpack && node scripts/fix-export-segments.mjs && npx cap sync android"
   },
   "dependencies": {
     "@capacitor/android": "^7.0.0",
@@ -60,10 +59,10 @@
     "idb": "^8.0.0",
     "jspdf": "^4.2.1",
     "lucide-react": "^0.475.0",
-    "next": "15.5.9",
-    "react": "^19.2.1",
+    "next": "^16.4.3",
+    "react": "^19.3.1",
     "react-day-picker": "^9.11.3",
-    "react-dom": "^19.2.1",
+    "react-dom": "^19.3.1",
     "react-hook-form": "^7.54.2",
     "tailwind-merge": "^3.0.1",
     "tailwindcss-animate": "^1.0.7",
@@ -72,8 +71,8 @@
   },
   "devDependencies": {
     "@types/node": "^20",
-    "@types/react": "^19.2.1",
-    "@types/react-dom": "^19.2.1",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
     "patch-package": "^8.0.0",
     "postcss": "^8",
     "tailwindcss": "^3.4.1",
