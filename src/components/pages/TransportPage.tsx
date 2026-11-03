@@ -114,8 +114,15 @@ export function TransportPage() {
     if (!Number.isNaN(parsed)) setTransportMonthlyOverride(monthKey, parsed);
   };
 
+  // A flat monthly fee doesn't depend on the days travelled, so a paid month can still have
+  // its days corrected. On a daily rate the days ARE the amount paid, so paying locks them.
+  const pricingMode = transportSettings.pricingMode ?? 'daily';
+  const daysLocked = isLocked || (isPaidForMonth && pricingMode !== 'monthly');
+  // Switching to daily rate on a paid month while editing must drop out of editing.
+  const editing = isEditingCalendar && !daysLocked;
+
   const handleDayToggle = (day: Date) => {
-    if (!isEditingCalendar || isLocked || isPaidForMonth) return;
+    if (!editing) return;
     const isoDate = dayKey(day);
     const cur: DayState = getEffectiveDayState(day, transportOverrides, transportSettings.employed, isFutureMonth);
     const next: DayState = cur === 1 ? 0 : cur === 0 ? 1.5 : 1;
@@ -123,7 +130,7 @@ export function TransportPage() {
   };
 
   const setCalendarEditing = (v: boolean) => {
-    if (isLocked || isPaidForMonth) return;
+    if (daysLocked) return;
     setIsEditingCalendar(v);
     if (!v) {
       // Turning edit off unmounts the override input and shrinks the card. The keyboard
@@ -156,7 +163,6 @@ export function TransportPage() {
   const uberMonthPrefix = format(currentDate, 'yyyy-MM');
   const uberMonthRides = uberRides.filter(r => r.date.startsWith(uberMonthPrefix));
   const uberMonthTotal = uberMonthRides.reduce((sum, r) => sum + r.price, 0);
-  const pricingMode = transportSettings.pricingMode ?? 'daily';
 
   // Flat-monthly override: a persisted per-month value takes priority over the configured
   // monthlyFee. The AMOUNT itself now comes from totalDue (calculateTransportMonth already
@@ -391,22 +397,22 @@ export function TransportPage() {
             <div
               className={cn(
                 "flex items-center space-x-2 mt-1 justify-end",
-                (isLocked || isPaidForMonth) ? "cursor-not-allowed" : "cursor-pointer"
+                daysLocked ? "cursor-not-allowed" : "cursor-pointer"
               )}
-              onClick={() => setCalendarEditing(!isEditingCalendar)}
+              onClick={() => setCalendarEditing(!editing)}
             >
-              <Label className={cn("text-xs pointer-events-none", (isLocked || isPaidForMonth) && "opacity-50")}>
-                {isEditingCalendar ? 'Editing' : 'Edit'}
+              <Label className={cn("text-xs pointer-events-none", daysLocked && "opacity-50")}>
+                {editing ? 'Editing' : 'Edit'}
               </Label>
               <Switch
                 id="edit-calendar"
                 aria-label="Edit calendar days"
-                checked={isEditingCalendar}
+                checked={editing}
                 onCheckedChange={setCalendarEditing}
-                disabled={isLocked || isPaidForMonth}
+                disabled={daysLocked}
                 // accent-flow-switch: checked track shifts through the accent family,
                 // matching the today cell's colour flow (see globals.css).
-                className={cn("h-5 w-10 pointer-events-none accent-flow-switch", (isLocked || isPaidForMonth) && "opacity-50 cursor-not-allowed")}
+                className={cn("h-5 w-10 pointer-events-none accent-flow-switch", daysLocked && "opacity-50 cursor-not-allowed")}
               />
             </div>
           )}
@@ -414,7 +420,10 @@ export function TransportPage() {
 
         <CardContent className="p-3 pt-0 pb-0">
           <div className="calendar-container py-6">
-            {calendarMode === 'driver' && isPaidForMonth && <div className="paid-stamp">PAID</div>}
+            {/* Faded while editing a paid flat-monthly month so the days under it stay readable. */}
+            {calendarMode === 'driver' && isPaidForMonth && (
+              <div className={cn("paid-stamp transition-opacity", editing && "opacity-20")}>PAID</div>
+            )}
 
             <div className="grid grid-cols-7 gap-1 text-center text-[10px] font-semibold text-muted-foreground">
               {WEEK_DAYS.map((d, i) => <div key={i}>{d}</div>)}
@@ -430,11 +439,11 @@ export function TransportPage() {
                 return (
                   <button
                     key={isoDate}
-                    disabled={!isEditingCalendar || isLocked || isPaidForMonth}
+                    disabled={!editing}
                     onClick={() => handleDayToggle(day)}
                     className={cn(
                       "relative overflow-hidden h-7 w-7 rounded-full flex flex-col items-center justify-center transition-all duration-200 text-[10px]",
-                      (isEditingCalendar && !isLocked && !isPaidForMonth) ? 'cursor-pointer hover:scale-105' : 'cursor-default',
+                      editing ? 'cursor-pointer hover:scale-105' : 'cursor-default',
                       state === 1 && 'bg-primary/15 text-primary-foreground',
                       state === 1.5 && 'bg-primary/15 text-foreground',
                       state === 0 && 'bg-muted text-muted-foreground opacity-60',
@@ -548,7 +557,8 @@ export function TransportPage() {
               <CardTitle className="text-foreground uppercase text-[10px] tracking-widest">Monthly Summary</CardTitle>
             </CardHeader>
             <CardContent className="p-3 pt-0 space-y-1.5">
-              {pricingMode === 'monthly' && isEditingCalendar && !isLocked && !isPaidForMonth ? (
+              {/* The amount is what was paid, so it stays fixed while a paid month's days are edited. */}
+              {pricingMode === 'monthly' && editing && !isPaidForMonth ? (
                 <>
                   <div className="flex justify-between items-center">
                     <p className="text-xs text-foreground">Flat monthly rate</p>
