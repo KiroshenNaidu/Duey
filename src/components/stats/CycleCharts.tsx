@@ -398,8 +398,7 @@ const minDate = (a: Date, b: Date): Date => (a.getTime() <= b.getTime() ? a : b)
 
 /**
  * Pick the span the page reports on: a FROM date and a TO date, each resolved to the month
- * it falls in. The presets cover what people usually ask for; the two fields are the same
- * date field as everywhere else in the app (DatePicker), for anything else.
+ * it falls in. Both fields are the same date field as everywhere else in the app (DatePicker).
  *
  * Dates entered the wrong way round are swapped rather than treated as an empty span, and a
  * TO date in the future is pulled back to today: months that have not happened would
@@ -437,12 +436,6 @@ function CycleRangePickerDialog({ open, onOpenChange, timeline, fromDate, toDate
   // Only a span that begins in the future has nothing at all to show.
   const future = startOfDay(lo) > today;
 
-  const applyPreset = (n: number) => {
-    const list = timeline.recent(n - 1);                   // newest first, up to n entries
-    setFrom(toDay(list[list.length - 1].start));
-    setTo(toDay(new Date()));
-  };
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-sm">
@@ -450,24 +443,6 @@ function CycleRangePickerDialog({ open, onOpenChange, timeline, fromDate, toDate
           <DialogTitle>Pick a date range</DialogTitle>
           <DialogDescription>Covers every month these dates touch.</DialogDescription>
         </DialogHeader>
-
-        {/* The spans people actually ask for, without picking two dates to get them. */}
-        <div className="flex gap-1.5">
-          {[{ label: 'This month', n: 1 }, { label: 'Last 3', n: 3 }, { label: 'Last 6', n: 6 }, { label: 'Last 12', n: 12 }].map(p => (
-            <button
-              key={p.label}
-              onClick={() => applyPreset(p.n)}
-              className={cn(
-                'flex-1 h-7 rounded-lg text-[10px] font-semibold transition-colors',
-                span === p.n && endCycle.key === timeline.current.key
-                  ? 'bg-accent text-btn-on-accent'
-                  : 'bg-muted/40 text-muted-foreground active:bg-muted/70',
-              )}
-            >
-              {p.label}
-            </button>
-          ))}
-        </div>
 
         <div className="grid grid-cols-2 gap-2">
           <div>

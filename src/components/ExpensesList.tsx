@@ -1,10 +1,10 @@
 'use client';
 
-import { useContext, useState, useEffect } from 'react';
+import { useContext, useState, useEffect, useMemo } from 'react';
 import { usePathname } from 'next/navigation';
 import { AppDataContext } from '@/context/AppDataContext';
-import { formatCurrency } from '@/lib/utils';
-import { Plus, Trash2, RefreshCw, Pencil } from 'lucide-react';
+import { buildAnalogous, formatCurrency } from '@/lib/utils';
+import { Plus, Trash2, RefreshCw, Pencil, Eye } from 'lucide-react';
 import { FixedPortal } from '@/components/FixedPortal';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -94,6 +94,7 @@ export function ExpensesList() {
   const { expenses, deleteExpense, restoreExpense, cycleMode } = useContext(AppDataContext);
   const pathname = usePathname();
   const fabLongPress = useFabLongPress();
+  const [chartOpen, setChartOpen] = useState(false);
 
   // Delete immediately, offer a 5s undo window instead of a confirm dialog.
   const handleDelete = (id: string) => {
@@ -122,11 +123,21 @@ export function ExpensesList() {
       ) : (
         <>
           <Card>
-            <CardContent className="p-3 flex justify-between items-baseline">
-              <span className="text-xs text-muted-foreground uppercase tracking-widest font-bold">Total Expenses</span>
+            <CardContent className="p-3 flex justify-between items-center gap-2">
+              <div className="flex items-center gap-1 min-w-0">
+                <span className="text-xs text-muted-foreground uppercase tracking-widest font-bold">Total Expenses</span>
+                <button
+                  aria-label="Show expense breakdown"
+                  onClick={() => setChartOpen(true)}
+                  className="p-1.5 rounded-lg text-muted-foreground/40 hover:text-muted-foreground hover:bg-muted transition-colors"
+                >
+                  <Eye className="h-3.5 w-3.5" />
+                </button>
+              </div>
               <span className="text-lg font-bold text-destructive tabular-nums">−{formatCurrency(total)}</span>
             </CardContent>
           </Card>
+          <ExpenseDonutDialog open={chartOpen} onOpenChange={setChartOpen} />
 
           {/* Recurring */}
           {recurring.length > 0 && (
@@ -166,6 +177,88 @@ export function ExpensesList() {
         </FixedPortal>
       )}
     </div>
+  );
+}
+
+const DONUT_RADIUS = 38;
+const DONUT_CIRC = 2 * Math.PI * DONUT_RADIUS;
+// Arc length left blank between slices, so neighbours never merge into one colour.
+const DONUT_GAP = 1.5;
+
+/**
+ * Each expense as a slice of the total, largest first. Colours are the same theme-driven
+ * analogous family as "Where it goes" on Stats, and the legend under the ring carries the
+ * amounts, so the slices themselves need no labels.
+ */
+function ExpenseDonutDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (o: boolean) => void }) {
+  const { expenses, themeSettings } = useContext(AppDataContext);
+
+  const sorted = useMemo(() => [...expenses].sort((a, b) => b.amount - a.amount), [expenses]);
+  const total = sorted.reduce((s, e) => s + e.amount, 0);
+  const colors = useMemo(() => {
+    const n = sorted.length;
+    const spread = n > 1 ? Math.min(42, 130 / (n - 1)) : 0;
+    return buildAnalogous(themeSettings.primary, n, spread, 9);
+  }, [themeSettings.primary, sorted.length]);
+
+  // Slices sweep in from empty each time it opens.
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    if (!open) { setReady(false); return; }
+    const id = requestAnimationFrame(() => setReady(true));
+    return () => cancelAnimationFrame(id);
+  }, [open]);
+
+  let start = 0;
+  const slices = sorted.map((e, i) => {
+    const len = total > 0 ? (e.amount / total) * DONUT_CIRC : 0;
+    const slice = { id: e.id, color: colors[i], start, len: sorted.length > 1 ? Math.max(0, len - DONUT_GAP) : len };
+    start += len;
+    return slice;
+  });
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-sm">
+        <DialogHeader>
+          <DialogTitle>Expense breakdown</DialogTitle>
+          <DialogDescription>How this month&apos;s expenses split up.</DialogDescription>
+        </DialogHeader>
+
+        <div className="relative mx-auto w-40 h-40">
+          <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100">
+            <circle cx="50" cy="50" r={DONUT_RADIUS} fill="none" strokeWidth="11" className="stroke-muted-foreground/10" />
+            {slices.map(s => (
+              <circle
+                key={s.id}
+                cx="50" cy="50" r={DONUT_RADIUS} fill="none" strokeWidth="11"
+                stroke={s.color}
+                strokeDasharray={`${ready ? s.len : 0} ${DONUT_CIRC}`}
+                strokeDashoffset={-s.start}
+                className={cn(ready && 'transition-all duration-700')}
+              />
+            ))}
+          </svg>
+          <div className="absolute inset-0 flex flex-col items-center justify-center">
+            <span className="text-[9px] text-muted-foreground uppercase tracking-widest font-bold">Total</span>
+            <span className="text-sm font-bold text-foreground tabular-nums mt-0.5">{formatCurrency(total)}</span>
+          </div>
+        </div>
+
+        <div className="space-y-0.5 max-h-56 overflow-y-auto">
+          {sorted.map((e, i) => (
+            <div key={e.id} className="flex items-center gap-2 py-1">
+              <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ background: colors[i] }} />
+              <p className="text-xs text-muted-foreground flex-1 min-w-0 truncate">{e.title}</p>
+              <p className="text-[10px] text-muted-foreground/60 tabular-nums shrink-0 w-9 text-right">
+                {total > 0 ? Math.round((e.amount / total) * 100) : 0}%
+              </p>
+              <p className="text-xs font-semibold tabular-nums text-foreground shrink-0">{formatCurrency(e.amount)}</p>
+            </div>
+          ))}
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 

@@ -99,7 +99,7 @@ export function SavingsCard({ period, viewing, onBackToCurrent }: {
         <p className={cn('text-2xl font-bold tabular-nums', live ? 'text-foreground' : 'text-accent')}>{formatCurrency(balance)}</p>
         <p className="text-[10px] text-muted-foreground mt-0.5">
           {live
-            ? 'Total saved. Putting away comes off this month’s balance; taking out puts it back.'
+            ? 'Total saved.'
             : viewing === 'sealed'
               ? `Total saved at the end of ${period.label}`
               : `Expected total after ${period.label} - with recurring deposits`}
