@@ -755,6 +755,17 @@ body {
     mask-image: linear-gradient(to bottom, rgba(0,0,0,1) 70%, rgba(0,0,0,0.8));
     text-shadow: 2px 2px 5px rgba(0,0,0,0.2);
 }
+/* A rubber stamp pressed down: drops in from above the page, hits, squashes a touch, settles.
+   Fill mode is `backwards`, not `both`, so once it lands the opacity utility that fades the
+   stamp while a paid month's days are edited still applies. */
+@keyframes paid-stamp-press {
+  0%   { opacity: 0; transform: translate(-50%, -50%) rotate(-15deg) scale(1.8); }
+  60%  { opacity: 1; transform: translate(-50%, -50%) rotate(-15deg) scale(0.95); animation-timing-function: ease-out; }
+  100% { transform: translate(-50%, -50%) rotate(-15deg) scale(1); }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .paid-stamp { animation: paid-stamp-press 0.35s cubic-bezier(0.5, 0, 0.75, 0) backwards; }
+}
 
 /* ─── Aurora pop-up frame ──────────────────────────────────────────────────
    A slow, subtle rotating gradient border on modal pop-ups (Dialog + AlertDialog).

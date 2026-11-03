@@ -149,7 +149,9 @@ export function TransportPage() {
     }
     // totalDue now honours the per-month flat-fee override in 'monthly' mode, so it is
     // the amount for BOTH pricing modes — no parallel figure to keep in sync.
-    if (totalDue <= 0 || isLocked) return;
+    // Any month can be marked paid — past (settled late) or future (paid ahead). Days on
+    // months other than the current one stay read-only either way.
+    if (totalDue <= 0) return;
     logTransportPayment(totalDue, monthStr);
     setIsEditingCalendar(false);
   };
@@ -377,13 +379,25 @@ export function TransportPage() {
             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setCurrentDate(sub(currentDate, { months: 1 }))}>
               <ChevronLeft className="h-4 w-4" />
             </Button>
-            <CardTitle className="text-center text-base flex flex-col items-center">
-              <span className={cn(isCurrentMonth ? "text-accent" : "text-foreground")}>
-                {format(currentDate, 'MMMM yyyy')}
-              </span>
-              <span className={cn("text-[10px] font-semibold flex items-center gap-1 uppercase tracking-tighter", isCurrentMonth ? "text-primary" : "text-muted-foreground")}>
-                {isCurrentMonth ? '(Current Month)' : <><Lock className="h-2 w-2" /> (Read-Only)</>}
-              </span>
+            {/* Tapping the month jumps back to the current one. */}
+            <CardTitle className="text-center text-base">
+              <button
+                type="button"
+                onClick={() => setCurrentDate(new Date())}
+                disabled={isCurrentMonth}
+                aria-label={isCurrentMonth ? undefined : 'Back to current month'}
+                className={cn(
+                  "flex flex-col items-center rounded-lg px-2 transition-transform",
+                  !isCurrentMonth && "active:scale-95",
+                )}
+              >
+                <span className={cn(isCurrentMonth ? "text-accent" : "text-foreground")}>
+                  {format(currentDate, 'MMMM yyyy')}
+                </span>
+                <span className={cn("text-[10px] font-semibold flex items-center gap-1 uppercase tracking-tighter", isCurrentMonth ? "text-primary" : "text-muted-foreground")}>
+                  {isCurrentMonth ? '(Current Month)' : <><Lock className="h-2 w-2" /> (Read-Only)</>}
+                </span>
+              </button>
             </CardTitle>
             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setCurrentDate(add(currentDate, { months: 1 }))}>
               <ChevronRight className="h-4 w-4" />
@@ -614,7 +628,7 @@ export function TransportPage() {
                 )}
                 variant={isPaidForMonth ? 'outline' : 'default'}
                 onClick={handleMarkAsPaid}
-                disabled={!isPaidForMonth && (isLocked || totalDue <= 0)}
+                disabled={!isPaidForMonth && totalDue <= 0}
               >
                 {isPaidForMonth ? '✓ Payment Confirmed - tap to undo' : `Mark as Paid for ${format(currentDate, 'MMMM')}`}
               </Button>
