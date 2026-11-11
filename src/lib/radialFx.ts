@@ -26,7 +26,6 @@ export interface RadialFx {
 export interface RadialFxPreset {
   id: string;
   name: string;
-  description: string;
   fx: RadialFx;
 }
 
@@ -34,25 +33,21 @@ export const RADIAL_FX_PRESETS: RadialFxPreset[] = [
   {
     id: 'stardust',
     name: 'Stardust',
-    description: 'A cloud of tiny sparkles around whatever you aim at',
     fx: { hoverScale: 1.18, dimOthers: 0.5, hoverGlow: false, pointerRing: false, ringPulse: false, aimBeam: false, aimTrail: true, beamWidth: 0, magneticPull: 6, sparkles: 9, cometTrail: false, rippleBurst: false },
   },
   {
     id: 'minimal',
     name: 'Minimal',
-    description: 'Just a subtle grow and dim - no rings, no beam',
     fx: { hoverScale: 1.1, dimOthers: 0.55, hoverGlow: false, pointerRing: false, ringPulse: false, aimBeam: false, aimTrail: false, beamWidth: 0, magneticPull: 0, sparkles: 0, cometTrail: false, rippleBurst: false },
   },
   {
     id: 'comet',
     name: 'Comet',
-    description: 'Your aim becomes a glowing beam with sparks streaming down it',
     fx: { hoverScale: 1.16, dimOthers: 0.45, hoverGlow: true, pointerRing: true, ringPulse: false, aimBeam: true, aimTrail: false, beamWidth: 3, magneticPull: 10, sparkles: 0, cometTrail: true, rippleBurst: false },
   },
   {
     id: 'shockwave',
     name: 'Shockwave',
-    description: 'Rings ripple outward from whatever you aim at',
     fx: { hoverScale: 1.2, dimOthers: 0.4, hoverGlow: true, pointerRing: false, ringPulse: false, aimBeam: false, aimTrail: true, beamWidth: 0, magneticPull: 8, sparkles: 0, cometTrail: false, rippleBurst: true },
   },
 ];

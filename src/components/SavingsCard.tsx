@@ -2,7 +2,7 @@
 
 import { useContext, useMemo, useState } from 'react';
 import { format } from 'date-fns';
-import { PiggyBank, Plus, Minus, Trash2, RefreshCw } from 'lucide-react';
+import { PiggyBank, Plus, Minus, Trash2, RefreshCw, Pencil } from 'lucide-react';
 import { AppDataContext } from '@/context/AppDataContext';
 import { Card, CardContent, CardHeading } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -13,6 +13,7 @@ import { showUndoToast } from '@/components/ui/undo-toast';
 import { formatCurrency, cn } from '@/lib/utils';
 import type { SavingEntry } from '@/lib/types';
 import type { Period } from '@/lib/cycles';
+import { confirmDelete } from '@/components/ui/confirm-delete';
 
 /** Newest movements shown before "Show all". */
 const RECENT = 4;
@@ -38,12 +39,16 @@ export function SavingsCard({ period, viewing, onBackToCurrent }: {
   viewing: 'live' | 'sealed' | 'projected';
   onBackToCurrent: () => void;
 }) {
-  const { savings, addSaving, deleteSaving, restoreSaving, cycleMode } = useContext(AppDataContext);
+  const { savings, savingsOpening, setSavingsOpening, addSaving, deleteSaving, restoreSaving, cycleMode } = useContext(AppDataContext);
   const entries = useMemo(
     () => [...(savings ?? [])].sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1)),
     [savings],
   );
-  const total = entries.reduce((s, e) => s + signed(e), 0);
+  // Savings held before the app (set with the pencil). Part of the pot in every view, but
+  // never a movement — so it is never a deduction of any cycle and never moves the balance.
+  const opening = savingsOpening ?? 0;
+  const moved = entries.reduce((s, e) => s + signed(e), 0);
+  const total = opening + moved;
 
   // The viewed cycle's window — the same one the Deductions card measures savings over. A
   // cycle still to come has no movements yet; what it will take is the recurring deposits.
@@ -63,7 +68,7 @@ export function SavingsCard({ period, viewing, onBackToCurrent }: {
     ? total
     : viewing === 'projected'
       ? total + cycleNet
-      : entries.reduce((s, e) => (new Date(e.createdAt).getTime() < period.end.getTime() ? s + signed(e) : s), 0);
+      : entries.reduce((s, e) => (new Date(e.createdAt).getTime() < period.end.getTime() ? s + signed(e) : s), opening);
   const movement = `${cycleNet < 0 ? '−' : '+'}${formatCurrency(Math.abs(cycleNet))} ${live ? 'this month' : viewing === 'sealed' ? 'that month' : 'expected'}`;
 
   const [showAll, setShowAll] = useState(false);
@@ -85,9 +90,24 @@ export function SavingsCard({ period, viewing, onBackToCurrent }: {
     close();
   };
 
+  // Editing the total by hand. The user types the figure they actually have; the opening
+  // amount absorbs the difference, so put-away/taken-out history stays untouched.
+  const [editingTotal, setEditingTotal] = useState(false);
+  const [totalInput, setTotalInput] = useState('');
+  const [totalError, setTotalError] = useState('');
+  const openTotalEdit = () => { setTotalInput(String(Math.round(total * 100) / 100)); setTotalError(''); setEditingTotal(true); };
+  const saveTotal = () => {
+    const amt = parseFloat(totalInput);
+    if (isNaN(amt) || amt < 0) { setTotalError('Enter a valid amount (0 or more).'); return; }
+    setSavingsOpening(Math.round((amt - moved) * 100) / 100);
+    setEditingTotal(false);
+  };
+
   const remove = (e: SavingEntry) => {
-    deleteSaving(e.id);
-    showUndoToast(`Removed "${e.label}"`, () => restoreSaving(e));
+    confirmDelete({ title: `Delete "${e.label}"?`, description: 'This removes the entry from your savings total.' }, () => {
+      deleteSaving(e.id);
+      showUndoToast(`Removed "${e.label}"`, () => restoreSaving(e));
+    });
   };
 
   const shown = showAll ? thisCycle : thisCycle.slice(0, RECENT);
@@ -96,7 +116,14 @@ export function SavingsCard({ period, viewing, onBackToCurrent }: {
     <Card>
       <CardContent className="p-3">
         <CardHeading icon={PiggyBank} title="Savings" aside={movement} />
-        <p className={cn('text-2xl font-bold tabular-nums', live ? 'text-foreground' : 'text-accent')}>{formatCurrency(balance)}</p>
+        {live ? (
+          <button onClick={openTotalEdit} aria-label="Edit total saved" className="flex items-center gap-2 text-left">
+            <span className="text-2xl font-bold tabular-nums text-foreground">{formatCurrency(balance)}</span>
+            <Pencil className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+          </button>
+        ) : (
+          <p className="text-2xl font-bold tabular-nums text-accent">{formatCurrency(balance)}</p>
+        )}
         <p className="text-[10px] text-muted-foreground mt-0.5">
           {live
             ? 'Total saved.'
@@ -214,6 +241,31 @@ export function SavingsCard({ period, viewing, onBackToCurrent }: {
           </div>
           <DialogFooter className="mt-2">
             <Button className="w-full" onClick={submit}>{direction === 'out' ? 'Take out' : 'Put away'}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={editingTotal} onOpenChange={setEditingTotal}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Total saved</DialogTitle>
+            <DialogDescription>
+              Set what you already have saved. This does not change your balance. Use it for savings you had before Duey.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">Amount</label>
+              <Input
+                type="number" inputMode="decimal" placeholder="e.g., 10000" autoFocus
+                value={totalInput} onChange={e => setTotalInput(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') saveTotal(); }}
+              />
+            </div>
+            {totalError && <p className="text-xs text-destructive">{totalError}</p>}
+          </div>
+          <DialogFooter className="mt-2">
+            <Button className="w-full" onClick={saveTotal}>Save</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

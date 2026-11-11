@@ -243,7 +243,7 @@ export function CycleNavigatorCard({ selected, points, liveKey, timeline, onSele
                              onSelectKey={key => onSelectRange(key, key)} ready={ready} />
                 ) : (
                   <p className="text-[10px] text-muted-foreground/60 pb-2">
-                    Not enough history yet, each month joins the line as it ends.
+
                   </p>
                 )}
               </div>

@@ -6,7 +6,7 @@ import { format } from 'date-fns';
 import { AppDataContext } from '@/context/AppDataContext';
 import { useFabLongPress, FAB_TOUCH_STYLE, FabPulse } from '@/components/QuickAdd';
 import type { BudgetPlan, BudgetItem } from '@/lib/types';
-import { buildAnalogous, formatCurrency, cn } from '@/lib/utils';
+import { buildAnalogous, formatCurrency, getCurrencySymbol, cn } from '@/lib/utils';
 import { displayProgressPct } from '@/lib/calculations';
 import { Plus, Trash2, ExternalLink, Edit2, Check, Maximize2, Minimize2, Archive } from 'lucide-react';
 import { FixedPortal } from '@/components/FixedPortal';
@@ -39,6 +39,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { buttonVariants } from '@/components/ui/button';
 import { showUndoToast } from '@/components/ui/undo-toast';
+import { confirmDelete } from '@/components/ui/confirm-delete';
 
 function ItemRow({ item, planBudget, color, onDelete }: {
   item: BudgetItem;
@@ -189,7 +190,7 @@ function AddItemDialog({ plan, onAdd }: { plan: BudgetPlan; onAdd: (item: Omit<B
             </div>
             {showBudgetEdit ? (
               <div className="space-y-2">
-                <Label className="text-xs">New Budget (R)</Label>
+                <Label className="text-xs">New Budget ({getCurrencySymbol()})</Label>
                 <Input
                   type="number"
                   value={newBudgetVal}
@@ -236,7 +237,7 @@ function AddItemDialog({ plan, onAdd }: { plan: BudgetPlan; onAdd: (item: Omit<B
                 <Input placeholder="e.g., Groceries" value={name} onChange={e => setName(e.target.value)} />
               </div>
               <div className="space-y-1">
-                <Label className="text-xs">Price (R)</Label>
+                <Label className="text-xs">Price ({getCurrencySymbol()})</Label>
                 <Input type="number" placeholder="e.g., 1200" value={price} onChange={e => setPrice(e.target.value)} />
                 {parsedPrice > 0 && parsedPrice > remaining && (
                   <p className="text-[10px] text-destructive">
@@ -316,7 +317,7 @@ function PlanView({ plan }: { plan: BudgetPlan }) {
                       <Input value={editName} onChange={e => setEditName(e.target.value)} />
                     </div>
                     <div className="space-y-1">
-                      <Label className="text-xs">Budget (R)</Label>
+                      <Label className="text-xs">Budget ({getCurrencySymbol()})</Label>
                       <Input type="number" value={editBudget} onChange={e => setEditBudget(e.target.value)} />
                     </div>
 
@@ -345,7 +346,7 @@ function PlanView({ plan }: { plan: BudgetPlan }) {
                               </button>
                               <button
                                 title="Remove item"
-                                onClick={() => removeItem(item)}
+                                onClick={() => confirmDelete({ title: `Remove "${item.name}"?` }, () => removeItem(item))}
                                 className="h-6 w-6 rounded flex items-center justify-center shrink-0 text-muted-foreground hover:text-destructive transition-colors"
                               >
                                 <Trash2 className="h-3 w-3" />
@@ -657,7 +658,7 @@ export function BudgetPlanner() {
               <Input placeholder="e.g., June Budget" value={planName} onChange={e => setPlanName(e.target.value)} />
             </div>
             <div className="space-y-1">
-              <Label className="text-xs">Total Budget (R)</Label>
+              <Label className="text-xs">Total Budget ({getCurrencySymbol()})</Label>
               <Input type="number" placeholder="e.g., 5000" value={planBudget} onChange={e => setPlanBudget(e.target.value)} />
             </div>
           </div>

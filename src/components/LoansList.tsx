@@ -33,6 +33,7 @@ import {
   Plus, Trash2, HandCoins, ArrowDownLeft, ArrowUpRight, CheckCircle2, ChevronDown,
   CalendarClock, RotateCcw,
 } from 'lucide-react';
+import { confirmDelete } from '@/components/ui/confirm-delete';
 
 /**
  * Money → Debts → "Owed to me": the lending ledger, the mirror of the debts list.
@@ -93,8 +94,10 @@ export function LoansList() {
   }, [list, history]);
 
   const removeLoan = (loan: Loan) => {
-    deleteLoan(loan.id);
-    showUndoToast(`Deleted loan to ${loan.person}`, () => restoreLoan(loan));
+    confirmDelete({ title: `Delete loan to ${loan.person}?`, description: 'This removes the loan and all its repayments.' }, () => {
+      deleteLoan(loan.id);
+      showUndoToast(`Deleted loan to ${loan.person}`, () => restoreLoan(loan));
+    });
   };
 
   const openDetail = (id: string, mode: Movement | null = null) => {
@@ -418,11 +421,13 @@ function LoanDetailDialog({ loan, initialMode, onClose, onDelete }: {
   };
 
   const removeEvent = (e: LoanEvent) => {
-    deleteLoanEvent(loan.id, e.id);
-    showUndoToast(
-      `Removed ${e.type === 'lent' ? 'loan' : 'repayment'} of ${formatCurrency(e.amount)}`,
-      () => restoreLoanEvent(loan.id, e),
-    );
+    confirmDelete({ title: `Remove this ${e.type === 'lent' ? 'loan' : 'repayment'} of ${formatCurrency(e.amount)}?` }, () => {
+      deleteLoanEvent(loan.id, e.id);
+      showUndoToast(
+        `Removed ${e.type === 'lent' ? 'loan' : 'repayment'} of ${formatCurrency(e.amount)}`,
+        () => restoreLoanEvent(loan.id, e),
+      );
+    });
   };
 
   return (

@@ -671,9 +671,16 @@ body.overlay-blur #app-root .liquid-fill .lf-wave {
 }
 
 /* Transport Page Styling */
+/* Tall enough for the PAID stamp at its largest (~225px once tilted) even on a short
+   four- or five-row month, so it never reaches the clipped top/bottom edges. The days sit
+   centred in that height so they stay under the stamp. */
 .calendar-container {
     position: relative;
     overflow: hidden;
+    min-height: 16.5rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
 }
 
 /* Minimal Mode — flat, no card chrome, typography-first */

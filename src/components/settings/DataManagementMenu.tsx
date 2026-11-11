@@ -12,7 +12,10 @@ import { Download, Upload, Trash2, Code, Sparkles, FileText, Sheet, BookOpen, Se
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Textarea } from '@/components/ui/textarea';
-import { cn } from '@/lib/utils';
+import { cn, getCurrencySymbol } from '@/lib/utils';
+
+// Active currency symbol for export labels and lines — exports follow the app's currency.
+const cur = () => getCurrencySymbol();
 // Fetches /stark.png (the document-only brand mark, separate from the in-app /logo.png) as raw
 // bytes and returns base64 so it can be embedded in jsPDF (addImage) and docx (ImageRun).
 // Byte-fetch (not <img> + canvas) is reliable in Capacitor Android's WebView. Returns '' if the
@@ -119,9 +122,13 @@ function buildFilename(initials: string, type: string, ext: string): string {
 
 const PDF_INK = [26, 28, 32] as const;
 const PDF_CHARCOAL = [45, 50, 58] as const;
-const PDF_ACCENT = [151, 223, 104] as const;    // Duey primary (lime) as RGB
-const PDF_ACCENT_DARK = [86, 140, 50] as const;
-const PDF_ACCENT_TINT = [239, 249, 231] as const;
+// Brand colours from the System Rec theme: violet primary (252 84% 72%) for rules and
+// table heads, mint accent (168 62% 56%) for totals. Keep in sync with history/page.tsx.
+const PDF_ACCENT = [148, 124, 244] as const;      // violet primary — rules & underlines
+const PDF_ACCENT_DEEP = [64, 46, 138] as const;   // deep violet — table heads (white text)
+const PDF_GREEN = [73, 212, 185] as const;        // mint accent — total-row rule
+const PDF_GREEN_DARK = [29, 124, 105] as const;   // readable mint for text on white
+const PDF_GREEN_TINT = [235, 249, 246] as const;  // faint mint fill for total rows
 
 type ColDef = { header: string; width: number; align?: 'left' | 'right' };
 type RowData = (string | number)[];
@@ -144,7 +151,7 @@ function drawTable(
   let y = startY;
 
   const drawHeader = () => {
-    doc.setFillColor(45, 50, 58);
+    doc.setFillColor(...PDF_ACCENT_DEEP);
     doc.rect(LEFT, y, totalWidth, HDR_H, 'F');
     doc.setTextColor(255, 255, 255);
     doc.setFont('helvetica', 'bold');
@@ -197,12 +204,12 @@ function drawTable(
 
   if (totalRow) {
     if (y + HDR_H > PB) { doc.addPage(); y = 15; }
-    doc.setFillColor(...PDF_ACCENT_TINT);
+    doc.setFillColor(...PDF_GREEN_TINT);
     doc.rect(LEFT, y, totalWidth, HDR_H, 'F');
-    doc.setDrawColor(...PDF_ACCENT);
+    doc.setDrawColor(...PDF_GREEN);
     doc.setLineWidth(0.5);
     doc.line(LEFT, y, LEFT + totalWidth, y);
-    doc.setTextColor(...PDF_ACCENT_DARK);
+    doc.setTextColor(...PDF_GREEN_DARK);
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(FS);
     let xCursor = LEFT;
@@ -435,9 +442,9 @@ export function DataManagementMenu() {
       for (const [name, entries] of Object.entries(byDebt)) {
         lines.push(`\n${name}`);
         for (const e of entries) {
-          if (e.type === 'creation')   lines.push(`  Created R${e.amount} on ${formatDate(e.date)}`);
-          else if (e.type === 'payment')    lines.push(`  Paid R${e.amount} on ${formatDate(e.date)}`);
-          else if (e.type === 'completion') lines.push(`  COMPLETED R${e.amount} on ${formatDate(e.date)}`);
+          if (e.type === 'creation')   lines.push(`  Created ${cur()}${e.amount} on ${formatDate(e.date)}`);
+          else if (e.type === 'payment')    lines.push(`  Paid ${cur()}${e.amount} on ${formatDate(e.date)}`);
+          else if (e.type === 'completion') lines.push(`  COMPLETED ${cur()}${e.amount} on ${formatDate(e.date)}`);
         }
       }
       lines.push('', '=== EMPLOYMENT ===');
@@ -455,34 +462,34 @@ export function DataManagementMenu() {
       });
       lines.push('', '=== TRANSPORT ===');
       s.history.filter(h => h.type === 'transport').forEach(h => {
-        lines.push(`  ${h.debtTitle} - R${h.amount} on ${formatDate(h.date)}`);
+        lines.push(`  ${h.debtTitle} - ${cur()}${h.amount} on ${formatDate(h.date)}`);
       });
       lines.push('', '=== UBER RIDES ===');
       s.uberRides.forEach(r => {
-        lines.push(`  ${formatDate(r.date)} - R${r.price}${r.from ? ` from ${r.from}` : ''}${r.to ? ` to ${r.to}` : ''}${r.distance ? ` (${r.distance}km)` : ''}`);
+        lines.push(`  ${formatDate(r.date)} - ${cur()}${r.price}${r.from ? ` from ${r.from}` : ''}${r.to ? ` to ${r.to}` : ''}${r.distance ? ` (${r.distance}km)` : ''}`);
       });
       lines.push('', '=== EXPENSES ===');
       s.expenses.forEach(e => {
-        lines.push(`  ${formatDate(e.date)} - ${e.title}${e.category ? ` [${e.category}]` : ''}: R${e.amount}${e.note ? ` (${e.note})` : ''}`);
+        lines.push(`  ${formatDate(e.date)} - ${e.title}${e.category ? ` [${e.category}]` : ''}: ${cur()}${e.amount}${e.note ? ` (${e.note})` : ''}`);
       });
       lines.push('', '=== LENT OUT (OWED TO ME) ===');
       s.loans.forEach(l => {
         const lent = l.events.filter(e => e.type === 'lent').reduce((a, e) => a + e.amount, 0);
         const back = l.events.filter(e => e.type === 'repaid').reduce((a, e) => a + e.amount, 0);
-        lines.push(`\n  ${l.person}${l.reason ? ` \u2014 ${l.reason}` : ''}: lent R${lent}, paid back R${back}, outstanding R${Math.max(0, lent - back)}`);
+        lines.push(`\n  ${l.person}${l.reason ? ` \u2014 ${l.reason}` : ''}: lent ${cur()}${lent}, paid back ${cur()}${back}, outstanding ${cur()}${Math.max(0, lent - back)}`);
         [...l.events]
           .sort((a, b) => (a.date < b.date ? -1 : 1))
-          .forEach(e => lines.push(`    ${formatDate(e.date)} ${e.type === 'repaid' ? 'paid back' : 'lent'} R${e.amount}${e.note ? ` (${e.note})` : ''}`));
+          .forEach(e => lines.push(`    ${formatDate(e.date)} ${e.type === 'repaid' ? 'paid back' : 'lent'} ${cur()}${e.amount}${e.note ? ` (${e.note})` : ''}`));
       });
       lines.push('', '=== SAVINGS ===');
       s.savings.forEach(e => {
-        lines.push(`  ${formatDate(e.createdAt)} - ${e.label}: ${e.direction === 'out' ? '-' : ''}R${e.amount}`);
+        lines.push(`  ${formatDate(e.createdAt)} - ${e.label}: ${e.direction === 'out' ? '-' : ''}${cur()}${e.amount}`);
       });
       lines.push('', '=== BUDGET PLANS ===');
       s.budgetPlans.forEach(p => {
         const spent = p.items.reduce((s, i) => s + i.price, 0);
-        lines.push(`\n  ${p.name} - Budget R${p.budget}, Spent R${spent}`);
-        p.items.forEach(i => lines.push(`    - ${i.name}: R${i.price}${i.link ? ` (${i.link})` : ''}`));
+        lines.push(`\n  ${p.name} - Budget ${cur()}${p.budget}, Spent ${cur()}${spent}`);
+        p.items.forEach(i => lines.push(`    - ${i.name}: ${cur()}${i.price}${i.link ? ` (${i.link})` : ''}`));
       });
       return new Blob([lines.join('\n')], { type: 'text/plain' });
   };
@@ -492,19 +499,19 @@ export function DataManagementMenu() {
       const { utils, write } = await import('xlsx');
       const wb = utils.book_new();
 
-      const historySheet = utils.json_to_sheet(s.history.map(h => ({ Date: formatDate(h.date), Type: h.type, Name: h.debtTitle, 'Amount (R)': h.amount, Notes: h.note ?? '' })));
+      const historySheet = utils.json_to_sheet(s.history.map(h => ({ Date: formatDate(h.date), Type: h.type, Name: h.debtTitle, [`Amount (${cur()})`]: h.amount, Notes: h.note ?? '' })));
       historySheet['!cols'] = [{ wch: 12 }, { wch: 12 }, { wch: 30 }, { wch: 14 }, { wch: 30 }];
       utils.book_append_sheet(wb, historySheet, 'History');
 
-      const uberSheet = utils.json_to_sheet(s.uberRides.map(r => ({ Date: formatDate(r.date), From: r.from ?? '', To: r.to ?? '', 'Price (R)': r.price, 'Distance (km)': r.distance ?? '' })));
+      const uberSheet = utils.json_to_sheet(s.uberRides.map(r => ({ Date: formatDate(r.date), From: r.from ?? '', To: r.to ?? '', [`Price (${cur()})`]: r.price, 'Distance (km)': r.distance ?? '' })));
       uberSheet['!cols'] = [{ wch: 12 }, { wch: 22 }, { wch: 22 }, { wch: 12 }, { wch: 14 }];
       utils.book_append_sheet(wb, uberSheet, 'Uber Rides');
 
-      const budgetSheet = utils.json_to_sheet(s.budgetPlans.flatMap(p => p.items.map(i => ({ Plan: p.name, Budget: p.budget, Item: i.name, 'Price (R)': i.price, Link: i.link ?? '' }))));
+      const budgetSheet = utils.json_to_sheet(s.budgetPlans.flatMap(p => p.items.map(i => ({ Plan: p.name, Budget: p.budget, Item: i.name, [`Price (${cur()})`]: i.price, Link: i.link ?? '' }))));
       budgetSheet['!cols'] = [{ wch: 20 }, { wch: 12 }, { wch: 30 }, { wch: 12 }, { wch: 40 }];
       utils.book_append_sheet(wb, budgetSheet, 'Budget Plans');
 
-      const expensesSheet = utils.json_to_sheet(s.expenses.map(e => ({ Date: formatDate(e.date), Title: e.title, Category: e.category ?? '', 'Amount (R)': e.amount, Note: e.note ?? '' })));
+      const expensesSheet = utils.json_to_sheet(s.expenses.map(e => ({ Date: formatDate(e.date), Title: e.title, Category: e.category ?? '', [`Amount (${cur()})`]: e.amount, Note: e.note ?? '' })));
       expensesSheet['!cols'] = [{ wch: 12 }, { wch: 30 }, { wch: 16 }, { wch: 14 }, { wch: 30 }];
       utils.book_append_sheet(wb, expensesSheet, 'Expenses');
 
@@ -515,13 +522,13 @@ export function DataManagementMenu() {
         Person: l.person,
         Reason: l.reason ?? '',
         Type: e.type === 'repaid' ? 'Paid back' : 'Lent',
-        'Amount (R)': e.amount,
+        [`Amount (${cur()})`]: e.amount,
         Note: e.note ?? '',
       }))));
       loansSheet['!cols'] = [{ wch: 12 }, { wch: 20 }, { wch: 24 }, { wch: 10 }, { wch: 14 }, { wch: 24 }];
       utils.book_append_sheet(wb, loansSheet, 'Lent Out');
 
-      const savingsSheet = utils.json_to_sheet(s.savings.map(e => ({ Date: formatDate(e.createdAt), Label: e.label, Direction: e.direction === 'out' ? 'Taken out' : 'Put away', 'Amount (R)': e.direction === 'out' ? -e.amount : e.amount })));
+      const savingsSheet = utils.json_to_sheet(s.savings.map(e => ({ Date: formatDate(e.createdAt), Label: e.label, Direction: e.direction === 'out' ? 'Taken out' : 'Put away', [`Amount (${cur()})`]: e.direction === 'out' ? -e.amount : e.amount })));
       savingsSheet['!cols'] = [{ wch: 12 }, { wch: 30 }, { wch: 12 }, { wch: 14 }];
       utils.book_append_sheet(wb, savingsSheet, 'Savings');
 
@@ -536,7 +543,7 @@ export function DataManagementMenu() {
       const logoData = logoBase64 ? Uint8Array.from(atob(logoBase64), c => c.charCodeAt(0)) : null;
       const dateStr = new Date().toLocaleDateString('en-ZA', { day: '2-digit', month: 'short', year: 'numeric' });
 
-      const HDR_FILL = '2D323A';
+      const HDR_FILL = '402E8A'; // deep violet — same as PDF_ACCENT_DEEP
       const COL_DATE = 1440;
       const COL_NAME = 5760;
       const COL_AMT  = 1440;
@@ -594,7 +601,7 @@ export function DataManagementMenu() {
               makeHdrCell('Date', 1440),
               makeHdrCell('Route', 4320),
               makeHdrCell('km', 1440),
-              makeHdrCell('Amount (R)', 1440),
+              makeHdrCell(`Amount (${cur()})`, 1440),
             ] as DocCell[],
             tableHeader: true,
           }),
@@ -618,7 +625,7 @@ export function DataManagementMenu() {
         budgetSections.push(new Table({
           width: { size: 8640, type: WidthType.DXA },
           rows: [
-            new TableRow({ children: [makeHdrCell('Item', 7200), makeHdrCell('Price (R)', 1440)] as DocCell[], tableHeader: true }),
+            new TableRow({ children: [makeHdrCell('Item', 7200), makeHdrCell(`Price (${cur()})`, 1440)] as DocCell[], tableHeader: true }),
             ...plan.items.map(i => new TableRow({
               children: [makeDataCell(i.name, 7200), makeDataCell(`R ${i.price.toFixed(2)}`, 1440)] as DocCell[],
             })) as DocRow[],
@@ -646,7 +653,7 @@ export function DataManagementMenu() {
         ...(debtEntries.length > 0 ? [
           new Paragraph({ text: 'Debt Payments', heading: HeadingLevel.HEADING_1 }),
           make3ColTable(
-            ['Date', 'Debt / Description', 'Amount (R)'],
+            ['Date', 'Debt / Description', `Amount (${cur()})`],
             debtEntries.map(h => [formatDate(h.date), h.debtTitle + (h.type !== 'payment' ? ` (${h.type})` : ''), `R ${h.amount.toFixed(2)}`] as [string, string, string])
           ),
           new Paragraph({ text: '' }),
@@ -654,7 +661,7 @@ export function DataManagementMenu() {
         ...(transportEntries.length > 0 ? [
           new Paragraph({ text: 'Transport', heading: HeadingLevel.HEADING_1 }),
           make3ColTable(
-            ['Date', 'Description', 'Amount (R)'],
+            ['Date', 'Description', `Amount (${cur()})`],
             transportEntries.map(h => [formatDate(h.date), h.debtTitle, `R ${h.amount.toFixed(2)}`] as [string, string, string])
           ),
           new Paragraph({ text: '' }),
@@ -667,7 +674,7 @@ export function DataManagementMenu() {
         ...(s.expenses.length > 0 ? [
           new Paragraph({ text: 'Expenses', heading: HeadingLevel.HEADING_1 }),
           make3ColTable(
-            ['Date', 'Title / Category', 'Amount (R)'],
+            ['Date', 'Title / Category', `Amount (${cur()})`],
             s.expenses.map(e => [formatDate(e.date), e.title + (e.category ? ` [${e.category}]` : ''), `R ${e.amount.toFixed(2)}`] as [string, string, string])
           ),
           new Paragraph({ text: '' }),
@@ -675,7 +682,7 @@ export function DataManagementMenu() {
         ...(s.loans.length > 0 ? [
           new Paragraph({ text: 'Lent Out', heading: HeadingLevel.HEADING_1 }),
           make3ColTable(
-            ['Date', 'Person / Movement', 'Amount (R)'],
+            ['Date', 'Person / Movement', `Amount (${cur()})`],
             s.loans.flatMap(l => l.events.map(e => [
               formatDate(e.date),
               `${l.person} \u2014 ${e.type === 'repaid' ? 'paid back' : 'lent'}${e.note ? ` (${e.note})` : ''}`,
@@ -687,7 +694,7 @@ export function DataManagementMenu() {
         ...(s.savings.length > 0 ? [
           new Paragraph({ text: 'Savings', heading: HeadingLevel.HEADING_1 }),
           make3ColTable(
-            ['Date', 'Label', 'Amount (R)'],
+            ['Date', 'Label', `Amount (${cur()})`],
             s.savings.map(e => [formatDate(e.createdAt), e.label, `${e.direction === 'out' ? '-' : ''}R ${e.amount.toFixed(2)}`] as [string, string, string])
           ),
           new Paragraph({ text: '' }),
@@ -725,10 +732,10 @@ export function DataManagementMenu() {
       const PAGE_W = doc.internal.pageSize.getWidth();
       const dateStr = new Date().toLocaleDateString('en-ZA', { day: '2-digit', month: 'short', year: 'numeric' });
 
-      const DEBT_COLS: ColDef[]      = [{ header: 'Date', width: 28 }, { header: 'Debt / Description', width: 110 }, { header: 'Amount (R)', width: 52, align: 'right' }];
-      const TRANSPORT_COLS: ColDef[] = [{ header: 'Date', width: 28 }, { header: 'Description', width: 110 }, { header: 'Amount (R)', width: 52, align: 'right' }];
-      const UBER_COLS: ColDef[]      = [{ header: 'Date', width: 28 }, { header: 'Route', width: 92 }, { header: 'km', width: 22, align: 'right' }, { header: 'Amount (R)', width: 48, align: 'right' }];
-      const BUDGET_COLS: ColDef[]    = [{ header: 'Item', width: 138 }, { header: 'Amount (R)', width: 52, align: 'right' }];
+      const DEBT_COLS: ColDef[]      = [{ header: 'Date', width: 28 }, { header: 'Debt / Description', width: 110 }, { header: `Amount (${cur()})`, width: 52, align: 'right' }];
+      const TRANSPORT_COLS: ColDef[] = [{ header: 'Date', width: 28 }, { header: 'Description', width: 110 }, { header: `Amount (${cur()})`, width: 52, align: 'right' }];
+      const UBER_COLS: ColDef[]      = [{ header: 'Date', width: 28 }, { header: 'Route', width: 92 }, { header: 'km', width: 22, align: 'right' }, { header: `Amount (${cur()})`, width: 48, align: 'right' }];
+      const BUDGET_COLS: ColDef[]    = [{ header: 'Item', width: 138 }, { header: `Amount (${cur()})`, width: 52, align: 'right' }];
 
       let y = 18;
 
@@ -750,7 +757,8 @@ export function DataManagementMenu() {
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(11);
       doc.setTextColor(60, 60, 60);
-      doc.text('History Report', 10, y);
+      // Beside the logo, not under it — at x=10 it ran over the logo's bottom edge.
+      doc.text('History Report', logoBase64 ? 38 : 10, y);
       y += 5;
       doc.setDrawColor(...PDF_ACCENT);
       doc.setLineWidth(0.8);
@@ -825,7 +833,7 @@ export function DataManagementMenu() {
 
       // Expenses
       if (s.expenses.length > 0) {
-        const EXPENSE_COLS: ColDef[] = [{ header: 'Date', width: 28 }, { header: 'Title / Category', width: 110 }, { header: 'Amount (R)', width: 52, align: 'right' }];
+        const EXPENSE_COLS: ColDef[] = [{ header: 'Date', width: 28 }, { header: 'Title / Category', width: 110 }, { header: `Amount (${cur()})`, width: 52, align: 'right' }];
         sectionHeader('EXPENSES');
         const expenseRows: RowData[] = s.expenses.map(e => [
           formatDate(e.date),
@@ -839,7 +847,7 @@ export function DataManagementMenu() {
 
       // Lent out — money owed TO the user, which lives nowhere else in this report.
       if (s.loans.length > 0) {
-        const LOAN_COLS: ColDef[] = [{ header: 'Date', width: 28 }, { header: 'Person / Movement', width: 110 }, { header: 'Amount (R)', width: 52, align: 'right' }];
+        const LOAN_COLS: ColDef[] = [{ header: 'Date', width: 28 }, { header: 'Person / Movement', width: 110 }, { header: `Amount (${cur()})`, width: 52, align: 'right' }];
         sectionHeader('LENT OUT (OWED TO ME)');
         const loanRows: RowData[] = s.loans.flatMap(l => l.events.map(e => [
           formatDate(e.date),
@@ -858,7 +866,7 @@ export function DataManagementMenu() {
       // Savings — the pot, put away and taken out by hand, which no other section of the
       // report accounts for. Withdrawals are negative so the total is what is in the pot.
       if (s.savings.length > 0) {
-        const SAVINGS_COLS: ColDef[] = [{ header: 'Date', width: 28 }, { header: 'Label', width: 110 }, { header: 'Amount (R)', width: 52, align: 'right' }];
+        const SAVINGS_COLS: ColDef[] = [{ header: 'Date', width: 28 }, { header: 'Label', width: 110 }, { header: `Amount (${cur()})`, width: 52, align: 'right' }];
         sectionHeader('SAVINGS');
         const savingsRows: RowData[] = s.savings.map(e => [
           formatDate(e.createdAt),
@@ -917,10 +925,10 @@ export function DataManagementMenu() {
       const PAGE_W = doc.internal.pageSize.getWidth();
       const dateStr = new Date().toLocaleDateString('en-ZA', { day: '2-digit', month: 'short', year: 'numeric' });
 
-      const DEBT_COLS: ColDef[]      = [{ header: 'Date', width: 28 }, { header: 'Debt / Description', width: 110 }, { header: 'Amount (R)', width: 52, align: 'right' }];
-      const TRANSPORT_COLS: ColDef[] = [{ header: 'Date', width: 28 }, { header: 'Description', width: 110 }, { header: 'Amount (R)', width: 52, align: 'right' }];
-      const UBER_COLS: ColDef[]      = [{ header: 'Date', width: 28 }, { header: 'Route', width: 92 }, { header: 'km', width: 22, align: 'right' }, { header: 'Amount (R)', width: 48, align: 'right' }];
-      const SUMMARY_COLS: ColDef[]   = [{ header: 'Category', width: 138 }, { header: 'Total (R)', width: 52, align: 'right' }];
+      const DEBT_COLS: ColDef[]      = [{ header: 'Date', width: 28 }, { header: 'Debt / Description', width: 110 }, { header: `Amount (${cur()})`, width: 52, align: 'right' }];
+      const TRANSPORT_COLS: ColDef[] = [{ header: 'Date', width: 28 }, { header: 'Description', width: 110 }, { header: `Amount (${cur()})`, width: 52, align: 'right' }];
+      const UBER_COLS: ColDef[]      = [{ header: 'Date', width: 28 }, { header: 'Route', width: 92 }, { header: 'km', width: 22, align: 'right' }, { header: `Amount (${cur()})`, width: 48, align: 'right' }];
+      const SUMMARY_COLS: ColDef[]   = [{ header: 'Category', width: 138 }, { header: `Total (${cur()})`, width: 52, align: 'right' }];
 
       let y = 18;
 
@@ -939,12 +947,15 @@ export function DataManagementMenu() {
         doc.text('DUEY Financial Statement', 10, y);
       }
       y += 7;
+      // With the logo, the meta lines sit beside it (under the title) rather than at the left
+      // margin, where they ran over the bottom of the 24mm-tall logo.
+      const metaX = logoBase64 ? 38 : 10;
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(9);
       doc.setTextColor(90, 90, 90);
-      doc.text(`Period: ${periodLabel}`, 10, y);
+      doc.text(`Period: ${periodLabel}`, metaX, y);
       y += 5;
-      doc.text(`Generated: ${dateStr}`, 10, y);
+      doc.text(`Generated: ${dateStr}`, metaX, y);
       y += 5;
       doc.setDrawColor(...PDF_ACCENT);
       doc.setLineWidth(0.8);
@@ -1006,7 +1017,7 @@ export function DataManagementMenu() {
       y += 6;
 
       // Expenses
-      const EXPENSE_STAT_COLS: ColDef[] = [{ header: 'Date', width: 28 }, { header: 'Title / Category', width: 110 }, { header: 'Amount (R)', width: 52, align: 'right' }];
+      const EXPENSE_STAT_COLS: ColDef[] = [{ header: 'Date', width: 28 }, { header: 'Title / Category', width: 110 }, { header: `Amount (${cur()})`, width: 52, align: 'right' }];
       sectionHeader('EXPENSES');
       if (fExpenses.length > 0) {
         const expRows: RowData[] = fExpenses.map(e => [formatDate(e.date), e.title + (e.category ? ` [${e.category}]` : ''), `R  ${e.amount.toFixed(2)}`]);
@@ -1044,26 +1055,26 @@ export function DataManagementMenu() {
       const wb = utils.book_new();
 
       const paymentsSheet = utils.json_to_sheet(
-        fHist.filter(h => h.type === 'payment').map(h => ({ Date: formatDate(h.date), Debt: h.debtTitle, 'Amount (R)': h.amount }))
+        fHist.filter(h => h.type === 'payment').map(h => ({ Date: formatDate(h.date), Debt: h.debtTitle, [`Amount (${cur()})`]: h.amount }))
       );
       paymentsSheet['!cols'] = [{ wch: 12 }, { wch: 35 }, { wch: 14 }];
       utils.book_append_sheet(wb, paymentsSheet, 'Debt Payments');
 
       const transportSheet = utils.json_to_sheet(
-        fHist.filter(h => h.type === 'transport').map(h => ({ Date: formatDate(h.date), Description: h.debtTitle, 'Amount (R)': h.amount }))
+        fHist.filter(h => h.type === 'transport').map(h => ({ Date: formatDate(h.date), Description: h.debtTitle, [`Amount (${cur()})`]: h.amount }))
       );
       transportSheet['!cols'] = [{ wch: 12 }, { wch: 35 }, { wch: 14 }];
       utils.book_append_sheet(wb, transportSheet, 'Transport');
 
       const uberSheet = utils.json_to_sheet(
-        fRides.map(r => ({ Date: formatDate(r.date), From: r.from ?? '', To: r.to ?? '', 'Price (R)': r.price, 'Distance (km)': r.distance ?? '' }))
+        fRides.map(r => ({ Date: formatDate(r.date), From: r.from ?? '', To: r.to ?? '', [`Price (${cur()})`]: r.price, 'Distance (km)': r.distance ?? '' }))
       );
       uberSheet['!cols'] = [{ wch: 12 }, { wch: 22 }, { wch: 22 }, { wch: 12 }, { wch: 14 }];
       utils.book_append_sheet(wb, uberSheet, 'Uber Rides');
 
       const fExpensesExcel = s.expenses.filter(e => isAfter(new Date(e.date), cutoff));
       const expensesStatSheet = utils.json_to_sheet(
-        fExpensesExcel.map(e => ({ Date: formatDate(e.date), Title: e.title, Category: e.category ?? '', 'Amount (R)': e.amount, Note: e.note ?? '' }))
+        fExpensesExcel.map(e => ({ Date: formatDate(e.date), Title: e.title, Category: e.category ?? '', [`Amount (${cur()})`]: e.amount, Note: e.note ?? '' }))
       );
       expensesStatSheet['!cols'] = [{ wch: 12 }, { wch: 30 }, { wch: 16 }, { wch: 14 }, { wch: 30 }];
       utils.book_append_sheet(wb, expensesStatSheet, 'Expenses');
@@ -1073,11 +1084,11 @@ export function DataManagementMenu() {
       const totalUber  = fRides.reduce((a, r) => a + r.price, 0);
       const totalExpStat = fExpensesExcel.reduce((a, e) => a + e.amount, 0);
       const summarySheet = utils.json_to_sheet([
-        { Category: 'Debt Payments', 'Total (R)': totalPaid },
-        { Category: 'Transport',     'Total (R)': totalTrans },
-        { Category: 'Uber Rides',    'Total (R)': totalUber },
-        { Category: 'Expenses',      'Total (R)': totalExpStat },
-        { Category: 'Grand Total',   'Total (R)': totalPaid + totalTrans + totalUber + totalExpStat },
+        { Category: 'Debt Payments', [`Total (${cur()})`]: totalPaid },
+        { Category: 'Transport',     [`Total (${cur()})`]: totalTrans },
+        { Category: 'Uber Rides',    [`Total (${cur()})`]: totalUber },
+        { Category: 'Expenses',      [`Total (${cur()})`]: totalExpStat },
+        { Category: 'Grand Total',   [`Total (${cur()})`]: totalPaid + totalTrans + totalUber + totalExpStat },
       ]);
       summarySheet['!cols'] = [{ wch: 20 }, { wch: 14 }];
       utils.book_append_sheet(wb, summarySheet, 'Summary');

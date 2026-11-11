@@ -78,6 +78,10 @@ export interface ExtraIncome {
   amount: number;
   createdAt: string; // ISO 8601
   recurring?: boolean; // true = counts every month; false/undefined = auto-removed on 1st of next month (mirrors Expense)
+  /** 'incoming' = logged on Money → Cashflow → Incoming rather than the Balance card's Extra
+   *  Income section. Counts toward income exactly the same (sealing, projecting, purging);
+   *  only WHERE it is listed differs. Absent = extra income. */
+  kind?: 'incoming';
 }
 
 /**
@@ -284,6 +288,10 @@ export interface AppState {
   budgetPlans: BudgetPlan[];
   /** The savings pot — money put away and taken back out, by hand, from Overview. */
   savings: SavingEntry[];
+  /** Savings the user already had before they started using the app, set by hand on the
+   *  Savings card. Added to the pot total only — it is NOT a movement, so it is never a
+   *  deduction of any cycle and never touches Remaining/Balance. */
+  savingsOpening: number;
   /** Money lent OUT to other people (Money → Debts → Owed to me). Tracked on its own and
    *  never mixed into the debt/Balance math — see the Loan doc comment. */
   loans: Loan[];

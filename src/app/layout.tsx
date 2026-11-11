@@ -13,6 +13,7 @@ import { TutorialTour } from '@/components/TutorialTour';
 import { HardwareBackButton } from '@/components/HardwareBackButton';
 import { KeyboardInset } from '@/components/KeyboardInset';
 import { UndoToastHost } from '@/components/ui/undo-toast';
+import { ConfirmDeleteHost } from '@/components/ui/confirm-delete';
 import { QuickAdd } from '@/components/QuickAdd';
 
 export const metadata: Metadata = {
@@ -64,6 +65,7 @@ export default function RootLayout({
                 <HardwareBackButton />
                 <KeyboardInset />
                 <UndoToastHost />
+                <ConfirmDeleteHost />
                 <QuickAdd />
               </ErrorBoundary>
             </ThemeProvider>

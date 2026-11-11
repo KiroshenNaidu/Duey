@@ -44,15 +44,21 @@ export function getCurrencySymbol(code = _currency): string {
 
 export function formatCurrency(amount: number, currencyOverride?: string): string {
   const code = currencyOverride ?? _currency;
+  // Thousands are grouped with a space (17 500.00), never a comma, and the decimal is
+  // always a point, whatever the device locale. The space is non-breaking so an amount
+  // never wraps mid-number.
   try {
-    const formatted = new Intl.NumberFormat(undefined, {
+    return new Intl.NumberFormat(undefined, {
       style: 'currency',
       currency: code,
       currencyDisplay: 'narrowSymbol',
-    }).format(amount);
-    return formatted;
+    })
+      .formatToParts(amount)
+      .map(p => (p.type === 'group' ? ' ' : p.type === 'decimal' ? '.' : p.value))
+      .join('');
   } catch {
-    return `${code} ${amount.toFixed(2)}`;
+    const [int, dec] = Math.abs(amount).toFixed(2).split('.');
+    return `${amount < 0 ? '-' : ''}${code} ${int.replace(/\B(?=(\d{3})+(?!\d))/g, ' ')}.${dec}`;
   }
 }
 

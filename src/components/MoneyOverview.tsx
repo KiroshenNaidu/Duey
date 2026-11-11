@@ -24,6 +24,7 @@ import { showUndoToast } from '@/components/ui/undo-toast';
 import { useReplayOnActive } from '@/hooks/useReplayOnActive';
 import { SavingsCard } from '@/components/SavingsCard';
 import { DatePicker } from '@/components/DatePicker';
+import { confirmDelete } from '@/components/ui/confirm-delete';
 
 export function MoneyOverview() {
   const {
@@ -39,7 +40,7 @@ export function MoneyOverview() {
   const [editingIncome, setEditingIncome] = useState(false);
   const [incomeInput, setIncomeInput] = useState('');
   const [excludedIds, setExcludedIds] = useState<Set<string>>(new Set());
-  const [showAllDeductions, setShowAllDeductions] = useState(false);
+  const [showAllRows, setShowAllRows] = useState(false);
   const toggleExclude = (id: string) =>
     setExcludedIds(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
 
@@ -80,9 +81,13 @@ export function MoneyOverview() {
     [payDay, monthlyIncome, extraIncomes, expenses, budgetPlans, history, uberRides,
      transportSettings, transportOverrides, transportMonthlyOverrides, savings],
   );
-  const totalExtra = (extraIncomes ?? []).reduce((s, e) => s + e.amount, 0);
+  // Extra income (this card) and Incoming (Money → Cashflow) share one stored list and both
+  // count as income; they are only listed in different places. Overview shows each.
+  const extras = useMemo(() => (extraIncomes ?? []).filter(e => e.kind !== 'incoming'), [extraIncomes]);
+  const totalExtra = extras.reduce((s, e) => s + e.amount, 0);
+  const totalIncoming = (extraIncomes ?? []).reduce((s, e) => (e.kind === 'incoming' ? s + e.amount : s), 0);
 
-  // ── Which cycle the Deductions + Remaining cards show ──
+  // ── Which cycle the Overview + Remaining cards show ──
   // Keyed, not indexed, exactly like Stats → Pay cycle. null follows the running cycle, so
   // a pay date passing while the app is open never strands you on the old one. The Income
   // card above stays on the running cycle: it is where you EDIT income, and a sealed
@@ -149,7 +154,11 @@ export function MoneyOverview() {
 
   // "(this cycle)" only reads true on this cycle; the header names every other one.
   const when = viewing === 'live' ? ' (this month)' : '';
-  const deductions = [
+  const deductions: { id: string; label: string; value: number; estimate?: boolean }[] = [
+    // Money in from Money → Cashflow → Incoming, as a credit (negative = shows as +, lifts
+    // Remaining). Only the running cycle can tell it apart: another cycle's income is one
+    // figure that already includes it, so there it is 0 and drops out.
+    { id: 'incoming',  label: 'Incoming', value: viewing === 'live' ? -totalIncoming : 0 },
     { id: 'transport', label: `Transport${when}`, value: transportCost, estimate: !transportPaid },
     { id: 'uber',      label: `Uber${when}`,      value: uberSpend },
     { id: 'budget',    label: 'Budget (confirmed)', value: budgetSpent },
@@ -175,25 +184,20 @@ export function MoneyOverview() {
     },
   ];
 
-  // Only what is actually coming off. A zero row states nothing — six of them state it
-  // six times — so they are dropped, and with nothing to deduct the card goes entirely.
-  // Rows tapped out are NOT dropped: their value is still real, so they stay visible (and
-  // struck through) or you could never tap them back in.
+  // Only what is actually moving. A zero row states nothing, so they are dropped, and the
+  // toggle reveals them. Rows tapped out are NOT dropped: their value is still real, so they
+  // stay visible (and struck through) or you could never tap them back in.
   const activeDeductions = deductions.filter(d => d.value !== 0);
-  // What the list actually shows: the ones with money in them, or every category once you
-  // ask. The toggle is only offered when there is something hidden to reveal.
-  const shownDeductions = showAllDeductions ? deductions : activeDeductions;
+  const shownDeductions = showAllRows ? deductions : activeDeductions;
   const hiddenCount = deductions.length - activeDeductions.length;
 
   // Effective total excludes tapped-out rows (local state only — no data is changed).
-  // Derived from the rows themselves: the old version kept a second, parallel array of
-  // amounts that had to stay in the same order as the ids by hand, so a new row could be
-  // shown in one place and silently missed in the other.
   const effectiveDeductions = activeDeductions
     .filter(d => !excludedIds.has(d.id))
     .reduce((s, d) => s + d.value, 0);
-  // The running cycle's income is the card above. Any other cycle brings its own: what it
-  // sealed with, or salary plus recurring extras for the one still to come.
+  // The running cycle's income is the card above (salary + extra income; Incoming is the
+  // credit row in Overview). Any other cycle brings its own: what it sealed with, or salary
+  // plus recurring extras for the one still to come.
   const viewIncome = viewing === 'live' ? monthlyIncome + totalExtra : monthly.income;
   const remaining = viewIncome - effectiveDeductions;
 
@@ -235,14 +239,16 @@ export function MoneyOverview() {
   const handleDeleteExtra = (id: string) => {
     const item = (extraIncomes ?? []).find(e => e.id === id);
     if (!item) return;
-    deleteExtraIncome(id);
-    showUndoToast(`Removed "${item.label}"`, () => restoreExtraIncome(item));
+    confirmDelete({ title: `Delete "${item.label}"?` }, () => {
+      deleteExtraIncome(id);
+      showUndoToast(`Removed "${item.label}"`, () => restoreExtraIncome(item));
+    });
   };
 
   return (
     <div className="space-y-3">
       {/* Remaining — first, because it is the answer this page exists for. Income and
-          Deductions below are how it was worked out. When the Deductions chevrons step to
+          Overview below are how it was worked out. When the Overview chevrons step to
           another cycle, this card follows them. */}
       <Card className={cn('border-2', remaining >= 0 ? 'border-accent/40' : 'border-destructive/40')}>
         <CardContent className="p-3">
@@ -303,11 +309,11 @@ export function MoneyOverview() {
               </button>
             </div>
           ) : (
-            <button onClick={startEdit} className="flex items-center gap-2 group w-full text-left">
-              <span className="text-2xl font-bold text-foreground min-w-0">
+            <button onClick={startEdit} aria-label="Edit monthly income" className="flex items-center gap-2 text-left">
+              <span className="text-2xl font-bold tabular-nums text-foreground min-w-0">
                 {monthlyIncome > 0 ? formatCurrency(monthlyIncome) : 'Set income'}
               </span>
-              <Pencil className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
+              <Pencil className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
             </button>
           )}
 
@@ -361,11 +367,11 @@ export function MoneyOverview() {
               )}
             </div>
 
-            {(extraIncomes ?? []).length === 0 && !addingExtra && (
+            {extras.length === 0 && !addingExtra && (
               <p className="text-[10px] text-muted-foreground/60 italic">No extra income added yet</p>
             )}
 
-            {(extraIncomes ?? []).map(item => (
+            {extras.map(item => (
               <div key={item.id} className="flex items-center justify-between gap-2">
                 <span className="text-xs text-foreground truncate flex-1 flex items-center gap-1.5">
                   {item.label}
@@ -440,12 +446,12 @@ export function MoneyOverview() {
         </CardContent>
       </Card>
 
-      {/* Deductions, for any cycle from the oldest History knows up to the next one. Always
+      {/* Overview (money in and out), for any cycle from the oldest History knows up to the next one. Always
           present: it used to vanish when nothing was being deducted, but its chevrons are
           now the way to other cycles, and those must not disappear with an empty one. */}
       <Card>
         <CardContent className="p-3 space-y-2">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground text-center">Deductions</p>
+          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground text-center">Overview</p>
           {/* The Transport calendar's month header, exactly: ghost chevrons either side, the
               month in the middle (accent while it is the current one) and an uppercase status
               line under it. Tapping the month jumps back to the current one. */}
@@ -480,48 +486,26 @@ export function MoneyOverview() {
             </Button>
           </div>
 
-          {activeDeductions.length === 0 && !showAllDeductions && (
+          {activeDeductions.length === 0 && !showAllRows && (
             <p className="text-[10px] text-muted-foreground/60 italic">
               {viewing === 'projected' ? 'Nothing recurring is set to come off' : 'Nothing came off this month'}
             </p>
           )}
-          {shownDeductions.map(d => {
-            const off = excludedIds.has(d.id);
-            return (
-              <button
-                key={d.id}
-                onClick={() => toggleExclude(d.id)}
-                className={cn('flex justify-between items-baseline w-full text-left transition-opacity', off && 'opacity-35')}
-              >
-                <span className={cn('text-xs text-muted-foreground shrink-0', off && 'line-through')}>
-                  {d.label}
-                  {d.estimate && <span className="ml-1 text-[9px] font-medium text-muted-foreground/50">(estimate)</span>}
-                </span>
-                <span className={cn('text-sm font-semibold tabular-nums min-w-0 text-right', off && 'line-through',
-                  d.value > 0 ? 'text-foreground'
-                    : d.value < 0 ? 'text-[hsl(var(--positive))]'
-                    : 'text-muted-foreground/50')}>
-                  {d.value > 0 ? `−${formatCurrency(d.value)}`
-                    : d.value < 0 ? `+${formatCurrency(Math.abs(d.value))}`
-                    : formatCurrency(0)}
-                </span>
-              </button>
-            );
-          })}
+          {shownDeductions.map(d => <OverviewRow key={d.id} row={d} off={excludedIds.has(d.id)} onToggle={toggleExclude} />)}
           {hiddenCount > 0 && (
             <div className="flex justify-end">
               <button
-                onClick={() => setShowAllDeductions(v => !v)}
+                onClick={() => setShowAllRows(v => !v)}
                 className="text-[10px] font-semibold text-muted-foreground/60 hover:text-muted-foreground transition-colors shrink-0"
               >
-                {showAllDeductions ? 'Show less' : 'Show all'}
+                {showAllRows ? 'Show less' : 'Show all'}
               </button>
             </div>
           )}
           {activeDeductions.length > 0 && (
           <div className="border-t border-border pt-2 mt-1">
             <div className="flex justify-between items-baseline">
-              <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground shrink-0">Total deductions</span>
+              <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground shrink-0">Total</span>
               <span className="text-sm font-bold text-foreground tabular-nums min-w-0 text-right">
                 {effectiveDeductions < 0 ? '+' : '−'}{formatCurrency(Math.abs(effectiveDeductions))}
               </span>
@@ -561,10 +545,41 @@ export function MoneyOverview() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Savings follows the Deductions stepper like Remaining does: step back a cycle and
+      {/* Savings follows the Overview stepper like Remaining does: step back a cycle and
           it shows what was put away in THAT cycle. Rendered here, not by the page, because
           this component owns which cycle is on screen. */}
       <SavingsCard period={viewPeriod} viewing={viewing} onBackToCurrent={() => setPickedKey(null)} />
     </div>
+  );
+}
+
+/**
+ * One Overview line. Tapping it takes it out of the total (and Remaining) without changing
+ * any data — a quick "what if" — and tapping again puts it back. A positive value comes off;
+ * a negative one is money in (Incoming, savings taken back out) and shows as + in green.
+ */
+function OverviewRow({ row, off, onToggle }: {
+  row: { id: string; label: string; value: number; estimate?: boolean };
+  off: boolean;
+  onToggle: (id: string) => void;
+}) {
+  return (
+    <button
+      onClick={() => onToggle(row.id)}
+      className={cn('flex justify-between items-baseline w-full text-left transition-opacity', off && 'opacity-35')}
+    >
+      <span className={cn('text-xs text-muted-foreground shrink-0', off && 'line-through')}>
+        {row.label}
+        {row.estimate && <span className="ml-1 text-[9px] font-medium text-muted-foreground/50">(estimate)</span>}
+      </span>
+      <span className={cn('text-sm font-semibold tabular-nums min-w-0 text-right', off && 'line-through',
+        row.value > 0 ? 'text-foreground'
+          : row.value < 0 ? 'text-[hsl(var(--positive))]'
+          : 'text-muted-foreground/50')}>
+        {row.value > 0 ? `−${formatCurrency(row.value)}`
+          : row.value < 0 ? `+${formatCurrency(Math.abs(row.value))}`
+          : formatCurrency(0)}
+      </span>
+    </button>
   );
 }

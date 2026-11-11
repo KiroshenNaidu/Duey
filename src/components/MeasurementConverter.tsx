@@ -518,11 +518,7 @@ export function MeasurementConverter() {
         </div>
       )}
 
-      {!hasValue && (
-        <p className="text-xs text-muted-foreground/50 text-center pt-1">
-          Enter a value to convert
-        </p>
-      )}
+
     </div>
   );
 }

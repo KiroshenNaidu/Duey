@@ -5,7 +5,7 @@ import { format, parseISO } from 'date-fns';
 import { Trash2 } from 'lucide-react';
 import { AppDataContext } from '@/context/AppDataContext';
 import type { UberRide } from '@/lib/types';
-import { formatCurrency } from '@/lib/utils';
+import { formatCurrency, getCurrencySymbol } from '@/lib/utils';
 import {
   Dialog,
   DialogContent,
@@ -18,6 +18,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { SwipeableRow } from '@/components/SwipeableRow';
 import { showUndoToast } from '@/components/ui/undo-toast';
+import { confirmDelete } from '@/components/ui/confirm-delete';
 
 interface UberDayDialogProps {
   date: string; // ISO YYYY-MM-DD
@@ -31,8 +32,10 @@ export function UberDayDialog({ date, rides, open, onOpenChange }: UberDayDialog
 
   // Both delete paths (trash button + full row swipe) get the same 5s undo window.
   const removeRide = (ride: UberRide) => {
-    deleteUberRide(ride.id);
-    showUndoToast(`Removed ${formatCurrency(ride.price)} ride`, () => restoreUberRide(ride));
+    confirmDelete({ title: `Delete ${formatCurrency(ride.price)} ride?` }, () => {
+      deleteUberRide(ride.id);
+      showUndoToast(`Removed ${formatCurrency(ride.price)} ride`, () => restoreUberRide(ride));
+    });
   };
 
   const [price, setPrice] = useState('');
@@ -107,7 +110,7 @@ export function UberDayDialog({ date, rides, open, onOpenChange }: UberDayDialog
           <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Add Ride</p>
           <div className="grid grid-cols-2 gap-2">
             <div className="space-y-1">
-              <Label htmlFor="uber-price" className="text-[10px]">Price (R) *</Label>
+              <Label htmlFor="uber-price" className="text-[10px]">Price ({getCurrencySymbol()}) *</Label>
               <Input
                 id="uber-price"
                 type="number"

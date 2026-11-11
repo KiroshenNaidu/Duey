@@ -10,6 +10,7 @@ import { acquireOverlayBlur, releaseOverlayBlur } from '@/lib/overlayBlur';
 import { FixedPortal } from '@/components/FixedPortal';
 import { useDraggablePanel } from '@/hooks/useDraggablePanel';
 import type { ThrowOrigin } from '@/components/SwipeLaunchFab';
+import { confirmDelete } from '@/components/ui/confirm-delete';
 
 type SaveState = 'saved' | 'saving';
 
@@ -195,10 +196,12 @@ export function QuickNotepad({ isOpen, throwFrom = null, onClose }: { isOpen: bo
   }, [setNotepadContent]);
 
   const handleClear = useCallback(() => {
-    setLocalContent('');
-    clearTimeout(debounceRef.current);
-    setNotepadContent('');
-    setSaveState('saved');
+    confirmDelete({ title: 'Clear notes?', description: 'Everything in the notepad will be deleted. This cannot be undone.', confirmLabel: 'Clear' }, () => {
+      setLocalContent('');
+      clearTimeout(debounceRef.current);
+      setNotepadContent('');
+      setSaveState('saved');
+    });
   }, [setNotepadContent]);
 
   return (

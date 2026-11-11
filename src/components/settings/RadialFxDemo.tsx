@@ -191,9 +191,6 @@ export function RadialFxDemo({ value, onChange }: {
           </button>
         ))}
       </div>
-      <p className="text-[10px] text-muted-foreground">
-        {RADIAL_FX_PRESETS.find(p => p.id === value)?.description}
-      </p>
 
       {/* Live playground */}
       <div

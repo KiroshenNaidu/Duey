@@ -25,6 +25,7 @@ import { format } from 'date-fns';
 import { FolderAccess } from '@/lib/folderAccess';
 import { DatePickerInput } from '@/components/ui/date-picker';
 import { PeopleManagerDialog, usePeople } from '@/components/PeopleManager';
+import { confirmDelete } from '@/components/ui/confirm-delete';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -102,9 +103,13 @@ async function getLogoBase64(): Promise<string> {
 
 const PDF_INK = [26, 28, 32] as const;          // near-black body text
 const PDF_CHARCOAL = [40, 44, 52] as const;     // header band / table head
-const PDF_ACCENT = [151, 223, 104] as const;    // Duey primary (lime) as RGB
-const PDF_ACCENT_DARK = [86, 140, 50] as const; // readable accent for text on white
-const PDF_ACCENT_TINT = [239, 249, 231] as const; // faint lime fill for total rows
+// Brand colours from the System Rec theme: violet primary (252 84% 72%) for rules and
+// table heads, mint accent (168 62% 56%) for totals. Keep in sync with DataManagementMenu.tsx.
+const PDF_ACCENT = [148, 124, 244] as const;      // violet primary — strip, rules & underlines
+const PDF_ACCENT_DEEP = [64, 46, 138] as const;   // deep violet — table heads (white text)
+const PDF_GREEN = [73, 212, 185] as const;        // mint accent — total-row rule
+const PDF_GREEN_DARK = [29, 124, 105] as const;   // readable mint for text on white
+const PDF_GREEN_TINT = [235, 249, 246] as const;  // faint mint fill for total rows
 
 type ColDef = { header: string; width: number; align?: 'left' | 'right' };
 type RowData = (string | number)[];
@@ -117,7 +122,7 @@ function drawTable(doc: any, startY: number, cols: ColDef[], rows: RowData[], to
   let y = startY;
 
   const drawHeader = () => {
-    doc.setFillColor(...PDF_CHARCOAL); doc.rect(LEFT, y, totalWidth, HDR_H, 'F');
+    doc.setFillColor(...PDF_ACCENT_DEEP); doc.rect(LEFT, y, totalWidth, HDR_H, 'F');
     doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold'); doc.setFontSize(FS);
     let x = LEFT;
     for (const col of cols) {
@@ -150,10 +155,10 @@ function drawTable(doc: any, startY: number, cols: ColDef[], rows: RowData[], to
 
   if (totalRow) {
     if (y + HDR_H > PB) { doc.addPage(); y = 15; }
-    doc.setFillColor(...PDF_ACCENT_TINT); doc.rect(LEFT, y, totalWidth, HDR_H, 'F');
-    doc.setDrawColor(...PDF_ACCENT); doc.setLineWidth(0.5);
+    doc.setFillColor(...PDF_GREEN_TINT); doc.rect(LEFT, y, totalWidth, HDR_H, 'F');
+    doc.setDrawColor(...PDF_GREEN); doc.setLineWidth(0.5);
     doc.line(LEFT, y, LEFT + totalWidth, y);
-    doc.setTextColor(...PDF_ACCENT_DARK); doc.setFont('helvetica', 'bold'); doc.setFontSize(FS);
+    doc.setTextColor(...PDF_GREEN_DARK); doc.setFont('helvetica', 'bold'); doc.setFontSize(FS);
     let x = LEFT;
     for (let c = 0; c < cols.length; c++) {
       const cell = String(totalRow[c] ?? '');
@@ -908,8 +913,10 @@ export default function HistoryPage() {
   const handleDeleteEntry = (id: string) => {
     const entry = history.find(h => h.id === id);
     if (!entry) return;
-    deleteHistoryEntry(id);
-    showUndoToast(`Deleted ${entry.debtTitle}`, () => restoreHistoryEntry(entry));
+    confirmDelete({ title: `Delete "${entry.debtTitle}"?`, description: 'This removes the entry from your history.' }, () => {
+      deleteHistoryEntry(id);
+      showUndoToast(`Deleted ${entry.debtTitle}`, () => restoreHistoryEntry(entry));
+    });
   };
   const [exportOpen, setExportOpen] = useState(false);
   const [, setChoosingFolder] = useState(false);
@@ -1316,7 +1323,7 @@ export default function HistoryPage() {
               <div className="flex gap-1.5 flex-wrap">
                 {([
                   { label: 'This month', on: filterThisMonth, toggle: () => setFilterThisMonth(v => !v) },
-                  { label: 'R500+', on: filterBig, toggle: () => setFilterBig(v => !v) },
+                  { label: `${getCurrencySymbol()}500+`, on: filterBig, toggle: () => setFilterBig(v => !v) },
                   { label: 'Edited', on: filterEdited, toggle: () => setFilterEdited(v => !v) },
                 ] as const).map(chip => (
                   <button
@@ -1481,7 +1488,7 @@ export default function HistoryPage() {
                         key={item.entry.id}
                         entry={item.entry}
                         onUpdate={updateHistoryEntry}
-                        onDelete={deleteHistoryEntry}
+                        onDelete={handleDeleteEntry}
                       />
                     ) : (
                       <div key={item.ride.id} className="flex items-center gap-3 py-3 border-b border-border/30 last:border-0">

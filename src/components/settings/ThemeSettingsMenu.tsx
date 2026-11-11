@@ -22,6 +22,7 @@ import { SwipeTabView } from '@/components/SwipeTabView';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { showUndoToast } from '@/components/ui/undo-toast';
+import { confirmDelete } from '@/components/ui/confirm-delete';
 
 const TAB_ORDER = ['style', 'colors', 'background', 'presets'] as const;
 type TabKey = (typeof TAB_ORDER)[number];
@@ -249,7 +250,10 @@ export function ThemeSettingsMenu({ onCancel, onDirtyChange, onSaved }: { onCanc
     event.target.value = '';
   };
 
-  const handleRemoveImage = () => setPreviewTheme(p => ({ ...p, backgroundImage: '', backgroundVideo: '', bgX: 50, bgY: 50, bgScale: 1, backgroundBlur: 0 }));
+  const handleRemoveImage = () => confirmDelete(
+    { title: 'Remove background?', description: 'The background image and its position settings will be cleared.', confirmLabel: 'Remove' },
+    () => setPreviewTheme(p => ({ ...p, backgroundImage: '', backgroundVideo: '', bgX: 50, bgY: 50, bgScale: 1, backgroundBlur: 0 })),
+  );
 
   const onBgPointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     if (!previewTheme.backgroundImage && !previewTheme.backgroundVideo) return;
@@ -588,9 +592,6 @@ export function ThemeSettingsMenu({ onCancel, onDirtyChange, onSaved }: { onCanc
               <div className="flex items-center justify-between bg-muted/30 rounded-xl px-3 py-2.5">
                 <div className="flex-1 min-w-0 pr-3">
                   <p className="text-xs font-semibold text-foreground">Swipe actions on cards</p>
-                  <p className="text-[10px] text-muted-foreground mt-0.5">
-                    Swipe expenses, debts and rides left to reveal edit / pay / delete
-                  </p>
                 </div>
                 <Switch checked={draftSwipeActions} onCheckedChange={setDraftSwipeActions} />
               </div>
@@ -619,9 +620,6 @@ export function ThemeSettingsMenu({ onCancel, onDirtyChange, onSaved }: { onCanc
           <Card>
             <CardHeader className="pb-2"><CardTitle className="text-sm">Status Colors</CardTitle></CardHeader>
             <CardContent>
-              <p className="text-[11px] text-muted-foreground/70 mb-3">
-                Colors used for badges and amounts across History &amp; Stats (payments, transport, budget, etc.).
-              </p>
               <div className="grid grid-cols-3 gap-3">
                 {STATUS_COLOR_VARS.map(({ field, label }) => (
                   <ColorSwatch key={field} label={label} field={field as ColorField} />

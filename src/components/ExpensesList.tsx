@@ -16,6 +16,7 @@ import { useFabLongPress, FAB_TOUCH_STYLE, FabPulse } from '@/components/QuickAd
 import { SwipeableRow } from '@/components/SwipeableRow';
 import { showUndoToast } from '@/components/ui/undo-toast';
 import { clearsWhen } from '@/lib/cycles';
+import { confirmDelete } from '@/components/ui/confirm-delete';
 
 function AddExpenseDialog({ children }: { children: React.ReactNode }) {
   const { addExpense, cycleMode } = useContext(AppDataContext);
@@ -100,8 +101,10 @@ export function ExpensesList() {
   const handleDelete = (id: string) => {
     const expense = expenses.find(e => e.id === id);
     if (!expense) return;
-    deleteExpense(id);
-    showUndoToast(`Removed "${expense.title}"`, () => restoreExpense(expense));
+    confirmDelete({ title: `Delete "${expense.title}"?` }, () => {
+      deleteExpense(id);
+      showUndoToast(`Removed "${expense.title}"`, () => restoreExpense(expense));
+    });
   };
 
   const total = expenses.reduce((s, e) => s + e.amount, 0);
@@ -137,7 +140,11 @@ export function ExpensesList() {
               <span className="text-lg font-bold text-destructive tabular-nums">−{formatCurrency(total)}</span>
             </CardContent>
           </Card>
-          <ExpenseDonutDialog open={chartOpen} onOpenChange={setChartOpen} />
+          <BreakdownDonutDialog
+            open={chartOpen} onOpenChange={setChartOpen}
+            items={expenses.map(e => ({ id: e.id, label: e.title, amount: e.amount }))}
+            title="Expense breakdown" description="How this month's expenses split up."
+          />
 
           {/* Recurring */}
           {recurring.length > 0 && (
@@ -186,14 +193,20 @@ const DONUT_CIRC = 2 * Math.PI * DONUT_RADIUS;
 const DONUT_GAP = 1.5;
 
 /**
- * Each expense as a slice of the total, largest first. Colours are the same theme-driven
+ * Each item (expense or income) as a slice of the total, largest first. Colours are the same theme-driven
  * analogous family as "Where it goes" on Stats, and the legend under the ring carries the
  * amounts, so the slices themselves need no labels.
  */
-function ExpenseDonutDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (o: boolean) => void }) {
-  const { expenses, themeSettings } = useContext(AppDataContext);
+export function BreakdownDonutDialog({ open, onOpenChange, items, title, description }: {
+  open: boolean;
+  onOpenChange: (o: boolean) => void;
+  items: { id: string; label: string; amount: number }[];
+  title: string;
+  description: string;
+}) {
+  const { themeSettings } = useContext(AppDataContext);
 
-  const sorted = useMemo(() => [...expenses].sort((a, b) => b.amount - a.amount), [expenses]);
+  const sorted = useMemo(() => [...items].sort((a, b) => b.amount - a.amount), [items]);
   const total = sorted.reduce((s, e) => s + e.amount, 0);
   const colors = useMemo(() => {
     const n = sorted.length;
@@ -221,8 +234,8 @@ function ExpenseDonutDialog({ open, onOpenChange }: { open: boolean; onOpenChang
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-sm">
         <DialogHeader>
-          <DialogTitle>Expense breakdown</DialogTitle>
-          <DialogDescription>How this month&apos;s expenses split up.</DialogDescription>
+          <DialogTitle>{title}</DialogTitle>
+          <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
 
         <div className="relative mx-auto w-40 h-40">
@@ -249,7 +262,7 @@ function ExpenseDonutDialog({ open, onOpenChange }: { open: boolean; onOpenChang
           {sorted.map((e, i) => (
             <div key={e.id} className="flex items-center gap-2 py-1">
               <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ background: colors[i] }} />
-              <p className="text-xs text-muted-foreground flex-1 min-w-0 truncate">{e.title}</p>
+              <p className="text-xs text-muted-foreground flex-1 min-w-0 truncate">{e.label}</p>
               <p className="text-[10px] text-muted-foreground/60 tabular-nums shrink-0 w-9 text-right">
                 {total > 0 ? Math.round((e.amount / total) * 100) : 0}%
               </p>

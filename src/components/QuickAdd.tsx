@@ -6,7 +6,7 @@ import type { AppRouterInstance } from 'next/dist/shared/lib/app-router-context.
 import { format } from 'date-fns';
 import { AnimatePresence, animate, motion, useMotionValue, useReducedMotion } from 'framer-motion';
 import { AppDataContext } from '@/context/AppDataContext';
-import { formatCurrency, cn } from '@/lib/utils';
+import { formatCurrency, getCurrencySymbol, cn } from '@/lib/utils';
 import { calculateTransportMonth, isTransportPaidForMonth, dayKey } from '@/lib/calculations';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -878,7 +878,7 @@ function QuickPaymentForm({ onDone }: { onDone: () => void }) {
         </div>
       </div>
       <div>
-        <FieldLabel>Amount (R)</FieldLabel>
+        <FieldLabel>Amount ({getCurrencySymbol()})</FieldLabel>
         <Input
           type="number" inputMode="decimal" value={amount} autoFocus
           onChange={e => setAmount(e.target.value)}
@@ -922,7 +922,7 @@ function QuickExpenseForm({ onDone }: { onDone: () => void }) {
         <Input value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g., Groceries" autoFocus />
       </div>
       <div>
-        <FieldLabel>Amount (R)</FieldLabel>
+        <FieldLabel>Amount ({getCurrencySymbol()})</FieldLabel>
         <Input
           type="number" inputMode="decimal" value={amount}
           onChange={e => setAmount(e.target.value)}
@@ -961,7 +961,7 @@ function QuickIncomeForm({ onDone }: { onDone: () => void }) {
         <Input value={label} onChange={e => setLabel(e.target.value)} placeholder="e.g., Freelance" autoFocus />
       </div>
       <div>
-        <FieldLabel>Amount (R)</FieldLabel>
+        <FieldLabel>Amount ({getCurrencySymbol()})</FieldLabel>
         <Input
           type="number" inputMode="decimal" value={amount}
           onChange={e => setAmount(e.target.value)}
@@ -1006,7 +1006,7 @@ function QuickUberForm({ onDone }: { onDone: () => void }) {
   return (
     <div className="space-y-3">
       <div>
-        <FieldLabel>Price (R)</FieldLabel>
+        <FieldLabel>Price ({getCurrencySymbol()})</FieldLabel>
         <Input
           type="number" inputMode="decimal" value={price} autoFocus
           onChange={e => setPrice(e.target.value)}
@@ -1060,11 +1060,11 @@ function QuickDebtForm({ onDone }: { onDone: () => void }) {
       </div>
       <div className="grid grid-cols-2 gap-2">
         <div>
-          <FieldLabel>Total owed (R)</FieldLabel>
+          <FieldLabel>Total owed ({getCurrencySymbol()})</FieldLabel>
           <Input type="number" inputMode="decimal" value={total} onChange={e => setTotal(e.target.value)} placeholder="5000" />
         </div>
         <div>
-          <FieldLabel>Installment (R)</FieldLabel>
+          <FieldLabel>Installment ({getCurrencySymbol()})</FieldLabel>
           <Input
             type="number" inputMode="decimal" value={installment}
             onChange={e => setInstallment(e.target.value)}
@@ -1144,7 +1144,7 @@ function QuickBudgetPlanForm({ onDone }: { onDone: () => void }) {
         <Input value={name} onChange={e => setName(e.target.value)} placeholder="e.g., Groceries, PC Build" autoFocus />
       </div>
       <div>
-        <FieldLabel>Budget (R)</FieldLabel>
+        <FieldLabel>Budget ({getCurrencySymbol()})</FieldLabel>
         <Input
           type="number" inputMode="decimal" value={budget}
           onChange={e => setBudget(e.target.value)}
@@ -1202,7 +1202,7 @@ function QuickBudgetItemForm({ onDone }: { onDone: () => void }) {
         <Input value={name} onChange={e => setName(e.target.value)} placeholder="e.g., Keyboard" autoFocus />
       </div>
       <div>
-        <FieldLabel>Price (R)</FieldLabel>
+        <FieldLabel>Price ({getCurrencySymbol()})</FieldLabel>
         <Input
           type="number" inputMode="decimal" value={price}
           onChange={e => setPrice(e.target.value)}

@@ -9,7 +9,7 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/componen
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { formatCurrency, cn } from '@/lib/utils';
+import { formatCurrency, getCurrencySymbol, cn } from '@/lib/utils';
 import { calculateTransportMonth, getEffectiveDayState, dayKey } from '@/lib/calculations';
 import type { DayState } from '@/lib/types';
 import { UberDayDialog } from '@/components/UberDayDialog';
@@ -315,7 +315,7 @@ export function TransportPage() {
 
               {pricingMode === 'daily' ? (
                 <div className="space-y-1">
-                  <Label htmlFor="dailyFee" className="text-[10px] text-muted-foreground">Daily Fee (R)</Label>
+                  <Label htmlFor="dailyFee" className="text-[10px] text-muted-foreground">Daily Fee ({getCurrencySymbol()})</Label>
                   <Input
                     id="dailyFee"
                     type="number"
@@ -328,7 +328,7 @@ export function TransportPage() {
                 </div>
               ) : (
                 <div className="space-y-1">
-                  <Label htmlFor="monthlyFee" className="text-[10px] text-muted-foreground">Monthly Fee (R)</Label>
+                  <Label htmlFor="monthlyFee" className="text-[10px] text-muted-foreground">Monthly Fee ({getCurrencySymbol()})</Label>
                   <Input
                     id="monthlyFee"
                     type="number"
@@ -433,10 +433,11 @@ export function TransportPage() {
         </CardHeader>
 
         <CardContent className="p-3 pt-0 pb-0">
+          {/* .calendar-container has a min-height that fits the PAID stamp on any month. */}
           <div className="calendar-container py-6">
             {/* Faded while editing a paid flat-monthly month so the days under it stay readable. */}
             {calendarMode === 'driver' && isPaidForMonth && (
-              <div className={cn("paid-stamp transition-opacity", editing && "opacity-20")}>PAID</div>
+              <div key={monthKey} className={cn("paid-stamp transition-opacity", editing && "opacity-20")}>PAID</div>
             )}
 
             <div className="grid grid-cols-7 gap-1 text-center text-[10px] font-semibold text-muted-foreground">

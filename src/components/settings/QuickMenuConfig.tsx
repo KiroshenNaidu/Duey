@@ -10,6 +10,7 @@ import { cn } from '@/lib/utils';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Zap, X, Plus, Check, ChevronLeft, ChevronRight, Trash2 } from 'lucide-react';
+import { confirmDelete } from '@/components/ui/confirm-delete';
 
 // Configure the quick-add radial on a LIVE preview of the fan itself: the items sit at
 // their real arc positions, so what you arrange here is exactly what opens in the app.
@@ -57,8 +58,10 @@ export function QuickMenuConfig({ value, onChange }: {
 
   const removeSelected = () => {
     if (!selected || atMin) return;
-    onChange(value.filter(id => id !== selected));
-    setSelected(null);
+    confirmDelete({ title: 'Remove from menu?', description: 'You can add it back from the list below.', confirmLabel: 'Remove' }, () => {
+      onChange(value.filter(id => id !== selected));
+      setSelected(null);
+    });
   };
 
   const add = (id: string) => {
@@ -68,10 +71,6 @@ export function QuickMenuConfig({ value, onChange }: {
 
   return (
     <div className="space-y-3">
-      <p className="text-[10px] text-muted-foreground">
-        {value.length} of {MAX_QUICK_SHORTCUTS} slots · tap an item, then tap another to swap - this is exactly how your menu will look
-      </p>
-
       {/* Live radial preview */}
       <div className="relative h-48 rounded-2xl border border-border/60 bg-muted/10 overflow-hidden">
         <div className="absolute left-1/2 bottom-8 w-0 h-0">
@@ -152,11 +151,11 @@ export function QuickMenuConfig({ value, onChange }: {
             <X className="h-4 w-4" />
           </button>
         </div>
-      ) : (
+      ) : atMin ? (
         <p className="text-[9px] text-muted-foreground/70 px-1">
-          {atMin ? `At least ${MIN_QUICK_SHORTCUTS} shortcut must stay in the menu. ` : ''}Select an item above to move or remove it.
+          At least {MIN_QUICK_SHORTCUTS} shortcut must stay in the menu.
         </p>
-      )}
+      ) : null}
 
       {/* Add new area — opens the full catalogue */}
       <button
@@ -180,7 +179,7 @@ export function QuickMenuConfig({ value, onChange }: {
         <DialogContent className="sm:max-w-md flex flex-col max-h-[85dvh] p-0 gap-0 overflow-hidden">
           <DialogHeader className="p-5 pb-3 text-left shrink-0">
             <DialogTitle>All shortcuts</DialogTitle>
-            <DialogDescription className="text-xs">
+            <DialogDescription className="sr-only">
               Everything the quick menu can do.
             </DialogDescription>
           </DialogHeader>
@@ -208,7 +207,6 @@ export function QuickMenuConfig({ value, onChange }: {
                   </span>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold text-foreground">{s.title}</p>
-                    <p className="text-[10px] text-muted-foreground mt-0.5">{s.description}</p>
                   </div>
                   {added ? (
                     <span className="flex items-center gap-1 text-[10px] font-bold text-accent shrink-0">

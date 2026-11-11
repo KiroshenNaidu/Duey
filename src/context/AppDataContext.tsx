@@ -137,6 +137,7 @@ function migrateState(raw: AppState): AppState {
     extraIncomes: raw.extraIncomes ?? [],
     budgetPlans: raw.budgetPlans ?? [],
     savings: migrateSavings(raw),
+    savingsOpening: raw.savingsOpening ?? 0,
     // Backups written before the lending ledger existed simply have none.
     loans: (raw.loans ?? []).map(l => ({ ...l, events: l.events ?? [] })),
     monthlyIncome: raw.monthlyIncome ?? 0,
@@ -272,6 +273,7 @@ const defaultState: AppState = {
   budgetPlans: [],
   monthlyIncome: 0,
   savings: [],
+  savingsOpening: 0,
   loans: [],
   userProfile: { name: '', paydayDay: 26, bio: '' },
   notificationSettings: { masterEnabled: false, enabled: false, paydayDay: 26, hour: 18, minute: 0, message: 'Time to log your monthly payments.' },
@@ -352,7 +354,8 @@ interface AppContextType extends AppState {
   addExpense: (expense: Omit<Expense, 'id' | 'createdAt'>) => void;
   deleteExpense: (expenseId: string) => void;
   updateExpense: (expenseId: string, data: Partial<Omit<Expense, 'id' | 'createdAt'>>) => void;
-  addExtraIncome: (label: string, amount: number, recurring?: boolean) => void;
+  addExtraIncome: (label: string, amount: number, recurring?: boolean, kind?: ExtraIncome['kind']) => void;
+  updateExtraIncome: (id: string, data: Partial<Pick<ExtraIncome, 'label' | 'amount' | 'recurring'>>) => void;
   deleteExtraIncome: (id: string) => void;
   restoreExtraIncome: (item: ExtraIncome) => void;
   /** One savings movement. `cycleKey` files it against a pay cycle; `direction` says whether
@@ -374,6 +377,8 @@ interface AppContextType extends AppState {
   /** Close a loan by hand (written off / settled off-app), or reopen it. */
   setLoanSettled: (loanId: string, settled: boolean) => void;
   updateSaving: (id: string, data: Partial<Pick<SavingEntry, 'amount' | 'label' | 'note'>>) => void;
+  /** Savings held before using the app. Pot total only — never touches the balance. */
+  setSavingsOpening: (amount: number) => void;
   deleteSaving: (id: string) => void;
   restoreSaving: (item: SavingEntry) => void;
   restoreExpense: (item: Expense) => void;
@@ -442,6 +447,7 @@ export const AppDataContext = createContext<AppContextType>({
   deleteExpense: () => {},
   updateExpense: () => {},
   addExtraIncome: () => {},
+  updateExtraIncome: () => {},
   deleteExtraIncome: () => {},
   restoreExtraIncome: () => {},
   addSaving: () => {},
@@ -457,6 +463,7 @@ export const AppDataContext = createContext<AppContextType>({
   restoreLoanEvent: () => {},
   setLoanSettled: () => {},
   updateSaving: () => {},
+  setSavingsOpening: () => {},
   deleteSaving: () => {},
   restoreSaving: () => {},
   restoreExpense: () => {},
@@ -992,10 +999,17 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     }));
   }, [updateStateAndSync]);
 
-  const addExtraIncome = useCallback((label: string, amount: number, recurring = false) => {
+  const addExtraIncome = useCallback((label: string, amount: number, recurring = false, kind?: ExtraIncome['kind']) => {
     updateStateAndSync(prev => ({
       ...prev,
-      extraIncomes: [...(prev.extraIncomes ?? []), { id: genId(), label, amount, createdAt: new Date().toISOString(), recurring }],
+      extraIncomes: [...(prev.extraIncomes ?? []), { id: genId(), label, amount, createdAt: new Date().toISOString(), recurring, ...(kind ? { kind } : {}) }],
+    }));
+  }, [updateStateAndSync]);
+
+  const updateExtraIncome = useCallback((id: string, data: Partial<Pick<ExtraIncome, 'label' | 'amount' | 'recurring'>>) => {
+    updateStateAndSync(prev => ({
+      ...prev,
+      extraIncomes: (prev.extraIncomes ?? []).map(e => (e.id === id ? { ...e, ...data } : e)),
     }));
   }, [updateStateAndSync]);
 
@@ -1584,6 +1598,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     deleteExpense,
     updateExpense,
     addExtraIncome,
+    updateExtraIncome,
     deleteExtraIncome,
     restoreExtraIncome,
     addSaving,
@@ -1599,6 +1614,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     restoreLoanEvent,
     setLoanSettled,
     updateSaving,
+    setSavingsOpening: (amount: number) => updateStateAndSync(p => ({ ...p, savingsOpening: amount })),
     deleteSaving,
     restoreSaving,
     restoreExpense,
